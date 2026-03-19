@@ -18,6 +18,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
   - [Phase 9: Reporting 2.0](#phase-9)
   - [Phase 10: Multi-Tenant](#phase-10)
   - [Phase 11: Hierarchical Management](#phase-11)
+  - [Phase 12: SuperAdmin Governance](#phase-12)
 
 ---
 
@@ -113,4 +114,13 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Managed Debit/Credit Workflows**: Empower authorized roles to allocate funds (Debit) to client sub-accounts and collect funds (Credit) back to the Mother Account.
 - **Organization-Based Mapping**: Associate groups of users with a specific Client/Organization ID for isolated balance management.
 - **Transaction Sovereignty**: Ensure all inter-account transfers are cryptographically linked in the `AuditLog` for total forensic transparency.
+</details>
+
+<details id="phase-12">
+<summary><b>Phase 12: Administrative Governance Hub (SuperAdmin)</b></summary>
+
+- **Global User Management**: Empower the **SuperAdmin** role to view, search, and manage all users across the entire console.
+- **Permission Overrides**: Allow SuperAdmins to manually adjust roles, verify emails, and reset security states for any account.
+- **Account Lifeline Control**: Capability to freeze, deactivate, or reactivate accounts instantly to mitigate risk.
+- **Comprehensive Activity Oversight**: A master view of all `AuditLog` entries across the system for security auditing and compliance.
 </details>

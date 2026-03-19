@@ -4,6 +4,16 @@ The **Finance Management Console (FMC)** is an enterprise-grade personal finance
 
 ---
 
+## 📖 Table of Contents
+- [🏗️ Architecture & Security](#️-architecture--security)
+- [🔐 Advanced Authentication Engine](#-advanced-authentication-engine)
+- [✨ Key Features](#-key-features)
+- [🚀 Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+
+---
+
 ## 🏗️ Architecture & Security
 
 The system is rigorously structured using clean, domain-driven boundaries and heavily fortified with standard enterprise security parameters:

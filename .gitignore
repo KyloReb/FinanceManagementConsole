@@ -41,3 +41,6 @@ project.lock.json
 # ===========================
 publish/
 **/publish/
+
+# Local Ad-hoc Scripts
+query_db.ps1

@@ -1,0 +1,168 @@
+@page "/verify-email"
+@using Microsoft.EntityFrameworkCore
+@layout Layout.BlankLayout
+@attribute [AllowAnonymous]
+@inject UserManager<ApplicationUser> UserManager
+@inject IOtpService OtpService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Verify Email</PageTitle>
+
+<div class="d-flex justify-center align-center" style="min-height: 100vh; background-color: var(--mud-palette-background);">
+    <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
+        <MudIcon Icon="@Icons.Material.Filled.MarkEmailRead" Color="Color.Primary" Size="Size.Large" Class="mb-2" />
+        <MudText Typo="Typo.h5" Class="mb-2 fw-bold">Verify Your Email</MudText>
+        <MudText Typo="Typo.body2" Class="mb-6 text-center" Style="opacity: 0.8;">We sent a 6-digit code to <b>@Email</b>. Please enter it below.</MudText>
+
+        @if (_isLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4 w-100" />
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="w-100 mb-4">@_errorMessage</MudAlert>
+        }
+
+        <EditForm Model="@_model" OnValidSubmit="HandleVerificationAsync" class="w-100">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="_model.Code" For="@(() => _model.Code)" Label="6-Digit Verification Code" Variant="Variant.Outlined" FullWidth="true" Class="mb-4 text-center" MaxLength="6" TextUpdateSuppression="false" />
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Verifying...</MudText>
+                }
+                else
+                {
+                    <MudText>Verify</MudText>
+                }
+            </MudButton>
+        </EditForm>
+
+        <MudText Typo="Typo.body2" Class="mt-5 text-center">
+            Didn't receive the email? <MudLink OnClick="ResendCodeAsync" Disabled="@_isResending" Color="Color.Primary" Style="cursor:pointer">Resend Code</MudLink>
+        </MudText>
+    </MudCard>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Email { get; set; }
+    
+    [SupplyParameterFromQuery]
+    public string? UserId { get; set; }
+
+    private VerifyModel _model = new();
+    private bool _isLoading = false;
+    private bool _isResending = false;
+    private string _errorMessage = "";
+
+    /// <summary>
+    /// Validates the injected numeric payload against the user's active OtpVerification table records via OtpService.
+    /// If valid, confirms the parent Identity User and allows immediate sign-in routing.
+    /// </summary>
+    private async Task HandleVerificationAsync()
+    {
+        if (_isLoading) return; // Prevent DbContext thread concurrency on fast UI interactions
+        _isLoading = true;
+        _errorMessage = "";
+
+        try
+        {
+            if (string.IsNullOrEmpty(Email) && string.IsNullOrEmpty(UserId))
+            {
+                _errorMessage = "Email parameter is missing.";
+                return;
+            }
+
+            var user = !string.IsNullOrEmpty(UserId) 
+                ? await UserManager.FindByIdAsync(UserId)
+                : await UserManager.Users.FirstOrDefaultAsync(u => u.Email == Email);
+                
+            if (user == null)
+            {
+                _errorMessage = "Account not found.";
+                return;
+            }
+
+            // OTP Max attempts logic is completely handled securely by the backend OtpService
+            var isValid = await OtpService.VerifyOtpAsync(user.Id, _model.Code, "EmailVerification");
+
+            if (isValid)
+            {
+                user.EmailConfirmed = true;
+                await UserManager.UpdateAsync(user);
+
+                Snackbar.Add("Email verified successfully! You can now log in.", Severity.Success);
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                _errorMessage = "Invalid verification code. Please try again.";
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Catches maximum attempt lockout exceptions thrown by OtpService
+            _errorMessage = ex.Message; 
+        }
+        catch (Exception)
+        {
+            _errorMessage = "An unexpected error occurred.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Rate-limited workflow interceptor that bypasses manual UI flows to seamlessly queue a fresh OTP generator and dispatcher block via OtpService.
+    /// </summary>
+    private async Task ResendCodeAsync()
+    {
+        _isResending = true;
+        _errorMessage = "";
+
+        try
+        {
+            var user = !string.IsNullOrEmpty(UserId) 
+                ? await UserManager.FindByIdAsync(UserId)
+                : await UserManager.Users.FirstOrDefaultAsync(u => u.Email == Email);
+                
+            if (user != null)
+            {
+                // This triggers the Generate logic, which includes Rate-Limiting rules logic in OtpService
+                await OtpService.GenerateAndSendOtpAsync(user.Id, user.Email, "EmailVerification");
+                Snackbar.Add("A new code has been sent to your email.", Severity.Info);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Specifically catches 60s rate limit exception from OtpService
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to resend code. Please try again later.", Severity.Error);
+        }
+        finally
+        {
+            _isResending = false;
+        }
+    }
+
+    /// <summary>
+    /// Strongly-typed exact-length data model protecting numeric OTP form submissions.
+    /// </summary>
+    public class VerifyModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(6, MinimumLength = 6, ErrorMessage = "Code must be exactly 6 digits.")]
+        public string Code { get; set; } = "";
+    }
+}

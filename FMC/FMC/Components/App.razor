@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["FMC.styles.css"]" />
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <ImportMap />
+    <style>
+        /* Prevent the initial flash of unstyled content by setting a default background */
+        html {
+            background-color: #ffffff; /* Matches default light theme */
+        }
+        html.dark {
+            background-color: #121212; /* Matches default dark theme */
+        }
+    </style>
+    <script>
+        (function () {
+            try {
+                var theme = null;
+                var cookieArr = document.cookie.split(";");
+                for (var i = 0; i < cookieArr.length; i++) {
+                    var cookiePair = cookieArr[i].split("=");
+                    if ("theme_preference" == cookiePair[0].trim()) {
+                        theme = decodeURIComponent(cookiePair[1]);
+                        break;
+                    }
+                }
+                if (!theme) theme = localStorage.getItem('theme_preference');
+                
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.style.backgroundColor = '#121212';
+                    document.documentElement.style.color = '#ffffff';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.style.backgroundColor = '#ffffff';
+                    document.documentElement.style.color = '#000000';
+                }
+            } catch (e) { }
+        })();
+    </script>
+    <HeadOutlet />
+</head>
+
+@*
+    The main HTML entry point for the application.
+    Handles initial document structure, resource loading, and early theme initialization to prevent flickers.
+*@
+<body>
+    <Routes @rendermode="@InteractiveServer" />
+    <ReconnectModal />
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="js/download.js"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+
+</html>

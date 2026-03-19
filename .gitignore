@@ -1,0 +1,43 @@
+# ===========================
+# Build output
+# ===========================
+bin/
+obj/
+
+# ===========================
+# Visual Studio
+# ===========================
+.vs/
+*.user
+*.suo
+*.userprefs
+*.DS_Store
+
+# ===========================
+# CREDENTIALS & SECRETS (NEVER COMMIT THESE)
+# ===========================
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+**/appsettings.*.json
+secrets.json
+.env
+.env.*
+
+# ===========================
+# NuGet
+# ===========================
+packages/
+*.nupkg
+project.lock.json
+
+# ===========================
+# EF Core Migrations (optional - keep if you want migrations in source)
+# ===========================
+# Migrations/
+
+# ===========================
+# Publish output
+# ===========================
+publish/
+**/publish/

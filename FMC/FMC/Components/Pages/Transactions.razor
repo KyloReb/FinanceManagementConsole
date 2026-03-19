@@ -1,0 +1,141 @@
+@page "/transactions"
+@using MudBlazor
+
+<PageTitle>Transactions</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Transactions</MudText>
+
+<MudTable Items="@_transactions" Hover="true" Bordered="true" Striped="true" Breakpoint="Breakpoint.Sm" Filter="new Func<Transaction,bool>(FilterFunc1)" @bind-SelectedItem="_selectedItem" Loading="@_loading">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">History</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="ExportExcel" Class="ml-4">Excel</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="ExportPdf" Class="ml-2">PDF</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog" Class="ml-4">Add Transaction</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Date)">Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Label)">Label</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Category)">Category</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Amount)">Amount</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Label">@context.Label</MudTd>
+        <MudTd DataLabel="Category">@context.Category</MudTd>
+        <MudTd DataLabel="Amount">
+            <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)">
+                @context.Amount.ToString("C")
+            </MudText>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteTransaction(context.Id))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+<MudMessageBox @ref="_mbox" Title="Warning" CancelText="Cancel">
+    <MessageContent>
+        Are you sure you want to delete this transaction?
+    </MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete">Delete!</MudButton>
+    </YesButton>
+</MudMessageBox>
+
+@code {
+    private List<Transaction> _transactions = new();
+    private string _searchString = "";
+    private Transaction? _selectedItem;
+
+    [Inject] private IFinanceService FinanceService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
+
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransactions();
+    }
+
+    private async Task LoadTransactions()
+    {
+        try 
+        {
+            _loading = true;
+            _transactions = await FinanceService.GetAllTransactionsAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool FilterFunc1(Transaction transaction) => FilterFunc(transaction, _searchString);
+
+    private bool FilterFunc(Transaction transaction, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (transaction.Label.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (transaction.Category.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private MudMessageBox _mbox = default!;
+
+    private async Task DeleteTransaction(Guid id)
+    {
+        bool? result = await _mbox.ShowAsync();
+
+        if (result == true)
+        {
+            await FinanceService.DeleteTransactionAsync(id);
+            await LoadTransactions();
+            Snackbar.Add("Transaction deleted", Severity.Success);
+        }
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<AddTransactionDialog>("Add Transaction", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is Transaction newTransaction)
+        {
+            await FinanceService.AddTransactionAsync(newTransaction);
+            await LoadTransactions();
+            Snackbar.Add("Transaction added successfully", Severity.Success);
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        var bytes = ReportService.GenerateExcel(_transactions);
+        await DownloadFile("Transactions.xlsx", bytes);
+    }
+
+    private async Task ExportPdf()
+    {
+        var bytes = ReportService.GeneratePdf(_transactions);
+        await DownloadFile("Transactions.pdf", bytes);
+    }
+
+    private async Task DownloadFile(string fileName, byte[] content)
+    {
+        using var streamRef = new DotNetStreamReference(new MemoryStream(content));
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+
+    [Inject] private IReportService ReportService { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+}

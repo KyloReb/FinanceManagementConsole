@@ -1,0 +1,102 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+
+<MudThemeProvider @bind-IsDarkMode="@ThemeService.IsDarkMode" Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@*
+    The main layout for the Finance Management Console.
+    Provides the top AppBar with navigation controls, theme toggling, and the side Drawer.
+*@
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true" Color="Color.Inherit" Fixed="true">
+        @* Desktop View Logo and Title *@
+        <MudHidden Breakpoint="Breakpoint.Xs">
+            <div class="d-flex align-center">
+                <MudImage Src="favicon.png" Width="32" Height="32" Class="mr-2" />
+                <MudText Typo="Typo.h6">Finance Management Console</MudText>
+            </div>
+        </MudHidden>
+
+        @* Mobile View Logo and Title *@
+        <MudHidden Breakpoint="Breakpoint.SmAndUp">
+             <div class="d-flex align-center">
+                <MudImage Src="favicon.png" Width="24" Height="24" Class="mr-2" />
+                <MudText Typo="Typo.h6">FMC</MudText>
+            </div>
+        </MudHidden>
+        <MudSpacer />
+
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.body2" Class="mr-4">Hello, <b>@context.User.Identity?.Name</b></MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Inherit" Size="Size.Small" OnClick="LogoutAsync" Class="mr-3">Log Out</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="/login" Variant="Variant.Text" Color="Color.Inherit" Class="mr-2">Log In</MudButton>
+                <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" Class="mr-3">Register</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        @* Theme Toggle Control *@
+        <MudToggleIconButton @bind-Toggled="@ThemeService.IsDarkMode"
+                             Icon="@Icons.Material.Filled.Brightness4" Color="@Color.Inherit" Title="Switch to Dark Mode"
+                             ToggledIcon="@Icons.Material.Filled.Brightness7" ToggledColor="@Color.Inherit" ToggledTitle="Switch to Light Mode" />
+        
+        @* Sidebar Toggle Control *@
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.End" OnClick="@((e) => DrawerToggle())" />
+    </MudAppBar>
+
+    @* Navigation Sidebar *@
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Anchor="Anchor.Right">
+        <NavMenu />
+    </MudDrawer>
+
+    @* Main Page Content *@
+    <MudMainContent Class="pa-4 pt-16">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private MudTheme _theme = new();
+
+    private void LogoutAsync()
+    {
+        NavigationManager.NavigateTo("/api/auth/logout", forceLoad: true);
+    }
+
+    protected override void OnInitialized()
+    {
+        ThemeService.OnChange += StateHasChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ThemeService.InitializeAsync();
+            StateHasChanged();
+        }
+    }
+
+
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    [Inject] private ThemeService ThemeService { get; set; } = default!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    public void Dispose()
+    {
+        ThemeService.OnChange -= StateHasChanged;
+    }
+}
+@implements IDisposable

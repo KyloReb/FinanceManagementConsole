@@ -1,0 +1,42 @@
+@using FMC.Models
+@using FMC.Services
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Register Transaction</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudDatePicker Label="Date" @bind-Date="_date" Required="true" />
+            <MudTextField T="string" Label="Label" @bind-Value="_transaction.Label" Required="true" MaxLength="100" />
+            <MudTextField T="string" Label="Category" @bind-Value="_transaction.Category" Required="true" />
+            <MudNumericField T="decimal" Label="Amount" @bind-Value="_transaction.Amount" Required="true" HideSpinButtons="true" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+    
+    private Transaction _transaction = new() { Date = DateTime.Now };
+    private DateTime? _date = DateTime.Now;
+    private MudForm _form = default!;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (_form.IsValid)
+        {
+            if (_date.HasValue) _transaction.Date = _date.Value;
+            MudDialog.Close(DialogResult.Ok(_transaction));
+        }
+    }
+}

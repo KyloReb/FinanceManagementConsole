@@ -60,6 +60,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 
 ### Phase 11: Hierarchical "Mother Account" Management
 - **Enterprise Ledger Logic**: Implement a "Mother Account" (Master Vault) that acts as the primary liquidity source for sub-accounts.
-- **Managed Debit/Credit Workflows**: Allow Managers to allocate funds (Debit) to client sub-accounts and collect funds (Credit) back to the Mother Account.
+- **Authority-Based RBAC**: Define specialized high-privilege roles (e.g., **CEO**, **Manager**) with exclusive permissions to execute ledger operations.
+- **Managed Debit/Credit Workflows**: Empower authorized roles to allocate funds (Debit) to client sub-accounts and collect funds (Credit) back to the Mother Account.
 - **Organization-Based Mapping**: Associate groups of users with a specific Client/Organization ID for isolated balance management.
 - **Transaction Sovereignty**: Ensure all inter-account transfers are cryptographically linked in the `AuditLog` for total forensic transparency.

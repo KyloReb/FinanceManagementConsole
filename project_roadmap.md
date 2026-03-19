@@ -120,7 +120,9 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 <summary><b>Phase 12: Administrative Governance Hub (SuperAdmin)</b></summary>
 
 - **Global User Management**: Empower the **SuperAdmin** role to view, search, and manage all users across the entire console.
-- **Permission Overrides**: Allow SuperAdmins to manually adjust roles, verify emails, and reset security states for any account.
-- **Account Lifeline Control**: Capability to freeze, deactivate, or reactivate accounts instantly to mitigate risk.
-- **Comprehensive Activity Oversight**: A master view of all `AuditLog` entries across the system for security auditing and compliance.
+- **Support & Troubleshooting (Impersonation)**: Implement a "View As" capability for SuperAdmins to diagnose user issues in real-time with zero-knowledge credentials.
+- **Financial Integrity (Bank Reconciliation)**: Tooling to import physical bank statements (CSV/Excel) and reconcile the "Mother Account" digital ledger against real-world liquidity.
+- **Security Policy "God-Mode"**: Global toggles for **Maintenance Mode**, forced password resets, and high-value transaction approval thresholds (Veto power).
+- **Administrative Intelligence (BI Dashboard)**: High-level analytics showing total system volume, active user growth, and SMTP health metrics.
+- **Compliance & Auditing**: Capability to export full system audit trails as signed documents for legal or forensic review.
 </details>

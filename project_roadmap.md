@@ -57,3 +57,9 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Shared Access**: Allow users to invite "Collaborators" (e.g., family members) to specific accounts.
 - **Permission Boundaries**: Implement Role-Based Access Control (RBAC) at the account level (e.g., Viewer vs. Manager).
 - **Currency Agnostic Engine**: Support for multi-currency tracking with automated exchange rate updates.
+
+### Phase 11: Hierarchical "Mother Account" Management
+- **Enterprise Ledger Logic**: Implement a "Mother Account" (Master Vault) that acts as the primary liquidity source for sub-accounts.
+- **Managed Debit/Credit Workflows**: Allow Managers to allocate funds (Debit) to client sub-accounts and collect funds (Credit) back to the Mother Account.
+- **Organization-Based Mapping**: Associate groups of users with a specific Client/Organization ID for isolated balance management.
+- **Transaction Sovereignty**: Ensure all inter-account transfers are cryptographically linked in the `AuditLog` for total forensic transparency.

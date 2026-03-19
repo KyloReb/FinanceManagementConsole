@@ -6,24 +6,24 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 
 ## 📖 Table of Contents
 - [✅ Completed Phases](#-completed-phases-todays-achievements)
-  - [Phase 1: Cloud Infrastructure](#phase-1-cloud-infrastructure--data-access)
-  - [Phase 2: Identity Security](#phase-2-identity-security--audit-governance)
-  - [Phase 3: Multi-Factor OTP](#phase-3-multi-factor-otp-engine)
-  - [Phase 4: Enterprise Auth UI](#phase-4-enterprise-authentication-ui)
-  - [Phase 5: UI/UX Polish](#phase-5-uiux-polish--performance)
-  - [Phase 6: Standardization](#phase-6-enterprise-standardization--deployment)
+  - [Phase 1: Cloud Infrastructure](#phase-1)
+  - [Phase 2: Identity Security](#phase-2)
+  - [Phase 3: Multi-Factor OTP](#phase-3)
+  - [Phase 4: Enterprise Auth UI](#phase-4)
+  - [Phase 5: UI/UX Polish](#phase-5)
+  - [Phase 6: Standardization](#phase-6)
 - [🚀 Upcoming Phases](#-upcoming-phases-strategic-roadmap)
-  - [Phase 7: Profile & Security](#phase-7-user-profile--security-settings)
-  - [Phase 8: Financial Intelligence](#phase-8-advanced-financial-intelligence)
-  - [Phase 9: Reporting 2.0](#phase-9-reporting--governance-20)
-  - [Phase 10: Multi-Tenant](#phase-10-multi-tenant--family-support)
-  - [Phase 11: Hierarchical Management](#phase-11-hierarchical-mother-account-management)
+  - [Phase 7: Profile & Security](#phase-7)
+  - [Phase 8: Financial Intelligence](#phase-8)
+  - [Phase 9: Reporting 2.0](#phase-9)
+  - [Phase 10: Multi-Tenant](#phase-10)
+  - [Phase 11: Hierarchical Management](#phase-11)
 
 ---
 
 ## ✅ Completed Phases (Today's Achievements)
 
-<details>
+<details id="phase-1">
 <summary><b>Phase 1: Cloud Infrastructure & Data Access</b></summary>
 
 - **Google Cloud SQL Integration**: Established secure connectivity to a remote GCP SQL instance.
@@ -31,21 +31,21 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Connection Resiliency**: Implemented `IDbContextFactory` to prevent threading issues in Blazor Server environments.
 </details>
 
-<details>
+<details id="phase-2">
 <summary><b>Phase 2: Identity Security & Audit Governance</b></summary>
 
 - **Extended User Schema**: Injected `FirstName`, `LastName`, `AccountStatus`, and `LoginTelemetry` into the core Identity model.
 - **Centralized Audit Logging**: Built a diagnostic engine to track sensitive security events (Logins, Failed OTPs, Deactivations).
 </details>
 
-<details>
+<details id="phase-3">
 <summary><b>Phase 3: Multi-Factor OTP Engine</b></summary>
 
 - **MailKit SMTP Integration**: Configured a professional email dispatcher for security codes.
 - **Secure Verification Logic**: Built an OTP generation and validation service with 60s rate-limiting and 5-attempt brute-force protection.
 </details>
 
-<details>
+<details id="phase-4">
 <summary><b>Phase 4: Enterprise Authentication UI</b></summary>
 
 - **Interactive Auth Components**: Developed sleek `Login`, `Register`, and `EmailVerification` pages using MudBlazor.
@@ -53,7 +53,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Security Feedback**: Specific error messaging for lockout states, unverified emails, and deactivations.
 </details>
 
-<details>
+<details id="phase-5">
 <summary><b>Phase 5: UI/UX Polish & Performance</b></summary>
 
 - **Skeleton Loading Screens**: Implemented asynchronous placeholders on the Dashboard to eliminate layout shift.
@@ -61,7 +61,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Dependency Optimization**: Resolved complex DI conflicts in `Program.cs` to ensure startup stability.
 </details>
 
-<details>
+<details id="phase-6">
 <summary><b>Phase 6: Enterprise Standardization & Deployment</b></summary>
 
 - **Total Code Documentation**: 100% XML Documentation coverage (`<summary>`, `<param>`, `<returns>`) across all project files.
@@ -73,7 +73,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 
 ## 🚀 Upcoming Phases (Strategic Roadmap)
 
-<details>
+<details id="phase-7">
 <summary><b>Phase 7: User Profile & Security Settings</b></summary>
 
 - **Self-Service Security**: Interface for users to update passwords and toggle 2FA.
@@ -81,7 +81,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Activity Timeline**: A user-facing view of their recent `AuditLog` security events.
 </details>
 
-<details>
+<details id="phase-8">
 <summary><b>Phase 8: Advanced Financial Intelligence</b></summary>
 
 - **Interactive Visualizations**: Expand the dashboard with dynamic MudCharts for Category-wise spending and Income-vs-Expense trends.
@@ -89,7 +89,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Budget Alerts**: Push notifications or snackbars when a category reaches 80% or 100% of its budget limit.
 </details>
 
-<details>
+<details id="phase-9">
 <summary><b>Phase 9: Reporting & Governance 2.0</b></summary>
 
 - **Branded PDF Export**: Upgrade `QuestPDF` logic to include company breading, charts, and summary tables in the generated reports.
@@ -97,7 +97,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Multi-Account Reconciliation**: Logic to "clear" transactions against physical bank statements.
 </details>
 
-<details>
+<details id="phase-10">
 <summary><b>Phase 10: Multi-Tenant & Family Support</b></summary>
 
 - **Shared Access**: Allow users to invite "Collaborators" (e.g., family members) to specific accounts.
@@ -105,7 +105,7 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 - **Currency Agnostic Engine**: Support for multi-currency tracking with automated exchange rate updates.
 </details>
 
-<details>
+<details id="phase-11">
 <summary><b>Phase 11: Hierarchical "Mother Account" Management</b></summary>
 
 - **Enterprise Ledger Logic**: Implement a "Mother Account" (Master Vault) that acts as the primary liquidity source for sub-accounts.

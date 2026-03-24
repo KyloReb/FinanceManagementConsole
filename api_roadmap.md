@@ -20,6 +20,23 @@ To ensure the FMC is future-proof and "enterprise-level", we will follow a **Cle
 
 ---
 
+## 🧠 Architectural Resolutions
+
+### I. Shared Library Versioning
+- **Deployment Flow**: Synchronized atomic deployments via CI/CD pipelines to ensure the Blazor UI always has matching DTOs from `FMC.Shared`.
+- **API Stability**: Adhere to additive-only changes for DTOs; never rename or delete properties without a version increment (`/api/v2/`).
+
+### II. Data Access: Implementation of CQRS
+- **MediatR Integration**: Decouple commands and queries within `FMC.Core`.
+- **Performance**: Use optimized Dapper/EF Query models for read operations, bypass heavy business logic for high-speed dashboard telemetry.
+- **Integrity**: Strict EF Core transactional boundaries for "Commands" (Writing data to account ledgers).
+
+### III. Progressive Testing Strategy
+- **Contract Security**: Implement JSON Schema validation or Pact to ensure the Blazor client and API remain in sync.
+- **Resilient Integration**: Use **Testcontainers** for SQL Server to run high-fidelity tests against real database state in the CI pipeline.
+
+---
+
 ## 🔐 Advanced Authentication Flow (Enterprise Standard)
 
 We will transition from simple Cookies to a session-hardened **JWT + Refresh Token** flow.

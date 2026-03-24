@@ -90,11 +90,12 @@ sequenceDiagram
 2.  **DTO Mapping**: Use `AutoMapper` to ensure internal DB schemas are never exposed directly to the web.
 3.  **Error Handling**: Global Exception Middleware to return standardized RFC7807 problem details (JSON errors).
 
-### Phase D: Enterprise Governance (Aligned with Roadmap v1.0)
-*Focus: Supporting Phase 10-12 of the FMC Roadmap.*
-1.  **Multi-Tenant API**: Middleware to automatically filter all SQL queries by `TenantID` (Family/Account group).
-2.  **Ledger Integrity**: Cryptographic signing of ledger entries to ensure no "invisible" fund manipulation between Mother and Sub accounts.
-3.  **SuperAdmin API**: Advanced auditing endpoints for forensic review.
+### Phase E: Advanced Edge & Distributed Caching
+*Focus: High availability and performance optimizations.*
+1.  **API Gateway Deployment**: Implement **YARP** (Yet Another Reverse Proxy) for request aggregation and rate limiting.
+2.  **GCP Memorystore (Redis)**: Integrate distributed caching for financial summaries and dashboard data.
+3.  **Intelligent Invalidation**: Event-driven cache purging using **MediatR Notifications** when ledger state changes.
+4.  **Cache Warming**: Automated background workers to pre-calculate spending trends for warm starts.
 
 ---
 

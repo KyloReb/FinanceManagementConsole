@@ -26,29 +26,29 @@ We will transition from simple Cookies to a session-hardened **JWT + Refresh Tok
 
 ```mermaid
 sequenceDiagram
-    participant User as User (Blazor/Mobile)
-    participant API as FMC.Api (Backend)
-    participant DB as SQL Server (GCP)
+    participant User as "User (Blazor/Mobile)"
+    participant API as "FMC.Api (Backend)"
+    participant DB as "SQL Server (GCP)"
     
-    User->>API: POST /api/auth/login (Credentials + OTP)
-    API->>DB: Validate User & OTP
-    DB-->>API: Validated
-    API->>API: Generate Access Token (15m) & Refresh Token (7d)
-    API-->>User: Return JWT + HTTP-Only Refresh Cookie
+    User->>API: "POST /api/auth/login (Credentials + OTP)"
+    API->>DB: "Validate User & OTP"
+    DB-->>API: "Validated"
+    API->>API: "Generate Access Token (15m) & Refresh Token (7d)"
+    API-->>User: "Return JWT + HTTP-Only Refresh Cookie"
     
-    Note over User,API: Ongoing Data Requests (Bearer Token in Header)
+    Note over User,API: "Ongoing Data Requests (Bearer Token in Header)"
     
-    User->>API: GET /api/transactions
-    API->>API: Validate JWT Signature/Expiry
-    API-->>User: 200 OK (Financial Data)
+    User->>API: "GET /api/transactions"
+    API->>API: "Validate JWT Signature/Expiry"
+    API-->>User: "200 OK (Financial Data)"
     
-    Note over User,API: Token Expired Flow
+    Note over User,API: "Token Expired Flow"
     
-    User->>API: GET /api/transactions (Expired JWT)
-    API-->>User: 401 Unauthorized
-    User->>API: POST /api/auth/refresh (Refresh Cookie)
-    API->>DB: Validate Refresh Token Hash
-    API-->>User: Issue New JWT Access Token
+    User->>API: "GET /api/transactions (Expired JWT)"
+    API-->>User: "401 Unauthorized"
+    User->>API: "POST /api/auth/refresh (Refresh Cookie)"
+    API->>DB: "Validate Refresh Token Hash"
+    API-->>User: "Issue New JWT Access Token"
 ```
 
 ---

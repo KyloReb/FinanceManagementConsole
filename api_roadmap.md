@@ -96,7 +96,14 @@ sequenceDiagram
 2.  **GCP Memorystore (Redis)**: Integrate distributed caching for financial summaries and dashboard data.
 3.  **Intelligent Invalidation**: Event-driven cache purging using **MediatR Notifications** when ledger state changes.
 4.  **Cache Warming**: Automated background workers to pre-calculate spending trends for warm starts.
-
+ 
+### Phase F: Predictive Intelligence & AI
+*Focus: AI-driven financial insights and automation.*
+1.  **AI Service Core**: Define the `IAiService` to wrap external LLM calls (e.g., Google Gemini).
+2.  **Auto-Categorization**: Real-time transaction categorization using natural language understanding.
+3.  **Predictive Forecasting**: AI-generated spending forecasts and balance projections.
+4.  **Anomaly Detection API**: Security endpoints to flag suspicious or outlier transactions automatically.
+ 
 ---
 
 ## ✅ Best Practices Checklist

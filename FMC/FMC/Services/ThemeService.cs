@@ -26,6 +26,7 @@ public class ThemeService
                 _isDarkMode = value;
                 NotifyStateChanged();
                 _ = SavePreference();
+                _ = UpdateHtmlClass();
             }
         }
     }
@@ -68,6 +69,7 @@ public class ThemeService
                     _isDarkMode = isDark;
                     NotifyStateChanged();
                 }
+                await UpdateHtmlClass(); // Ensure initial state is sync'd
             }
         }
         catch (JSDisconnectedException) { /* Handled during circuit disposal */ }
@@ -85,6 +87,20 @@ public class ThemeService
             await _js.InvokeVoidAsync("localStorage.setItem", "theme_preference", value);
             // Use a JS function to set the cookie securely and reliably
             await _js.InvokeVoidAsync("eval", $"document.cookie = 'theme_preference={value}; path=/; max-age=31536000; SameSite=Lax'");
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    /// <summary>
+    /// Dynamically synchronizes the 'dark' class on the <html> element to ensure consistent background rendering.
+    /// </summary>
+    private async Task UpdateHtmlClass()
+    {
+        try
+        {
+            await _js.InvokeVoidAsync("eval", _isDarkMode 
+                ? "document.documentElement.classList.add('dark'); document.documentElement.style.backgroundColor = '#121212';" 
+                : "document.documentElement.classList.remove('dark'); document.documentElement.style.backgroundColor = '#ffffff';");
         }
         catch (JSDisconnectedException) { }
     }

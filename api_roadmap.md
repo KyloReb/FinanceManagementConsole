@@ -82,3 +82,10 @@ To ensure the FMC is future-proof and "enterprise-level", we follow a **Clean Ar
 - **Logging**: Centralized via **Serilog** to GCP Cloud Logging.
 - **Monitoring**: Health Checks (`/health`) and OpenTelemetry for request tracing.
 - **CI/CD**: Build -> Security Scan -> Test -> Deploy.
+- **Disaster Recovery**:
+  - **RPO (Recovery Point Objective)**: 15 minutes.
+  - **RTO (Recovery Time Objective)**: 1 hour.
+  - **Strategy**: Point-in-time recovery for SQL Server; Cross-region replication for Redis; Multi-zone GKE cluster for API.
+  - **Testing**: Quarterly failover drills to ensure RTO compliance.
+
+---

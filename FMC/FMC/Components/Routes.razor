@@ -1,22 +1,147 @@
-﻿<CascadingAuthenticationState>
-    <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Client._Imports).Assembly }" NotFoundPage="typeof(Pages.NotFound)">
+﻿@implements IDisposable
+@using System.Reflection
+@inject PersistentComponentState ApplicationState
+@inject IHttpContextAccessor HttpContextAccessor
+@inject FMC.Services.ThemeService ThemeService
+
+<CascadingAuthenticationState>
+    <MudThemeProvider @bind-IsDarkMode="@ThemeService.IsDarkMode" Theme="_theme" />
+    <MudPopoverProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+
+    <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Client._Imports).Assembly }">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <AuthorizeView>
+                <Authorized>
+                    <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+                </Authorized>
                 <NotAuthorized>
-                    @if (context.User.Identity?.IsAuthenticated != true)
+                    @if (routeData.PageType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Any())
                     {
-                        <RedirectToLogin />
+                        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
                     }
                     else
                     {
-                        <div style="padding: 20px; text-align: center;">
-                            <h2>Access Denied</h2>
-                            <p>You do not have permission to view this page.</p>
-                        </div>
+                        <LayoutView Layout="typeof(Layout.BlankLayout)">
+                            @if (context.User.Identity?.IsAuthenticated != true)
+                            {
+                                <RedirectToLogin />
+                            }
+                            else
+                            {
+                                <div style="padding: 20px; text-align: center;">
+                                    <h2>Access Denied</h2>
+                                    <p>You do not have permission to view this page.</p>
+                                </div>
+                            }
+                        </LayoutView>
                     }
                 </NotAuthorized>
-            </AuthorizeRouteView>
+                <Authorizing>
+                    <LayoutView Layout="typeof(Layout.BlankLayout)">
+                        <div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:var(--mud-palette-background);">
+                            <p style="color:var(--mud-palette-text-primary);">Authenticating...</p>
+                        </div>
+                    </LayoutView>
+                </Authorizing>
+            </AuthorizeView>
             <FocusOnNavigate RouteData="routeData" Selector="h1" />
         </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="typeof(Layout.BlankLayout)">
+                <div style="padding: 2.5rem; text-align: center;">
+                    <h1>Sorry, there's nothing at this address.</h1>
+                    <MudButton Href="/" Color="Color.Primary" Variant="Variant.Filled" Class="mt-4">Go to Home</MudButton>
+                </div>
+            </LayoutView>
+        </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    private MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#3f51b5",
+            AppbarBackground = "#ffffff", // Pure white for minimalistic look
+            AppbarText = "rgba(0,0,0,0.87)", // High emphasis text
+            Background = "#f5f7fa", // Subtle light grey background for content contrast
+            Surface = "#ffffff",
+            DrawerBackground = "#ffffff",
+            DrawerText = "rgba(0,0,0,0.7)",
+            DrawerIcon = "rgba(0,0,0,0.54)",
+            TextPrimary = "rgba(0,0,0,0.87)",
+            TextSecondary = "rgba(0,0,0,0.6)",
+            Divider = "rgba(0,0,0,0.08)"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#89b4fa",
+            Secondary = "#f5c2e7",
+            Tertiary = "#94e2d5",
+            Info = "#89dceb",
+            Success = "#a6e3a1",
+            Warning = "#f9e2af",
+            Error = "#f38ba8",
+            
+            Background = "#11111b",
+            Surface = "#181825",
+            AppbarBackground = "#11111b",
+            AppbarText = "#cdd6f4",
+            DrawerBackground = "#11111b",
+            DrawerText = "#cdd6f4",
+            DrawerIcon = "#cdd6f4",
+            
+            TextPrimary = "#cdd6f4",
+            TextSecondary = "#a6adc8",
+            
+            ActionDefault = "#cdd6f4",
+            ActionDisabled = "rgba(205, 214, 244, 0.3)",
+            ActionDisabledBackground = "rgba(205, 214, 244, 0.12)",
+            
+            Divider = "rgba(205, 214, 244, 0.1)",
+            DividerLight = "rgba(205, 214, 244, 0.05)",
+        }
+    };
+    private PersistingComponentStateSubscription? _subscription;
+    private string? _token;
+
+    protected override void OnInitialized()
+    {
+        ThemeService.OnChange += StateHasChanged;
+
+        // Capture token from cookie on server
+        _token = HttpContextAccessor.HttpContext?.Request.Cookies["authToken"];
+        
+        if (!string.IsNullOrEmpty(_token))
+        {
+            Console.WriteLine($"[Routes] Found token in Cookie, registering for persistence");
+            _subscription = ApplicationState.RegisterOnPersisting(PersistToken);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ThemeService.InitializeAsync();
+            StateHasChanged();
+        }
+    }
+
+    private Task PersistToken()
+    {
+        Console.WriteLine($"[Routes] Persisting token to ApplicationState (Length: {_token?.Length ?? 0})");
+        ApplicationState.PersistAsJson("authToken", _token);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnChange -= StateHasChanged;
+        _subscription?.Dispose();
+    }
+}

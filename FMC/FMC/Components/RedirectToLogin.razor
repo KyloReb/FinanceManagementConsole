@@ -1,10 +1,26 @@
 @inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var returnUrl = Uri.EscapeDataString(NavigationManager.Uri);
-        // Force load is important here to ensure the cookie/auth state is correctly evaluated by the server
-        NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+        if (firstRender)
+        {
+            // Give a small grace period for the circuit to finish its first state resolution
+            await Task.Delay(100); 
+            
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated != true)
+            {
+                var returnUrl = Uri.EscapeDataString(NavigationManager.Uri);
+                // Ensure we only redirect if we're still not on the login page
+                if (!NavigationManager.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Using forceLoad: true ensures that the browser's UI state is fully refreshed 
+                    // and any cached internal pages are cleared.
+                    NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}", true);
+                }
+            }
+        }
     }
 }

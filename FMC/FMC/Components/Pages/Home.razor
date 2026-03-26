@@ -1,114 +1,155 @@
 ﻿@page "/"
+@attribute [Authorize]
 
 <PageTitle>Dashboard</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Financial Overview</MudText>
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <div class="d-flex align-center justify-space-between mb-6">
+        <MudText Typo="Typo.h4" Style="font-weight: 700;">Financial Overview</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/transactions/add">
+            New Transaction
+        </MudButton>
+    </div>
 
-<MudGrid>
-    @if (_loading)
-    {
-        @for (int i = 0; i < 3; i++)
+    <MudGrid Spacing="6">
+        @if (_loading)
         {
-            <MudItem xs="12" sm="6" md="4">
-                <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-width-full" Elevation="2" Style="height: 150px;">
-                    <MudSkeleton Width="100px" Height="20px" Class="mb-2" />
-                    <MudSkeleton Width="150px" Height="40px" />
-                    <MudSkeleton Width="40px" Height="40px" Class="mt-2" SkeletonType="SkeletonType.Circle" />
+            @for (int i = 0; i < 3; i++)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudPaper Class="pa-6 d-flex flex-column align-center justify-center" Elevation="1" Style="height: 160px;">
+                        <MudSkeleton Width="80px" Height="20px" Class="mb-2" />
+                        <MudSkeleton Width="140px" Height="40px" />
+                        <MudSkeleton Width="40px" Height="40px" Class="mt-3" SkeletonType="SkeletonType.Circle" />
+                    </MudPaper>
+                </MudItem>
+            }
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-6" Elevation="1">
+                    <MudSkeleton Width="200px" Height="30px" Class="mb-6" />
+                    <MudSkeleton Width="100%" Height="300px" />
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-6" Elevation="1">
+                    <MudSkeleton Width="200px" Height="30px" Class="mb-6" />
+                    <MudSkeleton Width="100%" Height="300px" SkeletonType="SkeletonType.Circle" />
                 </MudPaper>
             </MudItem>
         }
-        <MudItem xs="12" md="8">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudSkeleton Width="200px" Height="30px" Class="mb-4" />
-                <MudSkeleton Width="100%" Height="200px" />
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudSkeleton Width="200px" Height="30px" Class="mb-4" />
-                <MudSkeleton Width="100%" Height="250px" SkeletonType="SkeletonType.Circle" />
-            </MudPaper>
-        </MudItem>
-    }
-    else
-    {
-        <MudItem xs="12" sm="6" md="4">
-            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-width-full" Elevation="2" Style="height: 150px;">
-                <MudText Typo="Typo.h6" GutterBottom="true">Total Balance</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Primary">@_totalBalance.ToString("C")</MudText>
-                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Large" Color="Color.Primary" Class="mt-2" />
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="4">
-            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-width-full" Elevation="2" Style="height: 150px;">
-                <MudText Typo="Typo.h6" GutterBottom="true">Monthly Expenses</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Error">@_monthlyExpenses.ToString("C")</MudText>
-                <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Large" Color="Color.Error" Class="mt-2" />
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="4">
-            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-width-full" Elevation="2" Style="height: 150px;">
-                <MudText Typo="Typo.h6" GutterBottom="true">Active Budgets</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Info">@_activeBudgetsCount</MudText>
-                <MudIcon Icon="@Icons.Material.Filled.PieChart" Size="Size.Large" Color="Color.Info" Class="mt-2" />
-            </MudPaper>
-        </MudItem>
+        else
+        {
+            @* Stat Cards Section *@
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-6 d-flex flex-column align-center justify-center text-center" Elevation="1" Style="height: 100%; min-height: 160px; border-top: 4px solid var(--mud-palette-primary);">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary uppercase mb-1">Total Balance</MudText>
+                    <MudText Typo="Typo.h4" Class="mb-2" Style="font-weight: 700;">@_totalBalance.ToString("C")</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Large" Color="Color.Primary" />
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-6 d-flex flex-column align-center justify-center text-center" Elevation="1" Style="height: 100%; min-height: 160px; border-top: 4px solid var(--mud-palette-error);">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary uppercase mb-1">Monthly Expenses</MudText>
+                    <MudText Typo="Typo.h4" Class="mb-2" Color="Color.Error" Style="font-weight: 700;">@_monthlyExpenses.ToString("C")</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Large" Color="Color.Error" />
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-6 d-flex flex-column align-center justify-center text-center" Elevation="1" Style="height: 100%; min-height: 160px; border-top: 4px solid var(--mud-palette-info);">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary uppercase mb-1">Active Accounts</MudText>
+                    <MudText Typo="Typo.h4" Class="mb-2" Color="Color.Info" Style="font-weight: 700;">@_activeBudgetsCount</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Large" Color="Color.Info" />
+                </MudPaper>
+            </MudItem>
 
-        <MudItem xs="12" md="8">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h6" Class="mb-4">Recent Transactions</MudText>
-                <MudTable Items="@_recentTransactions" Hover="true" Dense="true" Elevation="0">
-                    <HeaderContent>
-                        <MudTh>Date</MudTh>
-                        <MudTh>Label</MudTh>
-                        <MudTh>Category</MudTh>
-                        <MudTh>Amount</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
-                        <MudTd DataLabel="Label">@context.Label</MudTd>
-                        <MudTd DataLabel="Category">@context.Category</MudTd>
-                        <MudTd DataLabel="Amount">
-                            <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)">
-                                @context.Amount.ToString("C")
-                            </MudText>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
+            @* Recent Transactions Section *@
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-6" Elevation="1" Style="height: 100%;">
+                    <div class="d-flex align-center justify-space-between mb-4">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" Class="mr-2" />
+                            <MudText Typo="Typo.h6" Style="font-weight: 600;">Recent Transactions</MudText>
+                        </div>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward" Href="/transactions">View All</MudButton>
+                    </div>
+                    <MudDivider Class="mb-6" />
+                    
+                    <MudTable Items="@_recentTransactions" Hover="true" Dense="true" Elevation="0" Class="fmc-table-transparent">
+                        <HeaderContent>
+                            <MudTh>Date</MudTh>
+                            <MudTh>Label</MudTh>
+                            <MudTh>Category</MudTh>
+                            <MudTh Style="text-align: right;">Amount</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Label"><b>@context.Label</b></MudTd>
+                            <MudTd DataLabel="Category">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Category</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Amount" Style="text-align: right;">
+                                <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight: 600;">
+                                    @context.Amount.ToString("C")
+                                </MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
 
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="2">
-                <MudText Typo="Typo.h6" Class="mb-4">Spending by Category</MudText>
-                <MudChart T="double" ChartType="ChartType.Donut" InputData="@_chartData" InputLabels="@_chartLabels" Width="100%" Height="300px" />
-            </MudPaper>
-        </MudItem>
-    }
-</MudGrid>
+            @* Spending Analysis Section *@
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-6" Elevation="1" Style="height: 100%;">
+                    <div class="d-flex align-center mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.PieChart" Color="Color.Primary" Class="mr-2" />
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">Spending Analysis</MudText>
+                    </div>
+                    <MudDivider Class="mb-6" />
+                    
+                    <div class="d-flex flex-column align-center">
+                        <MudChart T="double" ChartType="ChartType.Donut" inputdata="@_chartData" inputlabels="@_chartLabels" Width="100%" Height="260px" />
+                        @if (_chartData.Length == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-4">No spending data for this period.</MudText>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+<style>
+    .uppercase { text-transform: uppercase; letter-spacing: 0.1em; }
+    .fmc-table-transparent { background-color: transparent !important; }
+</style>
 
 @code {
     private bool _loading = true;
     private decimal _totalBalance = 0;
     private decimal _monthlyExpenses = 0;
     private int _activeBudgetsCount = 0;
-    private List<Transaction> _recentTransactions = new();
+    private List<TransactionDto> _recentTransactions = new();
     private double[] _chartData = Array.Empty<double>();
     private string[] _chartLabels = Array.Empty<string>();
 
-    [Inject] private IFinanceService FinanceService { get; set; } = default!;
+    [Inject] private ApiFinanceService FinanceService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        if (!RendererInfo.IsInteractive) return;
         try 
         {
             _loading = true;
             _totalBalance = await FinanceService.GetTotalBalanceAsync();
             _monthlyExpenses = await FinanceService.GetMonthlyExpensesAsync();
-            _activeBudgetsCount = await FinanceService.GetActiveBudgetsCountAsync();
+            
+            var budgets = await FinanceService.GetAccountsAsync();
+            _activeBudgetsCount = budgets.Count;
+            
             _recentTransactions = await FinanceService.GetRecentTransactionsAsync(5);
 
-            // Simple chart data for demo
             var groupedData = _recentTransactions
                 .Where(t => t.Amount < 0)
                 .GroupBy(t => t.Category)
@@ -117,6 +158,15 @@
 
             _chartData = groupedData.Select(d => d.Amount).ToArray();
             _chartLabels = groupedData.Select(d => d.Category).ToArray();
+        }
+        catch (OperationCanceledException) { }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Navigation.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard: {ex.Message}");
         }
         finally
         {

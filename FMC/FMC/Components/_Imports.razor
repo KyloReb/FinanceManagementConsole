@@ -10,11 +10,11 @@
 @using FMC.Client
 @using FMC.Components
 @using FMC.Components.Layout
-@using FMC.Models
-@using FMC.Data
 @using FMC.Services
+@using FMC.Services.Api
+@using FMC.Shared.DTOs
+@using FMC.Shared.DTOs.Auth
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Identity
-@attribute [Authorize]
+@* Targeted [Authorize] should be used on specific pages instead of globally here *@

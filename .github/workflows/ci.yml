@@ -1,0 +1,48 @@
+name: FMC Enterprise CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      # Docker is needed for Testcontainers
+      docker:
+        image: docker:dind
+        options: --privileged
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore FMC.Backend.sln
+
+    - name: Build
+      run: dotnet build FMC.Backend.sln --no-restore
+
+    - name: Run Tests (Integration + Unit)
+      run: dotnet test FMC.Backend.sln --no-build --verbosity normal
+
+    - name: Security Scan (Snyk)
+      uses: snyk/actions/dotnet@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  performance-benchmark:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Benchmarks
+      run: echo "Running Baseline Benchmarks..." # Placeholder for Phase 0

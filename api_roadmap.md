@@ -1,4 +1,4 @@
-# FMC Enterprise API Roadmap & Architecture v2.0
+# FMC Enterprise API Roadmap & Architecture v2.2
 
 This document defines the strategic roadmap and technical architecture for the Finance Management Console (FMC) Backend API. It aligns with the existing project milestones to move from a monolithic Blazor app to a decoupled, high-available, and secure distributed system.
 
@@ -12,40 +12,45 @@ To ensure the FMC is future-proof and "enterprise-level", we follow a **Clean Ar
 1.  **`FMC.Domain`**: Pure C# Entities (`Transaction`, `Account`) and Value Objects. No dependencies on any other project.
 2.  **`FMC.Application`**: Use Cases and MediatR Command/Query handlers. Orchestrates business logic using Domain entities.
 3.  **`FMC.Shared`**: Common **DTOs**, Enums, and Constants. Referenced by both API and UI for contract synchronization.
-4.  **`FMC.Infrastructure`**: Persistence (`ApplicationDbContext`), SQL Migrations, and external integrations (SMTP/OTP).
+4.  **`FMC.Infrastructure`**: Persistence (`ApplicationDbContext`), SQL Migrations, and external integrations (SMTP/OTP/Audit).
 5.  **`FMC.Api`**: ASP.NET Core Web API with Controllers, JWT Auth middleware, and Swagger.
 6.  **`FMC`**: Refactored Blazor Web App interacting with `FMC.Api` via `HttpClient`.
 
 ---
 
-## 🚀 Tailored API Phases
-
-### Phase 0: Foundation Testing & Infrastructure
-*Goal: Establish the technical baseline before extraction.*
-1.  **Testcontainers Setup**: Integrate SQL Server Testcontainers for high-fidelity integration tests.
-2.  **CI/CD Pipeline**: Implement GitHub Actions with security scanning (Snyk/SonarQube) and automated tests.
-3.  **Performance Benchmarks**: Establish baseline P95 latency metrics for current monolithic endpoints.
+## ✅ Completed Architecture Phases
 
 ### Phase A: Architecture Extraction (Extraction Foundation)
-1.  **Library Creation**: Scaffold `FMC.Domain`, `FMC.Application`, `FMC.Shared`, and `FMC.Infrastructure`.
-2.  **Logic Decoupling**: Move entities to `Domain`, MediatR handlers to `Application`, and DTOs to `Shared`.
-3.  **DB Migration**: Physically move the Entity Framework layer to Infrastructure.
+- [x] **Library Creation**: Scaffolded `FMC.Domain`, `FMC.Application`, `FMC.Shared`, and `FMC.Infrastructure`.
+- [x] **Logic Decoupling**: Moved entities to `Domain`, MediatR handlers to `Application`, and DTOs to `Shared`.
+- [x] **DB Migration**: Physically moved the Entity Framework layer to Infrastructure.
 
 ### Phase B: Secure REST Engine (Security & Access)
-1.  **Identity Port**: Shift ASP.NET Identity stores and JWT logic to the API project.
-2.  **Rate Limiting**: Implement IP-based and User-based rate limiting on sensitive endpoints.
+- [x] **Identity Port**: Shifted ASP.NET Identity stores and JWT logic to the API project.
+- [x] **JWT/Refresh Flow**: Implemented session rotation with secure `HttpOnly` refresh tokens.
+- [x] **Role Claims Mapping**: Synchronized Identity roles with JWT claim tokens.
 
 ### Phase C: Financial Service RESTification (The Core Logic)
-1.  **Finance API**: Implement `GET/POST/PUT/DELETE` for Transactions, Accounts, and Budgets.
-2.  **Contract Testing**: Implement **Pact** flow (Consumer/Provider contract validation).
+- [x] **Finance API**: Implemented `GET/POST/PUT/DELETE` for Transactions, Accounts, and Budgets.
+- [x] **Contract Standardization**: Unified DTOs between the Blazor frontend and ASP.NET Core API.
 
 ### Phase D: Governance & Multi-Tenancy (Scale & Security)
-1.  **Tenant Isolation**: Implement automatic SQL filtering by `TenantID`.
-2.  **Ledger Integrity**: Cryptographic audit trails for Mother Account transfers.
+- [x] **Tenant Isolation**: Implemented automatic SQL filtering by `TenantID`.
+- [x] **Dynamic Context Extraction**: Injected `CurrentUserService` to pull Tenant context from headers/tokens.
+- [x] **SuperAdmin Forensic Suite**: Centralized audit log retrieval with filter-ignoring (.IgnoreQueryFilters) visibility.
 
-### Phase E: Advanced Edge & Distributed Caching
-1.  **API Gateway**: Implement **YARP** for request aggregation and rate limiting.
-2.  **GCP Memorystore**: Integrate **Redis** with event-driven cache invalidation.
+---
+
+## 🚀 Upcoming API Phases
+
+### Phase E: Edge & Advanced Caching
+1.  **GCP Memorystore**: Integrate **Redis** with event-driven cache invalidation patterns.
+2.  **API Gateway (YARP)**: Implement a gateway for request aggregation and rate limiting.
+
+### Phase F: Intelligence & Reliability (Observability)
+1.  **Exception / Error Monitor**: A dedicated endpoint for SuperAdmins to view server logs remotely.
+2.  **Performance Benchmarks**: Document P95 latency for core financial endpoints (SLO tracking).
+3.  **OpenTelemetry**: Integration for request tracing and system telemetry.
 
 ---
 
@@ -60,32 +65,10 @@ To ensure the FMC is future-proof and "enterprise-level", we follow a **Clean Ar
 
 ---
 
-## ✅ Success Metrics
-
-| Technical Metrics | Business Metrics |
-| :--- | :--- |
-| API Error Rate < 0.1% | User-reported latency < 1s |
-| Cache Hit Rate > 80% | Zero Security Incidents |
-| Deployment Success > 99% | 100% Data Transfer Integrity |
-
----
-
-## 🔐 Contract Testing Flow (Pact)
-1. **Blazor UI (Consumer)**: Defines expectations in Pact JSON file.
-2. **CI Pipeline**: Builds pact file and uploads to Pact Broker.
-3. **FMC.Api (Provider)**: Verifies functionality against pact file in CI.
-4. **Enforcement**: Pact failure blocks deployment to production.
-
----
-
 ## 📡 Observability & DevOps
 - **Logging**: Centralized via **Serilog** to GCP Cloud Logging.
 - **Monitoring**: Health Checks (`/health`) and OpenTelemetry for request tracing.
-- **CI/CD**: Build -> Security Scan -> Test -> Deploy.
 - **Disaster Recovery**:
   - **RPO (Recovery Point Objective)**: 15 minutes.
   - **RTO (Recovery Time Objective)**: 1 hour.
-  - **Strategy**: Point-in-time recovery for SQL Server; Cross-region replication for Redis; Multi-zone GKE cluster for API.
-  - **Testing**: Quarterly failover drills to ensure RTO compliance.
-
----
+  - **Strategy**: Point-in-time recovery for SQL Server; Multi-zone GKE cluster for API.

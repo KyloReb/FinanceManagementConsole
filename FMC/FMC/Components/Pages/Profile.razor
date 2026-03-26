@@ -1,0 +1,66 @@
+@page "/profile"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="2" Class="pa-8">
+        <div class="d-flex flex-column align-center mb-8">
+            <MudAvatar Color="Color.Primary" Style="height:100px; width:100px; font-size:2rem;">
+                @initials
+            </MudAvatar>
+            <MudText Typo="Typo.h5" Class="mt-4">Edit Profile</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage your personal information</MudText>
+        </div>
+
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudTextField T="string" Label="First Name" Required="true" RequiredError="First name is required!" Value="@firstName" />
+            <MudTextField T="string" Label="Last Name" Required="true" RequiredError="Last name is required!" Value="@lastName" Class="mt-4" />
+            <MudTextField T="string" Label="Email Address" Required="true" RequiredError="Email is required!" Value="@email" Disabled="true" Class="mt-4" />
+            
+            <div class="d-flex align-center justify-space-between mt-8">
+                <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="@(() => NavigationManager.NavigateTo("/"))">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProfile" Disabled="@(!success)">Save Changes</MudButton>
+            </div>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+    
+    private MudForm form = default!;
+    private bool success;
+    private string firstName = "";
+    private string lastName = "";
+    private string email = "";
+    private string initials = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            firstName = user.FindFirst("firstName")?.Value ?? "";
+            lastName = user.FindFirst("lastName")?.Value ?? "";
+            email = user.Identity.Name ?? "";
+            
+            if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
+            {
+                initials = $"{firstName[0]}{lastName[0]}".ToUpper();
+            }
+            else
+            {
+                initials = email.Length > 0 ? email[0].ToString().ToUpper() : "U";
+            }
+        }
+    }
+
+    private void SaveProfile()
+    {
+        // TODO: Implement actual profile update via API
+        NavigationManager.NavigateTo("/");
+    }
+}

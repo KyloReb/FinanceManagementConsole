@@ -1,0 +1,76 @@
+@page "/admin/login-logs"
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Admin
+@using FMC.Services.Api
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject AdminService AdminService
+@inject ISnackbar Snackbar
+
+<PageTitle>Login Logs - FMC</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <div class="mb-8">
+        <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.02em;">Security Logs</MudText>
+        <MudText Typo="Typo.body1" Class="mud-text-secondary">Track user access and authentication events</MudText>
+    </div>
+
+    <MudPaper Elevation="0" Class="pa-6" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
+        <MudDataGrid Items="@_logs" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
+                      Filterable="true" SortMode="SortMode.Multiple"
+                      Elevation="0" T="AuditLogDto" Class="fmc-admin-grid">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6" Style="font-weight: 600;">Authentication History</MudText>
+                <MudSpacer />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="LoadLogsAsync" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.CreatedAt" Title="Timestamp" Format="yyyy-MM-dd HH:mm:ss" Sortable="true" />
+                <PropertyColumn Property="x => x.UserName" Title="Username" />
+                <PropertyColumn Property="x => x.IpAddress" Title="IP Address" />
+                <TemplateColumn Title="Device Information">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2" Style="max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@context.Item.Details">
+                            @context.Item.Details
+                        </MudText>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.Action" Title="Event" />
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="AuditLogDto" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
+    .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
+</style>
+
+@code {
+    private List<AuditLogDto> _logs = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogsAsync();
+    }
+
+    private async Task LoadLogsAsync()
+    {
+        try
+        {
+            _loading = true;
+            _logs = await AdminService.GetLoginLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading logs: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

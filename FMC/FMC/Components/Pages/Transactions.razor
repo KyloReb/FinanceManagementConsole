@@ -1,11 +1,11 @@
 @page "/transactions"
-@using MudBlazor
+@attribute [Authorize]
 
 <PageTitle>Transactions</PageTitle>
 
 <MudText Typo="Typo.h4" Class="mb-4">Transactions</MudText>
 
-<MudTable Items="@_transactions" Hover="true" Bordered="true" Striped="true" Breakpoint="Breakpoint.Sm" Filter="new Func<Transaction,bool>(FilterFunc1)" @bind-SelectedItem="_selectedItem" Loading="@_loading">
+<MudTable T="TransactionDto" Items="@_transactions" Hover="true" Bordered="true" Striped="true" Breakpoint="Breakpoint.Sm" Filter="new Func<TransactionDto,bool>(FilterFunc1)" SelectedItem="_selectedItem" SelectedItemChanged="@((TransactionDto? item) => OnSelectedItemChanged(item))" Loading="@_loading">
     <ToolBarContent>
         <MudText Typo="Typo.h6">History</MudText>
         <MudSpacer />
@@ -15,23 +15,23 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog" Class="ml-4">Add Transaction</MudButton>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Date)">Date</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Label)">Label</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Category)">Category</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<Transaction, object>(x => x.Amount)">Amount</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Date)">Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Label)">Label</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Category)">Category</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Amount)">Amount</MudTableSortLabel></MudTh>
         <MudTh>Actions</MudTh>
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Date">@context.Date.ToShortDateString()</MudTd>
-        <MudTd DataLabel="Label">@context.Label</MudTd>
-        <MudTd DataLabel="Category">@context.Category</MudTd>
+        <MudTd DataLabel="Date">@context!.Date.ToShortDateString()</MudTd>
+        <MudTd DataLabel="Label">@context!.Label</MudTd>
+        <MudTd DataLabel="Category">@context!.Category</MudTd>
         <MudTd DataLabel="Amount">
-            <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)">
-                @context.Amount.ToString("C")
+            <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)">
+                @context!.Amount.ToString("C")
             </MudText>
         </MudTd>
         <MudTd>
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteTransaction(context.Id))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="true" />
         </MudTd>
     </RowTemplate>
     <PagerContent>
@@ -39,37 +39,38 @@
     </PagerContent>
 </MudTable>
 
-<MudMessageBox @ref="_mbox" Title="Warning" CancelText="Cancel">
-    <MessageContent>
-        Are you sure you want to delete this transaction?
-    </MessageContent>
-    <YesButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete">Delete!</MudButton>
-    </YesButton>
-</MudMessageBox>
-
 @code {
-    private List<Transaction> _transactions = new();
+    private List<TransactionDto> _transactions = new();
     private string _searchString = "";
-    private Transaction? _selectedItem;
+    private TransactionDto? _selectedItem;
 
-    [Inject] private IFinanceService FinanceService { get; set; } = default!;
+    [Inject] private ApiFinanceService FinanceService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IDialogService DialogService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
+        if (!RendererInfo.IsInteractive) return;
         await LoadTransactions();
     }
 
     private async Task LoadTransactions()
     {
-        try 
+        try
         {
             _loading = true;
-            _transactions = await FinanceService.GetAllTransactionsAsync();
+            _transactions = await FinanceService.GetRecentTransactionsAsync(100);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            Navigation.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading transactions: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -77,9 +78,14 @@
         }
     }
 
-    private bool FilterFunc1(Transaction transaction) => FilterFunc(transaction, _searchString);
+    private void OnSelectedItemChanged(TransactionDto? item)
+    {
+        _selectedItem = item;
+    }
 
-    private bool FilterFunc(Transaction transaction, string searchString)
+    private bool FilterFunc1(TransactionDto? transaction) => transaction != null && FilterFunc(transaction, _searchString);
+
+    private bool FilterFunc(TransactionDto transaction, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
@@ -90,27 +96,13 @@
         return false;
     }
 
-    private MudMessageBox _mbox = default!;
-
-    private async Task DeleteTransaction(Guid id)
-    {
-        bool? result = await _mbox.ShowAsync();
-
-        if (result == true)
-        {
-            await FinanceService.DeleteTransactionAsync(id);
-            await LoadTransactions();
-            Snackbar.Add("Transaction deleted", Severity.Success);
-        }
-    }
-
     private async Task OpenAddDialog()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true };
         var dialog = await DialogService.ShowAsync<AddTransactionDialog>("Add Transaction", options);
         var result = await dialog.Result;
 
-        if (result != null && !result.Canceled && result.Data is Transaction newTransaction)
+        if (result != null && !result.Canceled && result.Data is TransactionDto newTransaction)
         {
             await FinanceService.AddTransactionAsync(newTransaction);
             await LoadTransactions();

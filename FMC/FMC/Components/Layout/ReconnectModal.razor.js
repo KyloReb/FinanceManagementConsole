@@ -9,11 +9,7 @@ const resumeButton = document.getElementById("components-resume-button");
 resumeButton.addEventListener("click", resume);
 
 function handleReconnectStateChanged(event) {
-    if (event.detail.state === "show") {
-        reconnectModal.showModal();
-    } else if (event.detail.state === "hide") {
-        reconnectModal.close();
-    } else if (event.detail.state === "failed") {
+    if (event.detail.state === "failed") {
         document.addEventListener("visibilitychange", retryWhenDocumentBecomesVisible);
     } else if (event.detail.state === "rejected") {
         location.reload();
@@ -35,8 +31,6 @@ async function retry() {
             const resumeSuccessful = await Blazor.resumeCircuit();
             if (!resumeSuccessful) {
                 location.reload();
-            } else {
-                reconnectModal.close();
             }
         }
     } catch (err) {

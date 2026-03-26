@@ -2,7 +2,7 @@ using ClosedXML.Excel;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using FMC.Models;
+using FMC.Shared.DTOs;
 
 namespace FMC.Services;
 
@@ -16,14 +16,14 @@ public interface IReportService
     /// </summary>
     /// <param name="transactions">The list of transactions to include in the report.</param>
     /// <returns>A byte array representing the generated .xlsx file.</returns>
-    byte[] GenerateExcel(List<Transaction> transactions);
+    byte[] GenerateExcel(List<TransactionDto> transactions);
 
     /// <summary>
     /// Generates a PDF document containing a formatted transactions report.
     /// </summary>
     /// <param name="transactions">The list of transactions to include in the report.</param>
     /// <returns>A byte array representing the generated .pdf file.</returns>
-    byte[] GeneratePdf(List<Transaction> transactions);
+    byte[] GeneratePdf(List<TransactionDto> transactions);
 }
 
 /// <summary>
@@ -42,7 +42,7 @@ public class ReportService : IReportService
     /// </summary>
     /// <param name="transactions">The transactions to export.</param>
     /// <returns>Excel file content as a binary array.</returns>
-    public byte[] GenerateExcel(List<Transaction> transactions)
+    public byte[] GenerateExcel(List<TransactionDto> transactions)
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Transactions");
@@ -73,7 +73,7 @@ public class ReportService : IReportService
     /// </summary>
     /// <param name="transactions">The transactions to export.</param>
     /// <returns>PDF file content as a binary array.</returns>
-    public byte[] GeneratePdf(List<Transaction> transactions)
+    public byte[] GeneratePdf(List<TransactionDto> transactions)
     {
         return Document.Create(container =>
         {

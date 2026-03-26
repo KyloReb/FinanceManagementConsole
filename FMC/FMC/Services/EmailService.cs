@@ -34,8 +34,8 @@ public class EmailService : IEmailService
         {
             var emailMessage = new MimeMessage();
 
-            var senderName = _config["SmtpSettings:SenderName"];
-            var senderEmail = _config["SmtpSettings:SenderEmail"];
+            var senderName = _config["SmtpSettings:SenderName"] ?? "FMC System";
+            var senderEmail = _config["SmtpSettings:SenderEmail"] ?? "no-reply@fmc.com";
             
             emailMessage.From.Add(new MailboxAddress(senderName, senderEmail));
             emailMessage.To.Add(new MailboxAddress("", toEmail));
@@ -57,8 +57,8 @@ public class EmailService : IEmailService
             var password = _config["SmtpSettings:Password"];
 
             // Connect using SecureSocketOptions.StartTls for standard SMTP
-            await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(username, password);
+            await client.ConnectAsync(host ?? "smtp.gmail.com", port, SecureSocketOptions.StartTls);
+            await client.AuthenticateAsync(username ?? "", password ?? "");
 
             await client.SendAsync(emailMessage);
             await client.DisconnectAsync(true);

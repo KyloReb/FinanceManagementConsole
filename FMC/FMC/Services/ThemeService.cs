@@ -72,7 +72,10 @@ public class ThemeService
                 await UpdateHtmlClass(); // Ensure initial state is sync'd
             }
         }
-        catch (JSDisconnectedException) { /* Handled during circuit disposal */ }
+        catch (Exception ex) when (ex is OperationCanceledException or JSDisconnectedException) 
+        { 
+            /* Expected during circuit disposal or navigation interruptions */ 
+        }
     }
 
     /// <summary>
@@ -86,9 +89,9 @@ public class ThemeService
             var value = _isDarkMode ? "dark" : "light";
             await _js.InvokeVoidAsync("localStorage.setItem", "theme_preference", value);
             // Use a JS function to set the cookie securely and reliably
-            await _js.InvokeVoidAsync("eval", $"document.cookie = 'theme_preference={value}; path=/; max-age=31536000; SameSite=Lax'");
+            await _js.InvokeVoidAsync("cookieHelper.setCookie", "theme_preference", value, 365, true, "Lax");
         }
-        catch (JSDisconnectedException) { }
+        catch (Exception ex) when (ex is OperationCanceledException or JSDisconnectedException) { }
     }
 
     /// <summary>
@@ -99,10 +102,10 @@ public class ThemeService
         try
         {
             await _js.InvokeVoidAsync("eval", _isDarkMode 
-                ? "document.documentElement.classList.add('dark'); document.documentElement.style.backgroundColor = '#121212';" 
+                ? "document.documentElement.classList.add('dark'); document.documentElement.style.backgroundColor = '#11111b';" 
                 : "document.documentElement.classList.remove('dark'); document.documentElement.style.backgroundColor = '#ffffff';");
         }
-        catch (JSDisconnectedException) { }
+        catch (Exception ex) when (ex is OperationCanceledException or JSDisconnectedException) { }
     }
 
     /// <summary>

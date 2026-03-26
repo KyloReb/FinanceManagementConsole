@@ -1,0 +1,205 @@
+@page "/admin/users"
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.User
+@using FMC.Services.Api
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject AdminService AdminService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Manage Users - FMC</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between mb-8 gap-4">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.02em;">Manage Users</MudText>
+            <MudText Typo="Typo.body1" Class="mud-text-secondary">System Administration & Access Control</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.PersonAdd" 
+                   Size="Size.Large"
+                   OnClick="OpenCreateDialog" 
+                   Style="border-radius: 10px; text-transform: none; font-weight: 600; padding: 10px 24px;">
+            Add New User
+        </MudButton>
+    </div>
+
+    <MudPaper Elevation="0" Class="pa-6 overflow-hidden" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
+        <MudDataGrid Items="@_users" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
+                      Filterable="true" SortMode="SortMode.Multiple"
+                      Elevation="0" QuickFilter="@QuickFilter" T="UserDto" Class="fmc-admin-grid">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6" Style="font-weight: 600;">System Accounts</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search by name, email or role..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              IconSize="Size.Medium" Class="mt-0" Clearable="true" 
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.DisplayName" Title="User">
+                    <CellTemplate>
+                        <div class="d-flex align-center">
+                            <MudAvatar Color="@GetAvatarColor(context.Item.DisplayName)" Size="Size.Medium" Class="mr-3">
+                                @(context.Item.FirstName?[0])@(context.Item.LastName?[0])
+                            </MudAvatar>
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1" Style="font-weight: 600;">@context.Item.DisplayName</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@context.Item.UserName</MudText>
+                            </div>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.Email" Title="Email Address" />
+                <PropertyColumn Property='x => string.Join(", ", x.Roles)' Title="System Roles">
+                    <CellTemplate>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var role in context.Item.Roles)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(role)" Variant="Variant.Text" 
+                                         Style="font-weight: 600; border: 1px solid currentColor;">@role</MudChip>
+                            }
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                <PropertyColumn Property="x => x.IsActive" Title="Account Status">
+                    <CellTemplate>
+                        @if (context.Item.IsActive)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Style="border-radius: 6px;">Active</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Style="border-radius: 6px;">Suspended</MudChip>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn Title="Actions" HeaderStyle="justify-content: flex-end;" CellStyle="text-align: right">
+                    <CellTemplate>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditDialog(context.Item))">Edit Details</MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => ConfirmDelete(context.Item))" IconColor="Color.Error">
+                                <MudText Color="Color.Error">Delete Account</MudText>
+                            </MudMenuItem>
+                        </MudMenu>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="UserDto" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
+    .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
+</style>
+
+@code {
+    private List<UserDto> _users = new();
+    private bool _loading = true;
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            _loading = true;
+            _users = await AdminService.GetUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading users: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Func<UserDto, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (x.DisplayName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (x.Email?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        if (x.Roles.Any(r => r.Contains(_searchString, StringComparison.OrdinalIgnoreCase))) return true;
+        return false;
+    };
+
+    private Color GetRoleColor(string role) => role switch
+    {
+        Roles.SuperAdmin => Color.Error,
+        Roles.CEO => Color.Primary,
+        Roles.Manager => Color.Info,
+        _ => Color.Default
+    };
+
+    private Color GetAvatarColor(string name)
+    {
+        var hash = name.GetHashCode();
+        var colors = new[] { Color.Primary, Color.Secondary, Color.Tertiary, Color.Info, Color.Success, Color.Warning };
+        return colors[Math.Abs(hash) % colors.Length];
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserDialog>("Create New User", options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadUsersAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(UserDto user)
+    {
+        var parameters = new DialogParameters<UserDialog> { { x => x.User, user } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserDialog>("Edit User Details", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadUsersAsync();
+        }
+    }
+
+    private async Task ConfirmDelete(UserDto user)
+    {
+        var parameters = new DialogParameters<MudMessageBox>
+        {
+            { x => x.Title, "Delete User Account" },
+            { x => x.MarkupMessage, new Microsoft.AspNetCore.Components.MarkupString($"Are you sure you want to permanently delete <b>{user.DisplayName}</b>? This action cannot be undone.") },
+            { x => x.YesText, "Delete Account" },
+            { x => x.NoText, "Cancel" }
+        };
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall };
+        var result = await DialogService.ShowMessageBoxAsync("Delete User Account", 
+            $"Are you sure you want to permanently delete {user.DisplayName}? This action cannot be undone.", 
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            var success = await AdminService.DeleteUserAsync(user.Id);
+            if (success)
+            {
+                Snackbar.Add("User deleted successfully", Severity.Success);
+                await LoadUsersAsync();
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete user", Severity.Error);
+            }
+        }
+    }
+}

@@ -1,0 +1,182 @@
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.User
+@using FMC.Services.Api
+@inject AdminService AdminService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(User == null ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)" Class="mr-3 mb-n1" />
+            @(User == null ? "Create New System Account" : $"Update Details for {User.DisplayName}")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success" @bind-Errors="@_errors">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_model.FirstName" Label="First Name" 
+                                  Variant="Variant.Outlined" Required="true" RequiredError="First name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_model.LastName" Label="Last Name" 
+                                  Variant="Variant.Outlined" Required="true" RequiredError="Last name is required" />
+                </MudItem>
+                
+                @if (User == null)
+                {
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_model.UserName" Label="User Name" 
+                                      Variant="Variant.Outlined" Required="true" RequiredError="User name is required" 
+                                      HelperText="System login identifier" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Email" Label="Email Address" 
+                                  Variant="Variant.Outlined" Required="true" RequiredError="Email is required" 
+                                  InputType="InputType.Email" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_password" Label="Password" 
+                                  Variant="Variant.Outlined" 
+                                  InputType="InputType.Password" 
+                                  Required="@(User == null)" 
+                                  RequiredError="Password is required"
+                                  HelperText="@(User != null ? "Leave blank to keep current password" : "Minimum 6 characters")" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="string" Label="System Roles" MultiSelection="true" @bind-SelectedValues="_selectedRoles"
+                               Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
+                               PopoverClass="fmc-roles-select" offsety="true" Dense="true">
+                        <MudSelectItem Value="@Roles.SuperAdmin">Super Administrator</MudSelectItem>
+                        <MudSelectItem Value="@Roles.CEO">CEO (Finance Admin)</MudSelectItem>
+                        <MudSelectItem Value="@Roles.Manager">Manager</MudSelectItem>
+                        <MudSelectItem Value="@Roles.User">Standard User</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <style>
+                    .fmc-roles-select { 
+                        min-width: 250px !important; 
+                        max-width: 350px !important;
+                    }
+                    .fmc-roles-select .mud-list-item { padding-top: 4px; padding-bottom: 4px; }
+                </style>
+                
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_model.IsActive" Label="Account Active" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(_isLoading || !_success)">
+            @if (_isLoading)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText>@(User == null ? "Create User" : "Save Changes")</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public UserDto? User { get; set; }
+
+    private MudForm _form = default!;
+    private bool _success;
+    private string[] _errors = { };
+    private bool _isLoading;
+
+    private UserDto _model = new() { IsActive = true };
+    private string _password = "";
+    private IReadOnlyCollection<string> _selectedRoles = new HashSet<string>() { Roles.User };
+
+    protected override void OnInitialized()
+    {
+        if (User != null)
+        {
+            _model = new UserDto
+            {
+                Id = User.Id,
+                UserName = User.UserName,
+                Email = User.Email,
+                FirstName = User.FirstName,
+                LastName = User.LastName,
+                IsActive = User.IsActive,
+                Roles = User.Roles.ToList()
+            };
+            _selectedRoles = new HashSet<string>(User.Roles);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _isLoading = true;
+        try
+        {
+            _model.Roles = _selectedRoles.ToList();
+            bool result;
+
+            if (User == null)
+            {
+                var createDto = new CreateUserDto
+                {
+                    UserName = _model.UserName!,
+                    Email = _model.Email!,
+                    FirstName = _model.FirstName!,
+                    LastName = _model.LastName!,
+                    Password = _password,
+                    Roles = _model.Roles
+                };
+                result = await AdminService.CreateUserAsync(createDto);
+            }
+            else
+            {
+                var updateDto = new UpdateUserDto
+                {
+                    Id = _model.Id,
+                    Email = _model.Email!,
+                    FirstName = _model.FirstName!,
+                    LastName = _model.LastName!,
+                    Password = string.IsNullOrWhiteSpace(_password) ? null : _password,
+                    Roles = _model.Roles,
+                    IsActive = _model.IsActive
+                };
+                result = await AdminService.UpdateUserAsync(updateDto);
+            }
+
+            if (result)
+            {
+                Snackbar.Add(User == null ? "User created successfully" : "User updated successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to process request. Check if username/email already exists.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

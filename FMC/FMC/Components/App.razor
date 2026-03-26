@@ -25,10 +25,28 @@
             min-height: 100vh;
         }
         html.dark {
-            background-color: #121212; /* Matches default dark theme */
+            background-color: #11111b; /* Matches default dark theme */
         }
     </style>
     <script>
+        window.cookieHelper = {
+            setCookie: function (name, value, days, secure, sameSite) {
+                var expires = "";
+                if (days) {
+                    var date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = "; expires=" + date.toUTCString();
+                }
+                var cookieString = name + "=" + (value || "") + expires + "; path=/";
+                if (secure) cookieString += "; Secure";
+                if (sameSite) cookieString += "; SameSite=" + sameSite;
+                document.cookie = cookieString;
+            },
+            deleteCookie: function (name) {
+                document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Secure; SameSite=Lax';
+            }
+        };
+
         (function () {
             try {
                 var theme = null;
@@ -44,7 +62,7 @@
                 
                 if (theme === 'dark') {
                     document.documentElement.classList.add('dark');
-                    document.documentElement.style.backgroundColor = '#121212';
+                    document.documentElement.style.backgroundColor = '#11111b';
                     document.documentElement.style.color = '#ffffff';
                 } else {
                     document.documentElement.classList.remove('dark');
@@ -70,3 +88,14 @@
 </body>
 
 </html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        var cookieToken = HttpContext?.Request.Cookies["authToken"];
+        Console.WriteLine($"[App] OnInitialized - HttpContext: {HttpContext != null}, Cookie Found: {!string.IsNullOrEmpty(cookieToken)}");
+    }
+}

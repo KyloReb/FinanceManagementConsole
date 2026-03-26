@@ -1,55 +1,43 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using FMC.Data;
 using FMC.Client.Pages;
 using FMC.Components;
 using MudBlazor.Services;
 using FMC.Services;
+using FMC.Services.Api;
+using FMC.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-#region Data Access Configuration
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+#region API & Authentication Configuration
+builder.Services.AddHttpClient("FMC.Api", client => 
+{
+    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7026/");
+}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
 
-// Safely provide a Scoped ApplicationDbContext using the Factory to satisfy ASP.NET Identity
-builder.Services.AddScoped<ApplicationDbContext>(p => 
-    p.GetRequiredService<IDbContextFactory<ApplicationDbContext>>().CreateDbContext());
+builder.Services.AddTransient<AuthenticationHeaderHandler>();
+builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("FMC.Api"));
 
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-#endregion
-
-#region Authentication & Identity Configuration
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<AuthenticationStateProvider, ApiAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddAuthorizationCore();
 
+// Added minimal local authentication to satisfy middleware requirements
 builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-    })
-    .AddIdentityCookies(options =>
-    {
-        options.ApplicationCookie.Configure(cookieOptions =>
-        {
-            cookieOptions.LoginPath = "/login";
-            cookieOptions.AccessDeniedPath = "/not-found";
-        });
-    });
+{
+    options.DefaultScheme = "FMC_Local_Scheme";
+}).AddCookie("FMC_Local_Scheme", options =>
+{
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.LoginPath = "/login";
+});
 
-builder.Services.AddIdentityCore<ApplicationUser>(options => 
-    {
-        options.SignIn.RequireConfirmedAccount = true;
-        options.User.RequireUniqueEmail = true;
-    })
-    .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
-    
-builder.Services.AddAuthorizationBuilder();
+builder.Services.AddAntiforgery(options =>
+{
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
 #endregion
 
 #region Blazor & Web UI Configuration
@@ -58,43 +46,30 @@ builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
 
 builder.Services.AddMudServices();
-builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.Lax;
+    options.Secure = CookieSecurePolicy.Always;
+    options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
+});
 #endregion
 
 #region Custom Application Services
-builder.Services.AddScoped<IFinanceService, FinanceService>();
+builder.Services.AddScoped<ApiFinanceService>();
+builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ThemeService>();
 #endregion
 
 var app = builder.Build();
-
-#region Seeding Operations
-// Seed Identity Roles and Admin User
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        // Run the seeder synchronously to ensure roles exist before the app starts accepting requests.
-        ApplicationDbSeeder.SeedRolesAndAdminAsync(services).GetAwaiter().GetResult();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred seeding the Identity database.");
-    }
-}
-#endregion
 
 // Configure the HTTP request pipeline.
 #region HTTP Request Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
-    app.UseMigrationsEndPoint();
 }
 else
 {
@@ -104,24 +79,52 @@ else
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseCookiePolicy();
+app.UseStaticFiles();
 
+// Custom Middleware to bridge the authToken cookie to the HttpContext.User
+// and prevent browser history caching of sensitive views
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    context.Response.Headers.Append("Pragma", "no-cache");
+    context.Response.Headers.Append("Expires", "0");
+
+    var token = context.Request.Cookies["authToken"];
+    if (!string.IsNullOrEmpty(token) && (context.User.Identity == null || !context.User.Identity.IsAuthenticated))
+    {
+        try
+        {
+            var parts = token.Split('.');
+            if (parts.Length > 1)
+            {
+                var payload = parts[1];
+                while (payload.Length % 4 != 0) payload += "=";
+                var jsonBytes = Convert.FromBase64String(payload);
+                var claimsDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
+                if (claimsDict != null)
+                {
+                    var claims = claimsDict.Select(kvp => new System.Security.Claims.Claim(kvp.Key, kvp.Value.ToString()!));
+                    var identity = new System.Security.Claims.ClaimsIdentity(claims, "CookieBridge");
+                    context.User = new System.Security.Claims.ClaimsPrincipal(identity);
+                }
+            }
+        }
+        catch { }
+    }
+    await next();
+});
+
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapControllers();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(FMC.Client._Imports).Assembly);
 
-// Seed the database (Commented out as requested - DB will start empty)
-// using (var scope = app.Services.CreateScope())
-// {
-//     var services = scope.ServiceProvider;
-//     var context = services.GetRequiredService<ApplicationDbContext>();
-//     await DbInitializer.SeedData(context);
-// }
 #endregion
 
 app.Run();

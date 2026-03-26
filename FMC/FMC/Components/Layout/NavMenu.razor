@@ -1,4 +1,7 @@
-﻿<MudNavMenu>
+﻿@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
     <MudNavLink Href="transactions" Icon="@Icons.Material.Filled.List">Transactions</MudNavLink>
     <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.AccountBalance">Accounts</MudNavLink>
@@ -6,5 +9,22 @@
     <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Assessment">Reports</MudNavLink>
     <MudDivider Class="my-2" />
     <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+
+    <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.overline" Class="px-4 mud-text-secondary">Administration</MudText>
+            <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.People">Manage Users</MudNavLink>
+            <MudNavLink Href="admin/login-logs" Icon="@Icons.Material.Filled.AssignmentInd">Login Logs</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
 </MudNavMenu>
 
+@code {
+    private async Task LogoutAsync()
+    {
+        // Simple logout trigger for the user to definitely be able to exit
+        await AuthService.Logout("current");
+        NavigationManager.NavigateTo("/login");
+    }
+}

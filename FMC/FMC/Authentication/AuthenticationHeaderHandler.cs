@@ -46,7 +46,9 @@ public class AuthenticationHeaderHandler : DelegatingHandler
             catch (Exception) { /* Other JS failures - ignore */ }
         }
 
-        if (!string.IsNullOrEmpty(token))
+        // Only attach the token if one is found and the request doesn't already have one 
+        // (to prevent overwriting manual overrides from AuthService during login transitions)
+        if (request.Headers.Authorization == null && !string.IsNullOrEmpty(token))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }

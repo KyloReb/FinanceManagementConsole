@@ -37,7 +37,7 @@ public class AuthService
             await _js.InvokeVoidAsync("cookieHelper.setCookie", "authToken", result.Token, cookieExpiryDays, true, "Lax");
 
             ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("bearer", result.Token);
+            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
         }
 
         return result;
@@ -49,6 +49,27 @@ public class AuthService
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<bool> VerifyEmail(VerifyEmailRequestDto request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/auth/verify-email", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<ForgotPasswordResponseDto?> ForgotPassword(ForgotPasswordRequestDto request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/auth/forgot-password", request);
+        if (!response.IsSuccessStatusCode) return null;
+        
+        var content = await response.Content.ReadFromJsonAsync<ForgotPasswordResponseDto>();
+        return content;
+    }
+
+    public async Task<bool> ResetPassword(ResetPasswordRequestDto request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/auth/reset-password", request);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task Logout(string userId)
     {
         await _httpClient.PostAsync($"api/auth/logout?userId={userId}", null);
@@ -56,5 +77,17 @@ public class AuthService
         await _js.InvokeVoidAsync("cookieHelper.deleteCookie", "authToken");
         ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsLoggedOut();
         _httpClient.DefaultRequestHeaders.Authorization = null;
+    }
+
+    public async Task<bool> InitiatePasswordChange(ChangePasswordRequestDto request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/auth/change-password/initiate", request);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> CompletePasswordChange(VerifyPasswordChangeDto request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/auth/change-password/complete", request);
+        return response.IsSuccessStatusCode;
     }
 }

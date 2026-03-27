@@ -18,9 +18,16 @@ public class AuditController : ControllerBase
         _auditService = auditService;
     }
 
+    [HttpGet("auth-logs")]
+    public async Task<ActionResult<List<AuditLogDto>>> GetAuthLogs()
+    {
+        return Ok(await _auditService.GetAuthLogsAsync());
+    }
+
+    // Keep for backward compatibility if needed, but points to the same logic
     [HttpGet("login-logs")]
     public async Task<ActionResult<List<AuditLogDto>>> GetLoginLogs()
     {
-        return Ok(await _auditService.GetLoginLogsAsync());
+        return Ok(await _auditService.GetAuthLogsAsync());
     }
 }

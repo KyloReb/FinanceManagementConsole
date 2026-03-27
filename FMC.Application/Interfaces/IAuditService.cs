@@ -5,6 +5,6 @@ namespace FMC.Application.Interfaces;
 
 public interface IAuditService
 {
-    Task RecordLoginAsync(string? userId, string ipAddress, string details);
-    Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetLoginLogsAsync();
+    Task RecordAuthEventAsync(string action, string? userId, string ipAddress, string details);
+    Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetAuthLogsAsync();
 }

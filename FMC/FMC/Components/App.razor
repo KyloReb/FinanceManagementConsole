@@ -47,6 +47,12 @@
             }
         };
 
+        window.clipboardHelper = {
+            copyText: function(text) {
+                navigator.clipboard.writeText(text);
+            }
+        };
+
         (function () {
             try {
                 var theme = null;
@@ -82,6 +88,66 @@
 <body>
     <Routes @rendermode="@InteractiveServer" />
     <ReconnectModal />
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+    <script>
+        window.mermaidHelper = {
+            _initialized: false,
+            _observer: null,
+            init: function() {
+                if (window.mermaid && !this._initialized) {
+                    try {
+                        const isDark = document.documentElement.classList.contains('dark');
+                        mermaid.initialize({ 
+                            startOnLoad: false,
+                            theme: isDark ? 'dark' : 'default',
+                            securityLevel: 'loose',
+                            fontFamily: 'Inter, system-ui, sans-serif',
+                            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+                        });
+                        this._initialized = true;
+                        this.startObserving();
+                        console.log("%c[Mermaid] v" + mermaid.version + " Armed & Monitoring", "color: #3b82f6; font-weight: bold;");
+                    } catch (e) {
+                        console.error("[Mermaid] Init Fail:", e);
+                    }
+                }
+            },
+            startObserving: function() {
+                if (this._observer) return;
+                this._observer = new MutationObserver(() => this.render());
+                const target = document.querySelector('body');
+                if (target) this._observer.observe(target, { childList: true, subtree: true });
+            },
+            render: async function() {
+                if (!window.mermaid) return;
+                
+                try {
+                    // Logic A: Find explicit blocks to convert
+                    const blocks = Array.from(document.querySelectorAll('pre code.language-mermaid, pre code'));
+                    for (let block of blocks) {
+                        const txt = block.textContent.trim();
+                        if (txt.includes('graph ') || txt.includes('sequenceDiagram') || txt.includes('flowchart ')) {
+                            const pre = block.parentElement;
+                            if (pre.getAttribute('data-mermaid-processed')) continue;
+                            pre.setAttribute('data-mermaid-processed', 'true');
+
+                            const container = document.createElement('div');
+                            container.className = 'mermaid';
+                            container.textContent = txt;
+                            pre.parentElement.replaceChild(container, pre);
+                        }
+                    }
+
+                    // Logic B: Run on all containers (including server-side ones)
+                    const unprocessed = document.querySelectorAll('.mermaid:not([data-processed="true"])');
+                    if (unprocessed.length > 0) {
+                        console.log(`[Mermaid] Processing ${unprocessed.length} new diagrams...`);
+                        await mermaid.run();
+                    }
+                } catch (e) { }
+            }
+        };
+    </script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="js/download.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>

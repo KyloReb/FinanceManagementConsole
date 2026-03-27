@@ -40,8 +40,18 @@ public class AdminService
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetLoginLogsAsync()
+    public async Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetAuthLogsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.AuditLogDto>>("api/audit/login-logs") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.AuditLogDto>>("api/audit/auth-logs") ?? new();
+    }
+
+    public async Task<List<FMC.Shared.DTOs.Admin.DocumentationDto>> GetDocsListAsync()
+    {
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.DocumentationDto>>("api/documentation/list") ?? new();
+    }
+
+    public async Task<FMC.Shared.DTOs.Admin.DocumentationDto?> GetDocAsync(string fileName)
+    {
+        return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.DocumentationDto>($"api/documentation/{fileName}");
     }
 }

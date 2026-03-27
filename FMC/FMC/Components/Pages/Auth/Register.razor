@@ -22,21 +22,21 @@
 
             <MudGrid>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_model.FirstName" For="@(() => _model.FirstName)" Label="First Name" Variant="Variant.Outlined" FullWidth="true" Class="mb-2" />
+                    <MudTextField @bind-Value="_model.FirstName" For="@(() => _model.FirstName)" Label="First Name" Variant="Variant.Outlined" FullWidth="true" Class="mb-2" Disabled="@_isLoading" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_model.LastName" For="@(() => _model.LastName)" Label="Last Name" Variant="Variant.Outlined" FullWidth="true" Class="mb-2" />
+                    <MudTextField @bind-Value="_model.LastName" For="@(() => _model.LastName)" Label="Last Name" Variant="Variant.Outlined" FullWidth="true" Class="mb-2" Disabled="@_isLoading" />
                 </MudItem>
             </MudGrid>
 
-            <MudTextField @bind-Value="_model.Email" For="@(() => _model.Email)" Label="Email" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" />
-            <MudTextField @bind-Value="_model.Username" For="@(() => _model.Username)" Label="Username" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" />
+            <MudTextField @bind-Value="_model.Email" For="@(() => _model.Email)" Label="Email" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
+            <MudTextField @bind-Value="_model.Username" For="@(() => _model.Username)" Label="Username" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
             
             <MudTextField @bind-Value="_model.Password" For="@(() => _model.Password)" Label="Password" Variant="Variant.Outlined" FullWidth="true" 
-                          InputType="@_passwordInput" Class="mb-3" Adornment="Adornment.End" AdornmentIcon="@_passwordIcon" OnAdornmentClick="TogglePasswordVisibility" />
+                          InputType="@_passwordInput" Class="mb-3" Adornment="Adornment.End" AdornmentIcon="@_passwordIcon" OnAdornmentClick="TogglePasswordVisibility" Disabled="@_isLoading" />
             
             <MudTextField @bind-Value="_model.ConfirmPassword" For="@(() => _model.ConfirmPassword)" Label="Confirm Password" Variant="Variant.Outlined" FullWidth="true" 
-                          InputType="@_confirmPasswordInput" Class="mb-4" Adornment="Adornment.End" AdornmentIcon="@_confirmPasswordIcon" OnAdornmentClick="ToggleConfirmPasswordVisibility" />
+                          InputType="@_confirmPasswordInput" Class="mb-4" Adornment="Adornment.End" AdornmentIcon="@_confirmPasswordIcon" OnAdornmentClick="ToggleConfirmPasswordVisibility" Disabled="@_isLoading" />
 
             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@_isLoading" Style="border-radius: 8px; height: 50px;">
                 @if (_isLoading)
@@ -52,7 +52,7 @@
 
             <div class="d-flex justify-center mt-6">
                 <MudText Typo="Typo.body2" Color="Color.Secondary">Already have an account?</MudText>
-                <MudLink href="/login" Underline="Underline.None" Typo="Typo.body2" Class="ml-1 fw-bold" Color="Color.Primary">Back to Login</MudLink>
+                <MudLink href="/login" Underline="Underline.None" Typo="Typo.body2" Class="ml-1 fw-bold" Color="Color.Primary" Disabled="@_isLoading">Back to Login</MudLink>
             </div>
         </EditForm>
     </MudCard>
@@ -114,8 +114,8 @@
             var success = await AuthService.Register(_model);
             if (success)
             {
-                Snackbar.Add("Account created successfully! Please log in.", Severity.Success);
-                NavigationManager.NavigateTo("/login");
+                Snackbar.Add("Account created! Please verify your email.", Severity.Info);
+                NavigationManager.NavigateTo($"/verify-email?email={_model.Email}");
             }
             else
             {

@@ -1,0 +1,226 @@
+@page "/admin/docs"
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Admin
+@using FMC.Services.Api
+@using Markdig
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject AdminService AdminService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>System Documentation - FMC Admin</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-16 px-12">
+    <!-- Header Section -->
+    <div class="d-flex flex-column align-center text-center mb-10">
+        <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Color="Color.Primary" Size="Size.Large" Class="mb-4" Style="font-size: 72px;" />
+        <MudText Typo="Typo.h2" Style="font-weight: 900; letter-spacing: -0.05em; line-height: 1; font-size: 4rem;">Enterprise Knowledge Base</MudText>
+        <MudText Typo="Typo.h6" Class="mud-text-secondary mt-2" Style="font-weight: 400; max-width: 1000px;">
+            Technical architecture, security protocols, and operational workflows for the Finance Management Console.
+        </MudText>
+    </div>
+
+    <!-- Navigation Bar: Focused & Centered -->
+    <div class="d-flex justify-center mb-10">
+        <MudPaper Elevation="0" Class="pa-2 d-flex align-center" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface); width: 100%; max-width: 800px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <MudIcon Icon="@Icons.Material.Filled.Search" Color="Color.Primary" Class="ml-4 mr-2" />
+            <div style="flex-grow: 1;">
+                 <MudSelect T="string" Label="Search Enterprise Knowledge Base" 
+                           Value="@_selectedDoc?.FileName" 
+                           ValueChanged="LoadDocument"
+                           Variant="Variant.Text" 
+                           Underline="false"
+                           AnchorOrigin="Origin.BottomCenter"
+                           Class="mr-4">
+                    @foreach (var doc in _docList)
+                    {
+                        <MudSelectItem Value="@doc.FileName">@doc.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+            <MudTooltip Text="Open Document Index">
+                <MudIconButton Icon="@Icons.Material.Filled.MenuOpen" Color="Color.Primary" OnClick="@(() => _drawerOpen = true)" Class="mr-2" />
+            </MudTooltip>
+        </MudPaper>
+    </div>
+
+    <MudDrawer @bind-Open="@_drawerOpen" Anchor="Anchor.Left" Elevation="1" Variant="DrawerVariant.Temporary" Width="400px">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6" Style="font-weight: 900;">Knowledge Index</MudText>
+        </MudDrawerHeader>
+        <div class="pa-4">
+             <div class="doc-nav-list">
+                @foreach (var doc in _docList)
+                {
+                    bool isSelected = _selectedDoc?.FileName == doc.FileName;
+                    <div @onclick="async () => { await LoadDocument(doc.FileName); _drawerOpen = false; }" 
+                         class="@(isSelected ? "doc-nav-item active" : "doc-nav-item")">
+                        <MudIcon Icon="@(isSelected ? Icons.Material.Filled.AutoStories : Icons.Material.Filled.BookmarkBorder)" 
+                                 Size="Size.Small" 
+                                 Class="mr-3" />
+                        <span class="text-truncate" style="font-weight: @(isSelected ? "700" : "400")">@doc.DisplayName</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </MudDrawer>
+
+    <div class="d-flex justify-center">
+        <!-- Content Viewer: Zero restrictions, focused centering -->
+        <div style="width: 100%; max-width: 1800px;">
+            <MudPaper Elevation="0" Class="fmc-doc-paper" Style="border-radius: 24px; border: 1px solid var(--mud-palette-divider); min-height: 90vh; background: var(--mud-palette-surface); overflow: hidden; box-shadow: 0 40px 150px -20px rgba(0,0,0,0.2);">
+                @if (_loadingContent)
+                {
+                    <div class="d-flex flex-column align-center justify-center" style="height: 500px;">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" StrokeWidth="5" />
+                        <MudText Typo="Typo.h6" Class="mt-6 animate-pulse">Synchronizing Data...</MudText>
+                    </div>
+                }
+                else if (_selectedDoc != null)
+                {
+                    <div class="pa-10 sm-pa-4 fmc-markdown-container">
+                        @((MarkupString)_renderedHtml)
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column align-center justify-center text-center mud-text-secondary" style="height: 600px; background: radial-gradient(circle at center, var(--mud-palette-background-grey) 0%, transparent 70%);">
+                        <div class="hero-icon-container mb-6">
+                            <MudIcon Icon="@Icons.Material.Filled.MenuBook" Style="font-size: 80px;" Color="Color.Primary" />
+                        </div>
+                        <MudText Typo="Typo.h4" Class="mb-2" Style="font-weight: 800; color: var(--mud-palette-text-primary);">Documentation Center</MudText>
+                        <MudText Typo="Typo.body1" Style="max-width: 450px;">Select a technical architecture guide from the sidebar to explore system protocols and enterprise workflows.</MudText>
+                    </div>
+                }
+            </MudPaper>
+        </div>
+    </div>
+</MudContainer>
+
+<style>
+    .doc-nav-list { display: flex; flex-direction: column; gap: 8px; }
+    .doc-nav-item { 
+        display: flex; align-items: center; padding: 12px 16px; border-radius: 12px; cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        color: var(--mud-palette-text-secondary);
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+    .doc-nav-item:hover { background-color: var(--mud-palette-background-grey); color: var(--mud-palette-text-primary); }
+    .doc-nav-item.active { 
+        background-color: var(--mud-palette-primary-lighten); /* Better for light mode */
+        color: var(--mud-palette-primary);
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(var(--mud-palette-primary-rgb), 0.1);
+        border-right: 4px solid var(--mud-palette-primary);
+    }
+    .dark .doc-nav-item.active { background-color: rgba(var(--mud-palette-primary-rgb), 0.15); border-right-color: var(--mud-palette-primary); }
+
+    .fmc-doc-paper { box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05); }
+    .dark .fmc-doc-paper { box-shadow: 0 20px 40px -20px rgba(0,0,0,0.4); }
+
+    .fmc-markdown-container { 
+        font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+        line-height: 1.8; 
+        color: var(--mud-palette-text-primary);
+        padding: 60px 80px; /* High-end padding that scales */
+        max-width: 100%;
+    }
+    
+    .fmc-markdown-container img { max-width: 100%; border-radius: 16px; margin: 30px 0; }
+    .fmc-markdown-container h1 { font-size: 3.25rem; font-weight: 950; margin-bottom: 2.5rem; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); border-bottom: 4px solid var(--mud-palette-primary); padding-bottom: 1.5rem; }
+    .fmc-markdown-container h2 { font-size: 2rem; font-weight: 800; margin-top: 4rem; margin-bottom: 1.5rem; letter-spacing: -0.03em; color: var(--mud-palette-text-primary); }
+    .fmc-markdown-container p { margin-bottom: 1.75rem; font-size: 1.15rem; color: var(--mud-palette-text-secondary); max-width: 1400px; } /* Breathable width for text */
+    .fmc-markdown-container pre { background-color: #0f172a; padding: 2.5rem; border-radius: 20px; margin: 2.5rem 0; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 30px 60px rgba(0,0,0,0.4); }
+    .fmc-markdown-container table { width: 100%; margin: 3rem 0; border-radius: 16px; border: 1px solid var(--mud-palette-divider); border-collapse: separate; overflow: hidden; }
+    .fmc-markdown-container th { background: var(--mud-palette-background-grey); padding: 1.25rem; font-weight: 900; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--mud-palette-text-primary); }
+    .fmc-markdown-container td { padding: 1.25rem; border-top: 1px solid var(--mud-palette-divider); color: var(--mud-palette-text-secondary); font-size: 1rem; }
+
+    @@media (max-width: 600px) {
+        .fmc-markdown-container h1 { font-size: 2rem; }
+        .pa-10 { padding: 1.5rem !important; }
+    }
+</style>
+
+@code {
+    private List<DocumentationDto> _docList = new();
+    private DocumentationDto? _selectedDoc;
+    private string _renderedHtml = "";
+    private bool _loadingContent;
+    private bool _drawerOpen;
+
+    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _docList = await AdminService.GetDocsListAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading documentation index: {ex.Message}", Severity.Error);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("mermaidHelper.init");
+        }
+    }
+
+    private async Task LoadDocument(string fileName)
+    {
+        try
+        {
+            _loadingContent = true;
+            _selectedDoc = null; 
+            _renderedHtml = "";
+            StateHasChanged();
+
+            _selectedDoc = await AdminService.GetDocAsync(fileName);
+            if (_selectedDoc?.Content != null)
+            {
+                var html = Markdown.ToHtml(_selectedDoc.Content, _pipeline);
+                _renderedHtml = PreProcessMermaid(html);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching document: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loadingContent = false;
+            StateHasChanged();
+        }
+    }
+
+    private string PreProcessMermaid(string html)
+    {
+        // Total War Approach: Scan ALL code blocks for Mermaid keywords
+        return System.Text.RegularExpressions.Regex.Replace(
+            html, 
+            @"<pre><code[^>]*>(.*?)<\/code><\/pre>", 
+            m => {
+                var rawCode = m.Groups[1].Value;
+                var decoded = System.Net.WebUtility.HtmlDecode(rawCode).Trim();
+                
+                // If it looks like a Mermaid diagram, convert it to a div
+                if (decoded.Contains("graph ") || 
+                    decoded.Contains("sequenceDiagram") || 
+                    decoded.Contains("flowchart ") || 
+                    decoded.Contains("classDiagram"))
+                {
+                    return $"<div class=\"mermaid\" style=\"padding:30px; background:#0f172a; border-radius:16px; margin:24px 0; border:1px solid rgba(255,255,255,0.1);\">{decoded}</div>";
+                }
+                
+                return m.Value; // Return original if not mermaid
+            }, 
+            System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+}

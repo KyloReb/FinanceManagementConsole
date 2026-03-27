@@ -18,13 +18,13 @@ public class AuditService : IAuditService
         _userManager = userManager;
     }
 
-    public async Task RecordLoginAsync(string? userId, string ipAddress, string details)
+    public async Task RecordAuthEventAsync(string action, string? userId, string ipAddress, string details)
     {
         var log = new AuditLog
         {
             UserId = userId,
             TenantId = userId ?? "SYSTEM", // Explicitly group unauthenticated/failed events under 'SYSTEM'
-            Action = "Login",
+            Action = action,
             IpAddress = ipAddress,
             Details = details,
             CreatedAt = DateTime.UtcNow
@@ -34,11 +34,14 @@ public class AuditService : IAuditService
         await _context.SaveChangesAsync();
     }
 
-    public async Task<List<AuditLogDto>> GetLoginLogsAsync()
+    public async Task<List<AuditLogDto>> GetAuthLogsAsync()
     {
+        // Now filtering for the new Action strings we might use, or all auth-related actions.
+        var authActions = new[] { "Login Success", "Login Failed", "Logout", "Password Reset", "Password Changed", "Registration" };
+
         var logs = await _context.AuditLogs
             .IgnoreQueryFilters() // SuperAdmin needs to see global history
-            .Where(a => a.Action == "Login")
+            .Where(a => a.Action == "Login" || authActions.Contains(a.Action)) // Keep "Login" for backward compatibility
             .OrderByDescending(a => a.CreatedAt)
             .Take(500)
             .ToListAsync();

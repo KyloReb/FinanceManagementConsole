@@ -1,6 +1,9 @@
 @page "/settings"
 @attribute [Authorize]
+@using MudBlazor
 @inject ThemeService ThemeService
+@inject IDialogService DialogService
+@using FMC.Components.Shared.Dialogs
 
 <PageTitle>Settings</PageTitle>
 
@@ -71,7 +74,7 @@
                         <MudText Typo="Typo.body2" Class="mud-text-secondary">Configure your password, multi-factor authentication (OTP), and track your active login sessions for enhanced security.</MudText>
                     </MudItem>
                     <MudItem xs="12" md="4" Class="d-flex align-center justify-md-end">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mr-2" StartIcon="@Icons.Material.Filled.Lock">Change Password</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mr-2" StartIcon="@Icons.Material.Filled.Lock" OnClick="OpenChangePasswordDialog">Change Password</MudButton>
                         <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History">Activity Log</MudButton>
                     </MudItem>
                 </MudGrid>
@@ -79,3 +82,11 @@
         </MudItem>
     </MudGrid>
 </MudContainer>
+
+@code {
+    private void OpenChangePasswordDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true, BackdropClick = false };
+        DialogService.ShowAsync<ChangePasswordDialog>("Change Password", options);
+    }
+}

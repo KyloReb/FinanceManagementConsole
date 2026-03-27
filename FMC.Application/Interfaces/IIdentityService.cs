@@ -22,6 +22,22 @@ public interface IIdentityService
     Task<bool> RegisterAsync(RegisterRequestDto request);
 
     /// <summary>
+    /// Verifies a user's email using a 6-digit OTP code sent during registration.
+    /// </summary>
+    Task<bool> VerifyEmailAsync(VerifyEmailRequestDto request);
+
+    /// <summary>
+    /// Initiates a forgot password flow, generating an OTP and sending an email.
+    /// Returns the user's masked email address and ID.
+    /// </summary>
+    Task<ForgotPasswordResponseDto?> ForgotPasswordAsync(ForgotPasswordRequestDto request);
+
+    /// <summary>
+    /// Verifies the forgot password OTP and resets the user's password.
+    /// </summary>
+    Task<bool> ResetPasswordAsync(ResetPasswordRequestDto request);
+
+    /// <summary>
     /// Refreshes an expired access token using a valid refresh token.
     /// </summary>
     Task<AuthResponseDto?> RefreshTokenAsync(string refreshToken);
@@ -55,4 +71,14 @@ public interface IIdentityService
     /// Creates a new user with the specified credentials and roles.
     /// </summary>
     Task<bool> CreateUserAsync(CreateUserDto request);
+    
+    /// <summary>
+    /// Validates current password and sends an OTP to initiate a change.
+    /// </summary>
+    Task<bool> InitiatePasswordChangeAsync(string userId, ChangePasswordRequestDto request);
+
+    /// <summary>
+    /// Compares the provided OTP and updates the password if valid.
+    /// </summary>
+    Task<bool> CompletePasswordChangeAsync(string userId, VerifyPasswordChangeDto request);
 }

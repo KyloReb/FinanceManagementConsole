@@ -2,14 +2,92 @@
 @layout Layout.BlankLayout
 @attribute [AllowAnonymous]
 @inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@using FMC.Shared.DTOs.Auth
+@using FMC.Services.Api
 
 <PageTitle>Verify Email</PageTitle>
 
 <div class="d-flex justify-center align-center py-8" style="min-height: 100vh; background-color: var(--mud-palette-background);">
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
-        <MudIcon Icon="@Icons.Material.Filled.MarkEmailRead" Color="Color.Primary" Size="Size.Large" Class="mb-2" />
+        <MudImage Src="nlklogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
         <MudText Typo="Typo.h5" Class="mb-2 fw-bold">Verify Your Email</MudText>
-        <MudAlert Severity="Severity.Info">Verification is disabled during architecture migration.</MudAlert>
-        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/login"))" Class="mt-4">Back to Login</MudButton>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-6 text-center">We've sent a 6-digit security code to <strong>@Email</strong>.</MudText>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="w-100 mb-4">@_errorMessage</MudAlert>
+        }
+
+        <EditForm Model="@_model" OnValidSubmit="HandleVerifyAsync" class="w-100">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="_model.Otp" For="@(() => _model.Otp)" Label="6-Digit Verification Code" Variant="Variant.Outlined" FullWidth="true" MaxLength="6" Class="mb-6" Disabled="@_isLoading" />
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="@_isLoading" Style="border-radius: 8px; height: 50px;">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Verifying...</MudText>
+                }
+                else
+                {
+                    <MudText>Verify Email</MudText>
+                }
+            </MudButton>
+        </EditForm>
+        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/login"))" Class="mt-4" Disabled="@_isLoading">Back to Login</MudButton>
     </MudCard>
 </div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string Email { get; set; } = string.Empty;
+
+    [Inject] private AuthService AuthService { get; set; } = default!;
+
+    private VerifyEmailRequestDto _model = new();
+    private bool _isLoading = false;
+    private string _errorMessage = "";
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(Email))
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+        else
+        {
+            _model.Email = Email;
+        }
+    }
+
+    private async Task HandleVerifyAsync()
+    {
+        if (_isLoading) return;
+        _isLoading = true;
+        _errorMessage = "";
+
+        try
+        {
+            var success = await AuthService.VerifyEmail(_model);
+            if (success)
+            {
+                Snackbar.Add("Email verified successfully! You can now log in.", Severity.Success);
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                _errorMessage = "Invalid or expired verification code.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "An unexpected error occurred during verification.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

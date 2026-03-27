@@ -1,6 +1,8 @@
 using FMC.Application.Interfaces;
 using FMC.Shared.DTOs.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace FMC.Api.Controllers;
 
@@ -37,17 +39,65 @@ public class AuthController : ControllerBase
         if (result == null)
         {
             // Log Failed Login Attempt (Security Forensic)
-            await _auditService.RecordLoginAsync(null, ip, $"{userAgent} | Failed attempt for: {request.Identifier}");
+            await _auditService.RecordAuthEventAsync("Login Failed", null, ip, $"{userAgent} | Failed attempt for: {request.Identifier}");
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
         // Record Successful Login
-        await _auditService.RecordLoginAsync(result.UserId, ip, userAgent);
+        await _auditService.RecordAuthEventAsync("Login Success", result.UserId, ip, userAgent);
 
         // Set the refresh token as an HTTP-only cookie for a session-hardened flow
         SetRefreshTokenCookie(result.RefreshToken);
 
         return Ok(result);
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
+    {
+        var result = await _identityService.RegisterAsync(request);
+        if (!result) return BadRequest(new { message = "Registration failed. Email or Username may already be in use." });
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        await _auditService.RecordAuthEventAsync("Registration", null, ip, $"New user registered: {request.Email}");
+
+        return Ok(new { message = "Registration successful. Please check your email for the verification code." });
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto request)
+    {
+        var result = await _identityService.VerifyEmailAsync(request);
+        if (!result) return BadRequest(new { message = "Invalid or expired verification code." });
+        return Ok(new { message = "Email verified successfully." });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
+    {
+        var result = await _identityService.ForgotPasswordAsync(request);
+        // We always return OK to prevent email enumeration, but with a generic message if null
+        if (result == null)
+            return Ok(new { message = "If the account exists, a password reset code has been sent." });
+
+        return Ok(new { 
+            message = "A verification code has been sent to your email.",
+            maskedEmail = result.MaskedEmail,
+            userId = result.UserId
+        });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request)
+    {
+        var result = await _identityService.ResetPasswordAsync(request);
+        if (!result) return BadRequest(new { message = "Invalid code or password requirements not met." });
+
+        // Optionally record audit
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        await _auditService.RecordAuthEventAsync("Password Reset", request.UserId, ip, "Password Reset via OTP successfully completed");
+
+        return Ok(new { message = "Password reset successfully. You can now log in." });
     }
 
     /// <summary>
@@ -76,11 +126,40 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Logout([FromQuery] string userId)
     {
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        await _auditService.RecordLoginAsync(userId, ip, "User Logout Command");
+        await _auditService.RecordAuthEventAsync("Logout", userId, ip, "User Logout Command triggered");
 
         await _identityService.LogoutAsync(userId);
         Response.Cookies.Delete("refreshToken");
         return Ok();
+    }
+
+    [Authorize]
+    [HttpPost("change-password/initiate")]
+    public async Task<IActionResult> InitiatePasswordChange([FromBody] ChangePasswordRequestDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var result = await _identityService.InitiatePasswordChangeAsync(userId, request);
+        if (!result) return BadRequest(new { message = "Invalid current password." });
+
+        return Ok(new { message = "Security code sent to your email." });
+    }
+
+    [Authorize]
+    [HttpPost("change-password/complete")]
+    public async Task<IActionResult> CompletePasswordChange([FromBody] VerifyPasswordChangeDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var result = await _identityService.CompletePasswordChangeAsync(userId, request);
+        if (!result) return BadRequest(new { message = "Invalid security code or password requirements not met." });
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        await _auditService.RecordAuthEventAsync("Password Changed", userId, ip, "Password Changed Successfully");
+
+        return Ok(new { message = "Password updated successfully." });
     }
 
     private void SetRefreshTokenCookie(string refreshToken)

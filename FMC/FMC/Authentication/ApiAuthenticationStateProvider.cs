@@ -114,7 +114,7 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
         try 
         {
             // Sync the HttpClient header with the resolved token
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", token);
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var claims = ParseClaimsFromJwt(token);
             var identity = new ClaimsIdentity(claims, "jwt");
@@ -132,7 +132,7 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     public void MarkUserAsAuthenticated(string token)
     {
         _cachedToken = token;
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", token);
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt"));
         var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
         NotifyAuthenticationStateChanged(authState);

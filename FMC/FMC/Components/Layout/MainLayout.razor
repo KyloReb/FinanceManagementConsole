@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @implements IDisposable
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
@@ -34,22 +34,18 @@
 
         <AuthorizeView Context="authState">
             <Authorized>
-                <div class="d-flex align-center mr-2">
-                    @* Visual User Info *@
-                    <MudHidden Breakpoint="Breakpoint.Xs">
-                        <MudText Typo="Typo.body2" Class="mr-3">@GetDisplayName(authState.User)</MudText>
-                    </MudHidden>
-                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 600;">
-                        @GetInitials(authState.User)
-                    </MudAvatar>
-                    
-                    @* Direct Logout Removed - Moved to Dropdown *@
-
-                    @* ACCOUNT DROPDOWN *@
-                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" 
-                             AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" 
-                             Dense="true" Class="ml-1" PopoverClass="mud-elevation-25">
-                        <ChildContent>
+                @* ACCOUNT DROPDOWN (Avatar & Name as Trigger) *@
+                <MudMenu @bind-Open="_userMenuOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" 
+                         Dense="true" Class="ml-1" PopoverClass="mud-elevation-25">
+                    <ActivatorContent>
+                        <div class="d-flex align-center cursor-pointer pa-1 rounded-pill user-menu-trigger" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
+                            <MudText Typo="Typo.body2" Class="mr-3 ml-2 d-none d-sm-block">@GetDisplayName(authState.User)</MudText>
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 600;">
+                                @GetInitials(authState.User)
+                            </MudAvatar>
+                        </div>
+                    </ActivatorContent>
+                    <ChildContent>
                             <div class="pa-4" style="min-width: 220px; background-color: var(--mud-palette-surface); border-bottom: 1px solid var(--mud-palette-divider);">
                                 <MudText Typo="Typo.body2" Color="Color.Primary"><b>@GetDisplayName(authState.User)</b></MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">@GetRoleName(authState.User)</MudText>
@@ -62,8 +58,7 @@
                             </div>
                         </ChildContent>
                     </MudMenu>
-                </div>
-            </Authorized>
+                </Authorized>
             <NotAuthorized>
                 <MudButton Href="/login" Variant="Variant.Text" Color="Color.Inherit" Class="mr-2">Log In</MudButton>
                 <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" Class="mr-3">Register</MudButton>
@@ -90,10 +85,17 @@
     .brand-link:hover {
         opacity: 0.8;
     }
+    .user-menu-trigger:hover {
+        background-color: var(--mud-palette-action-default-hover);
+        border-radius: 20px;
+    }
 </style>
 
 @code {
     private bool _drawerOpen = true;
+    private bool _userMenuOpen = false;
+
+    private void ToggleUserMenu() => _userMenuOpen = !_userMenuOpen;
 
     private async Task LogoutAsync()
     {

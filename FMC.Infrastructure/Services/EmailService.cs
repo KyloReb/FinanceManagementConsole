@@ -1,13 +1,14 @@
+using FMC.Application.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MimeKit;
 
-namespace FMC.Services;
+namespace FMC.Infrastructure.Services;
 
 /// <summary>
-/// A MailKit-based implementation of the IEmailService.
+/// Infrastructure implementation of IEmailService using MailKit.
 /// </summary>
 public class EmailService : IEmailService
 {
@@ -20,20 +21,11 @@ public class EmailService : IEmailService
         _logger = logger;
     }
 
-    /// <summary>
-    /// Asynchronously connects to the configured SMTP server and sends an email.
-    /// </summary>
-    /// <param name="toEmail">The recipient's email address.</param>
-    /// <param name="subject">The subject line of the email.</param>
-    /// <param name="body">The full HTML or plaintext body of the email.</param>
-    /// <param name="isHtml">True if the body contains HTML markup, false for plaintext. Defaults to true.</param>
-    /// <returns>A Task representing the asynchronous connection and transmission operation.</returns>
-    public async Task SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true)
+    public async Task SendEmailAsync(string toEmail, string subject, string body, IDictionary<string, byte[]>? attachments = null)
     {
         try
         {
             var emailMessage = new MimeMessage();
-
             var senderName = _config["SmtpSettings:SenderName"] ?? "FMC System";
             var senderEmail = _config["SmtpSettings:SenderEmail"] ?? "no-reply@fmc.com";
             
@@ -41,34 +33,37 @@ public class EmailService : IEmailService
             emailMessage.To.Add(new MailboxAddress("", toEmail));
             emailMessage.Subject = subject;
 
-            var bodyBuilder = new BodyBuilder
+            var bodyBuilder = new BodyBuilder { HtmlBody = body };
+
+            if (attachments != null)
             {
-                HtmlBody = isHtml ? body : null,
-                TextBody = isHtml ? null : body
-            };
+                foreach (var attachment in attachments)
+                {
+                    // Add as LinkedResource with explicit Content-ID and MIME type
+                    var resource = bodyBuilder.LinkedResources.Add(attachment.Key, attachment.Value);
+                    resource.ContentId = attachment.Key;
+                    resource.ContentDisposition = new ContentDisposition(ContentDisposition.Inline);
+                }
+            }
 
             emailMessage.Body = bodyBuilder.ToMessageBody();
 
             using var client = new SmtpClient();
-
             var host = _config["SmtpSettings:Host"];
             var port = int.Parse(_config["SmtpSettings:Port"] ?? "587");
             var username = _config["SmtpSettings:Username"];
             var password = _config["SmtpSettings:Password"];
 
-            // Connect using SecureSocketOptions.StartTls for standard SMTP
             await client.ConnectAsync(host ?? "smtp.gmail.com", port, SecureSocketOptions.StartTls);
             await client.AuthenticateAsync(username ?? "", password ?? "");
-
             await client.SendAsync(emailMessage);
             await client.DisconnectAsync(true);
 
-            _logger.LogInformation("Email sent successfully to {ToEmail} with subject '{Subject}'", toEmail, subject);
+            _logger.LogInformation("Security Email sent to {ToEmail}", toEmail);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {ToEmail}. If this is a development environment, verify SMTP settings.", toEmail);
-            // throw; // Rethrow to let the caller handle the failure -- DISABLED for Dev testing bypassing MailKit credentials
+            _logger.LogError(ex, "Failed to send security email to {ToEmail}", toEmail);
         }
     }
 }

@@ -59,7 +59,6 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 builder.Services.AddScoped<ApiFinanceService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<IReportService, ReportService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ThemeService>();
 #endregion
 

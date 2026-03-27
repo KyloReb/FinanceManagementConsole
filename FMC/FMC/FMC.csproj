@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="MailKit" Version="4.15.1" />
+    <PackageReference Include="Markdig" Version="1.1.1" />
     <PackageReference Include="MudBlazor" Version="9.2.0" />
     <PackageReference Include="QuestPDF" Version="2026.2.3" />
     <ProjectReference Include="..\FMC.Client\FMC.Client.csproj" />

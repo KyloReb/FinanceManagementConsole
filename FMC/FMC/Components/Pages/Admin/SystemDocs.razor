@@ -131,10 +131,57 @@
     .fmc-markdown-container h1 { font-size: 3.25rem; font-weight: 950; margin-bottom: 2.5rem; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); border-bottom: 4px solid var(--mud-palette-primary); padding-bottom: 1.5rem; }
     .fmc-markdown-container h2 { font-size: 2rem; font-weight: 800; margin-top: 4rem; margin-bottom: 1.5rem; letter-spacing: -0.03em; color: var(--mud-palette-text-primary); }
     .fmc-markdown-container p { margin-bottom: 1.75rem; font-size: 1.15rem; color: var(--mud-palette-text-secondary); max-width: 1400px; } /* Breathable width for text */
-    .fmc-markdown-container pre { background-color: #0f172a; padding: 2.5rem; border-radius: 20px; margin: 2.5rem 0; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 30px 60px rgba(0,0,0,0.4); }
-    .fmc-markdown-container table { width: 100%; margin: 3rem 0; border-radius: 16px; border: 1px solid var(--mud-palette-divider); border-collapse: separate; overflow: hidden; }
-    .fmc-markdown-container th { background: var(--mud-palette-background-grey); padding: 1.25rem; font-weight: 900; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--mud-palette-text-primary); }
-    .fmc-markdown-container td { padding: 1.25rem; border-top: 1px solid var(--mud-palette-divider); color: var(--mud-palette-text-secondary); font-size: 1rem; }
+    .fmc-markdown-container pre { 
+        background-color: var(--mud-palette-background-grey); 
+        padding: 2.5rem; 
+        border-radius: 20px; 
+        margin: 2.5rem 0; 
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.05);
+        color: var(--mud-palette-text-primary);
+    }
+    .dark .fmc-markdown-container pre { 
+        background-color: #0f172a; 
+        border-color: rgba(255,255,255,0.05); 
+        box-shadow: 0 30px 60px rgba(0,0,0,0.4); 
+    }
+
+    /* Mermaid Container Theme-Aware */
+    .mermaid-container {
+        padding: 40px;
+        background-color: #f8fafc;
+        border-radius: 20px;
+        margin: 32px 0;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: center;
+        box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+    }
+    .dark .mermaid-container {
+        background-color: #0f172a;
+        border-color: rgba(255,255,255,0.1);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+    }
+
+    /* GitHub Style Alerts */
+    .fmc-alert {
+        padding: 1.25rem 1.5rem;
+        border-radius: 12px;
+        margin: 2rem 0;
+        border-left: 6px solid;
+    }
+    .fmc-alert.tip { background: #f0fdf4; border-color: #22c55e; color: #166534; }
+    .fmc-alert.warning { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+    .fmc-alert.important { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+    .fmc-alert.caution { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
+
+    .dark .fmc-alert.tip { background: rgba(34, 197, 94, 0.1); border-color: #22c55e; color: #4ade80; }
+    .dark .fmc-alert.warning { background: rgba(245, 158, 11, 0.1); border-color: #f59e0b; color: #fbbf24; }
+    .dark .fmc-alert.important { background: rgba(59, 130, 246, 0.1); border-color: #3b82f6; color: #60a5fa; }
+    .dark .fmc-alert.caution { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; color: #f87171; }
+
+    .alert-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .alert-content { font-size: 1.05rem; line-height: 1.6; opacity: 0.9; }
 
     @@media (max-width: 600px) {
         .fmc-markdown-container h1 { font-size: 2rem; }
@@ -185,8 +232,14 @@
             _selectedDoc = await AdminService.GetDocAsync(fileName);
             if (_selectedDoc?.Content != null)
             {
-                var html = Markdown.ToHtml(_selectedDoc.Content, _pipeline);
-                _renderedHtml = PreProcessMermaid(html);
+                // 1. Process Markdown-level features (Alerts)
+                var md = PreProcessMarkdown(_selectedDoc.Content);
+                
+                // 2. Convert to HTML
+                var html = Markdown.ToHtml(md, _pipeline);
+                
+                // 3. Process HTML-level features (Mermaid)
+                _renderedHtml = PreProcessHtml(html);
             }
         }
         catch (Exception ex)
@@ -200,9 +253,31 @@
         }
     }
 
-    private string PreProcessMermaid(string html)
+    private string PreProcessMarkdown(string md)
     {
-        // Total War Approach: Scan ALL code blocks for Mermaid keywords
+        // Process GitHub-style alerts (> [!TIP])
+        var alertRegex = new System.Text.RegularExpressions.Regex(@"^>\s*\[!(TIP|IMPORTANT|WARNING|CAUTION|NOTE)\]\s*(.*?)$(?:\s*^>\s*(.*?)$)*", 
+            System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return alertRegex.Replace(md, m => {
+            var type = m.Groups[1].Value.ToUpper();
+            // Collect all lines starting with >
+            var allContent = m.Value;
+            var lines = allContent.Split('\n')
+                .Select(l => l.Trim().TrimStart('>').Trim())
+                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("[!"))
+                .ToList();
+            
+            var content = string.Join(" ", lines);
+            var colorClass = type.ToLower();
+            
+            return $"\n<div class=\"fmc-alert {colorClass}\"><div class=\"alert-header\"><strong>{type}</strong></div><div class=\"alert-content\">{content}</div></div>\n";
+        });
+    }
+
+    private string PreProcessHtml(string html)
+    {
+        // Process Mermaid Blocks
         return System.Text.RegularExpressions.Regex.Replace(
             html, 
             @"<pre><code[^>]*>(.*?)<\/code><\/pre>", 
@@ -210,16 +285,13 @@
                 var rawCode = m.Groups[1].Value;
                 var decoded = System.Net.WebUtility.HtmlDecode(rawCode).Trim();
                 
-                // If it looks like a Mermaid diagram, convert it to a div
-                if (decoded.Contains("graph ") || 
-                    decoded.Contains("sequenceDiagram") || 
-                    decoded.Contains("flowchart ") || 
-                    decoded.Contains("classDiagram"))
+                if (decoded.Contains("graph ") || decoded.Contains("sequenceDiagram") || 
+                    decoded.Contains("flowchart ") || decoded.Contains("classDiagram"))
                 {
-                    return $"<div class=\"mermaid\" style=\"padding:30px; background:#0f172a; border-radius:16px; margin:24px 0; border:1px solid rgba(255,255,255,0.1);\">{decoded}</div>";
+                    return $"<div class=\"mermaid-container\"><div class=\"mermaid\">{decoded}</div></div>";
                 }
                 
-                return m.Value; // Return original if not mermaid
+                return m.Value;
             }, 
             System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }

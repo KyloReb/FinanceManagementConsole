@@ -106,7 +106,7 @@
                         });
                         this._initialized = true;
                         this.startObserving();
-                        console.log("%c[Mermaid] v" + mermaid.version + " Armed & Monitoring", "color: #3b82f6; font-weight: bold;");
+                        console.log("%c[Mermaid] " + (mermaid.version ? "v" + mermaid.version : "Engine") + " Armed & Monitoring", "color: #3b82f6; font-weight: bold;");
                     } catch (e) {
                         console.error("[Mermaid] Init Fail:", e);
                     }

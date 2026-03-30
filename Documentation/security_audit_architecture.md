@@ -11,8 +11,8 @@ The auditing engine is designed as a **Cross-Cutting Concern**, decoupled from t
 ```mermaid
 graph TD
     User([User Entity]) -->|Auth Request| API[AuthController]
-    API -->|1. Process Action| IS[IdentityService]
-    API -->|2. Record Event| AS[AuditService]
+    API -->|(1) Process Action| IS[IdentityService]
+    API -->|(2) Record Event| AS[AuditService]
     AS -->|Async Persistence| DB[(AuditLog Database)]
     DB -->|SuperAdmin Query| AD[Admin Dashboard]
     AD -->|Group & Filter| UI[Security Logs UI]

@@ -11,10 +11,10 @@ FMC uses a **Hybrid Caching Model** to ensure resilience across different enviro
 ```mermaid
 graph LR
     LB[Load Balancer] --> App[FMC API Nodes]
-    App -->|1. Hit Cache| Redis[(Redis Cache)]
-    Redis --|Miss| DB[(SQL Server DB)]
-    DB --|Fill| Redis
-    App -->|2. Direct Access| DB
+    App -->|(1) Hit Cache| Redis[(Redis Cache)]
+    Redis -->|(2) Miss| DB[(SQL Server DB)]
+    DB -->|(3) Fill| Redis
+    App -->|(4) Direct Access| DB
 ```
 
 -   **Development**: Uses `AddDistributedMemoryCache` for lightweight, localized testing without external dependencies.

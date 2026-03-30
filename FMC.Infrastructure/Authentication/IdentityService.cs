@@ -58,7 +58,7 @@ public class IdentityService : IIdentityService
         if (!result) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        var token = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles);
+        var token = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, user.Organization);
         var refreshToken = _jwtService.GenerateRefreshToken();
 
         user.RefreshToken = refreshToken;
@@ -71,11 +71,12 @@ public class IdentityService : IIdentityService
         {
             Token = token,
             RefreshToken = refreshToken,
-            Expiry = DateTime.UtcNow.AddMinutes(15), // Standard 15-min JWT
+            Expiry = DateTime.UtcNow.AddMinutes(15),
             UserId = user.Id,
             Email = user.Email!,
             FirstName = user.FirstName,
-            LastName = user.LastName
+            LastName = user.LastName,
+            Organization = user.Organization
         };
     }
 
@@ -90,6 +91,7 @@ public class IdentityService : IIdentityService
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
+            Organization = request.Organization,
             IsActive = true,
             EmailConfirmed = false // Must verify email
         };
@@ -247,7 +249,7 @@ public class IdentityService : IIdentityService
         if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        var newToken = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles);
+        var newToken = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, user.Organization);
         var newRefreshToken = _jwtService.GenerateRefreshToken();
 
         user.RefreshToken = newRefreshToken;
@@ -261,7 +263,8 @@ public class IdentityService : IIdentityService
             UserId = user.Id,
             Email = user.Email!,
             FirstName = user.FirstName,
-            LastName = user.LastName
+            LastName = user.LastName,
+            Organization = user.Organization
         };
     }
 
@@ -291,6 +294,7 @@ public class IdentityService : IIdentityService
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
+                Organization = user.Organization,
                 IsActive = user.IsActive,
                 Roles = roles.ToList()
             });
@@ -312,6 +316,7 @@ public class IdentityService : IIdentityService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
+            Organization = user.Organization,
             IsActive = user.IsActive,
             Roles = roles.ToList()
         };
@@ -325,6 +330,7 @@ public class IdentityService : IIdentityService
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
+            Organization = request.Organization,
             IsActive = true,
             EmailConfirmed = true
         };
@@ -352,6 +358,7 @@ public class IdentityService : IIdentityService
         user.Email = request.Email;
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
+        user.Organization = request.Organization;
         user.IsActive = request.IsActive;
 
         var result = await _userManager.UpdateAsync(user);
@@ -376,6 +383,14 @@ public class IdentityService : IIdentityService
     {
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return false;
+
+        // CRITICAL SECURITY GUARDRAIL: Prevent deletion of SuperAdmin accounts
+        var roles = await _userManager.GetRolesAsync(user);
+        if (roles.Contains(FMC.Shared.Auth.Roles.SuperAdmin))
+        {
+            _logger.LogWarning("SECURITY ALERT: Attempted deletion of SuperAdmin account {Email} (ID: {Id}) blocked.", user.Email, user.Id);
+            return false;
+        }
 
         var result = await _userManager.DeleteAsync(user);
         return result.Succeeded;

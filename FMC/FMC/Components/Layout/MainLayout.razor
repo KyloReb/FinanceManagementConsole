@@ -39,7 +39,9 @@
                          Dense="true" Class="ml-1" PopoverClass="mud-elevation-25">
                     <ActivatorContent>
                         <div class="d-flex align-center cursor-pointer pa-1 rounded-pill user-menu-trigger" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
-                            <MudText Typo="Typo.body2" Class="mr-3 ml-2 d-none d-sm-block">@GetDisplayName(authState.User)</MudText>
+                            <div class="d-flex align-center d-none d-sm-flex mr-3 ml-2">
+                                <MudText Typo="Typo.body2">@GetDisplayName(authState.User)</MudText>
+                            </div>
                             <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 600;">
                                 @GetInitials(authState.User)
                             </MudAvatar>
@@ -47,7 +49,15 @@
                     </ActivatorContent>
                     <ChildContent>
                             <div class="pa-4" style="min-width: 220px; background-color: var(--mud-palette-surface); border-bottom: 1px solid var(--mud-palette-divider);">
-                                <MudText Typo="Typo.body2" Color="Color.Primary"><b>@GetDisplayName(authState.User)</b></MudText>
+                                <div class="d-flex align-start mb-1">
+                                    <MudText Typo="Typo.body2" Color="Color.Primary"><b>@GetDisplayName(authState.User)</b></MudText>
+                                    @if (!string.IsNullOrEmpty(GetOrganization(authState.User)))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="ml-1 px-1 py-0 ma-0 text-xs" Style="height: 16px; font-size: 0.65rem; align-self: flex-start; margin-top: -2px !important;">
+                                            @GetOrganization(authState.User)
+                                        </MudChip>
+                                    }
+                                </div>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">@GetRoleName(authState.User)</MudText>
                             </div>
                             <div class="py-2" style="background-color: var(--mud-palette-surface);">
@@ -151,6 +161,12 @@
                 ?? user.FindFirst("role")?.Value 
                 ?? "User";
         return role;
+    }
+
+    private string GetOrganization(System.Security.Claims.ClaimsPrincipal user)
+    {
+        // "organization" is the claim type used in IdentityService
+        return user.FindFirst("organization")?.Value ?? string.Empty;
     }
 
     public void Dispose()

@@ -12,7 +12,6 @@ namespace FMC.Authentication;
 /// </summary>
 public class ApiAuthenticationStateProvider : AuthenticationStateProvider
 {
-    private readonly HttpClient _httpClient;
     private readonly IJSRuntime _jsStack;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly PersistentComponentState _applicationState;
@@ -22,12 +21,10 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     private static int _globalCount = 0;
 
     public ApiAuthenticationStateProvider(
-        HttpClient httpClient, 
         IJSRuntime jsStack, 
         IHttpContextAccessor httpContextAccessor,
         PersistentComponentState applicationState)
     {
-        _httpClient = httpClient;
         _jsStack = jsStack;
         _httpContextAccessor = httpContextAccessor;
         _applicationState = applicationState;
@@ -37,6 +34,7 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     }
 
     private string? _cachedToken;
+    public string? CurrentToken => _cachedToken;
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
@@ -113,9 +111,6 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     {
         try 
         {
-            // Sync the HttpClient header with the resolved token
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
             var claims = ParseClaimsFromJwt(token);
             var identity = new ClaimsIdentity(claims, "jwt");
             var user = new ClaimsPrincipal(identity);
@@ -132,7 +127,6 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     public void MarkUserAsAuthenticated(string token)
     {
         _cachedToken = token;
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var authenticatedUser = new ClaimsPrincipal(new ClaimsIdentity(ParseClaimsFromJwt(token), "jwt"));
         var authState = Task.FromResult(new AuthenticationState(authenticatedUser));
         NotifyAuthenticationStateChanged(authState);
@@ -141,7 +135,6 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     public void MarkUserAsLoggedOut()
     {
         _cachedToken = null;
-        _httpClient.DefaultRequestHeaders.Authorization = null;
         var authState = Task.FromResult(new AuthenticationState(_anonymous));
         NotifyAuthenticationStateChanged(authState);
     }
@@ -156,6 +149,7 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
 
     private byte[] ParseBase64WithoutPadding(string base64)
     {
+        base64 = base64.Replace('-', '+').Replace('_', '/');
         switch (base64.Length % 4)
         {
             case 2: base64 += "=="; break;

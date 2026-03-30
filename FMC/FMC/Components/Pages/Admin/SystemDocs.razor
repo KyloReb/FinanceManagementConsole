@@ -11,6 +11,22 @@
 <PageTitle>System Documentation - FMC Admin</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-16 px-12">
+    <!-- Mini Section Navigator (Floating Indicator Lines) -->
+    @if (_sections.Any())
+    {
+        <div class="section-navigator">
+            @foreach (var sec in _sections)
+            {
+                bool isActive = sec.Id == _activeSectionId;
+                <MudTooltip Text="@sec.Title" Placement="Placement.Left" Arrow="true" Color="Color.Dark">
+                    <div class="nav-line-item level-@sec.Level @(isActive ? "active" : "")" @onclick="() => ScrollToSection(sec.Id)">
+                        <div class="line-inner"></div>
+                    </div>
+                </MudTooltip>
+            }
+        </div>
+    }
+
     <!-- Header Section -->
     <div class="d-flex flex-column align-center text-center mb-10">
         <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Color="Color.Primary" Size="Size.Large" Class="mb-4" Style="font-size: 72px;" />
@@ -20,28 +36,33 @@
         </MudText>
     </div>
 
-    <!-- Navigation Bar: Focused & Centered -->
-    <div class="d-flex justify-center mb-10">
-        <MudPaper Elevation="0" Class="pa-2 d-flex align-center" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface); width: 100%; max-width: 800px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-            <MudIcon Icon="@Icons.Material.Filled.Search" Color="Color.Primary" Class="ml-4 mr-2" />
-            <div style="flex-grow: 1;">
-                 <MudSelect T="string" Label="Search Enterprise Knowledge Base" 
-                           Value="@_selectedDoc?.FileName" 
-                           ValueChanged="LoadDocument"
-                           Variant="Variant.Text" 
-                           Underline="false"
-                           AnchorOrigin="Origin.BottomCenter"
-                           Class="mr-4">
-                    @foreach (var doc in _docList)
-                    {
-                        <MudSelectItem Value="@doc.FileName">@doc.DisplayName</MudSelectItem>
-                    }
-                </MudSelect>
-            </div>
-            <MudTooltip Text="Open Document Index">
-                <MudIconButton Icon="@Icons.Material.Filled.MenuOpen" Color="Color.Primary" OnClick="@(() => _drawerOpen = true)" Class="mr-2" />
-            </MudTooltip>
-        </MudPaper>
+    <!-- Navigation Bar: Focused, Centered & Sticky -->
+    <div class="sticky-nav-container">
+        <div class="d-flex justify-center">
+            <MudPaper Elevation="0" Class="pa-2 d-flex align-center nav-glass" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface); width: 100%; max-width: 800px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <MudIcon Icon="@Icons.Material.Filled.Search" Color="Color.Primary" Class="ml-4 mr-2" />
+                <div style="flex-grow: 1;">
+                     <MudSelect T="string" Label="Jump to Document" 
+                               Value="@_selectedDoc?.FileName" 
+                               ValueChanged="LoadDocument"
+                               Variant="Variant.Text" 
+                               Underline="false"
+                               AnchorOrigin="Origin.BottomCenter"
+                               TransformOrigin="Origin.TopCenter"
+                               PopOverClass="nav-select-popover"
+                               Dense="true"
+                               Class="mr-4">
+                        @foreach (var doc in _docList)
+                        {
+                            <MudSelectItem Value="@doc.FileName">@doc.DisplayName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+                <MudTooltip Text="Browse Knowledge Index">
+                    <MudIconButton Icon="@Icons.Material.Filled.MenuOpen" Color="Color.Primary" OnClick="@(() => _drawerOpen = true)" Class="mr-2" />
+                </MudTooltip>
+            </MudPaper>
+        </div>
     </div>
 
     <MudDrawer @bind-Open="@_drawerOpen" Anchor="Anchor.Left" Elevation="1" Variant="DrawerVariant.Temporary" Width="400px">
@@ -98,6 +119,26 @@
 </MudContainer>
 
 <style>
+    .sticky-nav-container { 
+        position: sticky; 
+        top: 70px; 
+        z-index: 1000; 
+        margin-bottom: 2.5rem; 
+        transition: transform 0.3s ease;
+    }
+    .nav-glass { 
+        backdrop-filter: blur(8px); 
+        background: rgba(var(--mud-palette-surface-rgb), 0.8) !important; 
+    }
+    .nav-select-popover {
+        width: 100% !important;
+        max-width: 600px !important;
+        margin-top: 10px;
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+    }
+    
     .doc-nav-list { display: flex; flex-direction: column; gap: 8px; }
     .doc-nav-item { 
         display: flex; align-items: center; padding: 12px 16px; border-radius: 12px; cursor: pointer;
@@ -126,11 +167,92 @@
         padding: 60px 80px; /* High-end padding that scales */
         max-width: 100%;
     }
+
+    /* Minimalist Section Navigator (Right Side - Outside Container) */
+    .section-navigator {
+        position: fixed;
+        right: 8px; /* Move to far right edge near scrollbar */
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 2000;
+        padding: 20px 0;
+        /* Container removed as requested - just the lines */
+        transition: all 0.4s ease;
+    }
+    
+    .nav-line-item { cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 10px; }
+    .line-inner { 
+        height: 2.5px; 
+        background-color: var(--mud-palette-text-disabled); 
+        border-radius: 4px; 
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        opacity: 0.4;
+    }
+    
+    .level-1 .line-inner { width: 32px; height: 4px; opacity: 0.8; }
+    .level-2 .line-inner { width: 20px; }
+    .level-3 .line-inner { width: 12px; }
+    
+    .nav-line-item:hover .line-inner { 
+        background-color: var(--mud-palette-primary); 
+        opacity: 1; 
+        transform: scaleX(1.15);
+        box-shadow: 0 0 15px rgba(var(--mud-palette-primary-rgb), 0.6);
+    }
+
+    /* Active Indicator (Bold/Thick) */
+    .nav-line-item.active .line-inner {
+        background-color: var(--mud-palette-primary);
+        opacity: 1;
+        width: 50px !important;
+        height: 6px;
+        box-shadow: 0 0 20px rgba(var(--mud-palette-primary-rgb), 0.7);
+        filter: brightness(1.2);
+    }
     
     .fmc-markdown-container img { max-width: 100%; border-radius: 16px; margin: 30px 0; }
     .fmc-markdown-container h1 { font-size: 3.25rem; font-weight: 950; margin-bottom: 2.5rem; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); border-bottom: 4px solid var(--mud-palette-primary); padding-bottom: 1.5rem; }
     .fmc-markdown-container h2 { font-size: 2rem; font-weight: 800; margin-top: 4rem; margin-bottom: 1.5rem; letter-spacing: -0.03em; color: var(--mud-palette-text-primary); }
     .fmc-markdown-container p { margin-bottom: 1.75rem; font-size: 1.15rem; color: var(--mud-palette-text-secondary); max-width: 1400px; } /* Breathable width for text */
+    
+    /* Elegant Enterprise Tables */
+    .fmc-markdown-container table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 2.5rem 0;
+        background: var(--mud-palette-surface);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+    .dark .fmc-markdown-container table { box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+    
+    .fmc-markdown-container th {
+        background-color: var(--mud-palette-background-grey);
+        color: var(--mud-palette-text-primary);
+        font-weight: 850;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+        padding: 1.25rem 1.5rem;
+        text-align: left;
+        border-bottom: 2px solid var(--mud-palette-divider);
+    }
+    .fmc-markdown-container td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        font-size: 1.05rem;
+        color: var(--mud-palette-text-secondary);
+        transition: background-color 0.2s ease;
+    }
+    .fmc-markdown-container tr:last-child td { border-bottom: none; }
+    .fmc-markdown-container tr:hover td { background-color: rgba(var(--mud-palette-primary-rgb), 0.02); }
+    .dark .fmc-markdown-container tr:hover td { background-color: rgba(255,255,255,0.02); }
     .fmc-markdown-container pre { 
         background-color: var(--mud-palette-background-grey); 
         padding: 2.5rem; 
@@ -195,9 +317,22 @@
     private string _renderedHtml = "";
     private bool _loadingContent;
     private bool _drawerOpen;
+    private string? _activeSectionId;
+    private List<SectionInfo> _sections = new();
+    private DotNetObjectReference<SystemDocs>? _objRef;
+
+    private record SectionInfo(string Id, string Title, int Level);
+
+    [JSInvokable]
+    public void SetActiveSection(string id)
+    {
+        _activeSectionId = id;
+        StateHasChanged();
+    }
 
     private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
+        .UseAutoIdentifiers()
         .Build();
 
     protected override async Task OnInitializedAsync()
@@ -227,19 +362,29 @@
             _loadingContent = true;
             _selectedDoc = null; 
             _renderedHtml = "";
+            _sections.Clear();
             StateHasChanged();
 
             _selectedDoc = await AdminService.GetDocAsync(fileName);
             if (_selectedDoc?.Content != null)
             {
-                // 1. Process Markdown-level features (Alerts)
+                // 1. Process Markdown-level features
                 var md = PreProcessMarkdown(_selectedDoc.Content);
                 
                 // 2. Convert to HTML
                 var html = Markdown.ToHtml(md, _pipeline);
                 
-                // 3. Process HTML-level features (Mermaid)
+                // 3. Process HTML-level features
                 _renderedHtml = PreProcessHtml(html);
+                
+                // 4. Extract sections for navigator
+                ExtractSections(_renderedHtml);
+
+                // 5. Initialize Scroll Sync AFTER internal state changed
+                _activeSectionId = _sections.FirstOrDefault()?.Id;
+                await Task.Delay(200); // Wait for DOM to update
+                _objRef ??= DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("initScrollSync", _objRef);
             }
         }
         catch (Exception ex)
@@ -253,25 +398,53 @@
         }
     }
 
+    private void ExtractSections(string html)
+    {
+        var headerRegex = new System.Text.RegularExpressions.Regex(@"<h([1-3])\s+id=""([^""]+)""[^>]*>(.*?)<\/h\1>", 
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+        
+        foreach (System.Text.RegularExpressions.Match match in headerRegex.Matches(html))
+        {
+            var level = int.Parse(match.Groups[1].Value);
+            var id = match.Groups[2].Value;
+            var rawTitle = match.Groups[3].Value;
+            var cleanTitle = System.Text.RegularExpressions.Regex.Replace(rawTitle, "<.*?>", string.Empty);
+            cleanTitle = System.Net.WebUtility.HtmlDecode(cleanTitle).Trim();
+            
+            _sections.Add(new SectionInfo(id, cleanTitle, level));
+        }
+    }
+
+    private async Task ScrollToSection(string id)
+    {
+        await JSRuntime.InvokeVoidAsync("scrollToSection", id);
+    }
+
     private string PreProcessMarkdown(string md)
     {
         // Process GitHub-style alerts (> [!TIP])
-        var alertRegex = new System.Text.RegularExpressions.Regex(@"^>\s*\[!(TIP|IMPORTANT|WARNING|CAUTION|NOTE)\]\s*(.*?)$(?:\s*^>\s*(.*?)$)*", 
+        // This regex captures the whole blockquote group including following lines starting with >
+        var alertRegex = new System.Text.RegularExpressions.Regex(@"^>\s*\[!(TIP|IMPORTANT|WARNING|CAUTION|NOTE)\]\s*(.*?)$(?:\n>\s*(.*?)$)*", 
             System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         return alertRegex.Replace(md, m => {
             var type = m.Groups[1].Value.ToUpper();
-            // Collect all lines starting with >
-            var allContent = m.Value;
-            var lines = allContent.Split('\n')
+            
+            // Extract the body by removing the [!TYPE] marker and cleaning the > prefixes
+            var lines = m.Value.Split('\n')
                 .Select(l => l.Trim().TrimStart('>').Trim())
-                .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("[!"))
                 .ToList();
             
-            var content = string.Join(" ", lines);
+            // Filter out the initial [!TYPE] line if it exists (it's in the first line)
+            if (lines.Count > 0 && lines[0].StartsWith("[!")) 
+                lines[0] = lines[0].Substring(lines[0].IndexOf(']') + 1).Trim();
+            
+            var contentRaw = string.Join("\n", lines).Trim();
+            // Parse the content as Markdown so bold/links work inside the alert
+            var contentHtml = Markdown.ToHtml(contentRaw, _pipeline);
             var colorClass = type.ToLower();
             
-            return $"\n<div class=\"fmc-alert {colorClass}\"><div class=\"alert-header\"><strong>{type}</strong></div><div class=\"alert-content\">{content}</div></div>\n";
+            return $"\n<div class=\"fmc-alert {colorClass}\"><div class=\"alert-header\"><strong>{type}</strong></div><div class=\"alert-content\">{contentHtml}</div></div>\n";
         });
     }
 

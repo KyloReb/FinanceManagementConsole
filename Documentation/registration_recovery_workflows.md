@@ -26,6 +26,37 @@ The registration flow ensures that every new account is tied to a verified email
     -   Upon successful verification, `EmailConfirmed` is set to `true`.
     -   The OTP is explicitly consumed (removed from cache).
 
+### Workflow Visualization:
+```mermaid
+graph TD
+    A[User fills Registration Form] --> B{Form Valid?}
+    B -- No --> A
+    B -- Yes --> C[Submit to API]
+    
+    C --> D[IdentityService.RegisterAsync]
+    D --> E{User Exists?}
+    E -- Yes --> F[Return Error]
+    E -- No --> G[Create User Account\nEmailConfirmed = false]
+    
+    G --> H[Generate 6-digit OTP]
+    H --> I[Cache OTP in Redis\n10-minute TTL]
+    I --> J[Dispatch Branded HTML Email\nCID Logo Attachment]
+    
+    J --> K[Redirect to VerifyEmail.razor]
+    K --> L{OTP Entered?}
+    
+    L -- Match --> M[Activate Account\nEmailConfirmed = true]
+    L -- No Match --> K
+    
+    M --> N[Clear OTP from Redis]
+    N --> O[User Redirected to Login]
+    
+    style G fill:#f9f,stroke:#333,stroke-width:2px
+    style I fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#dfd,stroke:#333,stroke-width:2px
+    style M fill:#dfd,stroke:#333,stroke-width:2px
+```
+
 ---
 
 ## 2. Secure Password Recovery (Forgot Password)
@@ -45,6 +76,24 @@ FMC implements a "Privacy-First" recovery flow that protects against email enume
     -   User provides the 6-digit OTP along with their new password.
     -   The UI uses a **Grid System** to maintain perfect alignment and responsiveness on mobile.
     -   The back-end validates the OTP against the Redis cache and applies the reset via `UserManager`.
+
+### Workflow Visualization:
+```mermaid
+graph TD
+    A[Enter Email/Username] --> B[API returns Masked Email]
+    B --> C[OTP sent via Email]
+    C --> D[60s Resend Cooldown]
+    D --> E[User enters OTP & New Password]
+    E --> F{OTP Valid?}
+    F -- No --> E
+    F -- Yes --> G[Password Updated]
+    G --> H[Invalidate OTP in Redis]
+    H --> I[Redirect to Login]
+    
+    style B fill:#fdf,stroke:#333
+    style C fill:#bbf,stroke:#333
+    style G fill:#dfd,stroke:#333
+```
 
 ---
 

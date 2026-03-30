@@ -31,6 +31,7 @@
 
             <MudTextField @bind-Value="_model.Email" For="@(() => _model.Email)" Label="Email" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
             <MudTextField @bind-Value="_model.Username" For="@(() => _model.Username)" Label="Username" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
+            <MudTextField @bind-Value="_model.Organization" For="@(() => _model.Organization)" Label="Organization" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" Placeholder="e.g. Nationlink/Infoserve Inc." />
             
             <MudTextField @bind-Value="_model.Password" For="@(() => _model.Password)" Label="Password" Variant="Variant.Outlined" FullWidth="true" 
                           InputType="@_passwordInput" Class="mb-3" Adornment="Adornment.End" AdornmentIcon="@_passwordIcon" OnAdornmentClick="TogglePasswordVisibility" Disabled="@_isLoading" />

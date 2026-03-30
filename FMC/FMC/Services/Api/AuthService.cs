@@ -37,7 +37,6 @@ public class AuthService
             await _js.InvokeVoidAsync("cookieHelper.setCookie", "authToken", result.Token, cookieExpiryDays, true, "Lax");
 
             ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
         }
 
         return result;
@@ -76,7 +75,6 @@ public class AuthService
         await _js.InvokeVoidAsync("localStorage.removeItem", "authToken");
         await _js.InvokeVoidAsync("cookieHelper.deleteCookie", "authToken");
         ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsLoggedOut();
-        _httpClient.DefaultRequestHeaders.Authorization = null;
     }
 
     public async Task<bool> InitiatePasswordChange(ChangePasswordRequestDto request)

@@ -66,6 +66,24 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+            {
+                context.Response.Headers.Append("Token-Expired", "true");
+            }
+            // Log the actual reason for 401 in the API console
+            Console.WriteLine($"[JWT-DEBUG] Authentication Failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine($"[JWT-DEBUG] Token Validated for: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -103,19 +121,18 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(GetRe
 
 var app = builder.Build();
 
-// Automatic Database Synchronization for Multi-Tenancy (TenantId)
+// Automatic Database Synchronization for Multi-Tenancy (TenantId) and Forensics (Device)
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var tables = new[] { "Accounts", "Transactions", "Budgets", "AuditLogs" };
     
+    // 1. Synchronize TenantId for all core tables
+    var tables = new[] { "Accounts", "Transactions", "Budgets", "AuditLogs" };
     foreach (var table in tables)
     {
         try 
         {
-            // Using a separate string variable to satisfy analyzer and keep it clean
-            // Table names are hardcoded above and safe.
             string sql = $"IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[{table}]') AND name = N'TenantId') " +
                          $"BEGIN ALTER TABLE [{table}] ADD [TenantId] nvarchar(max) NOT NULL DEFAULT N''; END";
             await db.Database.ExecuteSqlRawAsync(sql);
@@ -124,6 +141,34 @@ using (var scope = app.Services.CreateScope())
         {
             logger.LogError(ex, "Error synchronizing TenantId for table {Table}", table);
         }
+    }
+
+    // 2. Synchronize Device (Forensics) specifically for AuditLogs
+    try
+    {
+        string deviceSql = "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[AuditLogs]') AND name = N'Device') " +
+                           "BEGIN ALTER TABLE [AuditLogs] ADD [Device] nvarchar(max) NULL; END";
+        await db.Database.ExecuteSqlRawAsync(deviceSql);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error synchronizing Device column for AuditLogs");
+    }
+
+    // 3. Synchronize Organization for AspNetUsers
+    try
+    {
+        string orgSql = "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[AspNetUsers]') AND name = N'Organization') " +
+                         "BEGIN ALTER TABLE [AspNetUsers] ADD [Organization] nvarchar(max) NULL; END";
+        await db.Database.ExecuteSqlRawAsync(orgSql);
+
+        // Update existing users to Nationlink/Infoserve Inc. as requested
+        string updateSql = "UPDATE [AspNetUsers] SET [Organization] = N'Nationlink/Infoserve Inc.' WHERE [Organization] IS NULL";
+        await db.Database.ExecuteSqlRawAsync(updateSql);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error synchronizing Organization column for AspNetUsers");
     }
 }
 

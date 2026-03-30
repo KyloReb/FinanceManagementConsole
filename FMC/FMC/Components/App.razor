@@ -93,23 +93,34 @@
         window.mermaidHelper = {
             _initialized: false,
             _observer: null,
+            _themeObserver: null,
             init: function() {
                 if (window.mermaid && !this._initialized) {
                     try {
-                        const isDark = document.documentElement.classList.contains('dark');
-                        mermaid.initialize({ 
-                            startOnLoad: false,
-                            theme: isDark ? 'dark' : 'default',
-                            securityLevel: 'loose',
-                            fontFamily: 'Inter, system-ui, sans-serif',
-                            flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
-                        });
+                        this.reinit();
                         this._initialized = true;
                         this.startObserving();
+                        this.startThemeObserving();
                         console.log("%c[Mermaid] " + (mermaid.version ? "v" + mermaid.version : "Engine") + " Armed & Monitoring", "color: #3b82f6; font-weight: bold;");
                     } catch (e) {
                         console.error("[Mermaid] Init Fail:", e);
                     }
+                }
+            },
+            reinit: function() {
+                if (!window.mermaid) return;
+                const isDark = document.documentElement.classList.contains('dark');
+                mermaid.initialize({ 
+                    startOnLoad: false,
+                    theme: isDark ? 'dark' : 'default',
+                    securityLevel: 'loose',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+                });
+                
+                // If we're already initialized, force a re-render of existing diagrams
+                if (this._initialized) {
+                    this.render(true);
                 }
             },
             startObserving: function() {
@@ -118,7 +129,20 @@
                 const target = document.querySelector('body');
                 if (target) this._observer.observe(target, { childList: true, subtree: true });
             },
-            render: async function() {
+            startThemeObserving: function() {
+                if (this._themeObserver) return;
+                // Watch for 'dark' class changes on the html element
+                this._themeObserver = new MutationObserver((mutations) => {
+                    for (const mutation of mutations) {
+                        if (mutation.attributeName === 'class') {
+                            console.log("[Mermaid] Theme transition detected, re-syncing diagams...");
+                            this.reinit();
+                        }
+                    }
+                });
+                this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+            },
+            render: async function(force = false) {
                 if (!window.mermaid) return;
                 
                 try {
@@ -133,19 +157,72 @@
 
                             const container = document.createElement('div');
                             container.className = 'mermaid';
+                            container.setAttribute('data-mermaid-code', txt); // Store original code
                             container.textContent = txt;
                             pre.parentElement.replaceChild(container, pre);
                         }
                     }
 
-                    // Logic B: Run on all containers (including server-side ones)
-                    const unprocessed = document.querySelectorAll('.mermaid:not([data-processed="true"])');
-                    if (unprocessed.length > 0) {
-                        console.log(`[Mermaid] Processing ${unprocessed.length} new diagrams...`);
+                    // Logic B: Run on all containers
+                    const selector = force ? '.mermaid' : '.mermaid:not([data-processed="true"])';
+                    const targets = document.querySelectorAll(selector);
+                    
+                    if (targets.length > 0) {
+                        if (force) {
+                            // Restore original code to containers before re-running
+                            targets.forEach(t => {
+                                const code = t.getAttribute('data-mermaid-code');
+                                if (code) {
+                                    t.removeAttribute('data-processed');
+                                    t.innerHTML = code;
+                                }
+                            });
+                        }
                         await mermaid.run();
                     }
-                } catch (e) { }
+                } catch (e) { 
+                    console.error("[Mermaid] Render Error:", e);
+                }
             }
+        };
+
+        window.scrollToSection = (id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                // Offset for sticky header
+                const top = element.getBoundingClientRect().top + window.pageYOffset - 150;
+                window.scrollTo({ top: top, behavior: 'smooth' });
+            }
+        };
+
+        window._scrollObserver = null;
+        window.initScrollSync = (dotNetRef) => {
+            const handler = () => {
+                const headers = Array.from(document.querySelectorAll('h1[id], h2[id], h3[id]'));
+                if (!headers.length) return;
+                
+                // Detection threshold (offset for sticky nav)
+                const detectionLine = 220; 
+                let activeId = headers[0].id;
+                
+                // Find the header closest to the detection line from above
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i].getBoundingClientRect().top <= detectionLine) {
+                        activeId = headers[i].id;
+                    } else {
+                        break; // Sorted order, no need to check further
+                    }
+                }
+                
+                dotNetRef.invokeMethodAsync('SetActiveSection', activeId);
+            };
+            
+            if (window._scrollHandler) {
+                window.removeEventListener('scroll', window._scrollHandler);
+            }
+            window._scrollHandler = handler;
+            window.addEventListener('scroll', handler, { passive: true });
+            handler(); 
         };
     </script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>

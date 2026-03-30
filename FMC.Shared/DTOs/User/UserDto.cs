@@ -11,6 +11,7 @@ public class UserDto
     public string? LastName { get; set; }
     public string DisplayName => $"{FirstName} {LastName}".Trim();
     public bool IsActive { get; set; }
+    public string? Organization { get; set; }
     public List<string> Roles { get; set; } = new();
 }
 
@@ -31,6 +32,7 @@ public class UpdateUserDto
 
     public string? Password { get; set; } // Optional: only if updating password
 
+    public string? Organization { get; set; }
     public List<string> Roles { get; set; } = new();
     public bool IsActive { get; set; }
 }
@@ -53,6 +55,9 @@ public class CreateUserDto
     [Required]
     [MinLength(6)]
     public string Password { get; set; } = string.Empty;
+
+    [Required]
+    public string Organization { get; set; } = string.Empty;
 
     public List<string> Roles { get; set; } = new();
 }

@@ -28,6 +28,7 @@ sequenceDiagram
     Identity->>DB: UPDATE [AspNetUsers]
     API-->>Blazor: Set-Cookie: refreshToken (HttpOnly, Secure)
     API-->>Blazor: Return 200 OK + JWT (JSON Body)
+    Blazor->>Blazor: Validate Base64 Payload URL-Safe Encoding
     Blazor->>Blazor: Hydrate AuthState (Claims parsed)
     Blazor-->>User: Redirect to Dashboard🚀
 ```
@@ -40,7 +41,8 @@ sequenceDiagram
 - **Transport**: Stored in **System Memory** or local `ApplicationState`.
 - **Lifespan**: **15 Minutes**.
 - **Role**: Present in the `Authorization: Bearer <TOKEN>` header for every financial API call.
-- **Security**: Contains the `TenantId` and `UserId` as immutable claims, preventing "Horizontal Privilege Escalation."
+- **Security**: Contains immutable claims (`UserId`, `TenantId`, `Organization`), preventing "Horizontal Privilege Escalation."
+- **Encoding**: Utilizes URL-Safe Base64 compliant encoding; safely normalized upon client parsing using rigorous `-`/`_` padding substitutions to deter generic deserialize crashes.
 
 ### **Pillar B: Refresh Token (The Vault)**
 - **Transport**: **HttpOnly, Secure, SameSite=Strict Cookie**.

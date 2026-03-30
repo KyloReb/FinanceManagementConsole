@@ -41,4 +41,9 @@ public class ApplicationUser : IdentityUser
     /// The expiration timestamp for the refresh token.
     /// </summary>
     public DateTime? RefreshTokenExpiryTime { get; set; }
+
+    /// <summary>
+    /// The user's affiliated organization or company.
+    /// </summary>
+    public string? Organization { get; set; }
 }

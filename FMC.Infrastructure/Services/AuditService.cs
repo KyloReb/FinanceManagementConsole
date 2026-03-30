@@ -18,14 +18,15 @@ public class AuditService : IAuditService
         _userManager = userManager;
     }
 
-    public async Task RecordAuthEventAsync(string action, string? userId, string ipAddress, string details)
+    public async Task RecordAuthEventAsync(string action, string? userId, string ipAddress, string device, string details)
     {
         var log = new AuditLog
         {
             UserId = userId,
-            TenantId = userId ?? "SYSTEM", // Explicitly group unauthenticated/failed events under 'SYSTEM'
+            TenantId = userId ?? "SYSTEM", 
             Action = action,
             IpAddress = ipAddress,
+            Device = device,
             Details = details,
             CreatedAt = DateTime.UtcNow
         };
@@ -57,6 +58,7 @@ public class AuditService : IAuditService
                 UserName = user?.UserName ?? "Unknown",
                 Action = log.Action,
                 IpAddress = log.IpAddress,
+                Device = log.Device,
                 Details = log.Details,
                 CreatedAt = log.CreatedAt
             });

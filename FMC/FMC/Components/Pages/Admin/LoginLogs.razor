@@ -14,14 +14,17 @@
         <MudText Typo="Typo.body1" Class="mud-text-secondary">Track user access and authentication events</MudText>
     </div>
 
-    <MudPaper Elevation="0" Class="pa-6" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
-        <MudDataGrid @ref="_grid" Items="@_logs" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
+    <MudPaper Elevation="0" Class="pa-6 d-none d-md-block" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
+        <MudDataGrid @ref="_grid" Items="@FilteredLogs" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
                       Filterable="true" SortMode="SortMode.Multiple" Groupable="true"
                       Elevation="0" T="AuditLogDto" Class="fmc-admin-grid">
             <ToolBarContent>
                 <MudText Typo="Typo.h6" Style="font-weight: 600;">Authentication History</MudText>
                 <MudSpacer />
-                <MudSelect T="String" Label="Group By" Value="@_currentGroup" ValueChanged="OnGroupChanged" Class="mr-4" Style="width: 200px;" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                <MudTextField @bind-Value="_searchString" Placeholder="Search by User, IP, or Event..." Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-4" 
+                              Clearable="true" Immediate="true" Style="max-width: 300px;" />
+                <MudSelect T="String" Label="Group By" Value="@_currentGroup" ValueChanged="OnGroupChanged" Class="mr-4" Style="width: 180px;" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
                     <MudSelectItem Value="@("")">None</MudSelectItem>
                     <MudSelectItem Value="@("UserName")">User</MudSelectItem>
                     <MudSelectItem Value="@("Action")">Event</MudSelectItem>
@@ -33,30 +36,20 @@
                 <PropertyColumn Property="x => x.CreatedAt" Title="Timestamp" Format="yyyy-MM-dd HH:mm:ss" Sortable="true" Groupable="false" />
                 <PropertyColumn Property="x => x.UserName" Title="Username" Grouping="@(_currentGroup == "UserName")" />
                 <PropertyColumn Property="x => x.IpAddress" Title="IP Address" Groupable="false" />
+                <TemplateColumn Title="Device">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.Device" Arrow="true" Placement="Placement.Top">
+                            <div class="d-flex align-center">
+                                <MudIcon Icon="@GetDeviceIcon(context.Item.Device)" Size="Size.Small" Color="Color.Primary" Class="mr-2" />
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@GetDeviceName(context.Item.Device)</MudText>
+                            </div>
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
                 <PropertyColumn Property="x => x.CreatedDate" Title="Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" />
                 <TemplateColumn Title="Event" Sortable="true" Grouping="@(_currentGroup == "Action")">
                     <CellTemplate>
-                        @switch (context.Item.Action)
-                        {
-                            case "Login Success":
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text">Login Success</MudChip>
-                                break;
-                            case "Login Failed":
-                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Text">Login Failed</MudChip>
-                                break;
-                            case "Logout":
-                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">Logout</MudChip>
-                                break;
-                            case "Password Reset":
-                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Text">Password Reset</MudChip>
-                                break;
-                            case "Registration":
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Text">Registration</MudChip>
-                                break;
-                            default:
-                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">@context.Item.Action</MudChip>
-                                break;
-                        }
+                        @GetEventChip(context.Item.Action)
                     </CellTemplate>
                 </TemplateColumn>
                 <TemplateColumn Title="Additional Details">
@@ -74,11 +67,87 @@
             </PagerContent>
         </MudDataGrid>
     </MudPaper>
+
+    <!-- Mobile-Optimized Card View -->
+    <div class="d-block d-md-none">
+        <div class="d-flex flex-column gap-4 mb-4">
+            <div class="d-flex align-center">
+                 <MudText Typo="Typo.h6" Style="font-weight: 700;">Auth History</MudText>
+                 <MudSpacer />
+                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="LoadLogsAsync" Size="Size.Small" />
+            </div>
+            
+            <MudTextField @bind-Value="_searchString" Placeholder="Search Logs..." Adornment="Adornment.Start" 
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" 
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+            
+            <div class="d-flex gap-2">
+                <MudSelect T="String" Label="Sort/Group" Value="@_currentGroup" ValueChanged="OnGroupChanged" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("")">Default</MudSelectItem>
+                    <MudSelectItem Value="@("UserName")">By User</MudSelectItem>
+                    <MudSelectItem Value="@("Action")">By Event Type</MudSelectItem>
+                </MudSelect>
+                 <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text" OnClick="LoadLogsAsync">Latest</MudChip>
+            </div>
+        </div>
+        
+        @if (_loading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else if (!FilteredLogs.Any())
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Color="Color.Default" Size="Size.Large" Class="mb-4" />
+                <MudText Typo="Typo.body1" Class="mud-text-secondary">No logs match your search.</MudText>
+            </div>
+        }
+        else
+        {
+            @foreach (var log in FilteredLogs)
+            {
+                <MudCard Elevation="0" Class="mb-4" Style="border: 1px solid var(--mud-palette-divider); border-radius: 12px;">
+                    <MudCardHeader Class="pa-3" Style="border-bottom: 1px solid var(--mud-palette-divider);">
+                        <CardHeaderContent>
+                            <div class="d-flex justify-space-between align-center">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.CreatedAt.ToString("MMM dd, HH:mm:ss")</MudText>
+                                @GetEventChip(log.Action)
+                            </div>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent Class="pa-3">
+                        <div class="grid-pair mb-2">
+                             <MudText Typo="Typo.caption" Class="label">User:</MudText>
+                             <MudText Typo="Typo.body2" Style="font-weight: 600;">@log.UserName</MudText>
+                        </div>
+                        <div class="grid-pair mb-2">
+                             <MudText Typo="Typo.caption" Class="label">Device:</MudText>
+                             <div class="d-flex align-center">
+                                 <MudIcon Icon="@GetDeviceIcon(log.Device)" Size="Size.Small" Color="Color.Primary" Class="mr-1" Style="font-size: 0.9rem;" />
+                                 <MudText Typo="Typo.caption">@GetDeviceName(log.Device)</MudText>
+                             </div>
+                        </div>
+                        <div class="grid-pair mb-2">
+                             <MudText Typo="Typo.caption" Class="label">IP:</MudText>
+                             <MudText Typo="Typo.body2">@log.IpAddress</MudText>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">@log.Details</MudText>
+                    </MudCardContent>
+                </MudCard>
+            }
+        }
+    </div>
 </MudContainer>
 
 <style>
     .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
     .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
+
+    /* Mobile specific styles */
+    .grid-pair { display: grid; grid-template-columns: 70px 1fr; align-items: center; }
+    .label { font-weight: 700; color: var(--mud-palette-text-disabled); text-transform: uppercase; letter-spacing: 0.05em; }
 </style>
 
 @code {
@@ -86,6 +155,32 @@
     private List<AuditLogDto> _logs = new();
     private bool _loading = true;
     private string _currentGroup = "";
+    private string _searchString = "";
+
+    private IEnumerable<AuditLogDto> FilteredLogs
+    {
+        get
+        {
+            var query = _logs.AsEnumerable();
+            
+            if (!string.IsNullOrWhiteSpace(_searchString))
+            {
+                query = query.Where(x => 
+                    (x.UserName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.Action?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.IpAddress?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.Details?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+                );
+            }
+
+            // Apply manual sorting/grouping for mobile view if needed
+            if (_currentGroup == "UserName") query = query.OrderBy(x => x.UserName).ThenByDescending(x => x.CreatedAt);
+            else if (_currentGroup == "Action") query = query.OrderBy(x => x.Action).ThenByDescending(x => x.CreatedAt);
+            else query = query.OrderByDescending(x => x.CreatedAt);
+
+            return query;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -113,5 +208,60 @@
         {
             _loading = false;
         }
+    }
+
+    private RenderFragment GetEventChip(string action) => __builder => {
+        switch (action)
+        {
+            case "Login Success":
+                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text">Login Success</MudChip>
+                break;
+            case "Login Failed":
+                <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Text">Login Failed</MudChip>
+                break;
+            case "Logout":
+                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">Logout</MudChip>
+                break;
+            case "Password Reset":
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Text">Password Reset</MudChip>
+                break;
+            case "Password Changed":
+                 <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text">Password Changed</MudChip>
+                 break;
+            case "Registration":
+                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Text">Registration</MudChip>
+                break;
+            default:
+                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">@action</MudChip>
+                break;
+        }
+    };
+
+    private string GetDeviceName(string? ua)
+    {
+        if (string.IsNullOrEmpty(ua)) return "System/Unknown";
+        if (ua.Contains("Windows NT", StringComparison.OrdinalIgnoreCase)) return "Windows PC";
+        if (ua.Contains("iPhone", StringComparison.OrdinalIgnoreCase)) return "iPhone";
+        if (ua.Contains("iPad", StringComparison.OrdinalIgnoreCase)) return "iPad";
+        if (ua.Contains("Android", StringComparison.OrdinalIgnoreCase)) 
+        {
+            if (ua.Contains("Mobile", StringComparison.OrdinalIgnoreCase)) return "Android Phone";
+            return "Android Tablet";
+        }
+        if (ua.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)) return "Mac Desktop";
+        if (ua.Contains("Linux", StringComparison.OrdinalIgnoreCase)) return "Linux PC";
+        if (ua.Contains("Postman", StringComparison.OrdinalIgnoreCase)) return "Postman Client";
+        return "Browser/Other";
+    }
+
+    private string GetDeviceIcon(string? ua)
+    {
+        if (string.IsNullOrEmpty(ua)) return Icons.Material.Filled.Settings;
+        if (ua.Contains("Windows NT", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.DesktopWindows;
+        if (ua.Contains("iPhone", StringComparison.OrdinalIgnoreCase) || ua.Contains("iPad", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.Smartphone;
+        if (ua.Contains("Android", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.PhoneAndroid;
+        if (ua.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.DesktopMac;
+        if (ua.Contains("Linux", StringComparison.OrdinalIgnoreCase)) return Icons.Custom.Brands.Linux;
+        return Icons.Material.Filled.Devices;
     }
 }

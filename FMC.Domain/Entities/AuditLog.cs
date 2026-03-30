@@ -43,6 +43,11 @@ public class AuditLog : ITenantEntity
     public string? Details { get; set; }
 
     /// <summary>
+    /// Parsed device or user-agent label identifying the hardware/software boundary.
+    /// </summary>
+    public string? Device { get; set; }
+
+    /// <summary>
     /// Telemetry IP Address for geographic security bounding.
     /// </summary>
     public string? IpAddress { get; set; }

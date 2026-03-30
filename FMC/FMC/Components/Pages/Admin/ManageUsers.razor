@@ -51,6 +51,7 @@
                     </CellTemplate>
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.Email" Title="Email Address" />
+                <PropertyColumn Property="x => x.Organization" Title="Organization" />
                 <PropertyColumn Property='x => string.Join(", ", x.Roles)' Title="System Roles">
                     <CellTemplate>
                         <div class="d-flex flex-wrap gap-1">
@@ -77,9 +78,18 @@
                 <TemplateColumn Title="Actions" HeaderStyle="justify-content: flex-end;" CellStyle="text-align: right">
                     <CellTemplate>
                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
-                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditDialog(context.Item))">Edit Details</MudMenuItem>
-                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@(() => ConfirmDelete(context.Item))" IconColor="Color.Error">
-                                <MudText Color="Color.Error">Delete Account</MudText>
+                             <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
+                                          Disabled='@(context.Item.Email == "davidrebancos02@gmail.com")'
+                                          OnClick="@(() => OpenEditDialog(context.Item))">
+                                 @(context.Item.Email == "davidrebancos02@gmail.com" ? "Master Account Locked" : "Edit Details")
+                             </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
+                                         Disabled="@context.Item.Roles.Contains(Roles.SuperAdmin)"
+                                         OnClick="@(() => ConfirmDelete(context.Item))" 
+                                         IconColor="Color.Error">
+                                <MudText Color="@(context.Item.Roles.Contains(Roles.SuperAdmin) ? Color.Default : Color.Error)">
+                                    @(context.Item.Roles.Contains(Roles.SuperAdmin) ? "System Protected" : "Delete Account")
+                                </MudText>
                             </MudMenuItem>
                         </MudMenu>
                     </CellTemplate>
@@ -129,6 +139,7 @@
         if (string.IsNullOrWhiteSpace(_searchString)) return true;
         if (x.DisplayName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
         if (x.Email?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        if (x.Organization?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
         if (x.Roles.Any(r => r.Contains(_searchString, StringComparison.OrdinalIgnoreCase))) return true;
         return false;
     };
@@ -162,6 +173,12 @@
 
     private async Task OpenEditDialog(UserDto user)
     {
+        if (user.Email == "davidrebancos02@gmail.com")
+        {
+            Snackbar.Add("CRITICAL SECURITY: Master profile modification is locked by the system kernel.", Severity.Warning);
+            return;
+        }
+
         var parameters = new DialogParameters<UserDialog> { { x => x.User, user } };
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<UserDialog>("Edit User Details", parameters, options);
@@ -175,6 +192,12 @@
 
     private async Task ConfirmDelete(UserDto user)
     {
+        if (user.Roles.Contains(Roles.SuperAdmin))
+        {
+            Snackbar.Add("CRITICAL: SuperAdmin accounts are system-protected and cannot be deleted.", Severity.Warning);
+            return;
+        }
+
         var parameters = new DialogParameters<MudMessageBox>
         {
             { x => x.Title, "Delete User Account" },

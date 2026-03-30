@@ -37,17 +37,22 @@ To ensure the FMC is future-proof and "enterprise-level", we follow a **Clean Ar
 ### Phase D: Governance & Multi-Tenancy (Scale & Security)
 - [x] **Tenant Isolation**: Implemented automatic SQL filtering by `TenantID`.
 - [x] **Dynamic Context Extraction**: Injected `CurrentUserService` to pull Tenant context from headers/tokens.
+- [x] **Organizational Affiliation**: Expanded JWT Claims to universally broadcast the user's `Organization` payload string safely (with URL-Safe Base64 compatibilities) across the architecture without DB roundtrips.
 - [x] **SuperAdmin Forensic Suite**: Centralized audit log retrieval with filter-ignoring (.IgnoreQueryFilters) visibility.
 
 ---
 
 ## 🚀 Upcoming API Phases
 
-### Phase E: Edge & Advanced Caching
+### Phase E: Multi-Tenant Organization Management
+1.  **Organizational Normalization**: Implement `OrganizationsController` to handle fully normalized, relational REST CRUD operations for companies using UUIDs instead of volatile strings.
+2.  **Strict Affiliation Validations**: Deprecate arbitrary soft-string inputs on user registration, requiring verified `OrganizationId` REST queries.
+
+### Phase F: Edge & Advanced Caching
 1.  **GCP Memorystore**: Integrate **Redis** with event-driven cache invalidation patterns.
 2.  **API Gateway (YARP)**: Implement a gateway for request aggregation and rate limiting.
 
-### Phase F: Intelligence & Reliability (Observability)
+### Phase G: Intelligence & Reliability (Observability)
 1.  **Exception / Error Monitor**: A dedicated endpoint for SuperAdmins to view server logs remotely.
 2.  **Performance Benchmarks**: Document P95 latency for core financial endpoints (SLO tracking).
 3.  **OpenTelemetry**: Integration for request tracing and system telemetry.

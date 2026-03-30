@@ -39,6 +39,12 @@
                 </MudItem>
 
                 <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Organization" Label="Organization" 
+                                  Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" 
+                                  Placeholder="e.g. Nationlink/Infoserve Inc." />
+                </MudItem>
+
+                <MudItem xs="12">
                     <MudTextField @bind-Value="_password" Label="Password" 
                                   Variant="Variant.Outlined" 
                                   InputType="@_passwordInput" 
@@ -133,6 +139,7 @@
                 Email = User.Email,
                 FirstName = User.FirstName,
                 LastName = User.LastName,
+                Organization = User.Organization,
                 IsActive = User.IsActive,
                 Roles = User.Roles.ToList()
             };
@@ -161,6 +168,7 @@
                     Email = _model.Email!,
                     FirstName = _model.FirstName!,
                     LastName = _model.LastName!,
+                    Organization = _model.Organization!,
                     Password = _password,
                     Roles = _model.Roles
                 };
@@ -174,6 +182,7 @@
                     Email = _model.Email!,
                     FirstName = _model.FirstName!,
                     LastName = _model.LastName!,
+                    Organization = _model.Organization!,
                     Password = string.IsNullOrWhiteSpace(_password) ? null : _password,
                     Roles = _model.Roles,
                     IsActive = _model.IsActive

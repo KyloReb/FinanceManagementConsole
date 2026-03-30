@@ -115,7 +115,8 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 <summary><b>Phase 14: Administrative Governance Hub (SuperAdmin)</b></summary>
 - **Global User Management**: Enabled viewing, searching, and managing all users across the platform.
 - **Forensic Security Logs**: Comprehensive view of all login/logout events, failed attempts, and browser telemetry.
-- **Administrative Intelligence**: Summary statistics showing total platform user count and account status breakdown.
+- **Organizational Soft-Tenancy**: Added foundational multi-tenant data structures, embedding user affiliations securely within JWT tokens and UI layouts.
+- **Administration Architecture**: Grouped and nested sidebar components to prevent fragmentation during administrative module expansions.
 </details>
 
 ---
@@ -123,13 +124,20 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 ## 🚀 Upcoming Phases (Strategic Roadmap)
 
 <details id="phase-15">
-<summary><b>Phase 15: Financial Intelligence & Visualizations</b></summary>
+<summary><b>Phase 15: Enterprise Organization Management</b></summary>
+- **Relational Integrity**: Normalize soft-string affiliations into a dedicated `Organizations` SQL table with strict UUID foreign keys to prevent data anomalies.
+- **Administrative CRUD**: Develop full REST API endpoints and a dedicated feature-rich MudDataGrid to manage tenant companies.
+- **Validation Transition**: Permanently deprecate free-text organization registration in favor of strict, query-based backend validations.
+</details>
+
+<details id="phase-16">
+<summary><b>Phase 16: Financial Intelligence & Visualizations</b></summary>
 - **Interactive Visualizations**: Dynamic MudCharts for category spending and income vs. expense trends.
 - **Budget Alerts**: Integration of real-time snackbars and email notifications for budget threshold breaches (80/100%).
 </details>
 
-<details id="phase-16">
-<summary><b>Phase 16: Hierarchical "Mother Account" Management</b></summary>
+<details id="phase-17">
+<summary><b>Phase 17: Hierarchical "Mother Account" Management</b></summary>
 - **Enterprise Ledger Logic**: Implement a "Mother Account" (Master Vault) that acts as the primary liquidity source for sub-accounts.
 - **Managed Debit/Credit Workflows**: Empower authorized roles (CEO/Manager) to allocate (Debit) funds to client sub-accounts and collect (Credit) funds back to the Mother Account.
 </details>

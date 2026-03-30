@@ -21,7 +21,7 @@ public class JwtService : IJwtService
         _jwtSettings = jwtSettings.Value;
     }
 
-    public string GenerateToken(string userId, string email, string? firstName, string? lastName, IEnumerable<string> roles)
+    public string GenerateToken(string userId, string email, string? firstName, string? lastName, IEnumerable<string> roles, string? organization)
     {
         var claims = new List<Claim>
         {
@@ -30,7 +30,8 @@ public class JwtService : IJwtService
             new Claim(ClaimTypes.Name, $"{firstName} {lastName}".Trim()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim("firstName", firstName ?? ""),
-            new Claim("lastName", lastName ?? "")
+            new Claim("lastName", lastName ?? ""),
+            new Claim("organization", organization ?? "")
         };
 
         foreach (var role in roles)

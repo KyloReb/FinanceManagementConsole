@@ -39,12 +39,12 @@ public class AuthController : ControllerBase
         if (result == null)
         {
             // Log Failed Login Attempt (Security Forensic)
-            await _auditService.RecordAuthEventAsync("Login Failed", null, ip, $"{userAgent} | Failed attempt for: {request.Identifier}");
+            await _auditService.RecordAuthEventAsync("Login Failed", null, ip, userAgent, $"Failed attempt for: {request.Identifier}");
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
         // Record Successful Login
-        await _auditService.RecordAuthEventAsync("Login Success", result.UserId, ip, userAgent);
+        await _auditService.RecordAuthEventAsync("Login Success", result.UserId, ip, userAgent, "Successful login session established");
 
         // Set the refresh token as an HTTP-only cookie for a session-hardened flow
         SetRefreshTokenCookie(result.RefreshToken);
@@ -59,7 +59,8 @@ public class AuthController : ControllerBase
         if (!result) return BadRequest(new { message = "Registration failed. Email or Username may already be in use." });
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        await _auditService.RecordAuthEventAsync("Registration", null, ip, $"New user registered: {request.Email}");
+        var userAgent = Request.Headers.UserAgent.ToString();
+        await _auditService.RecordAuthEventAsync("Registration", null, ip, userAgent, $"New user registered: {request.Email}");
 
         return Ok(new { message = "Registration successful. Please check your email for the verification code." });
     }
@@ -95,7 +96,8 @@ public class AuthController : ControllerBase
 
         // Optionally record audit
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        await _auditService.RecordAuthEventAsync("Password Reset", request.UserId, ip, "Password Reset via OTP successfully completed");
+        var userAgent = Request.Headers.UserAgent.ToString();
+        await _auditService.RecordAuthEventAsync("Password Reset", request.UserId, ip, userAgent, "Password Reset via OTP successfully completed");
 
         return Ok(new { message = "Password reset successfully. You can now log in." });
     }
@@ -126,7 +128,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Logout([FromQuery] string userId)
     {
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        await _auditService.RecordAuthEventAsync("Logout", userId, ip, "User Logout Command triggered");
+        var userAgent = Request.Headers.UserAgent.ToString();
+        await _auditService.RecordAuthEventAsync("Logout", userId, ip, userAgent, "User Logout Command triggered");
 
         await _identityService.LogoutAsync(userId);
         Response.Cookies.Delete("refreshToken");
@@ -157,7 +160,8 @@ public class AuthController : ControllerBase
         if (!result) return BadRequest(new { message = "Invalid security code or password requirements not met." });
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        await _auditService.RecordAuthEventAsync("Password Changed", userId, ip, "Password Changed Successfully");
+        var userAgent = Request.Headers.UserAgent.ToString();
+        await _auditService.RecordAuthEventAsync("Password Changed", userId, ip, userAgent, "Password Changed Successfully");
 
         return Ok(new { message = "Password updated successfully." });
     }

@@ -5,21 +5,37 @@ using FMC.Services;
 using FMC.Services.Api;
 using FMC.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 #region API & Authentication Configuration
-builder.Services.AddHttpClient("FMC.Api", client => 
+// Build the HttpClient + AuthenticationHeaderHandler directly within the Blazor circuit scope.
+// IHttpClientFactory resolves handler pipelines through an internal scope that is SEPARATE
+// from the circuit scope, causing ApiAuthenticationStateProvider to have different instances
+// across AuthService and the handler — breaking MarkUserAsAuthenticated. This fixes it.
+builder.Services.AddScoped<HttpClient>(sp =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7026/");
-}).AddHttpMessageHandler<AuthenticationHeaderHandler>();
+    var stateProvider   = sp.GetRequiredService<ApiAuthenticationStateProvider>();
+    var logger          = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuthenticationHeaderHandler>>();
+    var config          = sp.GetRequiredService<IConfiguration>();
 
-builder.Services.AddTransient<AuthenticationHeaderHandler>();
-builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("FMC.Api"));
+    // Safely retrieve accessor, avoiding DI cycles during transient instantiation
+    var httpCtxAccessor = sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>() ?? new Microsoft.AspNetCore.Http.HttpContextAccessor();
+
+    var authHandler = new AuthenticationHeaderHandler(stateProvider, httpCtxAccessor, logger)
+    {
+        InnerHandler = new HttpClientHandler()
+    };
+
+    var baseUrl = config["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
+    return new HttpClient(authHandler) { BaseAddress = new Uri(baseUrl) };
+});
 
 builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddScoped<AuthenticationStateProvider, ApiAuthenticationStateProvider>();
+builder.Services.AddScoped<ApiAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<ApiAuthenticationStateProvider>());
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddAuthorizationCore();
 
@@ -97,7 +113,7 @@ app.Use(async (context, next) =>
             var parts = token.Split('.');
             if (parts.Length > 1)
             {
-                var payload = parts[1];
+                var payload = parts[1].Replace('-', '+').Replace('_', '/');
                 while (payload.Length % 4 != 0) payload += "=";
                 var jsonBytes = Convert.FromBase64String(payload);
                 var claimsDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);

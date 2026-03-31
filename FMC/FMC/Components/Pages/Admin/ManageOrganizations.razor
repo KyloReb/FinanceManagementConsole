@@ -41,6 +41,21 @@
                               Variant="Variant.Outlined" Margin="Margin.Dense" />
             </ToolBarContent>
             <Columns>
+                <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;">
+                    <CellTemplate>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Size="Size.Small">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
+                                         OnClick="@(() => OpenEditDialog(context.Item))">
+                                Edit Details
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
+                                         OnClick="@(() => ConfirmDelete(context.Item))" 
+                                         IconColor="Color.Error">
+                                <MudText Color="Color.Error">Suspend Tenant</MudText>
+                            </MudMenuItem>
+                        </MudMenu>
+                    </CellTemplate>
+                </TemplateColumn>
                 <PropertyColumn Property="x => x.Name" Title="Organization">
                     <CellTemplate>
                         <div class="d-flex align-center">
@@ -94,21 +109,6 @@
                         }
                     </CellTemplate>
                 </PropertyColumn>
-                <TemplateColumn Title="Actions" HeaderStyle="justify-content: flex-end;" CellStyle="text-align: right">
-                    <CellTemplate>
-                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
-                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
-                                         OnClick="@(() => OpenEditDialog(context.Item))">
-                                Edit Details
-                            </MudMenuItem>
-                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
-                                         OnClick="@(() => ConfirmDelete(context.Item))" 
-                                         IconColor="Color.Error">
-                                <MudText Color="Color.Error">Suspend Tenant</MudText>
-                            </MudMenuItem>
-                        </MudMenu>
-                    </CellTemplate>
-                </TemplateColumn>
             </Columns>
             <PagerContent>
                 <MudDataGridPager T="OrganizationDto" />

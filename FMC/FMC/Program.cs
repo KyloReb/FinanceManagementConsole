@@ -74,6 +74,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 #region Custom Application Services
 builder.Services.AddScoped<ApiFinanceService>();
 builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<OrganizationApiService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ThemeService>();
 #endregion

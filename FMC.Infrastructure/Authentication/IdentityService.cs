@@ -23,6 +23,7 @@ public class IdentityService : IIdentityService
     private readonly ICacheService _cacheService;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _config;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<IdentityService> _logger;
 
     public IdentityService(
@@ -31,6 +32,7 @@ public class IdentityService : IIdentityService
         ICacheService cacheService,
         IEmailService emailService,
         IConfiguration config,
+        ApplicationDbContext context,
         ILogger<IdentityService> logger)
     {
         _userManager = userManager;
@@ -38,27 +40,28 @@ public class IdentityService : IIdentityService
         _cacheService = cacheService;
         _emailService = emailService;
         _config = config;
+        _context = context;
         _logger = logger;
     }
 
     public async Task<AuthResponseDto?> LoginAsync(LoginRequestDto request)
     {
-        // Try to find user by Email first
-        var user = await _userManager.FindByEmailAsync(request.Identifier);
-        
-        // Fallback to Username if not found by email
-        if (user == null)
-        {
-            user = await _userManager.FindByNameAsync(request.Identifier);
-        }
+        // Find user by Identifier (Email or Username) and Include Organization details
+        var user = await _context.Users
+            .Include(u => u.OrganizationInfo)
+            .FirstOrDefaultAsync(u => (u.Email == request.Identifier || u.UserName == request.Identifier) && u.IsActive);
 
-        if (user == null || !user.IsActive) return null;
+        if (user == null) return null;
 
         var result = await _userManager.CheckPasswordAsync(user, request.Password);
         if (!result) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        var token = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, user.Organization);
+        
+        // Prioritize the standardized Organization name over the legacy string
+        var orgName = user.OrganizationInfo?.Name ?? user.Organization;
+        
+        var token = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, orgName);
         var refreshToken = _jwtService.GenerateRefreshToken();
 
         user.RefreshToken = refreshToken;
@@ -76,7 +79,7 @@ public class IdentityService : IIdentityService
             Email = user.Email!,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            Organization = user.Organization
+            Organization = orgName
         };
     }
 
@@ -85,6 +88,8 @@ public class IdentityService : IIdentityService
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser != null) return false;
 
+        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Name == request.Organization && !o.IsDeleted);
+
         var user = new ApplicationUser
         {
             UserName = request.Username,
@@ -92,6 +97,7 @@ public class IdentityService : IIdentityService
             FirstName = request.FirstName,
             LastName = request.LastName,
             Organization = request.Organization,
+            OrganizationId = org?.Id,
             IsActive = true,
             EmailConfirmed = false // Must verify email
         };
@@ -245,11 +251,17 @@ public class IdentityService : IIdentityService
 
     public async Task<AuthResponseDto?> RefreshTokenAsync(string refreshToken)
     {
-        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+        var user = await _context.Users
+            .Include(u => u.OrganizationInfo)
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+
         if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        var newToken = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, user.Organization);
+        
+        var orgName = user.OrganizationInfo?.Name ?? user.Organization;
+
+        var newToken = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, orgName);
         var newRefreshToken = _jwtService.GenerateRefreshToken();
 
         user.RefreshToken = newRefreshToken;
@@ -264,7 +276,7 @@ public class IdentityService : IIdentityService
             Email = user.Email!,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            Organization = user.Organization
+            Organization = orgName
         };
     }
 
@@ -281,7 +293,9 @@ public class IdentityService : IIdentityService
 
     public async Task<List<UserDto>> GetAllUsersAsync()
     {
-        var users = await _userManager.Users.ToListAsync();
+        var users = await _context.Users
+            .Include(u => u.OrganizationInfo)
+            .ToListAsync();
         var userDtos = new List<UserDto>();
 
         foreach (var user in users)
@@ -294,7 +308,7 @@ public class IdentityService : IIdentityService
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Organization = user.Organization,
+                Organization = user.OrganizationInfo?.Name ?? user.Organization,
                 IsActive = user.IsActive,
                 Roles = roles.ToList()
             });
@@ -305,7 +319,10 @@ public class IdentityService : IIdentityService
 
     public async Task<UserDto?> GetUserByIdAsync(string id)
     {
-        var user = await _userManager.FindByIdAsync(id);
+        var user = await _context.Users
+            .Include(u => u.OrganizationInfo)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
         if (user == null) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
@@ -316,7 +333,7 @@ public class IdentityService : IIdentityService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            Organization = user.Organization,
+            Organization = user.OrganizationInfo?.Name ?? user.Organization,
             IsActive = user.IsActive,
             Roles = roles.ToList()
         };
@@ -324,6 +341,8 @@ public class IdentityService : IIdentityService
 
     public async Task<bool> CreateUserAsync(CreateUserDto request)
     {
+        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Name == request.Organization && !o.IsDeleted);
+
         var user = new ApplicationUser
         {
             UserName = request.UserName,
@@ -331,6 +350,7 @@ public class IdentityService : IIdentityService
             FirstName = request.FirstName,
             LastName = request.LastName,
             Organization = request.Organization,
+            OrganizationId = org?.Id,
             IsActive = true,
             EmailConfirmed = true
         };
@@ -355,10 +375,13 @@ public class IdentityService : IIdentityService
         var user = await _userManager.FindByIdAsync(request.Id);
         if (user == null) return false;
 
+        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Name == request.Organization && !o.IsDeleted);
+
         user.Email = request.Email;
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
         user.Organization = request.Organization;
+        user.OrganizationId = org?.Id;
         user.IsActive = request.IsActive;
 
         var result = await _userManager.UpdateAsync(user);

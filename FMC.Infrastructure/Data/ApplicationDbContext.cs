@@ -97,7 +97,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<Account>().HasQueryFilter(a => a.TenantId == _currentUserService.TenantId);
         builder.Entity<Budget>().HasQueryFilter(b => b.TenantId == _currentUserService.TenantId);
         builder.Entity<AuditLog>().HasQueryFilter(a => a.TenantId == _currentUserService.TenantId);
-        builder.Entity<Organization>().HasQueryFilter(o => o.TenantId == _currentUserService.TenantId && !o.IsDeleted);
+        builder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
 
         builder.Entity<UserOtpVerification>()
             .HasIndex(o => o.UserId);

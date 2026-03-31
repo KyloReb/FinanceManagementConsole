@@ -25,7 +25,7 @@
         </MudButton>
     </div>
 
-    <MudPaper Elevation="0" Class="pa-6 overflow-hidden" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
+    <MudPaper Elevation="0" Class="pa-4 pa-sm-6 overflow-x-auto" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
         <MudDataGrid Items="@_organizations" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
                       Filterable="true" SortMode="SortMode.Multiple"
                       Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">

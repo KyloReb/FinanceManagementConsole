@@ -360,6 +360,7 @@ public class IdentityService : IIdentityService
 
         if (request.Roles.Any())
         {
+            await EnsureRolesExistAsync(request.Roles);
             await _userManager.AddToRolesAsync(user, request.Roles);
         }
         else
@@ -390,6 +391,8 @@ public class IdentityService : IIdentityService
         // Sync Roles
         var currentRoles = await _userManager.GetRolesAsync(user);
         await _userManager.RemoveFromRolesAsync(user, currentRoles);
+        
+        await EnsureRolesExistAsync(request.Roles);
         await _userManager.AddToRolesAsync(user, request.Roles);
 
         // Update Password if provided
@@ -400,6 +403,23 @@ public class IdentityService : IIdentityService
         }
 
         return true;
+    }
+
+    private async Task EnsureRolesExistAsync(IEnumerable<string> roles)
+    {
+        bool anyAdded = false;
+        foreach (var role in roles)
+        {
+            if (!await _context.Roles.AnyAsync(r => r.Name == role))
+            {
+                _context.Roles.Add(new IdentityRole { Id = Guid.NewGuid().ToString(), Name = role, NormalizedName = role.ToUpper() });
+                anyAdded = true;
+            }
+        }
+        if (anyAdded)
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<bool> DeleteUserAsync(string id)

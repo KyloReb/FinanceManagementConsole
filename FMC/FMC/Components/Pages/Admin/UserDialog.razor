@@ -61,7 +61,7 @@
                 </MudItem>
 
                 <MudItem xs="12">
-                    <MudSelect T="string" Label="System Roles" MultiSelection="true" @bind-SelectedValues="_selectedRoles"
+                    <MudSelect T="string" Label="System Role" @bind-Value="_selectedRole"
                                Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
                                PopoverClass="fmc-roles-select" offsety="true" Dense="true">
                         <MudSelectItem Value="@Roles.SuperAdmin">Super Administrator</MudSelectItem>
@@ -113,7 +113,7 @@
     private UserDto _model = new() { IsActive = true };
     private List<OrganizationDto> _organizations = new();
     private string _password = "";
-    private IReadOnlyCollection<string> _selectedRoles = new HashSet<string>() { Roles.User };
+    private string _selectedRole = Roles.User;
 
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
@@ -159,7 +159,7 @@
                 IsActive = User.IsActive,
                 Roles = User.Roles.ToList()
             };
-            _selectedRoles = new HashSet<string>(User.Roles);
+            _selectedRole = User.Roles.FirstOrDefault() ?? Roles.User;
         }
     }
 
@@ -173,7 +173,7 @@
         _isLoading = true;
         try
         {
-            _model.Roles = _selectedRoles.ToList();
+            _model.Roles = new List<string> { _selectedRole };
             bool result;
 
             if (User == null)

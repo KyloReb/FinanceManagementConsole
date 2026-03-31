@@ -35,7 +35,7 @@
             <MudTextField @bind-Value="_model.Email" For="@(() => _model.Email)" Label="Email" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
             <MudTextField @bind-Value="_model.Username" For="@(() => _model.Username)" Label="Username" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
             <MudSelect T="string" @bind-Value="_model.Organization" For="@(() => _model.Organization)" Label="Organization" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" AnchorOrigin="Origin.BottomCenter">
-                <MudSelectItem Value="@((string)null)" Disabled="true">Select Organization</MudSelectItem>
+                <MudSelectItem Value="@((string?)null)" Disabled="true">Select Organization</MudSelectItem>
                 @foreach (var org in _organizations)
                 {
                     <MudSelectItem Value="@org.Name">@org.Name</MudSelectItem>
@@ -80,7 +80,7 @@
         {
             _organizations = await OrganizationService.GetAllAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             Snackbar.Add("Could not retrieve organizations.", Severity.Error);
         }

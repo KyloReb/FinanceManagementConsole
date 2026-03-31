@@ -42,7 +42,7 @@
 
                 <MudItem xs="12">
                     <MudSelect T="string" @bind-Value="_model.Organization" Label="Organization Affiliation" Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((string)null)" Disabled="true">Select Organization</MudSelectItem>
+                        <MudSelectItem Value="@((string?)null)" Disabled="true">Select Organization</MudSelectItem>
                         @foreach (var org in _organizations)
                         {
                             <MudSelectItem Value="@org.Name">@org.Name</MudSelectItem>

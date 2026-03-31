@@ -1,8 +1,11 @@
 @page "/admin/organizations"
 @using FMC.Shared.Auth
 @using FMC.Shared.DTOs.Organization
+@implements IAsyncDisposable
+@implements IBrowserViewportObserver
 @using FMC.Services.Api
 @using MudBlazor
+@using MudBlazor.Services
 @attribute [Authorize(Roles = Roles.SuperAdmin)]
 @inject OrganizationApiService OrganizationService
 @inject ISnackbar Snackbar
@@ -52,7 +55,18 @@
                     </CellTemplate>
                 </PropertyColumn>
                 
-                <PropertyColumn Property="x => x.Description" Title="Description" />
+                <PropertyColumn Property='x => string.IsNullOrEmpty(x.CeoName) ? "Unassigned" : x.CeoName' Title="Chief Executive">
+                    <CellTemplate>
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.PersonOutline" Size="Size.Small" Color="Color.Secondary" Class="mr-2" />
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;" Color="@(string.IsNullOrEmpty(context.Item.CeoName) ? Color.Error : Color.Default)">
+                                @(string.IsNullOrEmpty(context.Item.CeoName) ? "UNASSIGNED" : context.Item.CeoName)
+                            </MudText>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                
+                <PropertyColumn Property="x => x.Description" Title="Description" Hidden="@_isMobile" />
                 
                 <PropertyColumn Property="x => x.UserCount" Title="Affiliated Users">
                     <CellTemplate>
@@ -62,7 +76,7 @@
                     </CellTemplate>
                 </PropertyColumn>
 
-                <PropertyColumn Property="x => x.CreatedAt" Title="Registration Date">
+                <PropertyColumn Property="x => x.CreatedAt" Title="Registration Date" Hidden="@_isMobile">
                     <CellTemplate>
                         <MudText Typo="Typo.body2">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
                     </CellTemplate>
@@ -108,14 +122,45 @@
     .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
 </style>
 
+@inject IBrowserViewportService BrowserViewportService
+
 @code {
     private List<OrganizationDto> _organizations = new();
     private bool _loading = true;
     private string _searchString = "";
+    private bool _isMobile = false;
+
+    public Guid Id { get; } = Guid.NewGuid();
+    public ResizeOptions ResizeOptions { get; } = new() { ReportRate = 50, NotifyOnBreakpointOnly = true };
+
+    public async Task NotifyBrowserViewportChangeAsync(BrowserViewportEventArgs e)
+    {
+        var newIsMobile = e.Breakpoint < Breakpoint.Sm;
+        if (_isMobile != newIsMobile)
+        {
+            _isMobile = newIsMobile;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadOrganizationsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isMobile = await BrowserViewportService.GetCurrentBreakpointAsync() < Breakpoint.Sm;
+            StateHasChanged();
+            await BrowserViewportService.SubscribeAsync(this);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await BrowserViewportService.UnsubscribeAsync(this);
     }
 
     private async Task LoadOrganizationsAsync()
@@ -170,7 +215,7 @@
             // return; // Typically we would block this, but allowed in UI demonstration until fully scoped.
         }
 
-        var parameters = new DialogParameters<OrganizationDialog> { { x => x.OrganizationToEdit, org } };
+        var parameters = new DialogParameters<OrganizationDialog>() { { x => x.OrganizationToEdit, org } };
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<OrganizationDialog>("Modify Organization", parameters, options);
         var result = await dialog.Result;
@@ -189,7 +234,7 @@
             return;
         }
 
-        var parameters = new DialogParameters<MudMessageBox>
+        var parameters = new DialogParameters<MudMessageBox>()
         {
             { x => x.Title, "Suspend Tenant" },
             { x => x.MarkupMessage, new Microsoft.AspNetCore.Components.MarkupString($"Are you sure you want to logically delete <b>{org.Name}</b>? Operations for its {org.UserCount} affiliated users will be suspended.") },

@@ -26,6 +26,9 @@ public class OrganizationDto
 
     /// <summary>Total number of users affiliated with this organization.</summary>
     public int UserCount { get; set; }
+
+    /// <summary>The name of the user representing the CEO for the organization, if any.</summary>
+    public string? CeoName { get; set; }
 }
 
 /// <summary>

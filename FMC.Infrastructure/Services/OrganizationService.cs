@@ -44,7 +44,14 @@ public class OrganizationService : IOrganizationService
                 .OfType<ApplicationUser>()
                 .CountAsync(u => u.OrganizationId == org.Id, cancellationToken);
 
-            result.Add(MapToDto(org, userCount));
+            var ceoName = await (from u in _context.Users.OfType<ApplicationUser>()
+                                 where u.OrganizationId == org.Id
+                                 join ur in _context.UserRoles on u.Id equals ur.UserId
+                                 join r in _context.Roles on ur.RoleId equals r.Id
+                                 where r.Name == FMC.Shared.Auth.Roles.CEO
+                                 select u.FirstName + " " + u.LastName).FirstOrDefaultAsync(cancellationToken);
+
+            result.Add(MapToDto(org, userCount, ceoName?.Trim()));
         }
 
         return result;
@@ -144,7 +151,7 @@ public class OrganizationService : IOrganizationService
     /// Maps a domain entity to its public-facing DTO representation.
     /// Centralizing this mapping here ensures that all callers benefit from any future DTO changes automatically.
     /// </summary>
-    private static OrganizationDto MapToDto(Organization org, int userCount = 0) => new()
+    private static OrganizationDto MapToDto(Organization org, int userCount = 0, string? ceoName = null) => new()
     {
         Id = org.Id,
         Name = org.Name,
@@ -152,6 +159,7 @@ public class OrganizationService : IOrganizationService
         IsActive = org.IsActive,
         CreatedAt = org.CreatedAt,
         UpdatedAt = org.UpdatedAt,
-        UserCount = userCount
+        UserCount = userCount,
+        CeoName = ceoName
     };
 }

@@ -9,6 +9,7 @@ using FMC.Application.Interfaces;
 using FMC.Application.Transactions.Queries;
 using FMC.Infrastructure.Services;
 using FMC.Infrastructure.Caching;
+using FMC.Infrastructure.Repositories;
 using FMC.Shared.Auth;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
@@ -111,6 +112,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();

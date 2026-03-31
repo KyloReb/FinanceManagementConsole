@@ -42,8 +42,15 @@ public class ApplicationUser : IdentityUser
     /// </summary>
     public DateTime? RefreshTokenExpiryTime { get; set; }
 
-    /// <summary>
-    /// The user's affiliated organization or company.
-    /// </summary>
     public string? Organization { get; set; }
+
+    /// <summary>
+    /// Foreign Key to the strongly-typed Organization entity replacing the legacy string.
+    /// </summary>
+    public Guid? OrganizationId { get; set; }
+
+    /// <summary>
+    /// Navigation property mapping the User to their respective Organization details.
+    /// </summary>
+    public virtual FMC.Domain.Entities.Organization? OrganizationInfo { get; set; }
 }

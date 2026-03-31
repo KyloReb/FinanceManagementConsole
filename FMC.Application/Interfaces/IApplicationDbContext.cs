@@ -9,6 +9,7 @@ public interface IApplicationDbContext
     DbSet<Account> Accounts { get; }
     DbSet<Budget> Budgets { get; }
     DbSet<UserOtpVerification> UserOtpVerifications { get; }
+    DbSet<Organization> Organizations { get; }
     DbSet<AuditLog> AuditLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

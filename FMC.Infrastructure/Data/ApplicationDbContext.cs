@@ -45,6 +45,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<UserOtpVerification> UserOtpVerifications { get; set; }
 
     /// <summary>
+    /// Gets or sets the collection of enterprise organizations mapping users to tenants.
+    /// </summary>
+    public DbSet<Organization> Organizations { get; set; }
+
+    /// <summary>
     /// Gets or sets the collection of audit logs.
     /// </summary>
     public DbSet<AuditLog> AuditLogs { get; set; }
@@ -87,11 +92,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     {
         base.OnModelCreating(builder);
 
-        // Global Query Filters for Tenancy
+        // Global Query Filters for Tenancy and Soft Deletions
         builder.Entity<Transaction>().HasQueryFilter(t => t.TenantId == _currentUserService.TenantId);
         builder.Entity<Account>().HasQueryFilter(a => a.TenantId == _currentUserService.TenantId);
         builder.Entity<Budget>().HasQueryFilter(b => b.TenantId == _currentUserService.TenantId);
         builder.Entity<AuditLog>().HasQueryFilter(a => a.TenantId == _currentUserService.TenantId);
+        builder.Entity<Organization>().HasQueryFilter(o => o.TenantId == _currentUserService.TenantId && !o.IsDeleted);
 
         builder.Entity<UserOtpVerification>()
             .HasIndex(o => o.UserId);

@@ -239,19 +239,33 @@
 
     private string GetDeviceName(string? ua)
     {
-        if (string.IsNullOrEmpty(ua)) return "System/Unknown";
-        if (ua.Contains("Windows NT", StringComparison.OrdinalIgnoreCase)) return "Windows PC";
-        if (ua.Contains("iPhone", StringComparison.OrdinalIgnoreCase)) return "iPhone";
-        if (ua.Contains("iPad", StringComparison.OrdinalIgnoreCase)) return "iPad";
-        if (ua.Contains("Android", StringComparison.OrdinalIgnoreCase)) 
+        if (string.IsNullOrEmpty(ua)) return "System/Internal";
+        
+        // If it was already resolved (e.g. "MY-LAPTOP-PC") or contains No Mozilla signatures
+        if (!ua.Contains("Mozilla/", StringComparison.OrdinalIgnoreCase) && !ua.Contains("Postman", StringComparison.OrdinalIgnoreCase)) 
         {
-            if (ua.Contains("Mobile", StringComparison.OrdinalIgnoreCase)) return "Android Phone";
-            return "Android Tablet";
+            return ua;
         }
-        if (ua.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)) return "Mac Desktop";
-        if (ua.Contains("Linux", StringComparison.OrdinalIgnoreCase)) return "Linux PC";
-        if (ua.Contains("Postman", StringComparison.OrdinalIgnoreCase)) return "Postman Client";
-        return "Browser/Other";
+
+        string os = "Other OS";
+        if (ua.Contains("Windows NT 10.0", StringComparison.OrdinalIgnoreCase)) os = "Windows 10/11";
+        else if (ua.Contains("Windows NT 6.3", StringComparison.OrdinalIgnoreCase)) os = "Windows 8.1";
+        else if (ua.Contains("Windows NT 6.2", StringComparison.OrdinalIgnoreCase)) os = "Windows 8";
+        else if (ua.Contains("Windows NT 6.1", StringComparison.OrdinalIgnoreCase)) os = "Windows 7";
+        else if (ua.Contains("Android", StringComparison.OrdinalIgnoreCase)) os = "Android";
+        else if (ua.Contains("iPhone", StringComparison.OrdinalIgnoreCase)) os = "iOS (iPhone)";
+        else if (ua.Contains("iPad", StringComparison.OrdinalIgnoreCase)) os = "iOS (iPad)";
+        else if (ua.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)) os = "macOS";
+        else if (ua.Contains("Linux", StringComparison.OrdinalIgnoreCase)) os = "Linux";
+
+        string browser = "Browser";
+        if (ua.Contains("Edg/", StringComparison.OrdinalIgnoreCase)) browser = "MS Edge";
+        else if (ua.Contains("Chrome/", StringComparison.OrdinalIgnoreCase)) browser = "Chrome";
+        else if (ua.Contains("Firefox/", StringComparison.OrdinalIgnoreCase)) browser = "Firefox";
+        else if (ua.Contains("Safari/", StringComparison.OrdinalIgnoreCase) && !ua.Contains("Chrome", StringComparison.OrdinalIgnoreCase)) browser = "Safari";
+        else if (ua.Contains("Postman", StringComparison.OrdinalIgnoreCase)) browser = "Postman";
+
+        return $"{browser} on {os}";
     }
 
     private string GetDeviceIcon(string? ua)
@@ -262,6 +276,7 @@
         if (ua.Contains("Android", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.PhoneAndroid;
         if (ua.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.DesktopMac;
         if (ua.Contains("Linux", StringComparison.OrdinalIgnoreCase)) return Icons.Custom.Brands.Linux;
+        if (ua.Contains("Postman", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.Dns;
         return Icons.Material.Filled.Devices;
     }
 }

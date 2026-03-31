@@ -18,15 +18,55 @@ public class AuditService : IAuditService
         _userManager = userManager;
     }
 
+    private string GetDeviceName(string? ua)
+    {
+        if (string.IsNullOrEmpty(ua)) return "System/Internal";
+        
+        // If it was resolved as a Machine Name (started by our loopback logic in AuditService)
+        if (!ua.Contains("Mozilla/") && !ua.Contains("Postman")) return ua;
+
+        string os = "Other OS";
+        if (ua.Contains("Windows NT 10.0", StringComparison.OrdinalIgnoreCase)) os = "Windows 10/11";
+        else if (ua.Contains("Windows NT 6.3", StringComparison.OrdinalIgnoreCase)) os = "Windows 8.1";
+        else if (ua.Contains("Windows NT 6.2", StringComparison.OrdinalIgnoreCase)) os = "Windows 8";
+        else if (ua.Contains("Windows NT 6.1", StringComparison.OrdinalIgnoreCase)) os = "Windows 7";
+        else if (ua.Contains("Android", StringComparison.OrdinalIgnoreCase)) os = "Android";
+        else if (ua.Contains("iPhone", StringComparison.OrdinalIgnoreCase)) os = "iOS (iPhone)";
+        else if (ua.Contains("iPad", StringComparison.OrdinalIgnoreCase)) os = "iOS (iPad)";
+        else if (ua.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)) os = "macOS";
+        else if (ua.Contains("Linux", StringComparison.OrdinalIgnoreCase)) os = "Linux";
+
+        string browser = "Unknown Browser";
+        if (ua.Contains("Edg/", StringComparison.OrdinalIgnoreCase)) browser = "MS Edge";
+        else if (ua.Contains("Chrome/", StringComparison.OrdinalIgnoreCase)) browser = "Chrome";
+        else if (ua.Contains("Firefox/", StringComparison.OrdinalIgnoreCase)) browser = "Firefox";
+        else if (ua.Contains("Safari/", StringComparison.OrdinalIgnoreCase) && !ua.Contains("Chrome", StringComparison.OrdinalIgnoreCase)) browser = "Safari";
+        else if (ua.Contains("Postman", StringComparison.OrdinalIgnoreCase)) browser = "Postman";
+
+        return $"{browser} on {os}";
+    }
+
     public async Task RecordAuthEventAsync(string action, string? userId, string ipAddress, string device, string details)
     {
+        // Intelligent Device Resolution: For loopback addresses (localhost/dev), resolve the actual machine name.
+        // For remote traffic, fall back to the provided user-agent for forensic parsing.
+        string resolvedDevice = device;
+        if (ipAddress == "::1" || ipAddress == "127.0.0.1" || ipAddress == "localhost")
+        {
+            try { resolvedDevice = $"{Environment.MachineName} (Local)"; } catch { }
+        }
+        else
+        {
+            resolvedDevice = GetDeviceName(device);
+        }
+
         var log = new AuditLog
         {
             UserId = userId,
             TenantId = userId ?? "SYSTEM", 
             Action = action,
             IpAddress = ipAddress,
-            Device = device,
+            Device = resolvedDevice,
             Details = details,
             CreatedAt = DateTime.UtcNow
         };

@@ -29,9 +29,9 @@
     </div>
 
     <MudPaper Elevation="0" Class="pa-4 pa-sm-6 overflow-x-auto" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
-        <MudDataGrid Items="@_organizations" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
-                      Filterable="true" SortMode="SortMode.Multiple"
-                      Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">
+        <MudDataGrid @ref="_grid" Items="@_organizations" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
+                      Filterable="true" SortMode="SortMode.Multiple" DragDropColumnReordering="true" ColumnResizeMode="ResizeMode.None"
+                      FixedLayout="false" ShowColumnOptions="true" Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">
             <ToolBarContent>
                 <MudText Typo="Typo.h6" Style="font-weight: 600;">System Tenants</MudText>
                 <MudSpacer />
@@ -39,51 +39,71 @@
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
                               IconSize="Size.Medium" Class="mt-0" Clearable="true" 
                               Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudMenu Icon="@Icons.Material.Filled.ViewColumn" IconColor="Color.Primary" Class="ml-2" Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" AriaLabel="Column Visibility Menu">
+                    <div class="px-4 py-2">
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: var(--mud-palette-primary)">DISPLAY COLUMNS</MudText>
+                    </div>
+                    <MudDivider />
+                    @if (_grid != null)
+                    {
+                        @foreach (var col in _grid.RenderedColumns.Where(x => !string.IsNullOrWhiteSpace(x.Title)))
+                        {
+                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.Hidden = !col.Hidden; StateHasChanged(); })">
+                                <div class="d-flex align-center cursor-pointer">
+                                    <MudCheckBox T="bool" Value="@(!col.Hidden)" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
+                                    <MudText Typo="Typo.body2" Class="ml-2">@col.Title</MudText>
+                                </div>
+                            </MudMenuItem>
+                        }
+                    }
+                </MudMenu>
             </ToolBarContent>
             <Columns>
-                <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;">
+                <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;" Dragable="false" Resizable="false">
                     <CellTemplate>
                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Size="Size.Small">
-                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
-                                         OnClick="@(() => OpenEditDialog(context.Item))">
-                                Edit Details
-                            </MudMenuItem>
+                             <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
+                                          Disabled='@(context.Item.Name == "Nationlink/Infoserve Inc.")'
+                                          OnClick="@(() => OpenEditDialog(context.Item))">
+                                 @(context.Item.Name == "Nationlink/Infoserve Inc." ? "System Organization Locked" : "Edit Details")
+                             </MudMenuItem>
                             <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
+                                         Disabled='@(context.Item.Name == "Nationlink/Infoserve Inc.")'
                                          OnClick="@(() => ConfirmDelete(context.Item))" 
                                          IconColor="Color.Error">
-                                <MudText Color="Color.Error">Suspend Tenant</MudText>
+                                <MudText Color="@(context.Item.Name == "Nationlink/Infoserve Inc." ? Color.Default : Color.Error)">
+                                    @(context.Item.Name == "Nationlink/Infoserve Inc." ? "System Protected" : "Delete Organization")
+                                </MudText>
                             </MudMenuItem>
                         </MudMenu>
                     </CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.Name" Title="Organization">
+                <PropertyColumn Property="x => x.Name" Title="Organization" Hideable="true" Resizable="true" FlexGrow="1">
                     <CellTemplate>
                         <div class="d-flex align-center">
                             <MudAvatar Color="@GetAvatarColor(context.Item.Name)" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
-                                <MudIcon Icon="@Icons.Material.Filled.Domain" Size="Size.Small" />
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
                             </MudAvatar>
                             <div class="d-flex flex-column">
                                 <MudText Typo="Typo.body1" Style="font-weight: 600;">@context.Item.Name</MudText>
-                                <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="font-size: 0.75rem;">@context.Item.Id</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Item.Id</MudText>
                             </div>
                         </div>
                     </CellTemplate>
                 </PropertyColumn>
                 
-                <PropertyColumn Property='x => string.IsNullOrEmpty(x.CeoName) ? "Unassigned" : x.CeoName' Title="Chief Executive">
+                <PropertyColumn Property='x => string.IsNullOrEmpty(x.CeoName) ? "Unassigned" : x.CeoName' Title="Chief Executive" Hideable="true" Resizable="true">
                     <CellTemplate>
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.PersonOutline" Size="Size.Small" Color="Color.Secondary" Class="mr-2" />
-                            <MudText Typo="Typo.body2" Style="font-weight: 500;" Color="@(string.IsNullOrEmpty(context.Item.CeoName) ? Color.Error : Color.Default)">
-                                @(string.IsNullOrEmpty(context.Item.CeoName) ? "UNASSIGNED" : context.Item.CeoName)
-                            </MudText>
+                            <MudText Typo="Typo.body2">@context.Item.CeoName</MudText>
                         </div>
                     </CellTemplate>
                 </PropertyColumn>
                 
-                <PropertyColumn Property="x => x.Description" Title="Description" Hidden="@_isMobile" />
+                <PropertyColumn Property="x => x.Description" Title="Description" Hideable="true" Resizable="true" FlexGrow="1" />
                 
-                <PropertyColumn Property="x => x.UserCount" Title="Affiliated Users">
+                <PropertyColumn Property="x => x.UserCount" Title="Affiliated Users" Hideable="true" Resizable="true">
                     <CellTemplate>
                         <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined" Style="border-radius: 6px; font-weight: 600;">
                             @context.Item.UserCount users
@@ -91,13 +111,13 @@
                     </CellTemplate>
                 </PropertyColumn>
 
-                <PropertyColumn Property="x => x.CreatedAt" Title="Registration Date" Hidden="@_isMobile">
+                <PropertyColumn Property="x => x.CreatedAt" Title="Registration Date" Hideable="true" Resizable="true">
                     <CellTemplate>
                         <MudText Typo="Typo.body2">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
                     </CellTemplate>
                 </PropertyColumn>
 
-                <PropertyColumn Property="x => x.IsActive" Title="Operational Status">
+                <PropertyColumn Property="x => x.IsActive" Title="Operational Status" Hideable="true" Resizable="true">
                     <CellTemplate>
                         @if (context.Item.IsActive)
                         {
@@ -118,13 +138,20 @@
 </MudContainer>
 
 <style>
+    .fmc-admin-grid { width: 100% !important; table-layout: auto !important; }
+    .fmc-admin-grid .mud-table-container { overflow-x: auto; }
     .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
     .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
+
+    /* Mobile specific styles */
+    .grid-pair { display: grid; grid-template-columns: 70px 1fr; align-items: center; }
+    .label { font-weight: 700; color: var(--mud-palette-text-disabled); text-transform: uppercase; letter-spacing: 0.05em; }
 </style>
 
 @inject IBrowserViewportService BrowserViewportService
 
 @code {
+    private MudDataGrid<OrganizationDto> _grid = default!;
     private List<OrganizationDto> _organizations = new();
     private bool _loading = true;
     private string _searchString = "";

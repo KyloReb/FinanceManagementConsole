@@ -9,6 +9,7 @@ public class AuditLogDto
     public string? Details { get; set; }
     public string? Device { get; set; }
     public string? IpAddress { get; set; }
+    public string? Organization { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedDate => CreatedAt.ToString("yyyy-MM-dd");
 }

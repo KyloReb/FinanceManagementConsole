@@ -10,7 +10,7 @@
 
 <PageTitle>System Documentation - FMC Admin</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-16 px-12">
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-8 mb-16 px-6 sm-px-4">
     <!-- Mini Section Navigator (Floating Indicator Lines) -->
     @if (_sections.Any())
     {
@@ -28,19 +28,19 @@
     }
 
     <!-- Header Section -->
-    <div class="d-flex flex-column align-center text-center mb-10">
+    <div class="d-flex flex-column align-center text-center mb-10 px-4">
         <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Color="Color.Primary" Size="Size.Large" Class="mb-4" Style="font-size: 72px;" />
-        <MudText Typo="Typo.h2" Style="font-weight: 900; letter-spacing: -0.05em; line-height: 1; font-size: 4rem;">Enterprise Knowledge Base</MudText>
+        <MudText Typo="Typo.h2" Class="docs-header-title">Enterprise Knowledge Base</MudText>
         <MudText Typo="Typo.h6" Class="mud-text-secondary mt-2" Style="font-weight: 400; max-width: 1000px;">
             Technical architecture, security protocols, and operational workflows for the Finance Management Console.
         </MudText>
     </div>
 
     <!-- Navigation Bar: Focused, Centered & Sticky -->
-    <div class="sticky-nav-container">
+    <div class="sticky-nav-container px-4">
         <div class="d-flex justify-center">
             <MudPaper Elevation="0" Class="pa-2 d-flex align-center nav-glass" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface); width: 100%; max-width: 800px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-                <MudIcon Icon="@Icons.Material.Filled.Search" Color="Color.Primary" Class="ml-4 mr-2" />
+                <MudIcon Icon="@Icons.Material.Filled.Search" Color="Color.Primary" Class="ml-4 mr-2 d-none d-sm-flex" />
                 <div style="flex-grow: 1;">
                      <MudSelect T="string" Label="Jump to Document" 
                                Value="@_selectedDoc?.FileName" 
@@ -65,7 +65,7 @@
         </div>
     </div>
 
-    <MudDrawer @bind-Open="@_drawerOpen" Anchor="Anchor.Left" Elevation="1" Variant="DrawerVariant.Temporary" Width="400px">
+    <MudDrawer @bind-Open="@_drawerOpen" Anchor="Anchor.Left" Elevation="1" Variant="DrawerVariant.Temporary" Width="300px">
         <MudDrawerHeader>
             <MudText Typo="Typo.h6" Style="font-weight: 900;">Knowledge Index</MudText>
         </MudDrawerHeader>
@@ -119,6 +119,8 @@
 </MudContainer>
 
 <style>
+    .docs-header-title { font-weight: 950; letter-spacing: -0.05em; line-height: 1.1; font-size: 4rem; }
+
     .sticky-nav-container { 
         position: sticky; 
         top: 70px; 
@@ -132,7 +134,7 @@
     }
     .nav-select-popover {
         width: 100% !important;
-        max-width: 600px !important;
+        max-width: 500px !important;
         margin-top: 10px;
         border-radius: 12px;
         padding: 8px;
@@ -164,14 +166,14 @@
         font-family: 'Inter', system-ui, -apple-system, sans-serif; 
         line-height: 1.8; 
         color: var(--mud-palette-text-primary);
-        padding: 60px 80px; /* High-end padding that scales */
+        padding: 60px 80px; 
         max-width: 100%;
     }
 
     /* Minimalist Section Navigator (Right Side - Outside Container) */
     .section-navigator {
         position: fixed;
-        right: 8px; /* Move to far right edge near scrollbar */
+        right: 8px; 
         top: 50%;
         transform: translateY(-50%);
         display: flex;
@@ -179,7 +181,6 @@
         gap: 16px;
         z-index: 2000;
         padding: 20px 0;
-        /* Container removed as requested - just the lines */
         transition: all 0.4s ease;
     }
     

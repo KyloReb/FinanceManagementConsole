@@ -122,16 +122,29 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Invalidates the user's current session by revoking the refresh token.
     /// </summary>
-    /// <param name="userId">The ID of the user logging out.</param>
+    /// <param name="userId">The optional ID of the user logging out. If omitted, current user is used.</param>
     /// <returns>200 OK on success.</returns>
+    [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout([FromQuery] string userId)
+    public async Task<IActionResult> Logout([FromQuery] string? userId)
     {
+        var targetId = userId;
+        // Resolve from the Actual authenticated User claims
+        if (string.IsNullOrEmpty(targetId) || targetId == "current")
+        {
+            targetId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        }
+
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        await _auditService.RecordAuthEventAsync("Logout", userId, ip, userAgent, "User Logout Command triggered");
+        
+        await _auditService.RecordAuthEventAsync("Logout", targetId, ip, userAgent, "User Logout Command triggered");
 
-        await _identityService.LogoutAsync(userId);
+        if (!string.IsNullOrEmpty(targetId))
+        {
+            await _identityService.LogoutAsync(targetId);
+        }
+        
         Response.Cookies.Delete("refreshToken");
         return Ok();
     }

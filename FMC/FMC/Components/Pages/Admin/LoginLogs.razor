@@ -15,28 +15,46 @@
     </div>
 
     <MudPaper Elevation="0" Class="pa-6 d-none d-md-block" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
-        <MudDataGrid @ref="_grid" Items="@FilteredLogs" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
-                      Filterable="true" SortMode="SortMode.Multiple" Groupable="true"
-                      Elevation="0" T="AuditLogDto" Class="fmc-admin-grid">
+        <MudDataGrid @ref="_grid" Items="@_logs" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
+                      Filterable="true" SortMode="SortMode.Multiple" Groupable="true" DragDropColumnReordering="true" ColumnResizeMode="ResizeMode.None"
+                      FixedLayout="false" ShowColumnOptions="true" Elevation="0" T="AuditLogDto" Class="fmc-admin-grid">
             <ToolBarContent>
-                <MudText Typo="Typo.h6" Style="font-weight: 600;">Authentication History</MudText>
+                <MudText Typo="Typo.h6" Style="font-weight: 600;">System Logs</MudText>
                 <MudSpacer />
-                <MudTextField @bind-Value="_searchString" Placeholder="Search by User, IP, or Event..." Adornment="Adornment.Start" 
-                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-4" 
-                              Clearable="true" Immediate="true" Style="max-width: 300px;" />
-                <MudSelect T="String" Label="Group By" Value="@_currentGroup" ValueChanged="OnGroupChanged" Class="mr-4" Style="width: 180px;" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                    <MudSelectItem Value="@("")">None</MudSelectItem>
-                    <MudSelectItem Value="@("UserName")">User</MudSelectItem>
-                    <MudSelectItem Value="@("Action")">Event</MudSelectItem>
+                <MudSelect T="string" Label="Group Events By" @bind-Value="_currentGroup" @bind-Value:after="StateHasChanged"
+                            Variant="Variant.Outlined" Margin="Margin.Dense" Class="max-width: 200px;">
+                    <MudSelectItem Value="@((string)null)">No Grouping</MudSelectItem>
+                    <MudSelectItem Value="@("UserName")">Username</MudSelectItem>
+                    <MudSelectItem Value="@("Organization")">Organization</MudSelectItem>
+                    <MudSelectItem Value="@("Action")">Event Type</MudSelectItem>
                     <MudSelectItem Value="@("CreatedDate")">Day</MudSelectItem>
                 </MudSelect>
                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="LoadLogsAsync" />
+                <MudMenu Icon="@Icons.Material.Filled.ViewColumn" IconColor="Color.Primary" Class="ml-2" Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" AriaLabel="Column Visibility Menu">
+                    <div class="px-4 py-2">
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: var(--mud-palette-primary)">DISPLAY COLUMNS</MudText>
+                    </div>
+                    <MudDivider />
+                    @if (_grid != null)
+                    {
+                        @foreach (var col in _grid.RenderedColumns.Where(x => !string.IsNullOrWhiteSpace(x.Title) && !x.Title.Contains("[System]")))
+                        {
+                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.Hidden = !col.Hidden; StateHasChanged(); })">
+                                <div class="d-flex align-center cursor-pointer">
+                                    <MudCheckBox T="bool" Value="@(!col.Hidden)" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
+                                    <MudText Typo="Typo.body2" Class="ml-2">@col.Title</MudText>
+                                </div>
+                            </MudMenuItem>
+                        }
+                    }
+                </MudMenu>
             </ToolBarContent>
             <Columns>
-                <PropertyColumn Property="x => x.CreatedAt" Title="Timestamp" Format="yyyy-MM-dd HH:mm:ss" Sortable="true" Groupable="false" />
-                <PropertyColumn Property="x => x.UserName" Title="Username" Grouping="@(_currentGroup == "UserName")" />
-                <PropertyColumn Property="x => x.IpAddress" Title="IP Address" Groupable="false" />
-                <TemplateColumn Title="Device">
+                <PropertyColumn Property="x => x.CreatedAt.ToLocalTime()" Title="Timestamp" Format="yyyy-MM-dd HH:mm:ss" Sortable="true" Groupable="false" Hideable="false" Resizable="true" FlexGrow="1" />
+                <PropertyColumn Property="x => x.UserName" Title="Username" Grouping="@(_currentGroup == "UserName")" Hideable="false" Resizable="true" FlexGrow="1" />
+                <PropertyColumn Property="x => x.Organization" Title="Organization" Grouping="@(_currentGroup == "Organization")" Hideable="true" Resizable="true" FlexGrow="1" />
+                <PropertyColumn Property="x => x.IpAddress" Title="IP Address" Groupable="false" Hideable="true" Resizable="true" FlexGrow="1" />
+                <TemplateColumn Title="Device" SortBy="@(x => x.Device)" Sortable="true" Filterable="true" Hideable="false" Resizable="true" FlexGrow="1">
                     <CellTemplate>
                         <MudTooltip Text="@context.Item.Device" Arrow="true" Placement="Placement.Top">
                             <div class="d-flex align-center">
@@ -46,13 +64,13 @@
                         </MudTooltip>
                     </CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.CreatedDate" Title="Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" />
-                <TemplateColumn Title="Event" Sortable="true" Grouping="@(_currentGroup == "Action")">
+                <PropertyColumn Property="x => x.CreatedDate" Title="[System] Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" Hideable="true" Resizable="true" FlexGrow="1" />
+                <TemplateColumn Title="Event" SortBy="@(x => x.Action)" Sortable="true" Filterable="true" Grouping="@(_currentGroup == "Action")" Hideable="false" Resizable="true" FlexGrow="1">
                     <CellTemplate>
                         @GetEventChip(context.Item.Action)
                     </CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Additional Details">
+                <TemplateColumn Title="Additional Details" SortBy="@(x => x.Details)" Sortable="true" Filterable="true" Hideable="true" Resizable="true" FlexGrow="1">
                     <CellTemplate>
                         <MudTooltip Text="@context.Item.Details">
                             <MudText Typo="Typo.body2" Style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" Class="mud-text-secondary">
@@ -112,7 +130,7 @@
                     <MudCardHeader Class="pa-3" Style="border-bottom: 1px solid var(--mud-palette-divider);">
                         <CardHeaderContent>
                             <div class="d-flex justify-space-between align-center">
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.CreatedAt.ToString("MMM dd, HH:mm:ss")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.CreatedAt.ToLocalTime().ToString("MMM dd, HH:mm:ss")</MudText>
                                 @GetEventChip(log.Action)
                             </div>
                         </CardHeaderContent>
@@ -120,12 +138,16 @@
                     <MudCardContent Class="pa-3">
                         <div class="grid-pair mb-2">
                              <MudText Typo="Typo.caption" Class="label">User:</MudText>
-                             <MudText Typo="Typo.body2" Style="font-weight: 600;">@log.UserName</MudText>
+                             <MudText Typo="MudBlazor.Typo.body2" Style="font-weight: 600;">@log.UserName</MudText>
+                        </div>
+                        <div class="grid-pair mb-2">
+                             <MudText Typo="Typo.caption" Class="label">Org:</MudText>
+                             <MudText Typo="MudBlazor.Typo.body2">@log.Organization</MudText>
                         </div>
                         <div class="grid-pair mb-2">
                              <MudText Typo="Typo.caption" Class="label">Device:</MudText>
                              <div class="d-flex align-center">
-                                 <MudIcon Icon="@GetDeviceIcon(log.Device)" Size="Size.Small" Color="Color.Primary" Class="mr-1" Style="font-size: 0.9rem;" />
+                                 <MudIcon Icon="@GetDeviceIcon(log.Device)" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Primary" Class="mr-1" Style="font-size: 0.9rem;" />
                                  <MudText Typo="Typo.caption">@GetDeviceName(log.Device)</MudText>
                              </div>
                         </div>
@@ -142,6 +164,7 @@
 </MudContainer>
 
 <style>
+    .fmc-admin-grid { width: 100% !important; }
     .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
     .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
 
@@ -175,6 +198,7 @@
 
             // Apply manual sorting/grouping for mobile view if needed
             if (_currentGroup == "UserName") query = query.OrderBy(x => x.UserName).ThenByDescending(x => x.CreatedAt);
+            else if (_currentGroup == "Organization") query = query.OrderBy(x => x.Organization).ThenByDescending(x => x.CreatedAt);
             else if (_currentGroup == "Action") query = query.OrderBy(x => x.Action).ThenByDescending(x => x.CreatedAt);
             else query = query.OrderByDescending(x => x.CreatedAt);
 

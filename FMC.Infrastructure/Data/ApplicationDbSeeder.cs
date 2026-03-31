@@ -41,7 +41,8 @@ public static class ApplicationDbSeeder
                 FirstName = "System",
                 LastName = "CEO",
                 EmailConfirmed = true,
-                IsActive = true
+                IsActive = true,
+                Organization = "Nationlink/Infoserve Inc."
             };
 
             var createPowerUser = await userManager.CreateAsync(adminUser, "SuperAdmin123!");

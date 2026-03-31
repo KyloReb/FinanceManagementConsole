@@ -29,8 +29,11 @@ public class AuthenticationHeaderHandler : DelegatingHandler
         string? token = null;
 
         // 1. Skip token attachment for Auth endpoints (Login, Register, etc.)
-        // These must be anonymous and sending an expired token can trigger 401s in middleware
-        if (request.RequestUri?.PathAndQuery.Contains("/api/auth/", StringComparison.OrdinalIgnoreCase) == true)
+        // These MUST be anonymous. However, Logout NOW requires authorization to track identifiers.
+        bool isAuthEndpoint = request.RequestUri?.PathAndQuery.Contains("/api/auth/", StringComparison.OrdinalIgnoreCase) == true;
+        bool isLogout = request.RequestUri?.PathAndQuery.Contains("logout", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (isAuthEndpoint && !isLogout)
         {
             // Even if anonymous, we still want to forward the User-Agent for audit logs
             ForwardUserAgent(request);

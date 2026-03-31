@@ -90,7 +90,11 @@ public class AuditService : IAuditService
         var dtos = new List<AuditLogDto>();
         foreach (var log in logs)
         {
-            var user = log.UserId != null ? await _userManager.FindByIdAsync(log.UserId) : null;
+            var user = log.UserId != null && log.UserId != "current" 
+                ? await _userManager.Users.Include(u => u.OrganizationInfo)
+                    .FirstOrDefaultAsync(u => u.Id == log.UserId || u.UserName == log.UserId) 
+                : null;
+                
             dtos.Add(new AuditLogDto
             {
                 Id = log.Id,
@@ -99,6 +103,9 @@ public class AuditService : IAuditService
                 Action = log.Action,
                 IpAddress = log.IpAddress,
                 Device = log.Device,
+                Organization = !string.IsNullOrWhiteSpace(user?.OrganizationInfo?.Name) 
+                    ? user.OrganizationInfo.Name 
+                    : (!string.IsNullOrWhiteSpace(user?.Organization) ? user.Organization : (user != null ? "N/A" : "Guest/System")),
                 Details = log.Details,
                 CreatedAt = log.CreatedAt
             });

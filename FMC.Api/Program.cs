@@ -113,6 +113,7 @@ builder.Services.AddScoped<IApplicationDbContext>(provider => provider.GetRequir
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();

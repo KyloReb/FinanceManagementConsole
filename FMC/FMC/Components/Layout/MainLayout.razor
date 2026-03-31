@@ -63,6 +63,14 @@
                             <div class="py-2" style="background-color: var(--mud-palette-surface);">
                                 <MudMenuItem Icon="@Icons.Material.Filled.Person" OnClick="@(() => NavigationManager.NavigateTo("/profile"))">Edit Profile</MudMenuItem>
                                 <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => NavigationManager.NavigateTo("/settings"))">Account Settings</MudMenuItem>
+                                
+                                <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin" Context="adminContext">
+                                    <Authorized>
+                                        <MudDivider Class="my-2" />
+                                        <MudMenuItem Icon="@Icons.Material.Filled.CorporateFare" IconColor="Color.Info" OnClick="@(() => NavigationManager.NavigateTo("/admin/organizations"))">Manage System Tenants</MudMenuItem>
+                                    </Authorized>
+                                </AuthorizeView>
+
                                 <MudDivider Class="my-2" />
                                 <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="LogoutAsync"><b>Logout</b></MudMenuItem>
                             </div>

@@ -1,0 +1,123 @@
+@using FMC.Shared.DTOs.Organization
+@using FMC.Services.Api
+@using MudBlazor
+@inject OrganizationApiService OrganizationService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" IsValid="@_isValid" IsValidChanged="OnValidChanged">
+            <div class="d-flex flex-column gap-4 pa-2">
+                <MudTextField @bind-Value="_model.Name" Label="Organization Name" Required="true" RequiredError="Name is required" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_model.Description" Label="Description" Lines="3" Variant="Variant.Outlined" />
+                @if (!IsCreate)
+                {
+                    <MudSwitch @bind-Value="_model.IsActive" Label="Active Organization" Color="Color.Success" />
+                }
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform: none; border-radius: 8px;">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Style="text-transform: none; border-radius: 8px; padding: 6px 24px;" 
+                   Disabled="@(!_isValid || _isSaving)" OnClick="SubmitAsync">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Saving...</MudText>
+            }
+            else
+            {
+                <MudText>@(IsCreate ? "Create Organization" : "Save Changes")</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public OrganizationDto? OrganizationToEdit { get; set; }
+
+    private MudForm _form = default!;
+    private OrganizationModel _model = new();
+    private bool _isValid;
+    private bool _isSaving;
+
+    private bool IsCreate => OrganizationToEdit == null;
+
+    protected override void OnInitialized()
+    {
+        if (OrganizationToEdit != null)
+        {
+            _model.Id = OrganizationToEdit.Id;
+            _model.Name = OrganizationToEdit.Name;
+            _model.Description = OrganizationToEdit.Description;
+            _model.IsActive = OrganizationToEdit.IsActive;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void OnValidChanged(bool isValid) => _isValid = isValid;
+
+    private async Task SubmitAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _isSaving = true;
+        
+        try
+        {
+            bool success;
+
+            if (IsCreate)
+            {
+                var dto = new CreateOrganizationDto
+                {
+                    Name = _model.Name,
+                    Description = _model.Description
+                };
+                success = await OrganizationService.CreateAsync(dto);
+            }
+            else
+            {
+                var dto = new UpdateOrganizationDto
+                {
+                    Id = _model.Id!.Value,
+                    Name = _model.Name,
+                    Description = _model.Description,
+                    IsActive = _model.IsActive
+                };
+                success = await OrganizationService.UpdateAsync(dto);
+            }
+
+            if (success)
+            {
+                Snackbar.Add($"Organization {(IsCreate ? "created" : "updated")} successfully.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("An error occurred or the name is already taken.", Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("An error occurred. The organization name might already be in use.", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private class OrganizationModel
+    {
+        public Guid? Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}

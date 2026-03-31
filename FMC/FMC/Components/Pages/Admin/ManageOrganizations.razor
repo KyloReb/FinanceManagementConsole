@@ -1,0 +1,218 @@
+@page "/admin/organizations"
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Organization
+@using FMC.Services.Api
+@using MudBlazor
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject OrganizationApiService OrganizationService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Manage Organizations - FMC</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between mb-8 gap-4">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.02em;">Manage Organizations</MudText>
+            <MudText Typo="Typo.body1" Class="mud-text-secondary">Centralized Corporate Entities Directory</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.DomainAdd" 
+                   Size="Size.Large"
+                   OnClick="OpenCreateDialog" 
+                   Style="border-radius: 10px; text-transform: none; font-weight: 600; padding: 10px 24px;">
+            Register Organization
+        </MudButton>
+    </div>
+
+    <MudPaper Elevation="0" Class="pa-6 overflow-hidden" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
+        <MudDataGrid Items="@_organizations" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
+                      Filterable="true" SortMode="SortMode.Multiple"
+                      Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6" Style="font-weight: 600;">System Tenants</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search by name or ID..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              IconSize="Size.Medium" Class="mt-0" Clearable="true" 
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Organization">
+                    <CellTemplate>
+                        <div class="d-flex align-center">
+                            <MudAvatar Color="@GetAvatarColor(context.Item.Name)" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
+                                <MudIcon Icon="@Icons.Material.Filled.Domain" Size="Size.Small" />
+                            </MudAvatar>
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1" Style="font-weight: 600;">@context.Item.Name</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="font-size: 0.75rem;">@context.Item.Id</MudText>
+                            </div>
+                        </div>
+                    </CellTemplate>
+                </PropertyColumn>
+                
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+                
+                <PropertyColumn Property="x => x.UserCount" Title="Affiliated Users">
+                    <CellTemplate>
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined" Style="border-radius: 6px; font-weight: 600;">
+                            @context.Item.UserCount users
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn Property="x => x.CreatedAt" Title="Registration Date">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn Property="x => x.IsActive" Title="Operational Status">
+                    <CellTemplate>
+                        @if (context.Item.IsActive)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Style="border-radius: 6px;">Active</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Style="border-radius: 6px;">Suspended</MudChip>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+                <TemplateColumn Title="Actions" HeaderStyle="justify-content: flex-end;" CellStyle="text-align: right">
+                    <CellTemplate>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
+                                         OnClick="@(() => OpenEditDialog(context.Item))">
+                                Edit Details
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
+                                         OnClick="@(() => ConfirmDelete(context.Item))" 
+                                         IconColor="Color.Error">
+                                <MudText Color="Color.Error">Suspend Tenant</MudText>
+                            </MudMenuItem>
+                        </MudMenu>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="OrganizationDto" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
+    .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
+</style>
+
+@code {
+    private List<OrganizationDto> _organizations = new();
+    private bool _loading = true;
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrganizationsAsync();
+    }
+
+    private async Task LoadOrganizationsAsync()
+    {
+        try
+        {
+            _loading = true;
+            _organizations = await OrganizationService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading organizations: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Func<OrganizationDto, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (x.Id.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    };
+
+    private Color GetAvatarColor(string name)
+    {
+        var hash = name.GetHashCode();
+        var colors = new[] { Color.Primary, Color.Secondary, Color.Tertiary, Color.Info, Color.Success, Color.Warning };
+        return colors[Math.Abs(hash) % colors.Length];
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<OrganizationDialog>("Register New Organization", options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadOrganizationsAsync();
+        }
+    }
+
+    private async Task OpenEditDialog(OrganizationDto org)
+    {
+        if (org.Name == "Nationlink/Infoserve Inc.")
+        {
+            Snackbar.Add("CRITICAL: Super-Tenant records cannot be modified.", Severity.Warning);
+            // return; // Typically we would block this, but allowed in UI demonstration until fully scoped.
+        }
+
+        var parameters = new DialogParameters<OrganizationDialog> { { x => x.OrganizationToEdit, org } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<OrganizationDialog>("Modify Organization", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result!.Canceled)
+        {
+            await LoadOrganizationsAsync();
+        }
+    }
+
+    private async Task ConfirmDelete(OrganizationDto org)
+    {
+        if (org.Name == "Nationlink/Infoserve Inc.")
+        {
+            Snackbar.Add("CRITICAL: The System Host Tenant cannot be deleted.", Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters<MudMessageBox>
+        {
+            { x => x.Title, "Suspend Tenant" },
+            { x => x.MarkupMessage, new Microsoft.AspNetCore.Components.MarkupString($"Are you sure you want to logically delete <b>{org.Name}</b>? Operations for its {org.UserCount} affiliated users will be suspended.") },
+            { x => x.YesText, "Suspend" },
+            { x => x.NoText, "Cancel" }
+        };
+
+        var result = await DialogService.ShowMessageBoxAsync("Suspend Organization", 
+            $"Are you sure you want to logically delete {org.Name}?", 
+            yesText: "Suspend", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            var success = await OrganizationService.DeleteAsync(org.Id);
+            if (success)
+            {
+                Snackbar.Add("Organization soft-deleted successfully", Severity.Success);
+                await LoadOrganizationsAsync();
+            }
+            else
+            {
+                Snackbar.Add("Failed to modify organization state", Severity.Error);
+            }
+        }
+    }
+}

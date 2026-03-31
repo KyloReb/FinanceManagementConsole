@@ -1,7 +1,9 @@
 @using FMC.Shared.Auth
 @using FMC.Shared.DTOs.User
 @using FMC.Services.Api
+@using FMC.Shared.DTOs.Organization
 @inject AdminService AdminService
+@inject OrganizationApiService OrganizationService
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -39,9 +41,13 @@
                 </MudItem>
 
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="_model.Organization" Label="Organization" 
-                                  Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" 
-                                  Placeholder="e.g. Nationlink/Infoserve Inc." />
+                    <MudSelect T="string" @bind-Value="_model.Organization" Label="Organization Affiliation" Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@((string)null)" Disabled="true">Select Organization</MudSelectItem>
+                        @foreach (var org in _organizations)
+                        {
+                            <MudSelectItem Value="@org.Name">@org.Name</MudSelectItem>
+                        }
+                    </MudSelect>
                 </MudItem>
 
                 <MudItem xs="12">
@@ -105,6 +111,7 @@
     private bool _isLoading;
 
     private UserDto _model = new() { IsActive = true };
+    private List<OrganizationDto> _organizations = new();
     private string _password = "";
     private IReadOnlyCollection<string> _selectedRoles = new HashSet<string>() { Roles.User };
 
@@ -128,8 +135,17 @@
         }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            _organizations = await OrganizationService.GetAllAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to initialize active tenants.", Severity.Error);
+        }
+
         if (User != null)
         {
             _model = new UserDto

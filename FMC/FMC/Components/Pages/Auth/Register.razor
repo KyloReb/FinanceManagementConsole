@@ -4,6 +4,9 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@using FMC.Services.Api
+@using FMC.Shared.DTOs.Organization
+@inject OrganizationApiService OrganizationService
 
 <PageTitle>Register</PageTitle>
 
@@ -31,7 +34,13 @@
 
             <MudTextField @bind-Value="_model.Email" For="@(() => _model.Email)" Label="Email" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
             <MudTextField @bind-Value="_model.Username" For="@(() => _model.Username)" Label="Username" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" />
-            <MudTextField @bind-Value="_model.Organization" For="@(() => _model.Organization)" Label="Organization" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" Placeholder="e.g. Nationlink/Infoserve Inc." />
+            <MudSelect T="string" @bind-Value="_model.Organization" For="@(() => _model.Organization)" Label="Organization" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" Disabled="@_isLoading" AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="@((string)null)" Disabled="true">Select Organization</MudSelectItem>
+                @foreach (var org in _organizations)
+                {
+                    <MudSelectItem Value="@org.Name">@org.Name</MudSelectItem>
+                }
+            </MudSelect>
             
             <MudTextField @bind-Value="_model.Password" For="@(() => _model.Password)" Label="Password" Variant="Variant.Outlined" FullWidth="true" 
                           InputType="@_passwordInput" Class="mb-3" Adornment="Adornment.End" AdornmentIcon="@_passwordIcon" OnAdornmentClick="TogglePasswordVisibility" Disabled="@_isLoading" />
@@ -61,8 +70,21 @@
 
 @code {
     private RegisterRequestDto _model = new();
+    private List<OrganizationDto> _organizations = new();
     private bool _isLoading = false;
     private string _errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _organizations = await OrganizationService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Could not retrieve organizations.", Severity.Error);
+        }
+    }
 
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;

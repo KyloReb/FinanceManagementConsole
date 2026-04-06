@@ -112,14 +112,18 @@ public class AuthenticationHeaderHandler : DelegatingHandler
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 _logger.LogError("[AuthHandler] API REJECTED REQUEST (401) for {Url} despite having token: {HasToken}", request.RequestUri, !string.IsNullOrEmpty(token));
+
+                // Clear stale auth state so the app redirects to login on next render cycle
+                if (_authStateProvider is ApiAuthenticationStateProvider apiProv)
+                {
+                    _logger.LogWarning("[AuthHandler] Clearing expired auth state. User will be redirected to /login.");
+                    apiProv.MarkUserAsLoggedOut();
+                }
             }
             return response;
         }
         catch (OperationCanceledException)
         {
-            // Silent cancellation - return a 499 or similar if needed, 
-            // but for Blazor, just propagating is often fine if caught upstream.
-            // Here we re-throw to allow upstream catch blocks to recognize the cancellation.
             throw;
         }
     }

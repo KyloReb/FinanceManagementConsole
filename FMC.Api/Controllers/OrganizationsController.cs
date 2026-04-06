@@ -17,11 +17,11 @@ namespace FMC.Api.Controllers;
 [Produces("application/json")]
 public class OrganizationsController : ControllerBase
 {
-    private readonly IOrganizationService _organizationService;
+    private readonly FMC.Application.Interfaces.IOrganizationService _organizationService;
     private readonly ILogger<OrganizationsController> _logger;
 
     public OrganizationsController(
-        IOrganizationService organizationService,
+        FMC.Application.Interfaces.IOrganizationService organizationService,
         ILogger<OrganizationsController> logger)
     {
         _organizationService = organizationService;
@@ -29,9 +29,32 @@ public class OrganizationsController : ControllerBase
     }
 
     /// <summary>
+    /// Performs a balance adjustment (Debit/Credit) for a specific organization.
+    /// This will automatically target the Core Operations Wallet of the tenant.
+    /// </summary>
+    /// <param name="id">The unique identifier of the organization/tenant.</param>
+    /// <param name="request">The adjustment payload (Amount & Label).</param>
+    /// <response code="200">Balance successfully updated.</response>
+    /// <response code="404">No organization or account found corresponding to the ID.</response>
+    [HttpPost("{id:guid}/adjust-balance")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdjustBalance(Guid id, [FromBody] BalanceAdjustmentRequest request)
+    {
+        _logger.LogInformation("[OrganizationsController] Requesting balance adjustment for Tenant {Id} of {Amount} by {User}", id, request.Amount, User.Identity?.Name);
+        
+        var performedBy = User.Identity?.Name ?? "System";
+        var success = await _organizationService.AdjustBalanceAsync(id, request.Amount, request.Label, performedBy, HttpContext.RequestAborted);
+        return success ? Ok() : NotFound();
+    }
+
+    public record BalanceAdjustmentRequest(decimal Amount, string Label);
+
+    /// <summary>
     /// Retrieves all active organizations, ordered alphabetically.
     /// </summary>
     /// <response code="200">Returns the list of active organizations.</response>
+    [AllowAnonymous]
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<OrganizationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetAll(CancellationToken cancellationToken)
@@ -131,5 +154,18 @@ public class OrganizationsController : ControllerBase
     {
         var deleted = await _organizationService.SoftDeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Retrieves all users affiliated with the specified organization.
+    /// </summary>
+    /// <param name="id">The unique identifier of the organization.</param>
+    /// <response code="200">Returns the list of affiliated users.</response>
+    [HttpGet("{id:guid}/users")]
+    [ProducesResponseType(typeof(IEnumerable<FMC.Shared.DTOs.User.UserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<FMC.Shared.DTOs.User.UserDto>>> GetUsers(Guid id, CancellationToken cancellationToken)
+    {
+        var users = await _organizationService.GetUsersByOrganizationAsync(id, cancellationToken);
+        return Ok(users);
     }
 }

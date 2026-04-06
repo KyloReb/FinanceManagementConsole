@@ -1,0 +1,142 @@
+@using FMC.Shared.DTOs.Organization
+@using FMC.Shared.Auth
+@using MudBlazor
+@inject OrganizationApiService OrgService
+@inject ISnackbar Snackbar
+
+<MudDialog Class="fmc-balance-dialog">
+    <DialogContent>
+        <div class="pa-4">
+            <div class="d-flex align-center mb-6">
+                <MudIcon Icon="@(IsCredit ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.RemoveCircle)" 
+                         Color="@(IsCredit ? Color.Success : Color.Error)" Size="Size.Large" Class="mr-3" />
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;">@(IsCredit ? "Credit Wallet" : "Debit Wallet")</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Adjusting funds for @Organization.Name</MudText>
+                </div>
+            </div>
+
+            <MudGrid Spacing="3">
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="_amount" Label="Adjustment Amount" 
+                                     Format="N2" Variant="Variant.Outlined" 
+                                     Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney"
+                                     HideSpinButtons="true" Class="fmc-amount-field" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_label" Label="Ledger Note / Reason" 
+                                  Placeholder="e.g. Monthly Subscription Fee, Manual Adjustment..."
+                                  Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="mt-8 pa-4 fmc-impact-box">
+                <div class="d-flex justify-space-between mb-2">
+                    <MudText Typo="Typo.body2">Current Balance:</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@Organization.TotalBalance.ToString("C")</MudText>
+                </div>
+                <div class="d-flex justify-space-between">
+                    <MudText Typo="Typo.body2">Resulting Balance:</MudText>
+                    <MudText Typo="Typo.body1" Style="font-weight: 900;" 
+                             Color="@(CalculateNewBalance() < 0 ? Color.Error : Color.Success)">
+                        @CalculateNewBalance().ToString("C")
+                    </MudText>
+                </div>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="fmc-dialog-footer">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 600;">Discard</MudButton>
+            <MudSpacer />
+            <MudButton Color="@(IsCredit ? Color.Success : Color.Error)" 
+                       Variant="Variant.Filled" 
+                       Disabled="@(_amount <= 0 || _isProcessing)" 
+                       OnClick="SubmitAsync"
+                       Style="text-transform:none; font-weight: 700; border-radius: 10px; padding: 10px 28px;">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <MudText>Processing...</MudText>
+                }
+                else
+                {
+                    <MudText>Confirm @(IsCredit ? "Credit" : "Debit")</MudText>
+                }
+            </MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .fmc-balance-dialog { 
+        border-radius: 20px !important; 
+        overflow: hidden; 
+        background-color: var(--mud-palette-surface) !important;
+    }
+    .fmc-amount-field .mud-input-root { 
+        font-size: 1.75rem !important; 
+        font-weight: 900 !important; 
+        color: var(--mud-palette-primary) !important; 
+    }
+    .fmc-impact-box { 
+        background-color: var(--mud-palette-background-grey); 
+        border-radius: 14px; 
+        border: 1px solid var(--mud-palette-divider);
+        padding: 16px;
+    }
+    .fmc-dialog-footer {
+        padding: 20px 32px;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        background-color: var(--mud-palette-background-grey);
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+</style>
+
+@code {
+    [CascadingParameter] MudBlazor.IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public OrganizationDto Organization { get; set; } = default!;
+    [Parameter] public bool IsCredit { get; set; }
+
+    private decimal _amount;
+    private string _label = "";
+    private bool _isProcessing;
+
+    private decimal CalculateNewBalance()
+    {
+        return IsCredit ? Organization.TotalBalance + _amount : Organization.TotalBalance - _amount;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SubmitAsync()
+    {
+        try
+        {
+            _isProcessing = true;
+            decimal adjustment = IsCredit ? _amount : -_amount;
+            
+            var success = await OrgService.AdjustBalanceAsync(Organization.Id, adjustment, _label);
+            
+            if (success)
+            {
+                Snackbar.Add($"Ledger updated successfully for {Organization.Name}", Severity.Success);
+                MudDialog.Close(MudBlazor.DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Failed to update organization ledger.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"System Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+}

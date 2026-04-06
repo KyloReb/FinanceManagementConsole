@@ -38,6 +38,26 @@ public class AuditLog : ITenantEntity
     public string? EntityId { get; set; }
 
     /// <summary>
+    /// Snapshot of the entity name at the time of the action (e.g., Organization Name).
+    /// </summary>
+    public string? EntityName { get; set; }
+
+    /// <summary>
+    /// Financial adjustment amount, if applicable.
+    /// </summary>
+    public decimal? Amount { get; set; }
+
+    /// <summary>
+    /// User-provided note or label for the action.
+    /// </summary>
+    public string? Label { get; set; }
+
+    /// <summary>
+    /// Friendly name or identifier of the user who performed the action (for human-readable audit trails).
+    /// </summary>
+    public string? PerformedBy { get; set; }
+
+    /// <summary>
     /// Serialized JSON string preserving dynamic metadata context.
     /// </summary>
     public string? Details { get; set; }

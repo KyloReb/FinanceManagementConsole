@@ -11,11 +11,13 @@ public class AuditService : IAuditService
 {
     private readonly IApplicationDbContext _context;
     private readonly Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> _userManager;
+    private readonly ISystemAlertService _alertService;
 
-    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> userManager)
+    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> userManager, ISystemAlertService alertService)
     {
         _context = context;
         _userManager = userManager;
+        _alertService = alertService;
     }
 
     private string GetDeviceName(string? ua)
@@ -58,6 +60,17 @@ public class AuditService : IAuditService
         else
         {
             resolvedDevice = GetDeviceName(device);
+        }
+
+        if (action.Contains("Failed", StringComparison.OrdinalIgnoreCase))
+        {
+            await _alertService.RaiseAlertAsync(
+                "Identity Security Incident", 
+                $"Authentication failure detected from {ipAddress}. Target Account: {userId ?? "Anonymous"}. Boundary: {resolvedDevice}", 
+                AlertSeverity.Security, 
+                ipAddress, 
+                "Auth"
+            );
         }
 
         var log = new AuditLog
@@ -111,5 +124,100 @@ public class AuditService : IAuditService
             });
         }
         return dtos;
+    }
+
+    public async Task RecordFinancialEventAsync(string action, Guid entityId, string entityName, decimal amount, string label, string performedBy, string? details = null)
+    {
+        var log = new AuditLog
+        {
+            Action = action,
+            EntityType = "Organization",
+            EntityId = entityId.ToString(),
+            EntityName = entityName,
+            Amount = amount,
+            Label = label,
+            PerformedBy = performedBy,
+            Details = details,
+            CreatedAt = DateTime.UtcNow,
+            TenantId = "FINANCIAL" // Used to distinguish financial logs from auth logs easily
+        };
+
+        _context.AuditLogs.Add(log);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<AuditLogDto>> GetRecentLogsAsync(int count = 20, string? category = null)
+    {
+        IQueryable<AuditLog> query = _context.AuditLogs.IgnoreQueryFilters().OrderByDescending(a => a.CreatedAt);
+
+        if (category == "financial")
+        {
+            query = query.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
+        }
+
+        var logs = await query.Take(count).ToListAsync();
+        return logs.Select(log => new AuditLogDto
+        {
+            Id = log.Id,
+            Action = log.Action,
+            EntityName = log.EntityName,
+            Amount = log.Amount,
+            Label = log.Label,
+            PerformedBy = log.PerformedBy,
+            CreatedAt = log.CreatedAt,
+            Details = log.Details
+        }).ToList();
+    }
+
+    public async Task<AuditLogSearchResultDto> SearchLogsAsync(AuditLogQueryDto queryDto)
+    {
+        var dbQuery = _context.AuditLogs.IgnoreQueryFilters().AsQueryable();
+
+        if (queryDto.Category == "financial")
+            dbQuery = dbQuery.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
+        else if (queryDto.Category == "auth")
+            dbQuery = dbQuery.Where(a => a.TenantId != "FINANCIAL" && a.Action != "CREDIT" && a.Action != "DEBIT");
+
+        if (!string.IsNullOrEmpty(queryDto.Action))
+            dbQuery = dbQuery.Where(a => a.Action.Contains(queryDto.Action));
+
+        if (!string.IsNullOrEmpty(queryDto.PerformedBy))
+            dbQuery = dbQuery.Where(a => a.PerformedBy != null && a.PerformedBy.Contains(queryDto.PerformedBy));
+
+        if (!string.IsNullOrEmpty(queryDto.EntityName))
+            dbQuery = dbQuery.Where(a => a.EntityName != null && a.EntityName.Contains(queryDto.EntityName));
+
+        if (queryDto.FromDate.HasValue)
+            dbQuery = dbQuery.Where(a => a.CreatedAt >= queryDto.FromDate.Value);
+
+        if (queryDto.ToDate.HasValue)
+            dbQuery = dbQuery.Where(a => a.CreatedAt <= queryDto.ToDate.Value);
+
+        var total = await dbQuery.CountAsync();
+        
+        var logs = await dbQuery
+            .OrderByDescending(a => a.CreatedAt)
+            .Skip((queryDto.Page - 1) * queryDto.PageSize)
+            .Take(queryDto.PageSize)
+            .ToListAsync();
+
+        return new AuditLogSearchResultDto
+        {
+            TotalCount = total,
+            Items = logs.Select(log => new AuditLogDto
+            {
+                Id = log.Id,
+                Action = log.Action,
+                EntityName = log.EntityName,
+                Amount = log.Amount,
+                Label = log.Label,
+                PerformedBy = log.PerformedBy,
+                CreatedAt = log.CreatedAt,
+                Details = log.Details,
+                IpAddress = log.IpAddress,
+                Device = log.Device,
+                UserId = log.UserId
+            }).ToList()
+        };
     }
 }

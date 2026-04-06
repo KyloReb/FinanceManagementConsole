@@ -10,6 +10,12 @@ public class AuditLogDto
     public string? Device { get; set; }
     public string? IpAddress { get; set; }
     public string? Organization { get; set; }
+    
+    // Financial enrichment
+    public string? EntityName { get; set; }
+    public decimal? Amount { get; set; }
+    public string? Label { get; set; }
+    public string? PerformedBy { get; set; }
+    
     public DateTime CreatedAt { get; set; }
-    public string CreatedDate => CreatedAt.ToString("yyyy-MM-dd");
 }

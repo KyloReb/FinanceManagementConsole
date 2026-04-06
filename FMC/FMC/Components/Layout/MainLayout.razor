@@ -1,7 +1,10 @@
 @inherits LayoutComponentBase
 @implements IDisposable
+@using FMC.Shared.DTOs.Organization
+@using FMC.Shared.Auth
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
+@inject OrganizationApiService OrgService
 
 @*
     The main layout for the Finance Management Console.
@@ -31,6 +34,76 @@
         </MudHidden>
         
         <MudSpacer />
+
+        @* ── NOTIFICATION BELL ── *@
+        <AuthorizeView Roles="@Roles.SuperAdmin" Context="notifState">
+            <Authorized>
+                <MudMenu @bind-Open="_notifOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                         Dense="true" PopoverClass="fmc-notif-popover mud-elevation-25">
+                    <ActivatorContent>
+                        <div class="fmc-bell-wrap @(_notifOpen ? "fmc-bell-active" : "")" @onclick="ToggleNotif" @onclick:stopPropagation="true">
+                            <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Class="fmc-bell-icon" />
+                            @if (_alertCount > 0)
+                            {
+                                <span class="fmc-notif-badge">@(_alertCount > 9 ? "9+" : _alertCount.ToString())</span>
+                            }
+                        </div>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <div class="fmc-notif-panel">
+                            <div class="fmc-notif-header">
+                                <div>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 800;">System Alerts</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @(_alertCount == 0 ? "All systems operational" : $"{_alertCount} item{(_alertCount == 1 ? "" : "s")} need attention")
+                                    </MudText>
+                                </div>
+                                @if (_alertCount > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled"
+                                             Style="font-size:0.65rem; font-weight:800; height:20px; padding:0 8px;">
+                                        @_alertCount
+                                    </MudChip>
+                                }
+                            </div>
+
+                            @if (_alertCount == 0)
+                            {
+                                <div class="fmc-notif-empty">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color: var(--mud-palette-success); font-size: 2rem;" />
+                                    <MudText Typo="Typo.body2" Style="font-weight:600; margin-top:8px;">No Issues Found</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">All tenants are healthy</MudText>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="fmc-notif-body">
+                                    @foreach (var notif in _notifications)
+                                    {
+                                        <div class="fmc-notif-item" @onclick="@(() => { _notifOpen = false; NavigationManager.NavigateTo(notif.Href); })">
+                                            <div class="fmc-notif-dot fmc-dot-@notif.Severity"></div>
+                                            <div class="fmc-notif-item-content">
+                                                <div class="d-flex align-center justify-space-between">
+                                                    <MudText Typo="Typo.body2" Style="font-weight:700;">@notif.Title</MudText>
+                                                    <span class="fmc-notif-count-badge fmc-badge-@notif.Severity">@notif.Count</span>
+                                                </div>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="line-height:1.3;">@notif.Description</MudText>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                            <div class="fmc-notif-footer">
+                                <MudButton FullWidth="true" Variant="Variant.Text" Color="Color.Primary"
+                                           Style="text-transform:none; font-weight:700; font-size:0.8rem;"
+                                           Href="/">View Dashboard</MudButton>
+                            </div>
+                        </div>
+                    </ChildContent>
+                </MudMenu>
+            </Authorized>
+        </AuthorizeView>
 
         <AuthorizeView Context="authState">
             <Authorized>
@@ -100,84 +173,183 @@
 </MudLayout>
 
 <style>
-    .brand-link:hover {
-        opacity: 0.8;
-    }
+    .brand-link:hover { opacity: 0.8; }
     .user-menu-trigger:hover {
         background-color: var(--mud-palette-action-default-hover);
         border-radius: 20px;
+    }
+
+    /* ── Notification Bell ── */
+    .fmc-bell-wrap {
+        position: relative;
+        width: 38px; height: 38px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-right: 6px;
+        transition: background-color 0.15s;
+    }
+    .fmc-bell-wrap:hover, .fmc-bell-active {
+        background-color: var(--mud-palette-action-default-hover);
+    }
+    .fmc-bell-icon {
+        font-size: 1.3rem !important;
+        color: var(--mud-palette-text-secondary);
+        transition: color 0.15s;
+    }
+    .fmc-bell-wrap:hover .fmc-bell-icon { color: var(--mud-palette-text-primary); }
+    .fmc-notif-badge {
+        position: absolute;
+        top: 4px; right: 4px;
+        min-width: 16px; height: 16px;
+        background: var(--mud-palette-error);
+        color: #fff;
+        border-radius: 50px;
+        font-size: 0.55rem;
+        font-weight: 900;
+        display: flex; align-items: center; justify-content: center;
+        padding: 0 4px;
+        border: 2px solid var(--mud-palette-appbar-background);
+        letter-spacing: 0;
+    }
+
+    /* ── Notification Popover Panel ── */
+    .fmc-notif-popover .mud-popover { padding: 0 !important; }
+    .fmc-notif-panel {
+        width: 340px;
+        background-color: var(--mud-palette-surface);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    .fmc-notif-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px 14px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        background-color: var(--mud-palette-background-grey);
+    }
+    .fmc-notif-empty {
+        padding: 36px 20px;
+        display: flex; flex-direction: column; align-items: center;
+        text-align: center;
+    }
+    .fmc-notif-body { padding: 6px 0; }
+    .fmc-notif-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 20px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        transition: background-color 0.15s;
+    }
+    .fmc-notif-item:last-child { border-bottom: none; }
+    .fmc-notif-item:hover { background-color: var(--mud-palette-action-default-hover); }
+    .fmc-notif-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 5px;
+    }
+    .fmc-dot-error   { background: var(--mud-palette-error); }
+    .fmc-dot-warning { background: var(--mud-palette-warning); }
+    .fmc-dot-info    { background: var(--mud-palette-info); }
+    .fmc-notif-item-content { flex: 1; min-width: 0; }
+    .fmc-notif-count-badge {
+        font-size: 0.6rem; font-weight: 800;
+        padding: 1px 7px; border-radius: 50px;
+        flex-shrink: 0;
+    }
+    .fmc-badge-error   { background: rgba(var(--mud-palette-error-rgb), 0.1);   color: var(--mud-palette-error); }
+    .fmc-badge-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .fmc-badge-info    { background: rgba(var(--mud-palette-info-rgb), 0.1);    color: var(--mud-palette-info); }
+    .fmc-notif-footer {
+        padding: 10px 12px;
+        border-top: 1px solid var(--mud-palette-divider);
+        background-color: var(--mud-palette-background-grey);
     }
 </style>
 
 @code {
     private bool _drawerOpen = true;
     private bool _userMenuOpen = false;
+    private bool _notifOpen = false;
 
+    // Notification state
+    private int _alertCount;
+    private record NotifItem(string Title, string Description, string Href, string Severity, int Count);
+    private List<NotifItem> _notifications = new();
+
+    private void ToggleNotif() => _notifOpen = !_notifOpen;
     private void ToggleUserMenu() => _userMenuOpen = !_userMenuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAlerts();
+    }
+
+    private async Task LoadAlerts()
+    {
+        try
+        {
+            _notifications.Clear();
+            var dbAlerts = await OrgService.GetActiveAlertsAsync();
+            
+            foreach (var alert in dbAlerts)
+            {
+                var severity = alert.Severity.ToString().ToLower();
+                _notifications.Add(new NotifItem(
+                    alert.Title, 
+                    alert.Message, 
+                    alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
+                    severity,
+                    1
+                ));
+            }
+
+            _alertCount = await OrgService.GetUnresolvedAlertCountAsync();
+        }
+        catch { /* Fallback for pre-rendering */ }
+    }
 
     private async Task LogoutAsync()
     {
-        // Force a UI refresh after logout to clear any potential caches
         await AuthService.Logout("current");
         NavigationManager.NavigateTo("/login", true);
     }
 
-    protected override void OnInitialized()
-    {
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-    }
-
-    void DrawerToggle()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
+    void DrawerToggle() => _drawerOpen = !_drawerOpen;
 
     private string GetDisplayName(System.Security.Claims.ClaimsPrincipal user)
     {
         var firstName = user.FindFirst("firstName")?.Value;
-        var lastName = user.FindFirst("lastName")?.Value;
-        
+        var lastName  = user.FindFirst("lastName")?.Value;
         if (!string.IsNullOrWhiteSpace(firstName) || !string.IsNullOrWhiteSpace(lastName))
-        {
             return $"{firstName} {lastName}".Trim();
-        }
-        
         return user.Identity?.Name ?? "User";
     }
 
     private string GetInitials(System.Security.Claims.ClaimsPrincipal user)
     {
         var firstName = user.FindFirst("firstName")?.Value;
-        var lastName = user.FindFirst("lastName")?.Value;
-        
+        var lastName  = user.FindFirst("lastName")?.Value;
         if (!string.IsNullOrWhiteSpace(firstName) && !string.IsNullOrWhiteSpace(lastName))
-        {
             if (firstName.Length > 0 && lastName.Length > 0)
                 return $"{firstName[0]}{lastName[0]}".ToUpper();
-        }
-        
         var name = user.Identity?.Name ?? "U";
         return name.Length > 0 ? name[0].ToString().ToUpper() : "U";
     }
 
     private string GetRoleName(System.Security.Claims.ClaimsPrincipal user)
     {
-        var role = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
-                ?? user.FindFirst("role")?.Value 
-                ?? "User";
-        return role;
+        return user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+            ?? user.FindFirst("role")?.Value
+            ?? "User";
     }
 
     private string GetOrganization(System.Security.Claims.ClaimsPrincipal user)
-    {
-        // "organization" is the claim type used in IdentityService
-        return user.FindFirst("organization")?.Value ?? string.Empty;
-    }
+        => user.FindFirst("organization")?.Value ?? string.Empty;
 
-    public void Dispose()
-    {
-    }
+    public void Dispose() { }
 }

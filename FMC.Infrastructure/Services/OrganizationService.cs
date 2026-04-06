@@ -18,15 +18,21 @@ public class OrganizationService : IOrganizationService
 {
     private readonly IOrganizationRepository _repository;
     private readonly ApplicationDbContext _context;
+    private readonly IAuditService _auditService;
+    private readonly ISystemAlertService _alertService;
     private readonly ILogger<OrganizationService> _logger;
 
     public OrganizationService(
         IOrganizationRepository repository,
         ApplicationDbContext context,
+        IAuditService auditService,
+        ISystemAlertService alertService,
         ILogger<OrganizationService> logger)
     {
         _repository = repository;
         _context = context;
+        _auditService = auditService;
+        _alertService = alertService;
         _logger = logger;
     }
 
@@ -35,8 +41,6 @@ public class OrganizationService : IOrganizationService
     {
         var organizations = await _repository.GetAllAsync(cancellationToken);
 
-        // Project to DTO and enrich each entry with its affiliated user count.
-        // User count is resolved via a secondary EF query to keep the repository layer clean and focused.
         var result = new List<OrganizationDto>();
         foreach (var org in organizations)
         {
@@ -44,14 +48,33 @@ public class OrganizationService : IOrganizationService
                 .OfType<ApplicationUser>()
                 .CountAsync(u => u.OrganizationId == org.Id, cancellationToken);
 
-            var ceoName = await (from u in _context.Users.OfType<ApplicationUser>()
-                                 where u.OrganizationId == org.Id
-                                 join ur in _context.UserRoles on u.Id equals ur.UserId
-                                 join r in _context.Roles on ur.RoleId equals r.Id
-                                 where r.Name == FMC.Shared.Auth.Roles.CEO
-                                 select u.FirstName + " " + u.LastName).FirstOrDefaultAsync(cancellationToken);
+            var totalBalance = await _context.Accounts
+                .IgnoreQueryFilters()
+                .Where(a => a.TenantId == org.Id.ToString())
+                .SumAsync(a => a.Balance, cancellationToken);
 
-            result.Add(MapToDto(org, userCount, ceoName?.Trim()));
+            string? ceoName = null;
+            if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+            {
+                var ceo = await _context.Users.FindAsync(new object[] { org.ChiefExecutiveId }, cancellationToken);
+                if (ceo is ApplicationUser appUser)
+                {
+                    ceoName = $"{appUser.FirstName} {appUser.LastName}";
+                }
+            }
+
+            if (string.IsNullOrEmpty(ceoName))
+            {
+                // Fallback to role-based lookup if no explicit ChiefExecutiveId is set
+                ceoName = await (from u in _context.Users.OfType<ApplicationUser>()
+                                     where u.OrganizationId == org.Id
+                                     join ur in _context.UserRoles on u.Id equals ur.UserId
+                                     join r in _context.Roles on ur.RoleId equals r.Id
+                                     where r.Name == FMC.Shared.Auth.Roles.CEO
+                                     select u.FirstName + " " + u.LastName).FirstOrDefaultAsync(cancellationToken);
+            }
+
+            result.Add(MapToDto(org, userCount, ceoName?.Trim(), totalBalance));
         }
 
         return result;
@@ -61,7 +84,23 @@ public class OrganizationService : IOrganizationService
     public async Task<OrganizationDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var org = await _repository.GetByIdAsync(id, cancellationToken);
-        return org is null ? null : MapToDto(org);
+        if (org == null) return null;
+
+        var userCount = await _context.Users
+            .OfType<ApplicationUser>()
+            .CountAsync(u => u.OrganizationId == org.Id, cancellationToken);
+
+        string? ceoName = null;
+        if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+        {
+            var ceo = await _context.Users.FindAsync(new object[] { org.ChiefExecutiveId }, cancellationToken);
+            if (ceo is ApplicationUser appUser)
+            {
+                ceoName = $"{appUser.FirstName} {appUser.LastName}";
+            }
+        }
+
+        return MapToDto(org, userCount, ceoName);
     }
 
     /// <inheritdoc />
@@ -119,11 +158,55 @@ public class OrganizationService : IOrganizationService
         org.Description = dto.Description?.Trim();
         org.IsActive = dto.IsActive;
 
+        // Synchronize Roles if the Chief Executive was changed
+        if (org.ChiefExecutiveId != dto.ChiefExecutiveId)
+        {
+            var oldCeoId = org.ChiefExecutiveId;
+            var newCeoId = dto.ChiefExecutiveId;
+            org.ChiefExecutiveId = newCeoId;
+
+            // 1. Assign CEO role to the new leader
+            if (!string.IsNullOrEmpty(newCeoId))
+            {
+                await EnsureUserHasRoleAsync(newCeoId, FMC.Shared.Auth.Roles.CEO, cancellationToken);
+            }
+
+            // 2. (Optional) You might want to demote the old CEO to 'User' or 'Manager', 
+            // but for now we'll prioritize making sure the new one is correctly set.
+        }
+
         _repository.Update(org); // stamps UpdatedAt automatically
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("[OrganizationService] Updated organization Id: {Id}", org.Id);
+        _logger.LogInformation("[OrganizationService] Updated organization Id: {Id} and synchronized leadership roles.", org.Id);
         return true;
+    }
+
+    /// <summary>
+    /// Ensures a user has a specific role assigned in the Identity system.
+    /// Uses raw SQL/Context approach within the infrastructure layer to avoid circular dependencies with UserManager.
+    /// </summary>
+    private async Task EnsureUserHasRoleAsync(string userId, string roleName, CancellationToken cancellationToken)
+    {
+        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName, cancellationToken);
+        if (role == null) return;
+
+        var hasRole = await _context.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id, cancellationToken);
+        if (!hasRole)
+        {
+            // Remove other mutually exclusive leadership roles first (CEO/Manager) to keep it clean
+            var rolesToRemove = await _context.Roles
+                .Where(r => r.Name == FMC.Shared.Auth.Roles.CEO || r.Name == FMC.Shared.Auth.Roles.Manager || r.Name == FMC.Shared.Auth.Roles.User)
+                .Select(r => r.Id)
+                .ToListAsync(cancellationToken);
+
+            var existingRoles = _context.UserRoles.Where(ur => ur.UserId == userId && rolesToRemove.Contains(ur.RoleId));
+            _context.UserRoles.RemoveRange(existingRoles);
+
+            // Add the new role
+            await _context.UserRoles.AddAsync(new IdentityUserRole<string> { UserId = userId, RoleId = role.Id }, cancellationToken);
+            _logger.LogInformation("[OrganizationService] Role '{Role}' synchronized for user {UserId}", roleName, userId);
+        }
     }
 
     /// <inheritdoc />
@@ -143,15 +226,116 @@ public class OrganizationService : IOrganizationService
         return true;
     }
 
+    /// <inheritdoc />
+    public async Task<IEnumerable<FMC.Shared.DTOs.User.UserDto>> GetUsersByOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        var users = await _context.Users
+            .OfType<ApplicationUser>()
+            .Where(u => u.OrganizationId == organizationId)
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .ToListAsync(cancellationToken);
+
+        var result = new List<FMC.Shared.DTOs.User.UserDto>();
+
+        foreach (var user in users)
+        {
+            var roles = await (from ur in _context.UserRoles
+                               where ur.UserId == user.Id
+                               join r in _context.Roles on ur.RoleId equals r.Id
+                               select r.Name).ToListAsync(cancellationToken);
+
+            result.Add(new FMC.Shared.DTOs.User.UserDto
+            {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                IsActive = user.IsActive,
+                Roles = roles // Ensure roles are populated
+            });
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> AdjustBalanceAsync(Guid organizationId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default)
+    {
+        // 1. Ensure the organization exists
+        var org = await _repository.GetByIdAsync(organizationId, cancellationToken);
+        if (org == null) return false;
+
+        // 2. Find or create the primary operations account for this tenant
+        var tenantId = organizationId.ToString();
+        var account = await _context.Accounts
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.TenantId == tenantId, cancellationToken);
+
+        if (account == null)
+        {
+            account = new Account
+            {
+                Id = Guid.NewGuid(),
+                Name = "Core Operations Wallet",
+                Balance = 0,
+                TenantId = tenantId
+            };
+            await _context.Accounts.AddAsync(account, cancellationToken);
+        }
+
+        // 3. Create the transaction record
+        var transaction = new Transaction
+        {
+            Id = Guid.NewGuid(),
+            Label = label ?? (amount >= 0 ? "System Credit" : "System Debit"),
+            Amount = amount,
+            Date = DateTime.UtcNow,
+            Category = "System Adjustment",
+            TenantId = tenantId
+        };
+
+        // 4. Update the actual account balance
+        account.Balance += amount;
+
+        // 5. Automated Intelligence: Raise alert for negative equity
+        if (account.Balance < 0)
+        {
+            await _alertService.RaiseAlertAsync(
+                "Negative Ledger Balance", 
+                $"Tenant '{org.Name}' is operating with negative liquidity ({account.Balance:C}). Immediate settlement or suspension recommended.", 
+                AlertSeverity.Warning, 
+                organizationId.ToString(), 
+                "Organization"
+            );
+        }
+
+        // 6. Log the Audit Event
+        var actionType = amount >= 0 ? "CREDIT" : "DEBIT";
+        await _auditService.RecordFinancialEventAsync(
+            actionType, 
+            organizationId, 
+            org.Name, 
+            Math.Abs(amount), 
+            label ?? "Ledger Adjustment", 
+            performedBy
+        );
+
+        await _context.Transactions.AddAsync(transaction, cancellationToken);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
+            tenantId, amount, account.Balance);
+
+        return true;
+    }
+
     // ─────────────────────────────────────
     // Private Mapping Helpers
     // ─────────────────────────────────────
 
-    /// <summary>
-    /// Maps a domain entity to its public-facing DTO representation.
-    /// Centralizing this mapping here ensures that all callers benefit from any future DTO changes automatically.
-    /// </summary>
-    private static OrganizationDto MapToDto(Organization org, int userCount = 0, string? ceoName = null) => new()
+    private static OrganizationDto MapToDto(Organization org, int userCount = 0, string? ceoName = null, decimal totalBalance = 0) => new()
     {
         Id = org.Id,
         Name = org.Name,
@@ -160,6 +344,8 @@ public class OrganizationService : IOrganizationService
         CreatedAt = org.CreatedAt,
         UpdatedAt = org.UpdatedAt,
         UserCount = userCount,
-        CeoName = ceoName
+        CeoName = ceoName,
+        TotalBalance = totalBalance,
+        ChiefExecutiveId = org.ChiefExecutiveId
     };
 }

@@ -24,11 +24,19 @@ public class OrganizationDto
     /// <summary>UTC timestamp of when the organization was last modified.</summary>
     public DateTime? UpdatedAt { get; set; }
 
+    /// <summary>
+    /// Total balance summed from all accounts belonging to this organization.
+    /// </summary>
+    public decimal TotalBalance { get; set; }
+
     /// <summary>Total number of users affiliated with this organization.</summary>
     public int UserCount { get; set; }
 
     /// <summary>The name of the user representing the CEO for the organization, if any.</summary>
     public string? CeoName { get; set; }
+
+    /// <summary>The unique ID of the Chief Executive user.</summary>
+    public string? ChiefExecutiveId { get; set; }
 }
 
 /// <summary>
@@ -58,6 +66,9 @@ public class UpdateOrganizationDto
 
     /// <summary>The revised description for the organization.</summary>
     public string? Description { get; set; }
+
+    /// <summary>The UUID of the user to be assigned as Chief Executive.</summary>
+    public string? ChiefExecutiveId { get; set; }
 
     /// <summary>Whether the organization should be marked as active or suspended.</summary>
     public bool IsActive { get; set; }

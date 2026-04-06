@@ -4,6 +4,7 @@ using FMC.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FMC.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406014408_InitialMigration")]
+    partial class InitialMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -57,9 +60,6 @@ namespace FMC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal?>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -72,19 +72,10 @@ namespace FMC.Infrastructure.Migrations
                     b.Property<string>("EntityId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("EntityName")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("EntityType")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IpAddress")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Label")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PerformedBy")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TenantId")
@@ -135,9 +126,6 @@ namespace FMC.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ChiefExecutiveId")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -169,52 +157,6 @@ namespace FMC.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Organizations");
-                });
-
-            modelBuilder.Entity("FMC.Domain.Entities.SystemAlert", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("EntityId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EntityType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsResolved")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ResolvedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Severity")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SystemAlerts");
                 });
 
             modelBuilder.Entity("FMC.Domain.Entities.Transaction", b =>

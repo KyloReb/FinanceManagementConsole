@@ -1,0 +1,282 @@
+@page "/admin/audit"
+@using MudBlazor
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Admin
+@using FMC.Components.Pages.Admin.Dialogs
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject OrganizationApiService OrgService
+@inject ISnackbar Snackbar
+@inject IBrowserViewportService ViewportService
+@inject IDialogService DialogService
+@implements IAsyncDisposable
+@implements IBrowserViewportObserver
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12 px-4 px-md-8">
+    @* PAGE HEADER - RESPONSIVE *@
+    <div class="fmc-page-header mb-6 mb-md-8 flex-column flex-md-row align-start align-md-center">
+        <div class="d-flex align-center mb-4 mb-md-0">
+            <div class="fmc-header-icon-wrap mr-3 mr-md-5">
+                <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Size="Size.Medium" SizeMd="Size.Large" />
+            </div>
+            <div>
+                <MudText Typo="Typo.h5" TypoMd="Typo.h4" Style="font-weight: 900; letter-spacing: -0.02em;">Audit Intelligence Explorer</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary d-none d-sm-block">Securing the network through forensic visibility and financial compliance</MudText>
+            </div>
+        </div>
+        <div class="d-flex gap-3 w-100 w-md-auto justify-end">
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileDownload" 
+                       Size="Size.Small" SizeMd="Size.Medium"
+                       Style="border-radius:12px; text-transform:none; font-weight:700;">Export</MudButton>
+        </div>
+    </div>
+
+    @* ANALYTICS SUMMARY - COMPACT GRID *@
+    <MudGrid Spacing="2" SpacingMd="4" Class="mb-4">
+        <MudItem xs="4" md="4">
+            <div class="fmc-stat-card compact">
+                <MudText Typo="Typo.subtitle2" Class="fmc-stat-label">EVENTS</MudText>
+                <MudText Typo="Typo.h5" TypoMd="Typo.h3" Style="font-weight:900;">@_searchResult.TotalCount.ToString("N0")</MudText>
+                <div class="fmc-stat-trend up d-none d-sm-flex">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
+                    <span>+12%</span>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="4" md="4">
+            <div class="fmc-stat-card compact">
+                <MudText Typo="Typo.subtitle2" Class="fmc-stat-label">FINANCE</MudText>
+                <MudText Typo="Typo.h5" TypoMd="Typo.h3" Style="font-weight:900;">@_financialCount.ToString("N0")</MudText>
+                <div class="fmc-stat-trend d-none d-sm-flex">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Small" />
+                    <span>Ledger</span>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="4" md="4">
+            <div class="fmc-stat-card compact">
+                <MudText Typo="Typo.subtitle2" Class="fmc-stat-label">SECURITY</MudText>
+                <MudText Typo="Typo.h5" TypoMd="Typo.h3" Style="font-weight:900;">@_authCount.ToString("N0")</MudText>
+                <div class="fmc-stat-trend warning d-none d-sm-flex">
+                    <MudIcon Icon="@Icons.Material.Filled.VpnKey" Size="Size.Small" />
+                    <span>Auth</span>
+                </div>
+            </div>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Spacing="2" SpacingMd="4">
+        @* FILTER ENGINE - STREAMLINED *@
+        <MudItem xs="12">
+            <MudPaper Elevation="0" Class="fmc-filter-surface pa-4 pa-md-6">
+                <MudGrid Spacing="2" SpacingMd="3" Class="align-end">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudDateRangePicker Label="Date Boundary" @bind-DateRange="_dateRange" 
+                                           PlaceholderStart="Start" PlaceholderEnd="End"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="2">
+                        <MudSelect T="string" Label="Category" @bind-Value="_query.Category" 
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem Value="@((string?)null)">Integrated (All)</MudSelectItem>
+                            <MudSelectItem Value="@("financial")">💱 Financial</MudSelectItem>
+                            <MudSelectItem Value="@("auth")">🔐 Auth</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="3">
+                        <MudTextField @bind-Value="_query.Action" Label="Action" 
+                                     Placeholder="e.g. CREDIT..." Variant="Variant.Outlined" 
+                                     Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="2" Class="d-none d-md-block">
+                        <MudTextField @bind-Value="_query.PerformedBy" Label="Operator" 
+                                     Placeholder="User..." Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" sm="12" md="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" 
+                                   StartIcon="@Icons.Material.Filled.FilterAlt" OnClick="PerformSearch"
+                                   Style="height:40px; border-radius:8px; font-weight:700; text-transform:none;">Filter</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        @* DATA GRID - MOBILE RESPONSIVE *@
+        <MudItem xs="12">
+            <MudPaper Elevation="0" Class="fmc-grid-surface">
+                <MudDataGrid T="AuditLogDto" Items="@_searchResult.Items" Loading="@_loading" 
+                            RowClick="@(args => ShowDetail(args.Item))"
+                            Hover="true" Striped="true" Elevation="0" Class="fmc-audit-grid pointer-grid"
+                            FixedHeader="true" Height="600px">
+                    <Columns>
+                        <PropertyColumn Property="x => x.CreatedAt" Title="TIME" Sortable="true" InitialDirection="SortDirection.Descending">
+                            <CellTemplate>
+                                <div class="d-flex flex-column">
+                                    <MudText Style="font-weight:800; font-size:0.8rem;">@context.Item.CreatedAt.ToLocalTime().ToString("HH:mm")</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.65rem;">@context.Item.CreatedAt.ToLocalTime().ToString("MM/dd")</MudText>
+                                </div>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.Action" Title="EVENT IDENTITY">
+                            <CellTemplate>
+                                <div class="d-flex align-center gap-1 gap-md-2">
+                                    @{
+                                        var isCredit = context.Item.Action == "CREDIT";
+                                        var isDebit = context.Item.Action == "DEBIT";
+                                        var color = isCredit ? Color.Success : (isDebit ? Color.Error : Color.Info);
+                                        var icon = isCredit ? Icons.Material.Filled.AddCircle : (isDebit ? Icons.Material.Filled.RemoveCircle : Icons.Material.Filled.Hub);
+                                    }
+                                    <MudIcon Icon="@icon" Color="@color" Size="Size.Small" />
+                                    <MudText Style="font-weight:900; letter-spacing:0.02em; font-size:0.7rem;">@context.Item.Action</MudText>
+                                </div>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.EntityName" Title="CONTEXT" Hidden="false">
+                            <CellTemplate>
+                                <MudText Style="font-weight:700; font-size:0.75rem;" Class="text-truncate">@(context.Item.EntityName ?? context.Item.Organization ?? "System")</MudText>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.PerformedBy" Title="OPERATOR" Hidden="@(_isMobile)">
+                            <CellTemplate>
+                                <div class="d-flex align-center gap-2">
+                                    <MudAvatar Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" Style="font-size:0.55rem; font-weight:800; width:20px; height:20px;">
+                                        @((context.Item.PerformedBy ?? context.Item.UserName ?? "S")[0])
+                                    </MudAvatar>
+                                    <MudText Style="font-weight:600; font-size:0.75rem;">@(context.Item.PerformedBy ?? context.Item.UserName ?? "System")</MudText>
+                                </div>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.Amount" Title="MAGNITUDE" Sortable="true">
+                            <CellTemplate>
+                                @if (context.Item.Amount.HasValue)
+                                {
+                                    <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace; font-size:0.8rem;" 
+                                             Color="@(context.Item.Action == "CREDIT" ? Color.Success : Color.Error)">
+                                        @(context.Item.Action == "CREDIT" ? "+" : "-")@context.Item.Amount.Value.ToString("N2")
+                                    </MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-disabled" Style="font-size:0.65rem;">N/A</MudText>
+                                }
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.IpAddress" Title="TELEMETRY" Hidden="@(_isMobile)">
+                            <CellTemplate>
+                                <div class="d-flex flex-column">
+                                    <MudText Style="font-size:0.7rem; font-family:monospace;">@context.Item.IpAddress</MudText>
+                                    <MudText Typo="Typo.caption" Style="font-size:0.6rem; opacity:0.6;" Class="text-truncate">@context.Item.Device</MudText>
+                                </div>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <TemplateColumn Title="MEMO" Hidden="@(_isMobile)">
+                            <CellTemplate>
+                                <MudText Typo="Typo.caption" Class="text-truncate" Style="max-width:150px; display:inline-block; font-size:0.65rem;">@(context.Item.Label ?? context.Item.Details ?? "-")</MudText>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="AuditLogDto" />
+                    </PagerContent>
+                </MudDataGrid>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<style>
+    .fmc-page-header { display: flex; align-items: center; justify-content: space-between; }
+    .fmc-header-icon-wrap { 
+        width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; 
+        background: rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 16px; border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.2);
+    }
+    
+    .fmc-stat-card {
+        padding: 20px; border-radius: 20px; border: 1px solid var(--mud-palette-divider);
+        background-color: var(--mud-palette-surface); transition: all 0.3s ease;
+    }
+    .fmc-stat-card.compact { padding: 12px; border-radius: 12px; }
+    .fmc-stat-card:hover { transform: translateY(-3px); border-color: var(--mud-palette-primary); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    .fmc-stat-label { font-weight: 800; letter-spacing: 0.1em; color: var(--mud-palette-text-secondary); opacity: 0.6; font-size: 0.7rem; }
+    .fmc-stat-trend { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; font-weight: 800; margin-top: 8px; color: var(--mud-palette-success); }
+    .fmc-stat-trend.warning { color: var(--mud-palette-warning); }
+    
+    .fmc-filter-surface { border-radius: 16px; border: 1px solid var(--mud-palette-divider); background-color: var(--mud-palette-background-grey); }
+    
+    .fmc-grid-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; }
+    .fmc-audit-grid .mud-table-head { background-color: var(--mud-palette-background-grey) !important; }
+    .fmc-audit-grid .mud-th { font-weight: 800; color: var(--mud-palette-text-secondary); font-size: 0.65rem; letter-spacing: 0.05em; padding: 18px !important; }
+    .fmc-audit-grid .mud-td { padding: 14px 18px !important; border-bottom: 1px solid var(--mud-palette-divider) !important; }
+    .pointer-grid .mud-table-row { cursor: pointer; transition: background-color 0.2s; }
+    .pointer-grid .mud-table-row:hover { background-color: rgba(var(--mud-palette-primary-rgb), 0.03) !important; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private bool _isMobile;
+    private AuditLogQueryDto _query = new() { PageSize = 50 };
+    private AuditLogSearchResultDto _searchResult = new();
+    private DateRange _dateRange = new(DateTime.Today.AddDays(-7), DateTime.Today);
+
+    private int _financialCount => _searchResult.Items.Count(i => i.Action == "CREDIT" || i.Action == "DEBIT");
+    private int _authCount => _searchResult.Items.Count(i => i.Action != "CREDIT" && i.Action != "DEBIT");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!RendererInfo.IsInteractive) return;
+        await PerformSearch();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ViewportService.SubscribeAsync(this, fireImmediately: true);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await ViewportService.UnsubscribeAsync(this);
+    }
+
+    Guid IBrowserViewportObserver.Id { get; } = Guid.NewGuid();
+
+    MudBlazor.Services.ResizeOptions? IBrowserViewportObserver.ResizeOptions { get; } = new()
+    {
+        ReportRate = 100,
+        NotifyOnBreakpointOnly = false
+    };
+
+    Task IBrowserViewportObserver.NotifyBrowserViewportChangeAsync(BrowserViewportEventArgs args)
+    {
+        _isMobile = args.Breakpoint <= Breakpoint.Sm;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void ShowDetail(AuditLogDto log)
+    {
+        var parameters = new DialogParameters<AuditDetailDialog> { { x => x.Log, log } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        DialogService.ShowAsync<AuditDetailDialog>("Forensic Data Trace", parameters, options);
+    }
+
+    private async Task PerformSearch()
+    {
+        try
+        {
+            _loading = true;
+            _query.FromDate = _dateRange.Start;
+            _query.ToDate = _dateRange.End?.AddDays(1).AddTicks(-1); // End of the day
+
+            _searchResult = await OrgService.SearchAuditLogsAsync(_query);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Forensic Retrieval Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

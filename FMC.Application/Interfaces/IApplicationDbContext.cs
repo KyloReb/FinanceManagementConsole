@@ -11,6 +11,7 @@ public interface IApplicationDbContext
     DbSet<UserOtpVerification> UserOtpVerifications { get; }
     DbSet<Organization> Organizations { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<SystemAlert> SystemAlerts { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -54,6 +54,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     /// </summary>
     public DbSet<AuditLog> AuditLogs { get; set; }
 
+    /// <summary>
+    /// Gets or sets the collection of system alerts.
+    /// </summary>
+    public DbSet<SystemAlert> SystemAlerts { get; set; }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
@@ -113,5 +118,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<Transaction>().Property(t => t.Amount).HasColumnType("decimal(18,2)");
         builder.Entity<Account>().Property(a => a.Balance).HasColumnType("decimal(18,2)");
         builder.Entity<Budget>().Property(b => b.Limit).HasColumnType("decimal(18,2)");
+        builder.Entity<AuditLog>().Property(a => a.Amount).HasColumnType("decimal(18,2)");
     }
 }

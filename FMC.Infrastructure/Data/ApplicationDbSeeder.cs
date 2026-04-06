@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using FMC.Shared.Auth;
+using FMC.Domain.Entities;
 
 namespace FMC.Infrastructure.Data;
 
@@ -28,7 +30,25 @@ public static class ApplicationDbSeeder
             }
         }
 
-        // 2. Seed Initial CEO
+        // 2. Seed Primary Organization
+        var db = serviceProvider.GetRequiredService<ApplicationDbContext>();
+        var primaryOrg = await db.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Name == "Nationlink/Infoserve Inc.");
+
+        if (primaryOrg == null)
+        {
+            primaryOrg = new Organization
+            {
+                Name = "Nationlink/Infoserve Inc.",
+                Description = "Primary System Administrator Organization (Unmodifiable)",
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+                TenantId = "SYSTEM"
+            };
+            db.Organizations.Add(primaryOrg);
+            await db.SaveChangesAsync();
+        }
+
+        // 3. Seed Initial SuperAdmin
         var adminEmail = "davidrebancos02@gmail.com";
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
@@ -42,14 +62,24 @@ public static class ApplicationDbSeeder
                 LastName = "CEO",
                 EmailConfirmed = true,
                 IsActive = true,
-                Organization = "Nationlink/Infoserve Inc."
+                Organization = primaryOrg.Name,
+                OrganizationId = primaryOrg.Id
             };
 
             var createPowerUser = await userManager.CreateAsync(adminUser, "SuperAdmin123!");
             if (createPowerUser.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, Roles.SuperAdmin);
-                await userManager.AddToRoleAsync(adminUser, Roles.CEO);
+            }
+        }
+        else
+        {
+            // Link existing admin to the organization if not already linked
+            if (adminUser.OrganizationId == null || adminUser.OrganizationId != primaryOrg.Id)
+            {
+                adminUser.OrganizationId = primaryOrg.Id;
+                adminUser.Organization = primaryOrg.Name;
+                await userManager.UpdateAsync(adminUser);
             }
         }
     }

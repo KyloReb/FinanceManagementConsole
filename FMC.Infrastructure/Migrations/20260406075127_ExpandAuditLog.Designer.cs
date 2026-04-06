@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FMC.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260331021515_AddOrganizationEntity")]
-    partial class AddOrganizationEntity
+    [Migration("20260406075127_ExpandAuditLog")]
+    partial class ExpandAuditLog
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -60,6 +60,9 @@ namespace FMC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -72,10 +75,16 @@ namespace FMC.Infrastructure.Migrations
                     b.Property<string>("EntityId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EntityName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("EntityType")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IpAddress")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Label")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TenantId")
@@ -125,6 +134,9 @@ namespace FMC.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChiefExecutiveId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");

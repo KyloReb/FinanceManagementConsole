@@ -1,5 +1,9 @@
 <Solution>
   <Project Path="FMC.Api/FMC.Api.csproj" />
+  <Project Path="FMC.Application/FMC.Application.csproj" />
+  <Project Path="FMC.Domain/FMC.Domain.csproj" />
+  <Project Path="FMC.Infrastructure/FMC.Infrastructure.csproj" />
+  <Project Path="FMC.Shared/FMC.Shared.csproj" />
   <Project Path="FMC/FMC.Client/FMC.Client.csproj" />
   <Project Path="FMC/FMC/FMC.csproj" />
 </Solution>

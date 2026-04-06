@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FMC.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260324043348_AddIdentityExtensions")]
-    partial class AddIdentityExtensions
+    [Migration("20260406075728_AddPerformedByToAuditLog")]
+    partial class AddPerformedByToAuditLog
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -60,19 +60,34 @@ namespace FMC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Details")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Device")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("EntityId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EntityName")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("EntityType")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IpAddress")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PerformedBy")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TenantId")
@@ -115,6 +130,48 @@ namespace FMC.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Budgets");
+                });
+
+            modelBuilder.Entity("FMC.Domain.Entities.Organization", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChiefExecutiveId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Organizations");
                 });
 
             modelBuilder.Entity("FMC.Domain.Entities.Transaction", b =>
@@ -240,6 +297,12 @@ namespace FMC.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<string>("Organization")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
@@ -274,6 +337,8 @@ namespace FMC.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("OrganizationId");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -409,6 +474,15 @@ namespace FMC.Infrastructure.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("FMC.Infrastructure.Data.ApplicationUser", b =>
+                {
+                    b.HasOne("FMC.Domain.Entities.Organization", "OrganizationInfo")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId");
+
+                    b.Navigation("OrganizationInfo");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

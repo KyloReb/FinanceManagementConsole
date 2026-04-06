@@ -42,6 +42,11 @@ public class Organization : BaseEntity
     public bool IsDeleted { get; set; } = false;
 
     /// <summary>
+    /// The unique identifier of the user serving as the organization's Chief Executive/CEO.
+    /// </summary>
+    public string? ChiefExecutiveId { get; set; }
+
+    /// <summary>
     /// Soft-Deletion chronological footprint.
     /// </summary>
     public DateTime? DeletedAt { get; set; }

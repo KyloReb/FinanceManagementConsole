@@ -64,7 +64,7 @@
                         </MudTooltip>
                     </CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.CreatedDate" Title="[System] Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" Hideable="true" Resizable="true" FlexGrow="1" />
+                <PropertyColumn Property="x => x.CreatedAt.Date" Title="[System] Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" Hideable="true" Resizable="true" FlexGrow="1" />
                 <TemplateColumn Title="Event" SortBy="@(x => x.Action)" Sortable="true" Filterable="true" Grouping="@(_currentGroup == "Action")" Hideable="false" Resizable="true" FlexGrow="1">
                     <CellTemplate>
                         @GetEventChip(context.Item.Action)

@@ -24,10 +24,15 @@ public class AuditController : ControllerBase
         return Ok(await _auditService.GetAuthLogsAsync());
     }
 
-    // Keep for backward compatibility if needed, but points to the same logic
-    [HttpGet("login-logs")]
-    public async Task<ActionResult<List<AuditLogDto>>> GetLoginLogs()
+    [HttpGet("logs")]
+    public async Task<ActionResult<List<AuditLogDto>>> GetRecentLogs([FromQuery] int count = 20, [FromQuery] string? category = null)
     {
-        return Ok(await _auditService.GetAuthLogsAsync());
+        return Ok(await _auditService.GetRecentLogsAsync(count, category));
+    }
+
+    [HttpPost("search")]
+    public async Task<ActionResult<AuditLogSearchResultDto>> SearchLogs([FromBody] AuditLogQueryDto query)
+    {
+        return Ok(await _auditService.SearchLogsAsync(query));
     }
 }

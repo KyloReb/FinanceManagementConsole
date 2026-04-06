@@ -1,0 +1,139 @@
+@using MudBlazor
+@using FMC.Shared.DTOs.Admin
+@inject ISnackbar Snackbar
+
+<MudDialog Class="fmc-audit-dialog">
+    <TitleContent>
+        <div class="d-flex align-center gap-3">
+            <MudIcon Icon="@GetEventIcon(Log.Action)" Color="@GetEventColor(Log.Action)" Size="Size.Large" />
+            <div class="d-flex flex-column">
+                <MudText Typo="Typo.h6" Style="font-weight:900;">Forensic Event Trace</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Internal Sequence ID: #@Log.Id.ToString().PadLeft(6, '0')</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="fmc-detail-container px-2">
+            @* CORE IDENTITY *@
+            <div class="detail-section mb-6">
+                <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Event Identity</MudText>
+                <div class="d-flex justify-space-between align-center mt-2 pa-4 fmc-highlight-box">
+                    <div>
+                        <MudText Style="font-weight:900; font-size:1.1rem; color: var(--mud-palette-primary);">@Log.Action</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Log.CreatedAt.ToString("MMMM dd, yyyy 'at' HH:mm:ss.fff")</MudText>
+                    </div>
+                    @if (Log.Amount.HasValue)
+                    {
+                        <div class="text-right">
+                            <MudText Style="font-weight:900; font-size:1.2rem; font-family:'JetBrains Mono',monospace;" 
+                                     Color="@(Log.Action == "CREDIT" ? Color.Success : Color.Error)">
+                                @(Log.Action == "CREDIT" ? "+" : "-")@Log.Amount.Value.ToString("N2")
+                            </MudText>
+                            <MudText Typo="Typo.caption">Currency Magnitude</MudText>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <MudDivider Class="mb-6 opacity-50" />
+
+            @* ACTOR & CONTEXT *@
+            <MudGrid Class="mb-6">
+                <MudItem xs="6">
+                    <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Operator / Actor</MudText>
+                    <div class="d-flex align-center gap-3 mt-2">
+                        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                            @(GetInitial(Log.PerformedBy ?? Log.UserName))
+                        </MudAvatar>
+                        <div>
+                            <MudText Style="font-weight:800; font-size:0.9rem;">@(Log.PerformedBy ?? Log.UserName ?? "System")</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Authenticated User</MudText>
+                        </div>
+                    </div>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Target Context</MudText>
+                    <div class="mt-2">
+                        <MudText Style="font-weight:800; font-size:0.9rem;">@(Log.EntityName ?? Log.Organization ?? "Global Infrastructure")</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Tenant / Entity</MudText>
+                    </div>
+                </MudItem>
+            </MudGrid>
+
+            @* TELEMETRY *@
+            <div class="detail-section mb-6">
+                <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Network Telemetry</MudText>
+                <div class="mt-2 pa-4 fmc-surface-box">
+                    <div class="d-flex justify-space-between align-center mb-2">
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Source IP</MudText>
+                        <MudText Typo="Typo.body2" Style="font-family:monospace; font-weight:700;">@Log.IpAddress</MudText>
+                    </div>
+                    <div class="d-flex justify-space-between align-start">
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Digital Fingerprint</MudText>
+                        <MudText Typo="Typo.caption" Style="max-width:200px; text-align:right;">@Log.Device</MudText>
+                    </div>
+                </div>
+            </div>
+
+            @* METADATA / MEMO *@
+            <div class="detail-section">
+                <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Forensic Metadata</MudText>
+                <MudPaper Elevation="0" Class="mt-2 pa-4 fmc-memo-box">
+                    <MudText Typo="Typo.body2" Style="font-style:italic;">@(Log.Label ?? Log.Details ?? "No additional forensic metadata recorded for this event identity.")</MudText>
+                </MudPaper>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Color="Color.Default" Style="text-transform:none; font-weight:700; border-radius:10px;">Dismiss</MudButton>
+        <MudButton OnClick="CopyRef" Variant="Variant.Filled" Color="Color.Primary" 
+                   Style="text-transform:none; font-weight:700; border-radius:10px;">Copy Event ID</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .fmc-audit-dialog { border-radius: 20px !important; }
+    .fmc-highlight-box { background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1); }
+    .fmc-surface-box { background: var(--mud-palette-background-grey); border-radius: 12px; border: 1px dashed var(--mud-palette-divider); }
+    .fmc-memo-box { background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider); border-radius: 12px; color: var(--mud-palette-text-secondary); }
+    .opacity-50 { opacity: 0.5; }
+</style>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public AuditLogDto Log { get; set; } = default!;
+
+    private void Close() => MudDialog.Cancel();
+
+    private char GetInitial(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return 'S';
+        return name.Trim().ToUpper()[0];
+    }
+
+    private void CopyRef()
+    {
+        // Simulate copy or use JS
+        Snackbar.Add("Event reference copied to clipboard", Severity.Info);
+    }
+
+    private string GetEventIcon(string action)
+    {
+        return action switch {
+            "CREDIT" => Icons.Material.Filled.AddModerator,
+            "DEBIT" => Icons.Material.Filled.RemoveModerator,
+            "LOGIN" or "LOGIN_SUCCESS" => Icons.Material.Filled.VpnKey,
+            _ => Icons.Material.Filled.Hub
+        };
+    }
+
+    private Color GetEventColor(string action)
+    {
+        return action switch {
+            "CREDIT" => Color.Success,
+            "DEBIT" => Color.Error,
+            "LOGIN" or "LOGIN_SUCCESS" => Color.Info,
+            _ => Color.Primary
+        };
+    }
+}

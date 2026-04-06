@@ -38,7 +38,6 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        // Distinguish between Server and Circuit environments via HttpContext
         var currentContext = _httpContextAccessor.HttpContext;
         var hasValidContext = currentContext != null && currentContext.Request != null;
         var location = hasValidContext ? "Server/Pre-render" : "Circuit/WASM";
@@ -47,9 +46,18 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
 
         try
         {
+            // Use cached token only if it is still valid
             if (!string.IsNullOrEmpty(_cachedToken))
             {
-                return CreateAuthStateFromToken(_cachedToken);
+                if (IsTokenExpired(_cachedToken))
+                {
+                    Console.WriteLine($"[AuthProv] [{_instanceId}] Cached token is EXPIRED. Clearing.");
+                    _cachedToken = null;
+                }
+                else
+                {
+                    return CreateAuthStateFromToken(_cachedToken);
+                }
             }
 
             string? token = null;
@@ -59,10 +67,19 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
             {
                 try {
                     token = currentContext?.Request?.Cookies?["authToken"];
-                    if (!string.IsNullOrEmpty(token)) {
-                        Console.WriteLine($"[AuthProv] Resolved from Cookies (Length: {token.Length})");
-                        _cachedToken = token;
-                        return CreateAuthStateFromToken(token);
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        if (IsTokenExpired(token))
+                        {
+                            Console.WriteLine($"[AuthProv] Cookie token is EXPIRED. Ignoring.");
+                            token = null;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[AuthProv] Resolved from Cookies (Length: {token.Length})");
+                            _cachedToken = token;
+                            return CreateAuthStateFromToken(token);
+                        }
                     }
                 } catch { /* Context might be partially initialized */ }
             }
@@ -71,33 +88,49 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
             if (_applicationState.TryTakeFromJson<string>("authToken", out var persistedToken))
             {
                 token = persistedToken;
-                if (!string.IsNullOrEmpty(token)) {
-                    Console.WriteLine($"[AuthProv] Resolved from PersistentState (Length: {token.Length})");
-                    _cachedToken = token;
-                    return CreateAuthStateFromToken(token);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    if (IsTokenExpired(token))
+                    {
+                        Console.WriteLine($"[AuthProv] PersistentState token is EXPIRED. Ignoring.");
+                        token = null;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[AuthProv] Resolved from PersistentState (Length: {token.Length})");
+                        _cachedToken = token;
+                        return CreateAuthStateFromToken(token);
+                    }
                 }
             }
 
             // 3. Fallback: LocalStorage (Browser persistent storage)
             try
             {
-                // Note: InvokeAsync will only succeed once JS interop is active
                 token = await _jsStack.InvokeAsync<string>("localStorage.getItem", "authToken");
-                if (!string.IsNullOrEmpty(token)) {
-                    Console.WriteLine($"[AuthProv] Resolved from LocalStorage (Length: {token.Length})");
-                    _cachedToken = token;
-                    return CreateAuthStateFromToken(token);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    if (IsTokenExpired(token))
+                    {
+                        Console.WriteLine($"[AuthProv] LocalStorage token is EXPIRED. Clearing.");
+                        try { await _jsStack.InvokeVoidAsync("localStorage.removeItem", "authToken"); } catch { }
+                        token = null;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[AuthProv] Resolved from LocalStorage (Length: {token.Length})");
+                        _cachedToken = token;
+                        return CreateAuthStateFromToken(token);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                // Expect JS errors during early hydration – ignore them
-                if (hasValidContext == false && !ex.Message.Contains("prerender")) {
+                if (hasValidContext == false && !ex.Message.Contains("prerender"))
                     Console.WriteLine($"[AuthProv] LocalStorage lookup skipped/failed: {ex.Message}");
-                }
             }
 
-            Console.WriteLine("[AuthProv] No identity resolved. Returning Anonymous.");
+            Console.WriteLine("[AuthProv] No valid identity resolved. Returning Anonymous.");
             return new AuthenticationState(_anonymous);
         }
         catch (Exception ex)
@@ -106,6 +139,28 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
             return new AuthenticationState(_anonymous);
         }
     }
+
+    /// <summary>Returns true if the JWT token is expired (with a 10-second buffer).</summary>
+    private static bool IsTokenExpired(string token)
+    {
+        try
+        {
+            var parts = token.Split('.');
+            if (parts.Length < 2) return true;
+            var payload = parts[1].Replace('-', '+').Replace('_', '/');
+            while (payload.Length % 4 != 0) payload += "=";
+            var jsonBytes = Convert.FromBase64String(payload);
+            using var doc = System.Text.Json.JsonDocument.Parse(jsonBytes);
+            if (doc.RootElement.TryGetProperty("exp", out var expProp))
+            {
+                var expTime = DateTimeOffset.FromUnixTimeSeconds(expProp.GetInt64());
+                return expTime <= DateTimeOffset.UtcNow.AddSeconds(10);
+            }
+        }
+        catch { /* Treat unparseable tokens as expired */ }
+        return true;
+    }
+
 
     private AuthenticationState CreateAuthStateFromToken(string token)
     {

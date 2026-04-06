@@ -118,6 +118,8 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ISystemAlertService, SystemAlertService>();
+builder.Services.AddHostedService<FMC.Infrastructure.BackgroundServices.HealthMonitorService>();
 
 // MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(GetRecentTransactionsQuery).Assembly));
@@ -172,6 +174,17 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         logger.LogError(ex, "Error synchronizing Organization column for AspNetUsers");
+    }
+
+    // 4. Seed Essential Identity Roles and SuperAdmin CEO Account
+    try
+    {
+        await ApplicationDbSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider);
+        logger.LogInformation("Database seeding completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while seeding the database roles and admin.");
     }
 }
 

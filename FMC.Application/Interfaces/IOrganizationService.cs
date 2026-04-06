@@ -39,10 +39,18 @@ public interface IOrganizationService
     Task<bool> UpdateAsync(UpdateOrganizationDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Logically removes an organization from the visible dataset without physically destroying the record.
-    /// Preserves all historical referential data (e.g. linked users' history).
+    /// Soft-deletes an existing organization record.
+    /// Returns false if no matching record is found.
     /// </summary>
-    /// <param name="id">The UUID of the organization to soft-delete.</param>
-    /// <returns>True if the record was found and marked deleted; false otherwise.</returns>
     Task<bool> SoftDeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all users affiliated with a specific organization.
+    /// </summary>
+    Task<IEnumerable<FMC.Shared.DTOs.User.UserDto>> GetUsersByOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Performs a balance adjustment (Debit/Credit) for a specific organization and logs the action.
+    /// </summary>
+    Task<bool> AdjustBalanceAsync(Guid organizationId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
 }

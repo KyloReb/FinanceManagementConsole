@@ -20,10 +20,13 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
   - [Phase 12: Role-Based Access Control](#phase-12)
   - [Phase 13: UI Infrastructure Polish](#phase-13)
   - [Phase 14: SuperAdmin Governance Hub](#phase-14)
+  - [Phase 15: Enterprise Organization Management](#phase-15)
+  - [Phase 17: Forensic Intelligence Explorer](#phase-17)
+  - [Phase 18: System Health Monitoring](#phase-18)
 - [🚀 Upcoming Phases](#-upcoming-phases-strategic-roadmap)
-  - [Phase 15: Financial Intelligence](#phase-15)
   - [Phase 16: Hierarchical "Mother Account"](#phase-16)
-  - [Phase 17: Forensic Audit Trail](#phase-17)
+  - [Phase 19: Financial Intelligence](#phase-19)
+  - [Phase 20: Forensic Data Integrity](#phase-20)
 
 ---
 
@@ -114,36 +117,49 @@ This document tracks the evolution of the Finance Management Console (FMC). It s
 <details id="phase-14">
 <summary><b>Phase 14: Administrative Governance Hub (SuperAdmin)</b></summary>
 - **Global User Management**: Enabled viewing, searching, and managing all users across the platform.
-- **Forensic Security Logs**: Comprehensive view of all login/logout events, failed attempts, and browser telemetry.
-- **Organizational Soft-Tenancy**: Added foundational multi-tenant data structures, embedding user affiliations securely within JWT tokens and UI layouts.
+- **Audit Intelligence Explorer**: Advanced real-time forensic grid with high-fidelity detail traces for session, action, and financial events.
 - **Administration Architecture**: Grouped and nested sidebar components to prevent fragmentation during administrative module expansions.
+</details>
+
+<details id="phase-15">
+<summary><b>Phase 15: Enterprise Organization Management</b></summary>
+- **Relational Integrity**: Normalized soft-string affiliations into a dedicated `Organizations` SQL table with strict UUID foreign keys.
+- **Administrative Management**: Developed full REST API endpoints and a dedicated feature-rich MudDataGrid to manage tenant companies and their balances.
+- **Validation Transition**: Permanently deprecated free-text organization registration in favor of strict, query-based backend validations.
+</details>
+
+<details id="phase-17">
+<summary><b>Phase 17: Forensic Intelligence Explorer</b></summary>
+- **Deep Forensic Telemetry**: Expanded AuditLog to capture Source IP, Digital Device Fingerprint, and PerformedBy metadata.
+- **Interaction Design**: Implemented a responsive forensic grid with mobile-first "drill-down" capabilities via `AuditDetailDialog`.
+- **Financial Enrichment**: Automated auditing of high-magnitude credit/debit events with exact currency labels.
+</details>
+
+<details id="phase-18">
+<summary><b>Phase 18: System Intelligence & Health Monitoring</b></summary>
+- **HealthMonitorService**: Persistent background engine for real-time anomalous activity detection and resource threshold audits.
+- **Automated Alerting**: Direct integration with `SystemAlerts` to notify SuperAdmins of infrastructure or security surges.
+- **Global Broadcast**: Real-time alert counts and lists integrated into the global navigation shell.
 </details>
 
 ---
 
 ## 🚀 Upcoming Phases (Strategic Roadmap)
 
-<details id="phase-15">
-<summary><b>Phase 15: Enterprise Organization Management</b></summary>
-- **Relational Integrity**: Normalize soft-string affiliations into a dedicated `Organizations` SQL table with strict UUID foreign keys to prevent data anomalies.
-- **Administrative CRUD**: Develop full REST API endpoints and a dedicated feature-rich MudDataGrid to manage tenant companies.
-- **Validation Transition**: Permanently deprecate free-text organization registration in favor of strict, query-based backend validations.
-</details>
-
 <details id="phase-16">
-<summary><b>Phase 16: Financial Intelligence & Visualizations</b></summary>
-- **Interactive Visualizations**: Dynamic MudCharts for category spending and income vs. expense trends.
-- **Budget Alerts**: Integration of real-time snackbars and email notifications for budget threshold breaches (80/100%).
-</details>
-
-<details id="phase-17">
-<summary><b>Phase 17: Hierarchical "Mother Account" Management</b></summary>
+<summary><b>Phase 16: Hierarchical "Mother Account" Management</b></summary>
 - **Enterprise Ledger Logic**: Implement a "Mother Account" (Master Vault) that acts as the primary liquidity source for sub-accounts.
 - **Managed Debit/Credit Workflows**: Empower authorized roles (CEO/Manager) to allocate (Debit) funds to client sub-accounts and collect (Credit) funds back to the Mother Account.
 </details>
 
-<details id="phase-17">
-<summary><b>Phase 17: Forensic Audit Trail & Data Integrity</b></summary>
+<details id="phase-19">
+<summary><b>Phase 19: Financial Intelligence & Visualizations</b></summary>
+- **Interactive Visualizations**: Dynamic MudCharts for category spending and income vs. expense trends.
+- **Budget Alerts**: Integration of real-time snackbars and email notifications for budget threshold breaches (80/100%).
+</details>
+
+<details id="phase-20">
+<summary><b>Phase 20: Forensic Data Integrity & Compliance</b></summary>
 - **Data Mutation Audit**: Automatically log the "Old Value vs. New Value" for all financial record edits.
 - **Financial Compliance Export**: Capability to export cryptographically signed audit trails for legal/audit review.
 - **SuperAdmin "Maintenance Mode"**: Master toggle to restrict system access during critical infrastructure updates.

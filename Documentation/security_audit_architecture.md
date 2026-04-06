@@ -15,7 +15,9 @@ graph TD
     API -->|"(2) Record Event"| AS[AuditService]
     AS -->|Async Persistence| DB[(AuditLog Database)]
     DB -->|SuperAdmin Query| AD[Admin Dashboard]
-    AD -->|Group & Filter| UI[Security Logs UI]
+    AD -->|Intelligence Queries| AE[Audit Explorer]
+    AE -->|Forensic Detail| AE_Modal[Detail Dialog]
+    AE -->|Summary Analysis| UI[Security Dashboards]
 ```
 
 ---
@@ -57,6 +59,8 @@ The system uses a strictly defined taxonomy of events to ensure searchability an
 | **Logout** | Explicit session termination. | Low | ⚪ Default Chip |
 | **Password Reset**| OTP-based account recovery completion. | Medium | 🟡 Warning Chip |
 | **Registration** | New system account created. | Medium | 🔵 Info Chip |
+| **Financial Op** | High-magnitude credit/debit event. | **High** | 🟢/🔴 Magnitude Chip |
+| **System Health** | Resource threshold or anomalous spike. | **High** | 🟠 Alert Chip |
 | **Password Changed**| Logged-in user updated their credentials. | Medium | 🟡 Warning Chip |
 
 ---
@@ -65,27 +69,37 @@ The system uses a strictly defined taxonomy of events to ensure searchability an
 
 The **Security Logs Dashboard** (`/admin/login-logs`) provides advanced tools for SuperAdmins to handle "Event Flooding":
 
-### A. Dynamic Pivot Grouping
-Administrators can re-aggregate the entire audit history based on:
--   **User**: Track a specific individual's session history across multiple nodes.
--   **Action**: Identify system-wide trends (e.g., *Are we currently under a brute-force attack?*).
--   **Day**: Segment events by calendar date to isolate suspicious activity to a specific window.
+### A. Audit Intelligence Explorer
+The primary forensic tool (`/admin/audit`) provides:
+- **Responsive Dynamic Grid**: Collapsible columns for mobile-first forensic analysis.
+- **Audit Detail View**: A high-fidelity modal providing a complete **Forensic Data Trace** of any individual event.
 
-### B. Forensic Metadata
-Every audit record captures immutable environmental data:
--   **IP Address**: Traces the source of the request.
--   **Details (User Agent)**: Captures the user's Browser, Operating System, and Hardware details for device fingerprinting.
+### B. Deep Forensic Telemetry
+Every audit record now captures expanded diagnostic metadata:
+- **Source IP Address**: Direct resolution of the request origin.
+- **Digital Device Fingerprint**: Captures the exact browser, OS, and hardware identifiers.
+- **Financial Magnitude**: For ledger-impacting events, the exact amount and currency label.
+- **Performance Identity**: The specific display name of the operator who triggered the event.
 
 ---
 
-## 5. Security Guardrails
+---
+
+## 6. Real-Time System Monitoring
+
+Starting with version 1.2, FMC includes the **Health Monitor Engine**:
+- **Background Tracking**: The `HealthMonitorService` continuously audits system resource usage and traffic patterns.
+- **Automated Alerts**: Anomalous events (High-frequency logins, threshold breaches) automatically generate `SystemAlerts`.
+- **Global Visibility**: Alerts are broadcast to the SuperAdmin console via the `AlertsController` and displayed in the global navigation shell.
+
+---
 
 > [!WARNING]
 > **Immutability Principle**: The `AuditService` does not provide an "Update" or "Delete" method. Once an event is recorded in the `AuditLog` table, it is considererd a permanent forensic record.
 
 > [!TIP]
-> **Performance**: The system uses `Take(500)` in the retrieval layer to ensure the SuperAdmin dashboard remains snappy even as the audit database grows into thousands of records.
+> **Intelligence Scaling**: The `AuditExplorer` uses a server-side query architecture with `AuditLogQueryDto` to ensure that data remains navigable even with millions of historical records.
 
 ---
 
-*Document Version 1.1 - Last Refined: 2026-03-27*
+*Document Version 1.2 - Last Refined: 2026-04-06*

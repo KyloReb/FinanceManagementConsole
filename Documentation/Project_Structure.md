@@ -12,9 +12,8 @@ This document provides a **high-fidelity map** of the Finance Management Console
 
 ### 💻 1. **`FMC`** (Blazor Presentation Layer)
 The interactive portal for all users, built with **Blazor Server** and **MudBlazor 9**.
-- **📁 Components/**
-  - **📁 Layout/**: Shell components (NavMenu, MainLayout) designed for responsive fluid layouts.
-  - **📁 Pages/Admin/**: Highly-optimized interfaces like **LoginLogs.razor** and **ManageUsers.razor** which utilize specialized `AdminService` calls.
+  - **📁 Pages/Admin/**: Highly-optimized interfaces like **LoginLogs.razor**, **ManageUsers.razor**, and the **AuditExplorer.razor** (Audit Intelligence Explorer) which utilize specialized `AdminService` calls.
+  - **📁 Pages/Admin/Dialogs/**: Forensic drill-down components like **AuditDetailDialog.razor**.
 - **📁 Services/Api/**: The **Blazor-to-API Bridge**. These services encapsulate all `HttpClient` calls, ensuring that the UI remains ignorant of the underlying REST protocol.
   - **`AuthService.cs`**: Critical link for platform entry/exit and role-based token persistence.
   - **`AdminService.cs`**: Core forensic and administrative toolset for SuperAdmin workflows.
@@ -34,6 +33,7 @@ A headless **ASP.NET Core REST API** serving as the unified data entry point.
   - **`OrganizationsController.cs`**: Manages multi-tenant business units and organizational structures.
   - **`UsersController.cs`**: Handles user profile lifecycle and administrative account management.
   - **`AuditController.cs`**: Exposes forensic security logs and system-wide authentication trails.
+  - **`AlertsController.cs`**: High-performance gateway for system-wide health and security alerts.
   - **`AccountsController.cs`**: Manages the life-cycle of individual bank accounts and financial entities.
   - **`TransactionsController.cs`**: Specialized endpoint for multi-tenant financial movements and auditing.
   - **`BudgetsController.cs`**: Logic gateway for fiscal limit management and enterprise budgeting.
@@ -47,6 +47,7 @@ The "Core Processor" of the application, containing no UI or database dependenci
 - **📁 Interfaces/**
   - **`IApplicationDbContext.cs`**: Defines the data-access contract.
   - **`IAuditService.cs`** / **`IEmailService.cs`**: Functional blueprints for cross-cutting services.
+  - **`ISystemAlertService.cs`**: Contract for system-wide health monitoring and suspicious activity detection.
 - **📁 Common/**: Contains global behaviors, audit-request pipelines, and central validation logic.
 
 <br/>
@@ -62,13 +63,16 @@ The heavy-lifting implementation for external resources.
   - **`CurrentUserService.cs`**: The heart of the **Multi-Tenant Jailing** system, providing real-time identity and tenant context to all layers.
   - **`EmailService.cs`**: Handles cryptographic OTP delivery via SMTP for secure account verification.
   - **`OrganizationService.cs`**: Heavy-duty business logic for enterprise organizational mapping and lifecycle.
+  - **`SystemAlertService.cs`**: Implementation of automated system-wide health and security monitoring.
+- **📁 BackgroundServices/**
+  - **`HealthMonitorService.cs`**: A persistent background engine for real-time anomalous activity detection.
 - **📁 Migrations/**: Auto-generated SQL evolution files tracked by the repository.
 
 <br/>
 
 ### 💎 5. **`FMC.Domain`** (The Core Domain)
 The absolute center of the system. It contains the business entities and is protected from all external changes.
-- **📁 Entities/**: Pure C# objects like **AuditLog**, **Transaction**, and **Organization**. 
+- **📁 Entities/**: Pure C# objects like **AuditLog**, **Transaction**, **Organization**, and **SystemAlert**. 
 - **📁 Common/ITenantEntity.cs**: The contractual interface that drives our multi-tenant "Jailing" technology.
 
 <br/>
@@ -78,6 +82,7 @@ A portable class library shared across both the Frontend and the Backend.
 - **📁 DTOs/**
   - **`AuthResponseDto.cs`**: Unified tokens and user metadata.
   - **`AuditLogDto.cs`**: The flattened data structure for enterprise reporting.
+  - **`SystemAlertDto.cs`**: Standardized DTO for system-wide notifications.
 - **📁 Auth/Roles.cs**: Centralized definition of **SuperAdmin**, **CEO**, **Manager**, and **User** role strings.
 
 <br/>
@@ -96,9 +101,9 @@ Below is a quick-start guide for finding where to implement changes.
 - **Primary File**: `IdentityService.cs`
 
 #### **📊 Auditing & Forensics**
-- **Action**: Add a new field to Security Logs.
+- **Action**: Add a new field to Security Logs or System Alerts.
 - **Folder**: `FMC.Domain/Entities`
-- **Primary File**: `AuditLog.cs`
+- **Primary File**: `AuditLog.cs` or `SystemAlert.cs`
 
 #### **🎨 UI Design & Branding**
 - **Action**: Update the Login Page or Main Dashboard.

@@ -41,7 +41,8 @@ graph TD
 - **Zero-Trust Frontend**: The UI assumes a "Trust Nothing" posture, resolving tenant permissions directly from the signed JWT payload.
 
 ### **3. SuperAdmin Forensic Forensic Suite**
-- **Audit Logging**: Real-time forensic records of all authentication events, device telemetry, and location metadata.
+- **Audit Intelligence Explorer**: Advanced real-time forensic grid with high-fidelity detail traces for every session and financial event.
+- **System Health Monitoring**: Automated background auditing for anomalous spikes or threshold breaches.
 - **Cross-Tenant Visibility**: SuperAdmins can bypass standard tenancy filters to perform global maintenance on users and organizations.
 
 ---
@@ -52,6 +53,7 @@ graph TD
 - **Dynamic Grids**: Enterprise data grids with native multi-column sorting, advanced filtering, and on-the-fly visibility management.
 - **Organization Management**: Hierarchical multi-tenant mapping for complex corporate structures.
 - **Budgeting Engine**: (Roadmap) Proactive limit enforcement and over-spend notifications.
+- **Automated Alerts**: Real-time broadcast engine that notifies administrators of critical infrastructure and security events.
 
 ### **🎨 Professional UX**
 - **Aesthetic Depth**: A custom-engineered `#11111b` Dark Mode palette designed for reduced eye strain during prolonged financial auditing.

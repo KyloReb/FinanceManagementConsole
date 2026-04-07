@@ -11,7 +11,7 @@ namespace FMC.Api.Controllers;
 /// All endpoints are restricted to SuperAdmin role to prevent unauthorized tenant data mutation.
 /// Route: /api/organizations
 /// </summary>
-[Authorize(Roles = Roles.SuperAdmin)]
+[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO)]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
@@ -167,5 +167,33 @@ public class OrganizationsController : ControllerBase
     {
         var users = await _organizationService.GetUsersByOrganizationAsync(id, cancellationToken);
         return Ok(users);
+    }
+    /// <summary>
+    /// CEO Endpoint: Retrieves high-fidelity metrics for the organization.
+    /// </summary>
+    [HttpGet("{id:guid}/dashboard-metrics")]
+    public async Task<ActionResult<OrganizationDashboardMetricsDto>> GetDashboardMetrics(Guid id)
+    {
+        // Security: CEOs can only see their own organization, SuperAdmins see all.
+        if (User.IsInRole(Roles.CEO))
+        {
+            var userOrgClaim = User.FindFirst("OrganizationId")?.Value;
+            if (string.IsNullOrEmpty(userOrgClaim)) return Forbid();
+            if (!Guid.TryParse(userOrgClaim, out var claimId) || claimId != id)
+                return Forbid();
+        }
+
+        var org = await _organizationService.GetByIdAsync(id, HttpContext.RequestAborted);
+        if (org == null) return NotFound();
+
+        // Calculate metrics
+        var metrics = new OrganizationDashboardMetricsDto
+        {
+            TotalBalance = org.TotalBalance,
+            UserCount = org.UserCount,
+            DailyVolume = 0 // Future: aggregate from transactions
+        };
+
+        return Ok(metrics);
     }
 }

@@ -27,5 +27,6 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         public string? UserId => null;
         public string? TenantId => null;
         public bool IsAuthenticated => false;
+        public bool IsSuperAdmin => true;
     }
 }

@@ -5,33 +5,93 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">Transactions</MudText>
 
-<MudTable T="TransactionDto" Items="@_transactions" Hover="true" Bordered="true" Striped="true" Breakpoint="Breakpoint.Sm" Filter="new Func<TransactionDto,bool>(FilterFunc1)" SelectedItem="_selectedItem" SelectedItemChanged="@((TransactionDto? item) => OnSelectedItemChanged(item))" Loading="@_loading">
+<style>
+    .fmc-tx-table {
+        border-radius: 16px !important;
+        border: 1px solid var(--mud-palette-lines-default) !important;
+        background-color: var(--mud-palette-surface) !important;
+        overflow: hidden;
+    }
+
+    .tx-amt-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 800 !important;
+        font-size: 1rem;
+    }
+
+    @@media (max-width: 599.98px) {
+        /* Mobile Card view override */
+        .fmc-tx-table .mud-table-body .mud-table-row {
+            display: grid !important;
+            grid-template-columns: 1fr auto;
+            grid-template-areas: 
+                "label amount"
+                "meta   amount";
+            gap: 4px 16px;
+            padding: 16px !important;
+            border-bottom: 1px solid var(--mud-palette-lines-default) !important;
+        }
+        
+        .fmc-tx-table .mud-table-body .mud-table-cell {
+            border: none !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center;
+        }
+
+        .fmc-tx-table .mud-table-body .mud-table-cell::before { display: none !important; }
+
+        .tx-label { grid-area: label; font-weight: 800; font-size: 1rem; color: var(--mud-palette-text-primary); }
+        .tx-meta { grid-area: meta; display: flex; gap: 8px; align-items: center; }
+        .tx-date { font-size: 0.75rem; color: var(--mud-palette-text-secondary); font-weight: 600; }
+        .tx-cat-chip { font-size: 0.65rem; color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.1); padding: 2px 8px; border-radius: 4px; font-weight: 800; text-transform: uppercase; }
+        
+        .tx-amt { 
+            grid-area: amount; 
+            justify-content: flex-end !important;
+            align-items: center;
+        }
+        .tx-amt .tx-amt-val {
+            font-size: 1.25rem !important;
+            letter-spacing: -0.5px;
+        }
+
+        .tx-actions { display: none !important; }
+    }
+</style>
+
+<MudTable Class="fmc-tx-table" T="TransactionDto" Items="@_transactions" Hover="true" Bordered="false" Striped="true" Breakpoint="Breakpoint.Sm" Filter="new Func<TransactionDto,bool>(FilterFunc1)" SelectedItem="_selectedItem" SelectedItemChanged="@((TransactionDto? item) => OnSelectedItemChanged(item))" Loading="@_loading" Elevation="1">
     <ToolBarContent>
-        <MudText Typo="Typo.h6">History</MudText>
+        <MudText Typo="Typo.h6" Style="font-weight:700;">History</MudText>
         <MudSpacer />
-        <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="ExportExcel" Class="ml-4">Excel</MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="ExportPdf" Class="ml-2">PDF</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog" Class="ml-4">Add Transaction</MudButton>
+        <MudTextField @bind-Value="_searchString" Placeholder="Search records..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-4" Variant="Variant.Text"></MudTextField>
+        <span class="d-none d-sm-flex">
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="ExportExcel" Class="mr-2">Excel</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="ExportPdf" Class="mr-4">PDF</MudButton>
+        </span>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog">Add</MudButton>
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Date)">Date</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Label)">Label</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Category)">Category</MudTableSortLabel></MudTh>
         <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Amount)">Amount</MudTableSortLabel></MudTh>
-        <MudTh>Actions</MudTh>
+        <MudTh Style="width:60px;">Actions</MudTh>
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Date">@context!.Date.ToShortDateString()</MudTd>
-        <MudTd DataLabel="Label">@context!.Label</MudTd>
-        <MudTd DataLabel="Category">@context!.Category</MudTd>
-        <MudTd DataLabel="Amount">
-            <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)">
-                @context!.Amount.ToString("C")
+        <MudTd DataLabel="Date" Class="tx-date d-none d-sm-table-cell">@context!.Date.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Label" Class="tx-label">@context!.Label</MudTd>
+        <MudTd DataLabel="Category" Class="tx-meta">
+            <span class="tx-date d-sm-none mr-2">@context!.Date.ToString("MMM dd")</span>
+            <span class="tx-cat-chip">@context!.Category</span>
+        </MudTd>
+        <MudTd DataLabel="Amount" Class="tx-amt">
+            <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)" Class="tx-amt-val">
+                @(context!.Amount > 0 ? "+" : "")@context!.Amount.ToString("C2")
             </MudText>
         </MudTd>
-        <MudTd>
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="true" />
+        <MudTd Class="tx-actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Default" Size="Size.Small" Disabled="true" />
         </MudTd>
     </RowTemplate>
     <PagerContent>

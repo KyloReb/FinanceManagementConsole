@@ -20,4 +20,9 @@ public interface ICurrentUserService
     /// Returns true if a user is currently authenticated.
     /// </summary>
     bool IsAuthenticated { get; }
+
+    /// <summary>
+    /// Returns true if the user acts as a global administrator (SuperAdmin).
+    /// </summary>
+    bool IsSuperAdmin { get; }
 }

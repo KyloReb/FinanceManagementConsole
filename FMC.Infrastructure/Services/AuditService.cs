@@ -12,12 +12,14 @@ public class AuditService : IAuditService
     private readonly IApplicationDbContext _context;
     private readonly Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> _userManager;
     private readonly ISystemAlertService _alertService;
+    private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
 
-    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> userManager, ISystemAlertService alertService)
+    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> userManager, ISystemAlertService alertService, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _userManager = userManager;
         _alertService = alertService;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     private string GetDeviceName(string? ua)
@@ -64,13 +66,20 @@ public class AuditService : IAuditService
 
         if (action.Contains("Failed", StringComparison.OrdinalIgnoreCase))
         {
-            await _alertService.RaiseAlertAsync(
-                "Identity Security Incident", 
-                $"Authentication failure detected from {ipAddress}. Target Account: {userId ?? "Anonymous"}. Boundary: {resolvedDevice}", 
-                AlertSeverity.Security, 
-                ipAddress, 
-                "Auth"
-            );
+            var cutoff = DateTime.UtcNow.AddMinutes(-15);
+            var recentFailures = await _context.AuditLogs
+                .CountAsync(a => a.IpAddress == ipAddress && a.Action.Contains("Failed") && a.CreatedAt >= cutoff);
+
+            if (recentFailures >= 2)
+            {
+                await _alertService.RaiseAlertAsync(
+                    "Identity Security Incident", 
+                    $"Brute-force vector: Multiple authentication failures ({recentFailures + 1} attempts) detected from {ipAddress}. Target Account: {userId ?? "Anonymous"}. Boundary: {resolvedDevice}", 
+                    AlertSeverity.Security, 
+                    ipAddress, 
+                    "Auth"
+                );
+            }
         }
 
         var log = new AuditLog
@@ -126,8 +135,13 @@ public class AuditService : IAuditService
         return dtos;
     }
 
-    public async Task RecordFinancialEventAsync(string action, Guid entityId, string entityName, decimal amount, string label, string performedBy, string? details = null)
+    public async Task RecordFinancialEventAsync(string action, Guid entityId, string entityName, decimal amount, string label, string performedBy, string? details = null, string? tenantId = null)
     {
+        var rawIp = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "System";
+        if (rawIp == "::1" || rawIp == "127.0.0.1") rawIp = "127.0.0.1 (Localhost)";
+        var rawUserAgent = _httpContextAccessor.HttpContext?.Request?.Headers["User-Agent"].ToString();
+        var resolvedDevice = string.IsNullOrEmpty(rawUserAgent) ? "System Initiated" : GetDeviceName(rawUserAgent);
+
         var log = new AuditLog
         {
             Action = action,
@@ -139,20 +153,26 @@ public class AuditService : IAuditService
             PerformedBy = performedBy,
             Details = details,
             CreatedAt = DateTime.UtcNow,
-            TenantId = "FINANCIAL" // Used to distinguish financial logs from auth logs easily
+            TenantId = tenantId ?? "FINANCIAL",
+            IpAddress = rawIp,
+            Device = resolvedDevice
         };
 
         _context.AuditLogs.Add(log);
         await _context.SaveChangesAsync();
     }
 
-    public async Task<List<AuditLogDto>> GetRecentLogsAsync(int count = 20, string? category = null)
+    public async Task<List<AuditLogDto>> GetRecentLogsAsync(int count = 20, string? category = null, string? tenantId = null)
     {
         IQueryable<AuditLog> query = _context.AuditLogs.IgnoreQueryFilters().OrderByDescending(a => a.CreatedAt);
 
         if (category == "financial")
         {
-            query = query.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
+            if (!string.IsNullOrEmpty(tenantId))
+                query = query.Where(a => a.TenantId == tenantId || 
+                    (a.Action == "CREDIT" || a.Action == "DEBIT"));
+            else
+                query = query.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
         }
 
         var logs = await query.Take(count).ToListAsync();
@@ -165,7 +185,9 @@ public class AuditService : IAuditService
             Label = log.Label,
             PerformedBy = log.PerformedBy,
             CreatedAt = log.CreatedAt,
-            Details = log.Details
+            Details = log.Details,
+            IpAddress = log.IpAddress,
+            Device = log.Device
         }).ToList();
     }
 

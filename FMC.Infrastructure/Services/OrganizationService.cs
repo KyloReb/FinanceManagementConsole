@@ -100,7 +100,12 @@ public class OrganizationService : IOrganizationService
             }
         }
 
-        return MapToDto(org, userCount, ceoName);
+        var totalBalance = await _context.Accounts
+            .IgnoreQueryFilters()
+            .Where(a => a.TenantId == org.Id.ToString())
+            .SumAsync(a => a.Balance, cancellationToken);
+
+        return MapToDto(org, userCount, ceoName, totalBalance);
     }
 
     /// <inheritdoc />
@@ -319,7 +324,9 @@ public class OrganizationService : IOrganizationService
             org.Name, 
             Math.Abs(amount), 
             label ?? "Ledger Adjustment", 
-            performedBy
+            performedBy,
+            null,
+            organizationId.ToString()
         );
 
         await _context.Transactions.AddAsync(transaction, cancellationToken);
@@ -327,6 +334,71 @@ public class OrganizationService : IOrganizationService
 
         _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
             tenantId, amount, account.Balance);
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default)
+    {
+        // 1. Identify the user and their organization context (for logging)
+        var user = await _context.Users.OfType<ApplicationUser>()
+            .Include(u => u.OrganizationInfo)
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId.ToString(), cancellationToken);
+
+        if (user == null) return false;
+
+        // 2. Identify the personal wallet account (TenantId = UserId)
+        var tenantId = user.Id;
+        var account = await _context.Accounts
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(a => a.TenantId == tenantId, cancellationToken);
+
+        if (account == null)
+        {
+            account = new Account
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Wallet: {user.FirstName} {user.LastName}",
+                Balance = 0,
+                TenantId = tenantId
+            };
+            await _context.Accounts.AddAsync(account, cancellationToken);
+        }
+
+        // 3. Persist individual transaction
+        var transaction = new Transaction
+        {
+            Id = Guid.NewGuid(),
+            Label = label ?? (amount >= 0 ? "Adjustment Credit" : "Adjustment Debit"),
+            Amount = amount,
+            Date = DateTime.UtcNow,
+            Category = "Subscriber Allotment",
+            TenantId = tenantId,
+            AccountId = account.Id
+        };
+        
+        account.Balance += amount;
+        await _context.Transactions.AddAsync(transaction, cancellationToken);
+
+        // 4. Trace the forensic audit event
+        var actionType = amount >= 0 ? "CREDIT" : "DEBIT";
+        await _auditService.RecordFinancialEventAsync(
+            actionType, 
+            user.OrganizationId ?? Guid.Empty, 
+            $"{user.FirstName} {user.LastName}", 
+            Math.Abs(amount), 
+            label ?? "Individual Performance Adjustment", 
+            performedBy,
+            null,
+            tenantId
+        );
+
+        await _context.SaveChangesAsync(cancellationToken);
+        
+        _logger.LogInformation("[OrganizationService] Adjusted USER balance for {UserId} by {Amount}. Label: {Label}", 
+            userId, amount, label);
 
         return true;
     }

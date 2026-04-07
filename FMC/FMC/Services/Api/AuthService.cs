@@ -88,4 +88,11 @@ public class AuthService
         var response = await _httpClient.PostAsJsonAsync("api/auth/change-password/complete", request);
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<FMC.Shared.DTOs.User.UserDto?> GetCurrentUserAsync()
+    {
+        var response = await _httpClient.GetAsync("api/users/me");
+        if (!response.IsSuccessStatusCode) return null;
+        return await response.Content.ReadFromJsonAsync<FMC.Shared.DTOs.User.UserDto>();
+    }
 }

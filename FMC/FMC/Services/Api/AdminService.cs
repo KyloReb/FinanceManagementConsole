@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using FMC.Shared.DTOs.User;
+using FMC.Shared.DTOs;
 
 namespace FMC.Services.Api;
 
@@ -20,6 +21,11 @@ public class AdminService
     public async Task<UserDto?> GetUserAsync(string id)
     {
         return await _httpClient.GetFromJsonAsync<UserDto>($"api/users/{id}");
+    }
+
+    public async Task<List<TransactionDto>> GetUserTransactionsAsync(string id, int count = 10)
+    {
+        return await _httpClient.GetFromJsonAsync<List<TransactionDto>>($"api/users/{id}/transactions?count={count}") ?? new();
     }
 
     public async Task<bool> CreateUserAsync(CreateUserDto request)

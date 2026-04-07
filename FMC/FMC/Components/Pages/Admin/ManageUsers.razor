@@ -6,6 +6,7 @@
 @inject AdminService AdminService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject NavigationManager Navigation
 
 <PageTitle>Manage Users - FMC</PageTitle>
 
@@ -62,6 +63,10 @@
                                           Disabled='@(context.Item.Email == "davidrebancos02@gmail.com")'
                                           OnClick="@(() => OpenEditDialog(context.Item))">
                                  @(context.Item.Email == "davidrebancos02@gmail.com" ? "Master Account Locked" : "Edit Details")
+                             </MudMenuItem>
+                             <MudMenuItem Icon="@Icons.Material.Filled.AssignmentInd" 
+                                          OnClick='@(() => Navigation.NavigateTo($"/profile/{context.Item.Id}"))'>
+                                 View Forensic Profile
                              </MudMenuItem>
                             <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
                                          Disabled="@context.Item.Roles.Contains(Roles.SuperAdmin)"

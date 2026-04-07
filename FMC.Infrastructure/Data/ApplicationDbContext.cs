@@ -98,10 +98,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         base.OnModelCreating(builder);
 
         // Global Query Filters for Tenancy and Soft Deletions
-        builder.Entity<Transaction>().HasQueryFilter(t => t.TenantId == _currentUserService.TenantId);
-        builder.Entity<Account>().HasQueryFilter(a => a.TenantId == _currentUserService.TenantId);
-        builder.Entity<Budget>().HasQueryFilter(b => b.TenantId == _currentUserService.TenantId);
-        builder.Entity<AuditLog>().HasQueryFilter(a => a.TenantId == _currentUserService.TenantId);
+        builder.Entity<Transaction>().HasQueryFilter(t => _currentUserService.IsSuperAdmin || t.TenantId == _currentUserService.TenantId);
+        builder.Entity<Account>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId);
+        builder.Entity<Budget>().HasQueryFilter(b => _currentUserService.IsSuperAdmin || b.TenantId == _currentUserService.TenantId);
+        builder.Entity<AuditLog>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId);
         builder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
 
         builder.Entity<UserOtpVerification>()

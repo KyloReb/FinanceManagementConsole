@@ -61,7 +61,7 @@ public class IdentityService : IIdentityService
         // Prioritize the standardized Organization name over the legacy string
         var orgName = user.OrganizationInfo?.Name ?? user.Organization;
         
-        var token = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, orgName);
+        var token = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, orgName, user.OrganizationId?.ToString());
         var refreshToken = _jwtService.GenerateRefreshToken();
 
         user.RefreshToken = refreshToken;
@@ -261,7 +261,7 @@ public class IdentityService : IIdentityService
         
         var orgName = user.OrganizationInfo?.Name ?? user.Organization;
 
-        var newToken = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, orgName);
+        var newToken = _jwtService.GenerateToken(user.Id, user.Email!, user.FirstName, user.LastName, roles, orgName, user.OrganizationId?.ToString());
         var newRefreshToken = _jwtService.GenerateRefreshToken();
 
         user.RefreshToken = newRefreshToken;
@@ -301,6 +301,13 @@ public class IdentityService : IIdentityService
         foreach (var user in users)
         {
             var roles = await _userManager.GetRolesAsync(user);
+            var effectiveTenantId = user.OrganizationId?.ToString() ?? user.Id;
+            
+            var balance = await _context.Accounts
+                .IgnoreQueryFilters()
+                .Where(a => a.TenantId == effectiveTenantId)
+                .SumAsync(a => a.Balance);
+
             userDtos.Add(new UserDto
             {
                 Id = user.Id,
@@ -309,7 +316,9 @@ public class IdentityService : IIdentityService
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Organization = user.OrganizationInfo?.Name ?? user.Organization,
+                OrganizationId = user.OrganizationId,
                 IsActive = user.IsActive,
+                Balance = balance,
                 Roles = roles.ToList()
             });
         }
@@ -326,6 +335,15 @@ public class IdentityService : IIdentityService
         if (user == null) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
+        
+        // Effective TenantId logic: OrganizationId takes precedence over UserId
+        var effectiveTenantId = user.OrganizationId?.ToString() ?? user.Id;
+        
+        var balance = await _context.Accounts
+            .IgnoreQueryFilters()
+            .Where(a => a.TenantId == effectiveTenantId)
+            .SumAsync(a => a.Balance);
+
         return new UserDto
         {
             Id = user.Id,
@@ -334,7 +352,9 @@ public class IdentityService : IIdentityService
             FirstName = user.FirstName,
             LastName = user.LastName,
             Organization = user.OrganizationInfo?.Name ?? user.Organization,
+            OrganizationId = user.OrganizationId,
             IsActive = user.IsActive,
+            Balance = balance,
             Roles = roles.ToList()
         };
     }

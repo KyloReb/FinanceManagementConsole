@@ -108,7 +108,8 @@
     private char GetInitial(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return 'S';
-        return name.Trim().ToUpper()[0];
+        var trimmed = name.Trim();
+        return trimmed.Length > 0 ? trimmed.ToUpper()[0] : 'S';
     }
 
     private void CopyRef()

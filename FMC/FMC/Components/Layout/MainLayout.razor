@@ -80,7 +80,7 @@
                                 <div class="fmc-notif-body">
                                     @foreach (var notif in _notifications)
                                     {
-                                        <div class="fmc-notif-item" @onclick="@(() => { _notifOpen = false; NavigationManager.NavigateTo(notif.Href); })">
+                                        <div class="fmc-notif-item" @onclick="@(() => HandleAlertClick(notif))">
                                             <div class="fmc-notif-dot fmc-dot-@notif.Severity"></div>
                                             <div class="fmc-notif-item-content">
                                                 <div class="d-flex align-center justify-space-between">
@@ -112,7 +112,7 @@
                          Dense="true" Class="ml-1" PopoverClass="mud-elevation-25">
                     <ActivatorContent>
                         <div class="d-flex align-center cursor-pointer pa-1 rounded-pill user-menu-trigger" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
-                            <div class="d-flex align-center d-none d-sm-flex mr-3 ml-2">
+                            <div class="fmc-nav-username d-flex align-center mr-3 ml-2">
                                 <MudText Typo="Typo.body2">@GetDisplayName(authState.User)</MudText>
                             </div>
                             <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 600;">
@@ -177,6 +177,10 @@
     .user-menu-trigger:hover {
         background-color: var(--mud-palette-action-default-hover);
         border-radius: 20px;
+    }
+
+    @@media (max-width: 960px) {
+        .fmc-nav-username { display: none !important; }
     }
 
     /* ── Notification Bell ── */
@@ -278,15 +282,39 @@
 
     // Notification state
     private int _alertCount;
-    private record NotifItem(string Title, string Description, string Href, string Severity, int Count);
+    private record NotifItem(long Id, string Title, string Description, string Href, string Severity, int Count);
     private List<NotifItem> _notifications = new();
+
+    private async Task HandleAlertClick(NotifItem notif)
+    {
+        _notifOpen = false;
+
+        // Optimistic UI updates
+        _notifications.RemoveAll(n => n.Id == notif.Id);
+        _alertCount = Math.Max(0, _alertCount - 1);
+        StateHasChanged();
+
+        // Background enterprise resolution
+        await OrgService.ResolveAlertAsync(notif.Id);
+        OrgService.NotifyDataChanged(); // Let other components know an indicator was dismissed
+
+        if (!string.IsNullOrEmpty(notif.Href))
+            NavigationManager.NavigateTo(notif.Href);
+    }
 
     private void ToggleNotif() => _notifOpen = !_notifOpen;
     private void ToggleUserMenu() => _userMenuOpen = !_userMenuOpen;
 
     protected override async Task OnInitializedAsync()
     {
+        OrgService.OnDataChanged += HandleDataChanged;
         await LoadAlerts();
+    }
+
+    private async void HandleDataChanged()
+    {
+        await LoadAlerts();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadAlerts()
@@ -300,6 +328,7 @@
             {
                 var severity = alert.Severity.ToString().ToLower();
                 _notifications.Add(new NotifItem(
+                    alert.Id,
                     alert.Title, 
                     alert.Message, 
                     alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
@@ -351,5 +380,8 @@
     private string GetOrganization(System.Security.Claims.ClaimsPrincipal user)
         => user.FindFirst("organization")?.Value ?? string.Empty;
 
-    public void Dispose() { }
+    public void Dispose() 
+    { 
+        OrgService.OnDataChanged -= HandleDataChanged;
+    }
 }

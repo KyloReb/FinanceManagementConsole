@@ -5,6 +5,7 @@ namespace FMC.Shared.DTOs.User;
 public class UserDto
 {
     public string Id { get; set; } = string.Empty;
+    public Guid IdGuid => Guid.TryParse(Id, out var g) ? g : Guid.Empty;
     public string? UserName { get; set; }
     public string? Email { get; set; }
     public string? FirstName { get; set; }
@@ -12,6 +13,8 @@ public class UserDto
     public string DisplayName => $"{FirstName} {LastName}".Trim();
     public bool IsActive { get; set; }
     public string? Organization { get; set; }
+    public Guid? OrganizationId { get; set; }
+    public decimal Balance { get; set; }
     public List<string> Roles { get; set; } = new();
 }
 

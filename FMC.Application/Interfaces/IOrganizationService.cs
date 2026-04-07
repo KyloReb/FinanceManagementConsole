@@ -53,4 +53,9 @@ public interface IOrganizationService
     /// Performs a balance adjustment (Debit/Credit) for a specific organization and logs the action.
     /// </summary>
     Task<bool> AdjustBalanceAsync(Guid organizationId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// CEO/Admin Endpoint: Performs a balance adjustment for an individual user's personal wallet.
+    /// </summary>
+    Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
 }

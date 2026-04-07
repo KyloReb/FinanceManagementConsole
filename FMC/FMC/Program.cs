@@ -10,6 +10,12 @@ using Microsoft.Extensions.Configuration;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+#region Culture Configuration
+var cultureInfo = new System.Globalization.CultureInfo("en-PH");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+#endregion
+
 #region API & Authentication Configuration
 // Build the HttpClient + AuthenticationHeaderHandler directly within the Blazor circuit scope.
 // IHttpClientFactory resolves handler pipelines through an internal scope that is SEPARATE

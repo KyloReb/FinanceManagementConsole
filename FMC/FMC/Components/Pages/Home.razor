@@ -7,62 +7,92 @@
 @inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
-    <AuthorizeView Roles="@Roles.SuperAdmin">
+    <AuthorizeView Roles="@(Roles.SuperAdmin + "," + Roles.CEO)">
         <Authorized>
             @* ENTERPRISE COMMAND CENTER HEADER *@
-            <div class="fmc-dashboard-header mb-10">
+            <MudItem xs="12" sm="8" Class="pb-2">
                 <div class="d-flex align-center">
                     <div class="fmc-header-accent mr-5"></div>
                     <div class="d-flex flex-column">
-                        <MudText Typo="Typo.h3" Class="fmc-hero-text">Control Center</MudText>
-                        <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">System Health & Multi-Tenant Capital Oversight</MudText>
+                        <MudText Typo="Typo.h3" Class="fmc-hero-text">@(context.User.IsInRole(Roles.CEO) ? "Corporate Dashboard" : "Control Center")</MudText>
+                        <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">@(context.User.IsInRole(Roles.CEO) ? "Organization Capital & Workforce Oversight" : "System Health & Multi-Tenant Capital Oversight")</MudText>
                     </div>
                 </div>
-                <div class="d-flex gap-3">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.CloudSync" 
-                               Style="border-radius: 12px; border: 1px solid var(--mud-palette-divider); text-transform: none; font-weight: 600;">
-                        System Logs
-                    </MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/admin/organizations" 
-                               Style="border-radius: 12px; padding: 12px 28px; font-weight: 700; text-transform: none; box-shadow: var(--mud-elevation-4);">
-                        Provision New Tenant
-                    </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center justify-sm-end pb-2">
+                <div class="d-flex gap-3 w-100 justify-sm-end">
+                    @if (context.User.IsInRole(Roles.SuperAdmin))
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.CloudSync" 
+                                   Class="fmc-header-btn secondary d-none d-md-flex">
+                            Logs
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/admin/organizations" 
+                                   Class="fmc-header-btn primary w-100 w-sm-auto">
+                            Provision Tenant
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Business" Href="/ceo/dashboard" 
+                                   Class="fmc-header-btn primary w-100 w-sm-auto">
+                            Global Overview
+                        </MudButton>
+                    }
                 </div>
-            </div>
+            </MudItem>
 
-            <MudGrid Spacing="4" Class="mb-10">
+            <MudGrid Spacing="2" Class="mb-8">
                 @* HIGH-LEVEL PERFORMANCE CARDS *@
-                <MudItem xs="12" sm="6" md="3">
-                    <div class="fmc-glass-card">
-                        <div class="fmc-card-content">
-                            <MudText Typo="Typo.subtitle2" Class="fmc-card-label">ACTIVE SUBSCRIBERS</MudText>
-                            <div class="d-flex align-end gap-2 mt-1">
-                                <MudText Typo="Typo.h3" Style="font-weight: 900; line-height: 1;">@_organizations.Count</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Success" Style="font-weight: 700; margin-bottom: 2px;">+18% WoW</MudText>
+                @if (context.User.IsInRole(Roles.SuperAdmin))
+                {
+                    <MudItem xs="6" sm="6" md="3">
+                        <div class="fmc-glass-card">
+                            <div class="fmc-card-content">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">ACTIVE SUBSCRIBERS</MudText>
+                                <div class="d-flex align-end gap-2 mt-1">
+                                    <MudText Typo="Typo.h3" Class="fmc-kpi-val" Style="font-weight: 900; line-height: 1;">@_organizations.Count</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Success" Style="font-weight: 700; margin-bottom: 2px;">+18% WoW</MudText>
+                                </div>
                             </div>
+                            <div class="fmc-card-icon-bg"><MudIcon Icon="@Icons.Material.Filled.CorporateFare" /></div>
+                            <div class="fmc-card-progress primary"></div>
                         </div>
-                        <div class="fmc-card-icon-bg"><MudIcon Icon="@Icons.Material.Filled.CorporateFare" /></div>
-                        <div class="fmc-card-progress primary"></div>
-                    </div>
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="6" sm="6" md="3">
+                        <div class="fmc-glass-card">
+                            <div class="fmc-card-content">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">AFFILIATED USERS</MudText>
+                                <div class="d-flex align-end gap-2 mt-1">
+                                    <MudText Typo="Typo.h3" Class="fmc-kpi-val" Style="font-weight: 900; line-height: 1;">@(_organizations.FirstOrDefault()?.UserCount ?? 0)</MudText>
+                                </div>
+                            </div>
+                            <div class="fmc-card-icon-bg"><MudIcon Icon="@Icons.Material.Filled.Groups" /></div>
+                            <div class="fmc-card-progress primary"></div>
+                        </div>
+                    </MudItem>
+                }
+                <MudItem xs="6" sm="6" md="3">
                     <div class="fmc-glass-card">
                         <div class="fmc-card-content">
-                            <MudText Typo="Typo.subtitle2" Class="fmc-card-label">LIQUIDITY REPOSITORY</MudText>
+                            <MudText Typo="Typo.subtitle2" Class="fmc-card-label">AVAILABLE CAPITAL</MudText>
                             <div class="d-flex align-end gap-2 mt-1">
-                                <MudText Typo="Typo.h4" Style="font-weight: 900; line-height: 1; font-family: 'JetBrains Mono', monospace;">@_organizations.Sum(o => o.TotalBalance).ToString("C0")</MudText>
+                                <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@_organizations.Sum(o => o.TotalBalance).ToString("C0")</MudText>
                             </div>
                         </div>
                         <div class="fmc-card-icon-bg success"><MudIcon Icon="@Icons.Material.Filled.AccountBalance" /></div>
                         <div class="fmc-card-progress success"></div>
                     </div>
                 </MudItem>
-                <MudItem xs="12" sm="6" md="3">
+                <MudItem xs="6" sm="6" md="3">
                     <div class="fmc-glass-card">
                         <div class="fmc-card-content">
                             <MudText Typo="Typo.subtitle2" Class="fmc-card-label">NETWORK UPTIME</MudText>
                             <div class="d-flex align-end gap-2 mt-1">
-                                <MudText Typo="Typo.h3" Style="font-weight: 900; line-height: 1;">99.9%</MudText>
+                                <MudText Typo="Typo.h3" Class="fmc-kpi-val" Style="font-weight: 900; line-height: 1;">99.9%</MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; margin-bottom: 2px;">SECURE</MudText>
                             </div>
                         </div>
@@ -70,12 +100,12 @@
                         <div class="fmc-card-progress info"></div>
                     </div>
                 </MudItem>
-                <MudItem xs="12" sm="6" md="3">
+                <MudItem xs="6" sm="6" md="3">
                     <div class="fmc-glass-card">
                         <div class="fmc-card-content">
                             <MudText Typo="Typo.subtitle2" Class="fmc-card-label">LAST RECONCILIATION</MudText>
                             <div class="d-flex align-end gap-2 mt-1">
-                                <MudText Typo="Typo.h3" Style="font-weight: 900; line-height: 1;">@DateTime.Now.ToString("HH:mm")</MudText>
+                                <MudText Typo="Typo.h3" Class="fmc-kpi-val" Style="font-weight: 900; line-height: 1;">@DateTime.Now.ToString("HH:mm")</MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; margin-bottom: 2px;">LIVE</MudText>
                             </div>
                         </div>
@@ -203,6 +233,8 @@
                         </div>
                     </MudItem>
                 }
+
+
 
                 @* MAIN REPOSITORY TABLE *@
                 <MudItem xs="12">
@@ -371,20 +403,67 @@
                     </MudPaper>
                 </MudItem>
 
+                @* ── ENTERPRISE FINANCIAL VELOCITY (Line Chart) ── *@
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Class="fmc-main-surface pa-8 mb-6">
+                        <div class="fmc-chart-header mb-6">
+                            <div class="fmc-chart-title">
+                                <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.Timeline" Color="Color.Primary" /></div>
+                                <div>
+                                    <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Cumulative Liquidity Trend</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Track the historical balance progression of active network wallets</MudText>
+                                </div>
+                            </div>
+                            <div class="fmc-chart-controls">
+                                <div class="fmc-timeframe-selector">
+                                    <MudButton OnClick="@(() => SetTimeframe("Daily"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Daily" ? "fmc-btn-active" : ""))">DAILY</MudButton>
+                                    <MudButton OnClick="@(() => SetTimeframe("Monthly"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Monthly" ? "fmc-btn-active" : ""))">MONTHLY</MudButton>
+                                    <MudButton OnClick="@(() => SetTimeframe("Quarterly"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Quarterly" ? "fmc-btn-active" : ""))">QUARTERLY</MudButton>
+                                    <MudButton OnClick="@(() => SetTimeframe("Yearly"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Yearly" ? "fmc-btn-active" : ""))">YEARLY</MudButton>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        @if (_auditLoading)
+                        {
+                            <div class="d-flex flex-column justify-center align-center" style="height:350px;">
+                                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Synthesizing network metrics...</MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="fmc-chart-container" style="min-height:420px; width: 100%; overflow: visible;">
+                                <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@_lineChartSeries" XAxisLabels="@_lineChartLabels" 
+                                          Width="100%" Height="380px" ChartOptions="@_lineChartOptions" />
+                            </div>
+                        }
+                    </MudPaper>
+                </MudItem>
+
                 @* ── LEDGER ADJUSTMENT LOG (Audit Feed) ── *@
                 <MudItem xs="12">
                     <div class="fmc-audit-surface">
                         <div class="fmc-audit-header">
-                            <div class="d-flex align-center justify-space-between w-100">
-                                <div class="d-flex align-center">
+                            <div class="fmc-audit-header-inner">
+                                <div class="fmc-audit-title">
                                     <div class="fmc-audit-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.HistoryEdu" Color="Color.Info" /></div>
-                                    <div>
-                                        <MudText Typo="Typo.h6" Style="font-weight: 800;">Ledger Adjustment Log</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Recent capital movements across the network</MudText>
+                                    <div class="fmc-alert-title-text">
+                                        <MudText Typo="Typo.h6" Style="font-weight: 800;">Portfolio Health Warnings</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; color: var(--mud-palette-warning);">Persistent issues that cannot be cleared until the wallet balance is restored.</MudText>
                                     </div>
                                 </div>
-                                <div class="d-flex align-center gap-4">
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">SHOWING LAST 20 ENTRIES</MudText>
+                                <div class="fmc-audit-controls">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary fmc-audit-showing-txt" Style="font-weight:700;">SHOWING LAST</MudText>
+                                        <MudSelect T="int" Value="@_auditLogLimit" ValueChanged="@OnAuditLogLimitChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="background-color:var(--mud-palette-surface); font-weight:700; width:85px; height:32px;">
+                                            <MudSelectItem Value="10">10</MudSelectItem>
+                                            <MudSelectItem Value="20">20</MudSelectItem>
+                                            <MudSelectItem Value="50">50</MudSelectItem>
+                                            <MudSelectItem Value="100">100</MudSelectItem>
+                                        </MudSelect>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary fmc-audit-showing-txt" Style="font-weight:700;">ENTRIES</MudText>
+                                    </div>
                                     <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.FileDownload" 
                                                Style="text-transform:none; border-radius:8px; font-weight:700;">Export CSV</MudButton>
                                 </div>
@@ -411,28 +490,28 @@
                                     @foreach (var log in _auditLogs)
                                     {
                                         bool isCredit = log.Action == "CREDIT";
+                                        var localTime = log.CreatedAt.ToLocalTime();
                                         <div class="fmc-audit-item @(isCredit ? "credit" : "debit")">
                                             <div class="fmc-audit-indicator"></div>
                                             <div class="fmc-audit-type-icon">
-                                                <MudIcon Icon="@(isCredit ? Icons.Material.Filled.ArrowUpward : Icons.Material.Filled.ArrowDownward)" 
+                                                <MudIcon Icon="@(isCredit ? Icons.Material.Filled.ArrowUpward : Icons.Material.Filled.ArrowDownward)"
                                                          Color="@(isCredit ? Color.Success : Color.Error)" Size="Size.Small" />
                                             </div>
-                                            <div class="fmc-audit-main">
-                                                <div class="d-flex align-center gap-2">
-                                                    <MudText Typo="Typo.body2" Style="font-weight:800;">@log.EntityName</MudText>
+                                            <div class="fmc-audit-body-content">
+                                                @* Row 1: Name + Badge *@
+                                                <div class="fmc-audit-row1">
+                                                    <MudText Typo="Typo.body2" Class="fmc-audit-entity">@log.EntityName</MudText>
                                                     <span class="fmc-audit-badge @(isCredit ? "credit" : "debit")">@log.Action</span>
                                                 </div>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Performed by: <span style="font-weight:800; color:var(--mud-palette-text-primary);">@log.PerformedBy</span></MudText>
-                                            </div>
-                                            <div class="fmc-audit-details">
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="line-height:1.2;">@log.Label</MudText>
-                                                <MudText Typo="Typo.caption" Style="font-size:0.65rem; opacity:0.6;">@log.CreatedAt.ToString("MMM dd, yyyy · HH:mm")</MudText>
-                                            </div>
-                                            <div class="fmc-audit-amount">
-                                                <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" 
-                                                         Color="@(isCredit ? Color.Success : Color.Error)">
-                                                    @(isCredit ? "+" : "-")@log.Amount?.ToString("N2")
-                                                </MudText>
+                                                @* Row 2: Actor · date on left, amount on right *@
+                                                <div class="fmc-audit-row2">
+                                                    <span class="fmc-audit-actor mud-text-secondary">
+                                                        @log.PerformedBy&nbsp;<span class="fmc-audit-dot">·</span>&nbsp;@localTime.ToString("MMM dd · HH:mm")
+                                                    </span>
+                                                    <span class="fmc-audit-amt @(isCredit ? "credit" : "debit")">
+                                                        @(isCredit ? "+" : "-")@log.Amount?.ToString("N2")
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     }
@@ -546,8 +625,22 @@
     /* Dynamic Enterprise Theme Adaptation */
     .fmc-dashboard-header { display: flex; align-items: center; justify-content: space-between; }
     .fmc-header-accent { width: 6px; height: 48px; background: var(--mud-palette-primary); border-radius: 4px; }
-    .fmc-hero-text { font-weight: 900; letter-spacing: -0.04em; color: var(--mud-palette-text-primary); }
-    .fmc-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.8; font-weight: 500; }
+    .fmc-hero-text { font-weight: 900; letter-spacing: -0.04em; color: var(--mud-palette-text-primary); font-size: clamp(1.5rem, 4vw, 3rem) !important; }
+    .fmc-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.8; font-weight: 500; font-size: clamp(0.75rem, 1.5vw, 1rem); }
+    
+    .fmc-header-btn { border-radius: 12px !important; text-transform: none !important; font-weight: 700 !important; }
+    .fmc-header-btn.primary { padding: 12px 28px !important; box-shadow: var(--mud-elevation-4) !important; }
+    .fmc-header-btn.secondary { border: 1px solid var(--mud-palette-divider) !important; }
+
+    .fmc-responsive-val {
+        font-weight: 900 !important; 
+        line-height: 1 !important; 
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: clamp(1rem, 3.5vw, 2.2rem) !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
     /* Performance Panels - Adaptive Glass */
     .fmc-glass-card {
@@ -613,11 +706,38 @@
     .fmc-desktop-table { display: block; }
     .fmc-mobile-cards  { display: none; }
 
+    .fmc-chart-header { display: flex; align-items: center; justify-content: space-between; }
+    .fmc-chart-title { display: flex; align-items: center; }
+    .fmc-chart-controls { display: flex; align-items: center; gap: 24px; }
+    .fmc-chart-legend { display: flex; gap: 8px; }
+
     @@media (max-width: 768px) {
         .fmc-desktop-table { display: none; }
         .fmc-mobile-cards  { display: block; }
         .fmc-header-area   { flex-direction: column; align-items: flex-start; gap: 12px; }
         .fmc-header-area > div:last-child { width: 100%; }
+
+        /* Dashboard Header compaction */
+        .fmc-hero-text { font-size: 2.2rem !important; line-height: 1.1; }
+        .fmc-dashboard-header { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px !important; }
+        .fmc-dashboard-header .d-flex.gap-3 { width: 100%; justify-content: space-between; }
+        .fmc-dashboard-header .d-flex.gap-3 button { flex: 1; padding-left: 8px !important; padding-right: 8px !important; font-size: 0.8rem; }
+
+        /* Mobile 2x2 Grid Adjustments for KPIs */
+        .fmc-glass-card { padding: 16px 12px; }
+        .fmc-card-label { font-size: 0.55rem; letter-spacing: 0.05em; }
+        .fmc-kpi-val { font-size: 1.35rem !important; }
+        .fmc-card-icon-bg { font-size: 5rem !important; right: -12px; top: -12px; }
+
+        .fmc-chart-header { flex-direction: column; align-items: flex-start; gap: 20px; }
+        .fmc-chart-title { flex-direction: row; align-items: center; gap: 0; }
+        .fmc-chart-controls { flex-direction: column; align-items: flex-start; gap: 16px; width: 100%; }
+        .fmc-timeframe-selector { width: 100%; overflow-x: auto; padding-bottom: 4px; justify-content: flex-start; }
+
+        .fmc-audit-header-inner { flex-direction: column; align-items: flex-start !important; gap: 16px; width: 100%; }
+        .fmc-audit-title { flex-direction: row; align-items: center; justify-content: flex-start !important; width: 100%; gap: 0; }
+        .fmc-audit-controls { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+        .fmc-audit-showing-txt { font-size: 0.65rem !important; }
     }
 
     /* Mobile Card Styles */
@@ -728,6 +848,11 @@
         background-color: var(--mud-palette-background-grey);
         border-bottom: 1px solid var(--mud-palette-divider);
     }
+    .fmc-audit-header-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 16px; }
+    .fmc-audit-title { display: flex; align-items: center; justify-content: flex-start; }
+    .fmc-audit-title-text { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+    .fmc-audit-controls { display: flex; align-items: center; gap: 16px; }
+
     .fmc-audit-icon {
         width: 40px; height: 40px;
         display: flex; align-items: center; justify-content: center;
@@ -736,13 +861,15 @@
     }
     .fmc-audit-body { padding: 0; }
     .fmc-audit-list { display: flex; flex-direction: column; }
+
+    /* ── Audit Row ── */
     .fmc-audit-item {
         display: flex;
         align-items: center;
-        padding: 18px 28px;
+        padding: 14px 20px 14px 24px;
         border-bottom: 1px solid var(--mud-palette-divider);
         position: relative;
-        gap: 20px;
+        gap: 12px;
     }
     .fmc-audit-item:last-child { border-bottom: none; }
     .fmc-audit-indicator {
@@ -751,27 +878,94 @@
         width: 4px;
     }
     .fmc-audit-item.credit .fmc-audit-indicator { background: var(--mud-palette-success); }
-    .fmc-audit-item.debit .fmc-audit-indicator { background: var(--mud-palette-error); }
-    
-    .fmc-audit-type-icon { width: 24px; display: flex; justify-content: center; }
-    .fmc-audit-main { flex: 1; min-width: 0; }
-    .fmc-audit-details { flex: 2; min-width: 0; }
-    .fmc-audit-amount { width: 120px; text-align: right; }
-    
-    .fmc-audit-badge {
-        font-size: 0.55rem;
+    .fmc-audit-item.debit  .fmc-audit-indicator { background: var(--mud-palette-error); }
+
+    /* ── Direction Icon ── */
+    .fmc-audit-type-icon { width: 22px; flex-shrink: 0; display: flex; justify-content: center; }
+
+    /* ── Two-Row Body ── */
+    .fmc-audit-body-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+    .fmc-audit-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+    .fmc-audit-entity {
+        font-weight: 800 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 220px;
+    }
+
+    .fmc-audit-row2 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+    .fmc-audit-actor {
+        font-size: 0.72rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        opacity: 0.75;
+    }
+    .fmc-audit-dot { opacity: 0.4; }
+
+    .fmc-audit-amt {
         font-weight: 900;
-        padding: 2px 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.88rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .fmc-audit-amt.credit { color: var(--mud-palette-success) !important; }
+    .fmc-audit-amt.debit  { color: var(--mud-palette-error)   !important; }
+
+    /* ── Badge ── */
+    .fmc-audit-badge {
+        font-size: 0.52rem;
+        font-weight: 900;
+        padding: 2px 7px;
         border-radius: 4px;
         letter-spacing: 0.05em;
+        flex-shrink: 0;
+        white-space: nowrap;
     }
-    .fmc-audit-badge.credit { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
-    .fmc-audit-badge.debit { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
-    
+    .fmc-audit-badge.credit { background: rgba(var(--mud-palette-success-rgb), 0.12); color: var(--mud-palette-success); }
+    .fmc-audit-badge.debit  { background: rgba(var(--mud-palette-error-rgb),   0.12); color: var(--mud-palette-error); }
+
+    /* ── Footer ── */
     .fmc-audit-footer {
         padding: 12px;
         background-color: var(--mud-palette-background-grey);
         border-top: 1px solid var(--mud-palette-divider);
+    }
+
+    /* ── Mobile Overrides ── */
+    @@media (max-width: 600px) {
+        .fmc-audit-item   { padding: 12px 14px 12px 20px; gap: 10px; }
+        .fmc-audit-entity { max-width: 140px; font-size: 0.82rem !important; }
+        .fmc-audit-actor  { font-size: 0.65rem; }
+        .fmc-audit-amt    { font-size: 0.78rem; }
+    }
+
+    /* Chart Customization */
+    .fmc-chart-container .mud-chart-line { stroke-width: 3px !important; }
+    .fmc-chart-container .mud-chart { width: 100% !important; margin: 0 !important; max-width: none !important; }
+    .fmc-chart-container svg { width: 100% !important; max-width: none !important; }
+    
+    .fmc-timeframe-selector { background: var(--mud-palette-background-grey); padding: 4px; border-radius: 12px; display: flex; gap: 2px; }
+    .fmc-timeframe-btn { 
+        border-radius: 10px !important; font-weight: 800 !important; font-size: 0.65rem !important; 
+        padding: 6px 16px !important; color: var(--mud-palette-text-secondary) !important;
+        text-transform: uppercase !important; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        min-width: 80px !important;
+    }
+    .fmc-timeframe-btn:hover { background-color: rgba(var(--mud-palette-primary-rgb), 0.05) !important; color: var(--mud-palette-primary) !important; }
+    .fmc-timeframe-btn.fmc-btn-active { 
+        background-color: var(--mud-palette-surface) !important; color: var(--mud-palette-primary) !important; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
     }
 </style>
 
@@ -782,6 +976,7 @@
     private List<OrganizationDto> _organizations = new();
     private List<FMC.Shared.DTOs.Admin.AuditLogDto> _auditLogs = new();
     private bool _alertsDismissed;
+    private int _auditLogLimit = 20;
 
     // Computed alert properties
     private List<OrganizationDto> _zeroBalanceTenants =>
@@ -809,6 +1004,14 @@
     private double[] _chartData = Array.Empty<double>();
     private string[] _chartLabels = Array.Empty<string>();
 
+    // SuperAdmin Chart Data
+    private List<ChartSeries<double>> _lineChartSeries = new();
+    private string[] _lineChartLabels = Array.Empty<string>();
+    private ChartOptions _lineChartOptions = new() { 
+        ChartPalette = new[] { "#2ecc71", "#e74c3c" }
+    };
+    private string _selectedTimeframe = "Daily";
+
     [Inject] private ApiFinanceService FinanceService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private IDialogService DialogService { get; set; } = default!;
@@ -824,16 +1027,39 @@
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             var user = authState.User;
             
-            if (user.IsInRole(Roles.SuperAdmin))
+            if (user.IsInRole(Roles.SuperAdmin) || user.IsInRole(Roles.CEO))
             {
-                // Load SuperAdmin specific data
-                var orgsTask = OrgService.GetOrganizationsAsync();
-                var auditTask = OrgService.GetRecentAuditLogsAsync(20, "financial");
+                // Security: CEOs can only see their own organization, SuperAdmins see all.
+                if (user.IsInRole(Roles.CEO))
+                {
+                    var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
+                    if (Guid.TryParse(orgIdClaim, out var orgId))
+                    {
+                        var org = await OrgService.GetByIdAsync(orgId);
+                        if (org != null) 
+                        {
+                            _organizations = new List<OrganizationDto> { org };
+                            _totalBalance = org.TotalBalance; // Set for standard view if fallback happens
+                        }
+                        
+                        // CEOs see their own financial logs for synchronization
+                        _auditLogs = (await OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial")).ToList();
+                    }
+                }
+                else // SuperAdmin
+                {
+                    var orgsTask = OrgService.GetOrganizationsAsync();
+                    var auditTask = OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial");
+                    
+                    await Task.WhenAll(orgsTask, auditTask);
+                    
+                    _organizations = (await orgsTask).ToList();
+                    _auditLogs = (await auditTask).ToList();
+                }
                 
-                await Task.WhenAll(orgsTask, auditTask);
+                // Process chart data
+                PrepareLineChartData();
                 
-                _organizations = (await orgsTask).ToList();
-                _auditLogs = (await auditTask).ToList();
                 _auditLoading = false;
             }
             else 
@@ -890,14 +1116,156 @@
             // Refresh to show updated balances and audit logs
             _auditLoading = true;
             var orgsTask = OrgService.GetOrganizationsAsync();
-            var auditTask = OrgService.GetRecentAuditLogsAsync(20, "financial");
+            var auditTask = OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial");
             
             await Task.WhenAll(orgsTask, auditTask);
             
             _organizations = (await orgsTask).ToList();
             _auditLogs = (await auditTask).ToList();
+            
+            PrepareLineChartData();
+            
             _auditLoading = false;
             StateHasChanged();
         }
+    }
+
+    private void SetTimeframe(string timeframe)
+    {
+        _selectedTimeframe = timeframe;
+        PrepareLineChartData();
+        StateHasChanged();
+    }
+
+    private async Task OnAuditLogLimitChanged(int newLimit)
+    {
+        _auditLogLimit = newLimit;
+        _auditLoading = true;
+        StateHasChanged(); // Show loading immediately
+        
+        var auditLogs = await OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial");
+        _auditLogs = auditLogs.ToList();
+        
+        // Re-process the chart data since the audit pool might have changed
+        PrepareLineChartData();
+        
+        _auditLoading = false;
+        StateHasChanged();
+    }
+
+    private void PrepareLineChartData()
+    {
+        _lineChartSeries.Clear();
+        int count = _selectedTimeframe switch { "Daily" => 14, "Monthly" => 12, "Quarterly" => 8, "Yearly" => 5, _ => 14 };
+        DateTime now = DateTime.Today;
+        
+        var timeSlices = new List<(DateTime start, DateTime end, string label)>();
+        for (int i = 0; i < count; i++)
+        {
+            DateTime start, end;
+            string label;
+
+            if (_selectedTimeframe == "Daily")
+            {
+                start = now.AddDays(-(count - 1 - i));
+                end = start.AddDays(1);
+                label = start.ToString("MMM dd");
+            }
+            else if (_selectedTimeframe == "Monthly")
+            {
+                start = new DateTime(now.Year, now.Month, 1).AddMonths(-(count - 1 - i));
+                end = start.AddMonths(1);
+                label = start.ToString("MMM");
+            }
+            else if (_selectedTimeframe == "Quarterly")
+            {
+                DateTime currentQuarterStart = new DateTime(now.Year, ((now.Month - 1) / 3) * 3 + 1, 1);
+                start = currentQuarterStart.AddMonths(-(count - 1 - i) * 3);
+                end = start.AddMonths(3);
+                label = $"Q{((start.Month - 1) / 3) + 1} '{start.ToString("yy")}";
+            }
+            else // Yearly
+            {
+                start = new DateTime(now.Year, 1, 1).AddYears(-(count - 1 - i));
+                end = start.AddYears(1);
+                label = start.ToString("yyyy");
+            }
+            timeSlices.Add((start, end, label));
+        }
+
+        _lineChartLabels = timeSlices.Select(x => x.label).ToArray();
+
+        // 1. Identify the Top 4 moving tenants in the requested total span
+        var firstStart = timeSlices.First().start;
+        var relevantLogs = _auditLogs.Where(l => l.CreatedAt >= firstStart).ToList();
+
+        var topTenants = relevantLogs
+            .GroupBy(l => string.IsNullOrWhiteSpace(l.EntityName) ? "System" : l.EntityName)
+            .Select(g => new { Name = g.Key, Volume = g.Sum(l => Math.Abs(l.Amount ?? 0)) })
+            .OrderByDescending(t => t.Volume)
+            .Take(4)
+            .Select(t => t.Name)
+            .ToList();
+
+        var trackedEntities = topTenants.ToList();
+        trackedEntities.Add("Others");
+
+        foreach (var tenant in trackedEntities)
+        {
+            var dataPoints = new double[count];
+            
+            // 2. Identify the current real-time balance for this entity group
+            double runningBalance = 0;
+            if (tenant == "Others")
+            {
+                runningBalance = (double)_organizations
+                    .Where(o => !topTenants.Contains(string.IsNullOrWhiteSpace(o.Name) ? "System" : o.Name))
+                    .Sum(o => o.TotalBalance);
+            }
+            else
+            {
+                var org = _organizations.FirstOrDefault(o => o.Name == tenant);
+                runningBalance = (double)(org?.TotalBalance ?? 0);
+            }
+
+            // 3. Trace balance backwards to create a trend.
+            // Each dataPoint[i] represents the balance at the END of that timeframe slice.
+            for (int i = count - 1; i >= 0; i--)
+            {
+                dataPoints[i] = runningBalance;
+                
+                var slice = timeSlices[i];
+                var sliceLogs = relevantLogs.Where(l => l.CreatedAt >= slice.start && l.CreatedAt < slice.end);
+                
+                double sliceMovement = 0;
+                if (tenant == "Others") 
+                {
+                    sliceMovement = (double)sliceLogs
+                        .Where(l => !topTenants.Contains(string.IsNullOrWhiteSpace(l.EntityName) ? "System" : l.EntityName))
+                        .Sum(l => l.Action == "DEBIT" ? -(l.Amount ?? 0) : (l.Amount ?? 0));
+                }
+                else 
+                {
+                    sliceMovement = (double)sliceLogs
+                        .Where(l => (string.IsNullOrWhiteSpace(l.EntityName) ? "System" : l.EntityName) == tenant)
+                        .Sum(l => l.Action == "DEBIT" ? -(l.Amount ?? 0) : (l.Amount ?? 0));
+                }
+                
+                // For the prior point in time, remove the movement that happened during this slice.
+                runningBalance -= sliceMovement;
+            }
+
+            // Bind each resulting line array to its corresponding Tenant Series name to satisfy tooltip requirements intelligently.
+            if (dataPoints.Any(d => d != 0) || tenant == "Others") 
+            {
+                var shortTenant = tenant.Length > 15 ? tenant.Substring(0, 15) + ".." : tenant;
+                _lineChartSeries.Add(new ChartSeries<double> { Name = shortTenant, Data = dataPoints });
+            }
+        }
+
+        // Apply distinct colors to easily identify disparate top subscribers
+        _lineChartOptions = new ChartOptions { 
+            ChartPalette = new[] { "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#64748b" }
+        };
     }
 }

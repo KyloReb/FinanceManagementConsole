@@ -22,13 +22,25 @@ public class CurrentUserService : ICurrentUserService
     public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
 
     /// <summary>
-    /// In this single-tenant-per-user model, the UserId doubles as the TenantId.
-    /// This can be expanded later to support organization-based TenantIds.
+    /// In this model, we first check for an Organization-level tenant context.
+    /// If missing, it falls back to the individual User's ID.
     /// </summary>
-    public string? TenantId => UserId;
+    public string? TenantId 
+    {
+        get
+        {
+            var orgId = _httpContextAccessor.HttpContext?.User?.FindFirstValue("OrganizationId");
+            return !string.IsNullOrEmpty(orgId) ? orgId : UserId;
+        }
+    }
 
     /// <summary>
     /// True if the HTTP Context has an authenticated User identity.
     /// </summary>
     public bool IsAuthenticated => _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+
+    /// <summary>
+    /// Evaluates if the current user has the SuperAdmin/System Admin role, bypassing standard tenancy.
+    /// </summary>
+    public bool IsSuperAdmin => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin) == true;
 }

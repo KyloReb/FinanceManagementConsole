@@ -14,7 +14,7 @@ public interface IJwtService
     /// <param name="lastName">The user's last name.</param>
     /// <param name="roles">The roles assigned to the user.</param>
     /// <returns>A string representation of the signed JWT.</returns>
-    string GenerateToken(string userId, string email, string? firstName, string? lastName, IEnumerable<string> roles, string? organization);
+    string GenerateToken(string userId, string email, string? firstName, string? lastName, IEnumerable<string> roles, string? organization, string? organizationId);
 
     /// <summary>
     /// Generates a high-entropy refresh token string.

@@ -73,3 +73,18 @@ public class UpdateOrganizationDto
     /// <summary>Whether the organization should be marked as active or suspended.</summary>
     public bool IsActive { get; set; }
 }
+
+/// <summary>
+/// High-level financial KPIs for a specific organization, used in the CEO Dashboard.
+/// </summary>
+public class OrganizationDashboardMetricsDto
+{
+    /// <summary>Total corporate liquidity (sum of all user wallets).</summary>
+    public decimal TotalBalance { get; set; }
+
+    /// <summary>Total number of affiliated workforce members.</summary>
+    public int UserCount { get; set; }
+
+    /// <summary>Total settlement volume in the last 24 hours.</summary>
+    public decimal DailyVolume { get; set; }
+}

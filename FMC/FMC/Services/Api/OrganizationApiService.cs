@@ -12,6 +12,9 @@ public class OrganizationApiService
 {
     private readonly HttpClient _httpClient;
 
+    public event Action? OnDataChanged;
+    public void NotifyDataChanged() => OnDataChanged?.Invoke();
+
     public OrganizationApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
@@ -80,6 +83,26 @@ public class OrganizationApiService
     {
         var response = await _httpClient.PostAsJsonAsync($"api/organizations/{id}/adjust-balance", new { Amount = amount, Label = label });
         return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>
+    /// CEO Endpoint: Adjusts the balance of an individual user within the CEO's organization.
+    /// </summary>
+    public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label)
+    {
+        var response = await _httpClient.PostAsJsonAsync($"api/users/{userId}/adjust-balance", new { Amount = amount, Label = label });
+        return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>
+    /// CEO Endpoint: Retrieves high-level financial metrics for the CEO's affiliated organization.
+    /// </summary>
+    public async Task<OrganizationDashboardMetricsDto?> GetOrganizationMetricsAsync(Guid organizationId)
+    {
+        var response = await _httpClient.GetAsync($"api/organizations/{organizationId}/dashboard-metrics");
+        if (!response.IsSuccessStatusCode) return null;
+        
+        return await response.Content.ReadFromJsonAsync<OrganizationDashboardMetricsDto>();
     }
 
     /// <summary>

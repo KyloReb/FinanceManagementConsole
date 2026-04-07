@@ -10,6 +10,13 @@
     <MudDivider Class="my-2" />
     <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
 
+    <AuthorizeView Roles="@FMC.Shared.Auth.Roles.CEO">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudNavLink Href="ceo/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Business">Corporate Overview</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
     <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin">
         <Authorized>
             <MudDivider Class="my-2" />

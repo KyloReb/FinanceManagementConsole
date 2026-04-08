@@ -45,9 +45,11 @@
                     {
                         @foreach (var col in _grid.RenderedColumns.Where(x => !string.IsNullOrWhiteSpace(x.Title)))
                         {
-                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.SetState(x => x.Hidden, !col.GetState(x => x.Hidden)); StateHasChanged(); })">
+#pragma warning disable BL0005, MUD0012
+                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.Hidden = !col.Hidden; StateHasChanged(); })">
                                 <div class="d-flex align-center cursor-pointer">
-                                    <MudCheckBox T="bool" Value="@(!col.GetState(x => x.Hidden))" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
+                                    <MudCheckBox T="bool" Value="@(!col.Hidden)" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
+#pragma warning restore BL0005, MUD0012
                                     <MudText Typo="Typo.body2" Class="ml-2">@col.Title</MudText>
                                 </div>
                             </MudMenuItem>

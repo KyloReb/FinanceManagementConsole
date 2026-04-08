@@ -26,7 +26,7 @@
                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Payments"
                                      Format="N0" HideSpinButtons="true" Min="0.01m"
                                      Placeholder="e.g. 5,000" Class="fmc-amount-field"
-                                     Validation="@(new Func<decimal?, string>(ValidateAmount))" />
+                                     Validation="@(new Func<decimal?, string?>(ValidateAmount))" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_label" Label="Transaction Reference / Note" 

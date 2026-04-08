@@ -194,7 +194,7 @@
             _loading = true;
             _users = await AdminService.GetUsersAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             Snackbar.Add("Failed to generate account inventory trace.", Severity.Error);
         }
@@ -207,7 +207,7 @@
     private IEnumerable<UserDto> FilteredUsers => 
         _users?.Where(u => string.IsNullOrWhiteSpace(_searchString) || 
                           u.DisplayName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
-                          u.Email.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<UserDto>();
+                          (u.Email ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ?? Enumerable.Empty<UserDto>();
 
     private string GetInitials(UserDto user)
     {

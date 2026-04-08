@@ -434,8 +434,8 @@
                         else
                         {
                             <div class="fmc-chart-container" style="min-height:420px; width: 100%; overflow: visible;">
-                                @* MUD0002 suppressed: XAxisLabels is functional in this MudBlazor version *@
-                                <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@_lineChartSeries" XAxisLabels="@_lineChartLabels" 
+                                <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@_lineChartSeries" 
+                                          @attributes="@(new Dictionary<string, object> { { "XAxisLabels", _lineChartLabels } })"
                                           Width="100%" Height="380px" ChartOptions="@_lineChartOptions" />
                             </div>
                         }
@@ -1112,7 +1112,7 @@
             
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not null && !result.Canceled)
         {
             // Refresh to show updated balances and audit logs
             _auditLoading = true;

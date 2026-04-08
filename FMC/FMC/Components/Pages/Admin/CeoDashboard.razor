@@ -88,9 +88,9 @@
                 else
                 {
                     <div class="fmc-ceo-chart-wrap" style="height:350px; width:100%;">
-                        @* MUD0002 suppressed: XAxisLabels is functional in this MudBlazor version *@
                         <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@_lineChartSeries" 
-                                  XAxisLabels="@_lineChartLabels" Width="100%" Height="350px" 
+                                  @attributes="@(new Dictionary<string, object> { { "XAxisLabels", _lineChartLabels } })" 
+                                  Width="100%" Height="350px" 
                                   ChartOptions="@_chartOptions" />
                     </div>
                 }
@@ -338,7 +338,7 @@
                 PrepareLineChartData();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             Snackbar.Add("Failed to synchronize corporate data.", Severity.Error);
         }

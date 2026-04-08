@@ -88,6 +88,7 @@
                 else
                 {
                     <div class="fmc-ceo-chart-wrap" style="height:350px; width:100%;">
+                        @* MUD0002 suppressed: XAxisLabels is functional in this MudBlazor version *@
                         <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@_lineChartSeries" 
                                   XAxisLabels="@_lineChartLabels" Width="100%" Height="350px" 
                                   ChartOptions="@_chartOptions" />
@@ -156,7 +157,7 @@
 
         @* DESKTOP TABLE *@
         <div class="d-none d-md-block">
-            <MudTable Items="@_affiliatedUsers" Loading="@_loading" Hover="true" Elevation="0" Class="fmc-ceo-table" QuickFilter="@UserFilter">
+            <MudTable Items="@_affiliatedUsers" Loading="@_loading" Hover="true" Elevation="0" Class="fmc-ceo-table" Filter="@UserFilter">
                 <HeaderContent>
                     <MudTh>PERSONNEL</MudTh>
                     <MudTh>EMAIL</MudTh>

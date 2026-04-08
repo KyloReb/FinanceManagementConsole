@@ -126,7 +126,7 @@
                     }
 
                     <MudItem xs="12">
-                        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-8" Class="fmc-profile-tabs">
+                        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="fmc-profile-tabs">
                             <MudTabPanel Text="Identity Mapping" Icon="@Icons.Material.Filled.Fingerprint">
                                 <div class="px-8 pt-8 pb-4">
                                     <MudText Typo="Typo.overline" Style="color:var(--mud-palette-primary); font-weight:900; letter-spacing:1px;">INSTITUTIONAL IDENTITY RECORDS</MudText>
@@ -198,7 +198,7 @@
                                         <HeaderContent>
                                             <MudTh Class="fmc-th pl-8">DATE</MudTh>
                                             <MudTh Class="fmc-th">EVENT LABEL</MudTh>
-                                            <MudTh Align="Align.Right" Class="fmc-th pr-8">ADJUSTMENT</MudTh>
+                                            <MudTh Class="fmc-th pr-8" Style="text-align:right">ADJUSTMENT</MudTh>
                                         </HeaderContent>
                                         <RowTemplate>
                                             <MudTd DataLabel="Date" Class="pl-8 py-4">@context.Date.ToString("MMM dd, yyyy")</MudTd>
@@ -211,7 +211,7 @@
                                                     <MudText Typo="Typo.body2" Style="font-weight:600; color: var(--mud-palette-text-primary);">@context.Label</MudText>
                                                 </div>
                                             </MudTd>
-                                            <MudTd DataLabel="Amount" Align="Align.Right" Class="pr-8">
+                                            <MudTd DataLabel="Amount" Class="pr-8" Style="text-align:right">
                                                 <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight:800; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; font-size:1.1rem; letter-spacing:-0.5px;">
                                                     @(context.Amount > 0 ? "+" : "")@context.Amount.ToString("N2")
                                                 </MudText>

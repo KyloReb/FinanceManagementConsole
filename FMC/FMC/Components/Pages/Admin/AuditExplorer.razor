@@ -16,26 +16,26 @@
     <div class="fmc-page-header mb-6 mb-md-8 flex-column flex-md-row align-start align-md-center">
         <div class="d-flex align-center mb-4 mb-md-0">
             <div class="fmc-header-icon-wrap mr-3 mr-md-5">
-                <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Size="Size.Medium" SizeMd="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Size="Size.Large" />
             </div>
             <div>
-                <MudText Typo="Typo.h5" TypoMd="Typo.h4" Style="font-weight: 900; letter-spacing: -0.02em;">Audit Intelligence Explorer</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 900; letter-spacing: -0.02em;">Audit Intelligence Explorer</MudText>
                 <MudText Typo="Typo.subtitle2" Class="mud-text-secondary d-none d-sm-block">Securing the network through forensic visibility and financial compliance</MudText>
             </div>
         </div>
         <div class="d-flex gap-3 w-100 w-md-auto justify-end">
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileDownload" 
-                       Size="Size.Small" SizeMd="Size.Medium"
+                       Size="Size.Medium"
                        Style="border-radius:12px; text-transform:none; font-weight:700;">Export</MudButton>
         </div>
     </div>
 
     @* ANALYTICS SUMMARY - COMPACT GRID *@
-    <MudGrid Spacing="2" SpacingMd="4" Class="mb-4">
+    <MudGrid Spacing="3" Class="mb-4">
         <MudItem xs="4" md="4">
             <div class="fmc-stat-card compact">
                 <MudText Typo="Typo.subtitle2" Class="fmc-stat-label">EVENTS</MudText>
-                <MudText Typo="Typo.h5" TypoMd="Typo.h3" Style="font-weight:900;">@_searchResult.TotalCount.ToString("N0")</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:900;">@_searchResult.TotalCount.ToString("N0")</MudText>
                 <div class="fmc-stat-trend up d-none d-sm-flex">
                     <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
                     <span>+12%</span>
@@ -45,7 +45,7 @@
         <MudItem xs="4" md="4">
             <div class="fmc-stat-card compact">
                 <MudText Typo="Typo.subtitle2" Class="fmc-stat-label">FINANCE</MudText>
-                <MudText Typo="Typo.h5" TypoMd="Typo.h3" Style="font-weight:900;">@_financialCount.ToString("N0")</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:900;">@_financialCount.ToString("N0")</MudText>
                 <div class="fmc-stat-trend d-none d-sm-flex">
                     <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Small" />
                     <span>Ledger</span>
@@ -55,7 +55,7 @@
         <MudItem xs="4" md="4">
             <div class="fmc-stat-card compact">
                 <MudText Typo="Typo.subtitle2" Class="fmc-stat-label">SECURITY</MudText>
-                <MudText Typo="Typo.h5" TypoMd="Typo.h3" Style="font-weight:900;">@_authCount.ToString("N0")</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:900;">@_authCount.ToString("N0")</MudText>
                 <div class="fmc-stat-trend warning d-none d-sm-flex">
                     <MudIcon Icon="@Icons.Material.Filled.VpnKey" Size="Size.Small" />
                     <span>Auth</span>
@@ -64,11 +64,11 @@
         </MudItem>
     </MudGrid>
 
-    <MudGrid Spacing="2" SpacingMd="4">
+    <MudGrid Spacing="3">
         @* FILTER ENGINE - STREAMLINED *@
         <MudItem xs="12">
             <MudPaper Elevation="0" Class="fmc-filter-surface pa-4 pa-md-6">
-                <MudGrid Spacing="2" SpacingMd="3" Class="align-end">
+                <MudGrid Spacing="3" Class="align-end">
                     <MudItem xs="12" sm="6" md="3">
                         <MudDateRangePicker Label="Date Boundary" @bind-DateRange="_dateRange" 
                                            PlaceholderStart="Start" PlaceholderEnd="End"

@@ -31,7 +31,7 @@
     <MudPaper Elevation="0" Class="pa-4 pa-sm-6 overflow-x-auto" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
         <MudDataGrid @ref="_grid" Items="@_organizations" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
                       Filterable="true" SortMode="SortMode.Multiple" DragDropColumnReordering="true" ColumnResizeMode="ResizeMode.None"
-                      FixedLayout="false" ShowColumnOptions="true" Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">
+                      ShowColumnOptions="true" Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">
             <ToolBarContent>
                 <MudText Typo="Typo.h6" Style="font-weight: 600;">System Tenants</MudText>
                 <MudSpacer />
@@ -48,9 +48,9 @@
                     {
                         @foreach (var col in _grid.RenderedColumns.Where(x => !string.IsNullOrWhiteSpace(x.Title)))
                         {
-                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.Hidden = !col.Hidden; StateHasChanged(); })">
+                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.SetState(x => x.Hidden, !col.GetState(x => x.Hidden)); StateHasChanged(); })">
                                 <div class="d-flex align-center cursor-pointer">
-                                    <MudCheckBox T="bool" Value="@(!col.Hidden)" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
+                                    <MudCheckBox T="bool" Value="@(!col.GetState(x => x.Hidden))" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
                                     <MudText Typo="Typo.body2" Class="ml-2">@col.Title</MudText>
                                 </div>
                             </MudMenuItem>
@@ -59,7 +59,7 @@
                 </MudMenu>
             </ToolBarContent>
             <Columns>
-                <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;" Dragable="false" Resizable="false">
+                <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;" Resizable="false">
                     <CellTemplate>
                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Size="Size.Small">
                              <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
@@ -78,7 +78,7 @@
                         </MudMenu>
                     </CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.Name" Title="Organization" Hideable="true" Resizable="true" FlexGrow="1">
+                <PropertyColumn Property="x => x.Name" Title="Organization" Hideable="true" Resizable="true">
                     <CellTemplate>
                         <div class="d-flex align-center">
                             <MudAvatar Color="@GetAvatarColor(context.Item.Name)" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
@@ -101,7 +101,7 @@
                     </CellTemplate>
                 </PropertyColumn>
                 
-                <PropertyColumn Property="x => x.Description" Title="Description" Hideable="true" Resizable="true" FlexGrow="1" />
+                <PropertyColumn Property="x => x.Description" Title="Description" Hideable="true" Resizable="true" />
                 
                 <PropertyColumn Property="x => x.UserCount" Title="Affiliated Users" Hideable="true" Resizable="true">
                     <CellTemplate>

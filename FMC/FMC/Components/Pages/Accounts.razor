@@ -75,8 +75,8 @@
                 <MudTh Class="fmc-th">INSTITUTIONAL IDENTITY</MudTh>
                 <MudTh Class="fmc-th">AUTHORITY / ROLE</MudTh>
                 <MudTh Class="fmc-th">TENANT AFFILIATION</MudTh>
-                <MudTh Align="Align.Right" Class="fmc-th">LIQUIDITY BALANCE</MudTh>
-                <MudTh Align="Align.Right" Class="fmc-th">ACTIONS</MudTh>
+                <MudTh Class="fmc-th" Style="text-align:right">LIQUIDITY BALANCE</MudTh>
+                <MudTh Class="fmc-th" Style="text-align:right">ACTIONS</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Identity" Class="py-4">
@@ -102,12 +102,12 @@
                         <MudText Typo="Typo.caption" Style="opacity:0.5; font-family:monospace;">ID: @(context.OrganizationId?.ToString().Substring(0, 8) ?? "N/A")</MudText>
                     </div>
                 </MudTd>
-                <MudTd DataLabel="Balance" Align="Align.Right">
+                <MudTd DataLabel="Balance" Style="text-align:right">
                     <MudText Typo="Typo.body1" Style="font-weight:800; font-family: 'JetBrains Mono', monospace; font-size:1.05rem;">
                         ₱@context.Balance.ToString("N2")
                     </MudText>
                 </MudTd>
-                <MudTd DataLabel="Actions" Align="Align.Right">
+                <MudTd DataLabel="Actions" Style="text-align:right">
                     <div class="d-flex justify-end gap-2">
                         <MudTooltip Text="Forensic Profile Trace">
                             <MudIconButton Icon="@Icons.Material.Filled.QueryStats" Color="Color.Primary" Size="Size.Small" 

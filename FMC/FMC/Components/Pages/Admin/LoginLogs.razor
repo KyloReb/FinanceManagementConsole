@@ -17,7 +17,7 @@
     <MudPaper Elevation="0" Class="pa-6 d-none d-md-block" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
         <MudDataGrid @ref="_grid" Items="@_logs" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
                       Filterable="true" SortMode="SortMode.Multiple" Groupable="true" DragDropColumnReordering="true" ColumnResizeMode="ResizeMode.None"
-                      FixedLayout="false" ShowColumnOptions="true" Elevation="0" T="AuditLogDto" Class="fmc-admin-grid">
+                      ShowColumnOptions="true" Elevation="0" T="AuditLogDto" Class="fmc-admin-grid">
             <ToolBarContent>
                 <MudText Typo="Typo.h6" Style="font-weight: 600;">System Logs</MudText>
                 <MudSpacer />
@@ -39,9 +39,9 @@
                     {
                         @foreach (var col in _grid.RenderedColumns.Where(x => !string.IsNullOrWhiteSpace(x.Title) && !x.Title.Contains("[System]")))
                         {
-                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.Hidden = !col.Hidden; StateHasChanged(); })">
+                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.SetState(x => x.Hidden, !col.GetState(x => x.Hidden)); StateHasChanged(); })">
                                 <div class="d-flex align-center cursor-pointer">
-                                    <MudCheckBox T="bool" Value="@(!col.Hidden)" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
+                                    <MudCheckBox T="bool" Value="@(!col.GetState(x => x.Hidden))" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
                                     <MudText Typo="Typo.body2" Class="ml-2">@col.Title</MudText>
                                 </div>
                             </MudMenuItem>
@@ -50,11 +50,11 @@
                 </MudMenu>
             </ToolBarContent>
             <Columns>
-                <PropertyColumn Property="x => x.CreatedAt.ToLocalTime()" Title="Timestamp" Format="yyyy-MM-dd HH:mm:ss" Sortable="true" Groupable="false" Hideable="false" Resizable="true" FlexGrow="1" />
-                <PropertyColumn Property="x => x.UserName" Title="Username" Grouping="@(_currentGroup == "UserName")" Hideable="false" Resizable="true" FlexGrow="1" />
-                <PropertyColumn Property="x => x.Organization" Title="Organization" Grouping="@(_currentGroup == "Organization")" Hideable="true" Resizable="true" FlexGrow="1" />
-                <PropertyColumn Property="x => x.IpAddress" Title="IP Address" Groupable="false" Hideable="true" Resizable="true" FlexGrow="1" />
-                <TemplateColumn Title="Device" SortBy="@(x => x.Device)" Sortable="true" Filterable="true" Hideable="false" Resizable="true" FlexGrow="1">
+                <PropertyColumn Property="x => x.CreatedAt.ToLocalTime()" Title="Timestamp" Format="yyyy-MM-dd HH:mm:ss" Sortable="true" Groupable="false" Hideable="false" Resizable="true" />
+                <PropertyColumn Property="x => x.UserName" Title="Username" Grouping="@(_currentGroup == "UserName")" Hideable="false" Resizable="true" />
+                <PropertyColumn Property="x => x.Organization" Title="Organization" Grouping="@(_currentGroup == "Organization")" Hideable="true" Resizable="true" />
+                <PropertyColumn Property="x => x.IpAddress" Title="IP Address" Groupable="false" Hideable="true" Resizable="true" />
+                <TemplateColumn Title="Device" SortBy="@(x => x.Device)" Sortable="true" Filterable="true" Hideable="false" Resizable="true">
                     <CellTemplate>
                         <MudTooltip Text="@context.Item.Device" Arrow="true" Placement="Placement.Top">
                             <div class="d-flex align-center">
@@ -64,13 +64,13 @@
                         </MudTooltip>
                     </CellTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.CreatedAt.Date" Title="[System] Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" Hideable="true" Resizable="true" FlexGrow="1" />
-                <TemplateColumn Title="Event" SortBy="@(x => x.Action)" Sortable="true" Filterable="true" Grouping="@(_currentGroup == "Action")" Hideable="false" Resizable="true" FlexGrow="1">
+                <PropertyColumn Property="x => x.CreatedAt.Date" Title="[System] Day" Hidden="true" Grouping="@(_currentGroup == "CreatedDate")" Hideable="true" Resizable="true" />
+                <TemplateColumn Title="Event" SortBy="@(x => x.Action)" Sortable="true" Filterable="true" Grouping="@(_currentGroup == "Action")" Hideable="false" Resizable="true">
                     <CellTemplate>
                         @GetEventChip(context.Item.Action)
                     </CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Additional Details" SortBy="@(x => x.Details)" Sortable="true" Filterable="true" Hideable="true" Resizable="true" FlexGrow="1">
+                <TemplateColumn Title="Additional Details" SortBy="@(x => x.Details)" Sortable="true" Filterable="true" Hideable="true" Resizable="true">
                     <CellTemplate>
                         <MudTooltip Text="@context.Item.Details">
                             <MudText Typo="Typo.body2" Style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" Class="mud-text-secondary">

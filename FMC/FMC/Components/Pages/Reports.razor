@@ -1,5 +1,226 @@
 @page "/reports"
 @attribute [Authorize]
-<PageTitle>Reports</PageTitle>
-<MudText Typo="Typo.h4" Class="mb-4">Reports</MudText>
-<MudAlert Severity="Severity.Info">Under Construction: Advanced reports and analytics are coming soon.</MudAlert>
+@using FMC.Shared.Auth
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
+    @* ── ANALYTICS HEADER ── *@
+    <div class="d-flex align-center justify-space-between mb-8">
+        <div class="d-flex align-center">
+            <div class="fmc-reports-accent mr-5"></div>
+            <div class="d-flex flex-column">
+                <MudText Typo="Typo.h3" Class="fmc-hero-text">Intelligence Terminal</MudText>
+                <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">Forensic Reporting & Capital Analytics Hub</MudText>
+            </div>
+        </div>
+        <div class="d-flex gap-3">
+             <MudDateRangePicker Label="Reporting Period" @bind-DateRange="_dateRange" 
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" 
+                                 Class="fmc-report-picker d-none d-sm-flex" />
+             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" 
+                        OnClick="SimulateRefresh" Class="fmc-report-gen-btn">
+                 Generate Live Brief
+             </MudButton>
+        </div>
+    </div>
+
+    @* ── INTELLIGENCE TELEMETRY ── *@
+    <MudGrid Spacing="3" Class="mb-8">
+        <MudItem xs="12" sm="4">
+            <div class="fmc-report-stat-card">
+                <div class="fmc-stat-icon-wrap primary"><MudIcon Icon="@Icons.Material.Filled.PieChart" /></div>
+                <div class="ml-4">
+                    <MudText Typo="Typo.overline" Class="fmc-stat-label">TOTAL VOLUME</MudText>
+                    <MudText Typo="Typo.h5" Class="fmc-stat-val">₱14.8M</MudText>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <div class="fmc-report-stat-card">
+                <div class="fmc-stat-icon-wrap success"><MudIcon Icon="@Icons.Material.Filled.TrendingUp" /></div>
+                <div class="ml-4">
+                    <MudText Typo="Typo.overline" Class="fmc-stat-label">NET ADJUSTMENT</MudText>
+                    <MudText Typo="Typo.h5" Class="fmc-stat-val success">+₱2.4M</MudText>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <div class="fmc-report-stat-card">
+                <div class="fmc-stat-icon-wrap info"><MudIcon Icon="@Icons.Material.Filled.AccountBalance" /></div>
+                <div class="ml-4">
+                    <MudText Typo="Typo.overline" Class="fmc-stat-label">AUDIT CLEARANCE</MudText>
+                    <MudText Typo="Typo.h5" Class="fmc-stat-val">99.98%</MudText>
+                </div>
+            </div>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Spacing="3">
+        @* ── REPORT INVENTORY ── *@
+        <MudItem xs="12" md="8">
+            <div class="fmc-reports-surface">
+                <div class="fmc-surface-header">
+                    <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Report Inventory</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="_search" Placeholder="Filter reports..." Adornment="Adornment.Start" 
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" 
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-filter-input" />
+                </div>
+                
+                <div class="pa-2">
+                    <MudTable Items="@_availableReports" Dense="true" Hover="true" Elevation="0" 
+                              Filter="new Func<ReportMetadata,bool>(FilterFunc)" Class="fmc-reports-table">
+                        <HeaderContent>
+                            <MudTh>REPORT NAME</MudTh>
+                            <MudTh>TYPE</MudTh>
+                            <MudTh>GENERATED</MudTh>
+                            <MudTh>SIZE</MudTh>
+                            <MudTh Style="text-align:right">ACTIONS</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="NAME">
+                                <div class="d-flex flex-column">
+                                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@context.Name</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Description</MudText>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Color="@GetChipColor(context.Category)" Size="Size.Small" 
+                                         Variant="Variant.Text" Style="font-weight:800; font-size:0.6rem;">@context.Category</MudChip>
+                            </MudTd>
+                            <MudTd>@context.GeneratedAt.ToString("MMM dd, yyyy")</MudTd>
+                            <MudTd>@context.Filesize</MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudMenu Icon="@Icons.Material.Filled.FileDownload" Size="Size.Small" AnchorOrigin="Origin.BottomRight">
+                                    <MudMenuItem OnClick="@(() => Export("PDF"))">Export as PDF</MudMenuItem>
+                                    <MudMenuItem OnClick="@(() => Export("CSV"))">Export as CSV</MudMenuItem>
+                                    <MudMenuItem OnClick="@(() => Export("Excel"))">Export as Excel</MudMenuItem>
+                                </MudMenu>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            </div>
+        </MudItem>
+
+        @* ── DISTRIBUTION ANALYTICS ── *@
+        <MudItem xs="12" md="4">
+            <div class="fmc-reports-surface h-100">
+                <div class="fmc-surface-header">
+                    <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Class="mr-3" Color="Color.Secondary" />
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Institutional Distribution</MudText>
+                </div>
+                <div class="d-flex flex-column align-center justify-center pa-8">
+                    <MudChart ChartType="ChartType.Donut" T="double" InputData="@_chartData" InputLabels="@_chartLabels" 
+                              Width="220px" Height="220px" LegendPosition="Position.Bottom" />
+                    <div class="mt-6 w-100">
+                        <div class="d-flex justify-space-between mb-1">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Corporate Liquidity</MudText>
+                            <MudText Typo="Typo.caption" Style="font-weight: 800;">64%</MudText>
+                        </div>
+                        <MudProgressLinear Color="Color.Primary" Value="64" Size="Size.Small" Class="rounded-pill mb-4" />
+                        
+                        <div class="d-flex justify-space-between mb-1">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Reserve Capital</MudText>
+                            <MudText Typo="Typo.caption" Style="font-weight: 800;">36%</MudText>
+                        </div>
+                        <MudProgressLinear Color="Color.Secondary" Value="36" Size="Size.Small" Class="rounded-pill" />
+                    </div>
+                </div>
+            </div>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<style>
+    .fmc-reports-accent { width: 6px; height: 50px; background: var(--mud-palette-primary); border-radius: 4px; }
+    .fmc-hero-text { font-weight: 900 !important; letter-spacing: -0.02em; }
+    .fmc-subtitle { color: var(--mud-palette-text-secondary); font-weight: 600; }
+    
+    .fmc-report-picker { background: var(--mud-palette-surface); width: 280px; }
+    .fmc-report-gen-btn { height: 40px; border-radius: 10px; font-weight: 800; text-transform: none; }
+
+    /* Stat Cards */
+    .fmc-report-stat-card {
+        background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider);
+        padding: 20px; border-radius: 20px; display: flex; align-items: center;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+    .fmc-report-stat-card:hover { transform: translateY(-3px); border-color: var(--mud-palette-primary); }
+    .fmc-stat-icon-wrap { 
+        width: 48px; height: 48px; border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center;
+    }
+    .fmc-stat-icon-wrap.primary { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); }
+    .fmc-stat-icon-wrap.success { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
+    .fmc-stat-icon-wrap.info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
+    .fmc-stat-label { font-weight: 800; color: var(--mud-palette-text-secondary); letter-spacing: 0.1em; font-size: 0.65rem; }
+    .fmc-stat-val { font-weight: 900; }
+    .fmc-stat-val.success { color: var(--mud-palette-success); }
+
+    /* Surface */
+    .fmc-reports-surface {
+        background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider);
+        border-radius: 24px; overflow: hidden; display: flex; flex-direction: column;
+    }
+    .fmc-surface-header {
+        padding: 20px 24px; border-bottom: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-background-grey); display: flex; align-items: center;
+    }
+    .fmc-filter-input { background: var(--mud-palette-surface); width: 200px; }
+    
+    .fmc-reports-table { background: transparent !important; }
+    ::deep .mud-table-head { background: var(--mud-palette-background-grey); }
+    ::deep .mud-th { font-weight: 800 !important; font-size: 0.7rem !important; color: var(--mud-palette-text-secondary) !important; letter-spacing: 0.05em; }
+
+</style>
+
+@code {
+    private DateRange _dateRange = new DateRange(DateTime.Now.Date.AddDays(-30), DateTime.Now.Date);
+    private string _search = "";
+    private double[] _chartData = { 64, 36 };
+    private string[] _chartLabels = { "Institutional", "Operational" };
+
+    private record ReportMetadata(string Name, string Description, string Category, DateTime GeneratedAt, string Filesize, string Roles = "");
+    private List<ReportMetadata> _allReports = new()
+    {
+        new("Institutional Audit Summary", "Comprehensive forensic log of all ledger adjustments.", "FINANCIAL", DateTime.Now.AddDays(-1), "2.4 MB"),
+        new("Capital Velocity Matrix", "Detailed cashflow analysis across all organizational nodes.", "INTELLIGENCE", DateTime.Now.AddDays(-2), "1.1 MB"),
+        new("Tenant Health Ledger", "Risk assessment and liquidity status of all subscribers.", "SYSTEM", DateTime.Now.AddDays(-3), "840 KB", Roles.SuperAdmin),
+        new("Personnel Adjustment Brief", "Summary of all debit/credit actions performed by managers.", "HR", DateTime.Now.AddDays(-5), "450 KB", Roles.CEO),
+        new("Consolidated Balance Brief", "Simplified institutional balance sheet for executive review.", "FINANCIAL", DateTime.Now.AddDays(-7), "1.8 MB")
+    };
+    private List<ReportMetadata> _availableReports = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        _availableReports = _allReports
+            .Where(r => string.IsNullOrEmpty(r.Roles) || user.IsInRole(r.Roles))
+            .ToList();
+    }
+
+    private bool FilterFunc(ReportMetadata report)
+    {
+        if (string.IsNullOrWhiteSpace(_search)) return true;
+        if (report.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)) return true;
+        if (report.Category.Contains(_search, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private Color GetChipColor(string category) => category switch
+    {
+        "FINANCIAL" => Color.Primary,
+        "INTELLIGENCE" => Color.Secondary,
+        "SYSTEM" => Color.Info,
+        _ => Color.Default
+    };
+
+    private void SimulateRefresh() => Snackbar.Add("Regenerating live intelligence briefings...", Severity.Info);
+    
+    private void Export(string format) => Snackbar.Add($"Preparing {format} export for download...", Severity.Success);
+}

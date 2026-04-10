@@ -54,12 +54,24 @@ public class OrganizationsController : ControllerBase
     /// Retrieves all active organizations, ordered alphabetically.
     /// </summary>
     /// <response code="200">Returns the list of active organizations.</response>
-    [AllowAnonymous]
+    /// <response code="200">Returns the list of active organizations.</response>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<OrganizationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OrganizationDto>>> GetAll(CancellationToken cancellationToken)
     {
         var result = await _organizationService.GetAllAsync(cancellationToken);
+
+        if (User.IsInRole(Roles.CEO))
+        {
+            var userOrgClaim = User.FindFirst("OrganizationId")?.Value;
+            if (string.IsNullOrEmpty(userOrgClaim) || !Guid.TryParse(userOrgClaim, out var claimId))
+            {
+                return Ok(Enumerable.Empty<OrganizationDto>());
+            }
+
+            return Ok(result.Where(o => o.Id == claimId).ToList());
+        }
+
         return Ok(result);
     }
 
@@ -191,7 +203,8 @@ public class OrganizationsController : ControllerBase
         {
             TotalBalance = org.TotalBalance,
             UserCount = org.UserCount,
-            DailyVolume = 0 // Future: aggregate from transactions
+            DailyVolume = 0, // Future: aggregate from transactions
+            WalletLimit = org.WalletLimit
         };
 
         return Ok(metrics);

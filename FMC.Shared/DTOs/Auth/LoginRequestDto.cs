@@ -15,6 +15,7 @@ public class LoginRequestDto
     public string Password { get; set; } = string.Empty;
 
     public bool RememberMe { get; set; }
+    public bool IsStepUp { get; set; }
 
     public string? OtpCode { get; set; }
 }

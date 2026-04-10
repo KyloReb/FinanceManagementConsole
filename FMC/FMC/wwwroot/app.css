@@ -72,3 +72,28 @@ h1:focus {
     border: none !important;
     outline: none !important;
 }
+
+.fmc-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: fmc-breathing 2s infinite ease-in-out;
+}
+
+@keyframes fmc-breathing {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.6;
+    }
+
+    50% {
+        transform: scale(1.4);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.9);
+        opacity: 0.6;
+    }
+}

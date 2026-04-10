@@ -1,0 +1,164 @@
+@using MudBlazor
+@using FMC.Services.Api
+@using Microsoft.AspNetCore.Components.Authorization
+
+<MudDialog Class="fmc-security-dialog">
+    <DialogContent>
+        <div class="pa-6 text-center">
+            <div class="fmc-security-icon-wrap mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Shield" Color="Color.Primary" Size="Size.Large" />
+            </div>
+            <MudText Typo="Typo.h5" Style="font-weight: 800; letter-spacing: -0.5px;">Security Verification</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2 px-4">
+                You are about to authorize a critical financial adjustment. Please re-enter your administrator password to proceed.
+            </MudText>
+
+            <div class="mt-8 text-left">
+                <MudTextField @bind-Value="_password" 
+                               Label="Administrator Password" 
+                               Variant="Variant.Outlined" 
+                               InputType="@PasswordInput" 
+                               Adornment="Adornment.End" 
+                               AdornmentIcon="@PasswordInputIcon"
+                               OnAdornmentClick="TogglePasswordVisibility"
+                               AutoFocus="true"
+                               OnKeyDown="HandleKeyDown"
+                               FullWidth="true" />
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="d-flex justify-center w-100 pb-8 px-8">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Class="mr-4" Style="text-transform:none; font-weight:600;">Cancel</MudButton>
+            <MudButton Color="Color.Primary" 
+                       Variant="Variant.Filled" 
+                       OnClick="Submit" 
+                       Disabled="@IsButtonDisabled"
+                       Style="text-transform:none; font-weight:700; border-radius:12px; height:48px; min-width:160px;">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Verifying...</span>
+                }
+                else if (SecurityState.IsLockedOut)
+                {
+                    <span>Wait @(SecurityState.RemainingSeconds)s...</span>
+                }
+                else
+                {
+                    <span>Authorize Action</span>
+                }
+            </MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .fmc-security-dialog {
+        border-radius: 24px !important;
+        max-width: 440px !important;
+    }
+    .fmc-security-icon-wrap {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: var(--mud-palette-primary-hover);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+    }
+</style>
+
+@code {
+    [Inject] private AuthService AuthService { get; set; } = default!;
+    [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+    [Inject] private SecurityStateService SecurityState { get; set; } = default!;
+
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private string _password = "";
+    private bool _isProcessing;
+    private bool _showPassword;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private InputType PasswordInput => _showPassword ? InputType.Text : InputType.Password;
+    private string PasswordInputIcon => _showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility() => _showPassword = !_showPassword;
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !IsButtonDisabled)
+        {
+            await Submit();
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (IsButtonDisabled) return;
+
+        try
+        {
+            _isProcessing = true;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var emailClaim = authState.User.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.Email || c.Type == "email")?.Value;
+
+            if (string.IsNullOrEmpty(emailClaim))
+            {
+                Snackbar.Add("Identity session failure. Please re-login.", Severity.Error);
+                return;
+            }
+
+            var request = new FMC.Shared.DTOs.Auth.LoginRequestDto 
+            { 
+                Identifier = emailClaim, 
+                Password = _password,
+                IsStepUp = true 
+            };
+
+            var authResult = await AuthService.Login(request);
+            if (authResult == null)
+            {
+                SecurityState.RecordFailure();
+                
+                if (SecurityState.IsLockedOut)
+                {
+                    Snackbar.Add("Too many failed attempts. Security cool-down active.", Severity.Warning);
+                }
+                else
+                {
+                    Snackbar.Add($"Verification Failed: Incorrect password. ({3 - SecurityState.FailedAttempts} attempts remaining)", Severity.Error);
+                }
+                return;
+            }
+
+            SecurityState.Reset();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Security Check Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private bool IsButtonDisabled => string.IsNullOrWhiteSpace(_password) || _isProcessing || SecurityState.IsLockedOut;
+
+    protected override void OnInitialized()
+    {
+        // Start a timer to refresh the state during lockout
+        _ = Task.Run(async () => {
+            while (true) {
+                if (SecurityState.IsLockedOut) await InvokeAsync(StateHasChanged);
+                await Task.Delay(1000);
+            }
+        });
+    }
+}

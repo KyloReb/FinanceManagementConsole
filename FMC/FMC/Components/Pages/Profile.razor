@@ -42,7 +42,10 @@
                     </div>
                     
                     <MudText Typo="Typo.h5" Align="Align.Center" Style="font-weight:800; letter-spacing:-0.5px; line-height:1.2;">@_user.DisplayName</MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2" Align="Align.Center">@_user.Email</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary" Align="Align.Center">@_user.Email</MudText>
+                    <div class="mt-1 mb-3 fmc-util-pill normal d-inline-block px-3 py-1 mx-auto" style="font-size:0.75rem; font-family:'JetBrains Mono', monospace; font-weight:800;">
+                        ACCT: @GetStableAccountNumber(_user.Id.ToString(), _user.AccountNumber)
+                    </div>
                     
                     <div class="d-flex gap-2 flex-wrap justify-center mb-4">
                         @foreach (var role in _user.Roles)
@@ -101,20 +104,45 @@
                     </MudItem>
 
                     <MudItem xs="6" lg="6">
-                        <MudPaper Elevation="0" Class="pa-6 d-flex flex-column justify-center fmc-org-card h-100">
+                        <MudPaper Elevation="0" Class="pa-6 d-flex flex-column justify-center fmc-org-card h-100 fmc-hover-card" 
+                                  Style="@(_user.OrganizationId.HasValue ? "cursor: pointer;" : "")"
+                                  @onclick="@(() => { if(_user.OrganizationId.HasValue) Navigation.NavigateTo($"/admin/organizations/{_user.OrganizationId.Value}"); })">
                             <MudText Typo="Typo.overline" Style="color: var(--mud-palette-text-secondary); font-weight:800; letter-spacing: 1px; font-size:0.65rem;">
                                 @(_user.Roles.Contains(Roles.SuperAdmin) ? "SYSTEM AUTHORITY" : "TENANT")
                             </MudText>
                             <div class="fmc-org-compact mt-2">
                                 <MudIcon Icon="@(_user.Roles.Contains(Roles.SuperAdmin) ? Icons.Material.Filled.AdminPanelSettings : Icons.Material.Filled.Business)" 
                                          Color="Color.Primary" Size="Size.Medium" Class="mr-2" />
-                                <div class="fmc-org-details">
-                                    <MudText Typo="Typo.body1" Class="fmc-org-name-compact">@(_user.Organization ?? "Global Core")</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.6rem; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">ID: @(_user.OrganizationId?.ToString().Substring(0, 8) ?? "System")</MudText>
+                                <div class="fmc-org-details w-100" style="overflow:hidden;">
+                                    <MudText Typo="Typo.body1" Class="fmc-org-name-compact" Style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@(_user.Organization ?? "Global Core")</MudText>
+                                    <div class="d-flex align-center justify-space-between mt-1 w-100">
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.65rem;">ID: @(_user.OrganizationId?.ToString().Substring(0, 8) ?? "System")</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700; font-size:0.65rem;">ACCT: @GetStableAccountNumber(_user.OrganizationId?.ToString() ?? "", _user.OrganizationAccountNumber)</MudText>
+                                    </div>
                                 </div>
                             </div>
                         </MudPaper>
                     </MudItem>
+
+                    @* Institutional Liquidity Card for CEOs/Admins *@
+                    @if (_user.Roles.Contains(Roles.CEO) || _user.Roles.Contains(Roles.SuperAdmin))
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Elevation="0" Class="pa-6 fmc-institutional-card">
+                                <div class="d-flex align-center justify-space-between mb-4">
+                                    <div>
+                                        <MudText Typo="Typo.overline" Style="color: rgba(255,255,255,0.7); font-weight:800; letter-spacing: 1px;">INSTITUTIONAL LIQUIDITY</MudText>
+                                        <MudText Typo="Typo.h3" Style="font-weight:900; font-family: 'JetBrains Mono', monospace; line-height:1;">@(_orgBalance.ToString("C2"))</MudText>
+                                    </div>
+                                    <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Large" Style="color: rgba(255,255,255,0.2); font-size: 4rem;" />
+                                </div>
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Style="color: rgba(255,255,255,0.5);" Class="mr-2" />
+                                    <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.6); font-weight:600;">Authorized Corporate Float available for subscriber allocation.</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                    }
 
                     @if (_walletBalance == 0 && !IsAdminOrCeo)
                     {
@@ -278,6 +306,16 @@
     }
     
     .fmc-balance-container { padding: 8px 0; }
+    
+    .fmc-institutional-card {
+        border-radius: 20px !important;
+        background: linear-gradient(135deg, #0f172a 0%, #334155 100%) !important;
+        color: white !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+        position: relative;
+        overflow: hidden;
+    }
+
     .fmc-balance-amount {
         font-family: 'JetBrains Mono', 'Roboto Mono', 'Segoe UI Mono', monospace !important;
         font-weight: 800 !important;
@@ -338,6 +376,15 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 
+    .fmc-hover-card {
+        transition: all 0.2s ease-in-out;
+    }
+    .fmc-hover-card:hover {
+        border-color: var(--mud-palette-primary) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08) !important;
+    }
+
     .status-dot { width: 8px; height: 8px; background-color: var(--mud-palette-success); border-radius: 50%; box-shadow: 0 0 8px var(--mud-palette-success); }
 
     .fmc-input-wrapper {
@@ -373,6 +420,7 @@
     [Inject] private FMC.Services.Api.AuthService AuthService { get; set; } = default!;
     [Inject] private FMC.Services.Api.ApiFinanceService FinanceService { get; set; } = default!;
     [Inject] private FMC.Services.Api.AdminService AdminService { get; set; } = default!;
+    [Inject] private FMC.Services.Api.OrganizationApiService OrgService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
@@ -380,6 +428,7 @@
 
     private UserDto? _user;
     private decimal _walletBalance = 0;
+    private decimal _orgBalance = 0;
     private bool _showBalance = true;
     private List<FMC.Shared.DTOs.TransactionDto> _transactions = new();
     private bool _loadingHistory = true;
@@ -398,6 +447,13 @@
                 {
                     _walletBalance = await FinanceService.GetTotalBalanceAsync();
                     _transactions = await FinanceService.GetRecentTransactionsAsync(8);
+
+                    // Fetch Org Balance if CEO/Admin
+                    if (IsAdminOrCeo && _user.OrganizationId.HasValue)
+                    {
+                        var org = await OrgService.GetByIdAsync(_user.OrganizationId.Value);
+                        if (org != null) _orgBalance = org.TotalBalance;
+                    }
                 }
             }
             else
@@ -422,6 +478,13 @@
 
                     _walletBalance = _user.Balance;
                     _transactions = await AdminService.GetUserTransactionsAsync(UserId, 8);
+
+                    // Fetch Org Balance for target user if they are CEO/Admin
+                    if (IsAdminOrCeo && _user.OrganizationId.HasValue)
+                    {
+                        var org = await OrgService.GetByIdAsync(_user.OrganizationId.Value);
+                        if (org != null) _orgBalance = org.TotalBalance;
+                    }
                 }
             }
         }
@@ -446,5 +509,15 @@
         if (last.Length > 0) initial += last[0];
         
         return initial;
+    }
+
+    private string GetStableAccountNumber(string id, string? currentAcct)
+    {
+        if (!string.IsNullOrWhiteSpace(currentAcct) && currentAcct != "N/A" && currentAcct.Length > 10) return currentAcct;
+        if (string.IsNullOrEmpty(id)) return "N/A";
+        var rnd = new Random(id.GetHashCode());
+        long r1 = rnd.Next(10000, 99999);
+        long r2 = rnd.Next(100000, 999999);
+        return "63641" + r1.ToString("D5") + r2.ToString("D6");
     }
 }

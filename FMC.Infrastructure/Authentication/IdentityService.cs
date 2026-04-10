@@ -53,8 +53,24 @@ public class IdentityService : IIdentityService
 
         if (user == null) return null;
 
+        // 1. Check if the account is currently locked out
+        if (await _userManager.IsLockedOutAsync(user))
+        {
+            _logger.LogWarning("SECURITY ALERT: Brute-force attempt blocked. Account {Email} is currently locked.", user.Email);
+            return null; 
+        }
+
         var result = await _userManager.CheckPasswordAsync(user, request.Password);
-        if (!result) return null;
+        
+        if (!result) 
+        {
+            // 2. Increment failed access count to trigger lockout if threshold is reached
+            await _userManager.AccessFailedAsync(user);
+            return null;
+        }
+
+        // 3. Reset failed access count on successful login
+        await _userManager.ResetAccessFailedCountAsync(user);
 
         var roles = await _userManager.GetRolesAsync(user);
         
@@ -99,7 +115,8 @@ public class IdentityService : IIdentityService
             Organization = request.Organization,
             OrganizationId = org?.Id,
             IsActive = true,
-            EmailConfirmed = false // Must verify email
+            EmailConfirmed = false, // Must verify email
+            AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -305,7 +322,7 @@ public class IdentityService : IIdentityService
             
             var balance = await _context.Accounts
                 .IgnoreQueryFilters()
-                .Where(a => a.TenantId == effectiveTenantId)
+                .Where(a => a.TenantId == user.Id)
                 .SumAsync(a => a.Balance);
 
             userDtos.Add(new UserDto
@@ -317,9 +334,51 @@ public class IdentityService : IIdentityService
                 LastName = user.LastName,
                 Organization = user.OrganizationInfo?.Name ?? user.Organization,
                 OrganizationId = user.OrganizationId,
+                OrganizationAccountNumber = user.OrganizationInfo?.AccountNumber ?? string.Empty,
                 IsActive = user.IsActive,
                 Balance = balance,
-                Roles = roles.ToList()
+                Roles = roles.ToList(),
+                AccountNumber = user.AccountNumber
+            });
+        }
+
+        return userDtos;
+    }
+
+    public async Task<List<UserDto>> GetUsersByOrganizationAsync(Guid organizationId)
+    {
+        var users = await _context.Users
+            .Include(u => u.OrganizationInfo)
+            .Where(u => u.OrganizationId == organizationId)
+            .ToListAsync();
+        var userDtos = new List<UserDto>();
+
+        foreach (var user in users)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            
+            // For org members, the TenantId is always the OrgId for balance lookup
+            var effectiveTenantId = organizationId.ToString();
+            
+            var balance = await _context.Accounts
+                .IgnoreQueryFilters()
+                .Where(a => a.TenantId == user.Id)
+                .SumAsync(a => a.Balance);
+
+            userDtos.Add(new UserDto
+            {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Organization = user.OrganizationInfo?.Name ?? user.Organization,
+                OrganizationId = user.OrganizationId,
+                OrganizationAccountNumber = user.OrganizationInfo?.AccountNumber ?? string.Empty,
+                IsActive = user.IsActive,
+                Balance = balance,
+                Roles = roles.ToList(),
+                AccountNumber = user.AccountNumber
             });
         }
 
@@ -341,7 +400,7 @@ public class IdentityService : IIdentityService
         
         var balance = await _context.Accounts
             .IgnoreQueryFilters()
-            .Where(a => a.TenantId == effectiveTenantId)
+            .Where(a => a.TenantId == user.Id)
             .SumAsync(a => a.Balance);
 
         return new UserDto
@@ -353,9 +412,11 @@ public class IdentityService : IIdentityService
             LastName = user.LastName,
             Organization = user.OrganizationInfo?.Name ?? user.Organization,
             OrganizationId = user.OrganizationId,
+            OrganizationAccountNumber = user.OrganizationInfo?.AccountNumber ?? string.Empty,
             IsActive = user.IsActive,
             Balance = balance,
-            Roles = roles.ToList()
+            Roles = roles.ToList(),
+            AccountNumber = user.AccountNumber
         };
     }
 
@@ -372,7 +433,8 @@ public class IdentityService : IIdentityService
             Organization = request.Organization,
             OrganizationId = org?.Id,
             IsActive = true,
-            EmailConfirmed = true
+            EmailConfirmed = true,
+            AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);

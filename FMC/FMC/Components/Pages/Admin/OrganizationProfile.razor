@@ -1,0 +1,455 @@
+@page "/admin/organizations/{Id:guid}"
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Organization
+@using FMC.Shared.DTOs.User
+@using FMC.Services.Api
+@using MudBlazor
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject OrganizationApiService OrganizationService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Subscriber Profile | FMC</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12">
+    @if (_loading)
+    {
+        <div class="d-flex flex-column align-center justify-center py-20">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Retrieving subscriber ledger...</MudText>
+        </div>
+    }
+    else if (_org == null)
+    {
+        <div class="pa-10 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" Size="Size.Large" />
+            <MudText Typo="Typo.h6" Class="mt-4">Subscriber Not Found</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="@(() => Navigation.NavigateTo("/"))">Return to Dashboard</MudButton>
+        </div>
+    }
+    else
+    {
+        RenderFragment liquidityCard = @<MudPaper Elevation="0" Class="fmc-glass-surface pa-6 pa-md-8 accent-primary w-100">
+             <div class="d-flex flex-column gap-6">
+                @{
+                    var totalLimit = _org.TotalBalance;
+                    var usage = _users?.Sum(u => u.Balance) ?? 0;
+                    var disposableBalance = totalLimit - usage;
+                    var hasLimit = totalLimit > 0;
+                    var usagePct = hasLimit ? (double)(usage / totalLimit) * 100.0 : 0;
+                }
+
+                 @* TOP ROW: WALLET BALANCE + ACTIONS *@
+                <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-4">
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="fmc-section-label">WALLET BALANCE</MudText>
+                        <div class="d-flex align-center gap-3 mt-1">
+                            @if (_isBalanceVisible)
+                            {
+                                <MudText Class="fmc-balance-val fmc-money">@disposableBalance.ToString("C")</MudText>
+                            }
+                            else
+                            {
+                                <MudText Class="fmc-balance-val fmc-money mud-text-secondary" Style="letter-spacing: 0.1em; padding-top:4px;">••••••••</MudText>
+                            }
+                            <MudTooltip Text="@(_isBalanceVisible ? "Hide Balance" : "Show Balance")">
+                                <MudIconButton Icon="@(_isBalanceVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
+                                               OnClick="ToggleBalanceVisibility" Size="Size.Small" Class="mud-text-secondary" />
+                            </MudTooltip>
+                        </div>
+                    </div>
+                    <div class="d-flex align-center gap-3" style="z-index: 2;">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.RemoveCircleOutline" 
+                                   OnClick="@(() => OpenOrgBalanceDialog(false))" Class="fmc-action-btn">DEBIT</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AddCircleOutline" 
+                                   OnClick="@(() => OpenOrgBalanceDialog(true))" Class="fmc-action-btn" Style="color: white !important;">CREDIT</MudButton>
+                    </div>
+                </div>
+
+                @* BOTTOM ROW: USAGE AND TOTAL LIMIT *@
+                <div class="fmc-liquidity-matrix">
+                    <div class="fmc-matrix-item">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">USAGE</MudText>
+                        <div class="d-flex align-center gap-3">
+                            <MudText Typo="Typo.h6" Class="fmc-money">@usage.ToString("C0")</MudText>
+                            @if (hasLimit)
+                            {
+                                <span class="fmc-util-pill @(usagePct >= 90 ? "critical" : usagePct >= 80 ? "warning" : "normal")">
+                                    @usagePct.ToString("F1")%
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <div class="fmc-matrix-divider"></div>
+                    <div class="fmc-matrix-item">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">TOTAL SYSTEM VALUE</MudText>
+                        <MudText Typo="Typo.h6" Class="fmc-money">@totalLimit.ToString("C")</MudText>
+                    </div>
+                </div>
+
+                @* UTILIZATION BAR *@
+                <div class="fmc-full-util-wrap mt-2">
+                    <div class="fmc-full-util-bar">
+                        <div class="fmc-full-util-fill @(usagePct >= 95 ? "critical" : usagePct >= 80 ? "warning" : "normal")" 
+                             style="width: @(Math.Min(usagePct, 100).ToString("F0"))%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fmc-watermark-icon">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
+            </div>
+       </MudPaper>;
+
+       <div class="fmc-profile-header mb-8 d-flex align-center justify-space-between flex-wrap gap-4">
+            <div class="d-flex align-center">
+                <MudTooltip Text="Return to Dashboard">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Class="mr-4" OnClick="@(() => Navigation.NavigateTo("/"))" />
+                </MudTooltip>
+                <div class="fmc-org-icon mr-4">
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: var(--mud-palette-primary);">@_org.Name?[0]</MudText>
+                </div>
+                <div>
+                    <div class="d-flex align-center flex-wrap gap-3">
+                        <MudText Typo="Typo.h4" Style="font-weight: 900; letter-spacing: -0.02em;">@_org.Name</MudText>
+                        <div class="fmc-status-indicator @(_org.IsActive ? "active" : "suspended")" style="margin-top: 2px;">
+                            <div class="fmc-pulse"></div>
+                            <span style="font-weight: 800;">@(_org.IsActive ? "OPERATIONAL" : "SUSPENDED")</span>
+                        </div>
+                    </div>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1" Style="letter-spacing: 0.05em; text-transform: uppercase;">SUBSCRIBER PROFILE • @_org.Id.ToString().Split('-')[0]</MudText>
+                </div>
+            </div>
+       </div>
+
+       @* Mobile VIP Placement: Liquidity First *@
+       <div class="d-block d-md-none mb-6">
+           @liquidityCard
+       </div>
+
+       <MudGrid>
+           <MudItem xs="12" md="4" lg="3">
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 mb-6">
+                    <MudText Typo="Typo.subtitle2" Class="fmc-section-label mb-4">ENTITY DETAILS</MudText>
+                    
+                    <div class="mb-4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">DESIGNATED CEO</MudText>
+                        <MudText Typo="Typo.body1" Style="font-weight: 700;">@(_org.CeoName ?? "Unassigned")</MudText>
+                    </div>
+
+                    <div class="mb-4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">CREATED ON</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 600;">@_org.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                    </div>
+
+                    <div class="mb-4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">ACCOUNT NUMBER</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; letter-spacing: 0.1em;" Color="Color.Primary">
+                            @GetStableAccountNumber(_org.Id.ToString(), _org.AccountNumber)
+                        </MudText>
+                    </div>
+
+                    <MudDivider Class="my-4" />
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">BUSINESS DESCRIPTION</MudText>
+                    <MudText Typo="Typo.body2">@(_org.Description ?? "No description provided.")</MudText>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 accent-info mb-6">
+                    <MudText Typo="Typo.subtitle2" Class="fmc-section-label mb-2">SYSTEM TENANTS</MudText>
+                    <MudText Typo="Typo.h3" Class="d-none d-sm-block fmc-money mt-1 mb-1">@_users.Count</MudText>
+                    <MudText Typo="Typo.h5" Class="d-block d-sm-none fmc-money mt-1 mb-1">@_users.Count</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Total registered principals</MudText>
+                </MudPaper>
+           </MudItem>
+
+           <MudItem xs="12" md="8" lg="9">
+                @* Desktop Standard Placement: Liquidity Flow *@
+                <div class="d-none d-md-block mb-6">
+                    @liquidityCard
+                </div>
+
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6">
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;" Class="mb-4">Affiliated Users Matrix</MudText>
+                    <div class="d-none d-md-block">
+                        <MudTable Items="@_users" Hover="true" Breakpoint="Breakpoint.None" Elevation="0" Class="fmc-premium-table">
+                            <HeaderContent>
+                                <MudTh>IDENTITY</MudTh>
+                                <MudTh>ROLE CREDENTIALS</MudTh>
+                                <MudTh Style="text-align: right;">LEDGER</MudTh>
+                                <MudTh Style="text-align: right;">STATUS</MudTh>
+                                <MudTh Style="text-align: right;">ACTIONS</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="userCtx">
+                                <MudTd DataLabel="Identity">
+                                    <div class="d-flex align-center gap-3 fmc-hover-user" style="cursor: pointer; padding: 4px; border-radius: 8px; transition: all 0.2s;" @onclick="@(() => Navigation.NavigateTo($"/profile/{userCtx.Id}"))">
+                                        <MudAvatar Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 800;">@userCtx.DisplayName?[0]</MudAvatar>
+                                        <div>
+                                            <MudText Typo="Typo.body2" Style="font-weight: 700; color: var(--mud-palette-text-primary);">@userCtx.DisplayName</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@userCtx.Email</MudText>
+                                            <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1" Style="letter-spacing: 0.05em;">Acct: <span style="font-weight: 600;">@GetStableAccountNumber(userCtx.Id, userCtx.AccountNumber)</span></MudText>
+                                        </div>
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Role">
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var role in userCtx.Roles)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(role)" Style="font-weight: 700;">@role</MudChip>
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Ledger" Style="text-align: right;">
+                                    <MudText Class="fmc-money" Typo="Typo.body2" Color="@(userCtx.Balance < 0 ? Color.Error : Color.Default)">@userCtx.Balance.ToString("C")</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Status" Style="text-align: right;">
+                                    <MudChip T="string" Size="Size.Small" Color="@(userCtx.IsActive ? Color.Success : Color.Error)">@(userCtx.IsActive ? "Active" : "Suspended")</MudChip>
+                                </MudTd>
+                                <MudTd Style="text-align: right;">
+                                    <div class="d-flex justify-end gap-2">
+                                        <MudTooltip Text="Debit User">
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, false))" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Credit User">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, true))" />
+                                        </MudTooltip>
+                                    </div>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary pa-4">No users found for this subscriber.</MudText>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </div>
+
+                    <div class="d-block d-md-none fmc-mobile-list" style="max-height: 400px; overflow-y: auto; padding-right: 4px;">
+                        @if (_users.Any())
+                        {
+                            @foreach (var userCtx in _users)
+                            {
+                                <div class="fmc-mobile-user-card mb-3 pa-4">
+                                    <div class="d-flex align-center justify-space-between mb-3">
+                                        <div class="d-flex align-center gap-3 fmc-hover-user" style="cursor: pointer; padding: 4px; border-radius: 8px; transition: all 0.2s;" @onclick="@(() => Navigation.NavigateTo($"/profile/{userCtx.Id}"))">
+                                            <MudAvatar Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 800;">@userCtx.DisplayName?[0]</MudAvatar>
+                                            <div>
+                                                <MudText Typo="Typo.body1" Style="font-weight: 800; font-size: 0.95rem; color: var(--mud-palette-text-primary);">@userCtx.DisplayName</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@userCtx.Email</MudText>
+                                                <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1" Style="letter-spacing: 0.05em;">Acct: <span style="font-weight: 600;">@GetStableAccountNumber(userCtx.Id, userCtx.AccountNumber)</span></MudText>
+                                            </div>
+                                        </div>
+                                        <MudText Class="fmc-money" Typo="Typo.body2" Style="font-weight: 900;" Color="@(userCtx.Balance < 0 ? Color.Error : Color.Default)">@userCtx.Balance.ToString("C")</MudText>
+                                    </div>
+                                    <div class="d-flex align-center justify-space-between mt-2 pt-2" style="border-top: 1px solid var(--mud-palette-divider);">
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach (var role in userCtx.Roles)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(role)" Style="font-weight: 700; height: 20px;">@role</MudChip>
+                                            }
+                                        </div>
+                                        <MudChip T="string" Size="Size.Small" Color="@(userCtx.IsActive ? Color.Success : Color.Error)" Style="height: 20px; font-weight: 700;">@(userCtx.IsActive ? "Active" : "Suspended")</MudChip>
+                                    </div>
+                                    <div class="d-flex align-center justify-end gap-4 mt-4 pt-3" style="border-top: 1px dashed var(--mud-palette-divider);">
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.RemoveCircle" 
+                                                   Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, false))" Style="font-weight: 800; font-size: 0.7rem;">DEBIT</MudButton>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AddCircle" 
+                                                   Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, true))" 
+                                                   Style="font-weight: 800; font-size: 0.7rem; color: white !important;">CREDIT</MudButton>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary pa-4 text-center">No affiliated users found.</MudText>
+                        }
+                    </div>
+                </MudPaper>
+           </MudItem>
+       </MudGrid>
+    }
+</MudContainer>
+
+<style>
+    .fmc-glass-surface { 
+        border-radius: 20px; border: 1px solid var(--mud-palette-divider); 
+        background: var(--mud-palette-surface); position: relative; overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+    }
+    .fmc-glass-surface.accent-primary { border-top: 4px solid var(--mud-palette-primary); }
+    .fmc-glass-surface.accent-info { border-top: 4px solid var(--mud-palette-info); }
+
+    .fmc-org-icon {
+        width: 64px; height: 64px; border-radius: 16px;
+        background: rgba(var(--mud-palette-primary-rgb), 0.1);
+        display: flex; align-items: center; justify-content: center;
+        border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.2);
+        flex-shrink: 0;
+    }
+
+    .fmc-section-label { letter-spacing: 0.12em; opacity: 0.5; font-weight: 800; font-size: 0.65rem; text-transform: uppercase; }
+    
+    .fmc-watermark-icon {
+        position: absolute; right: -20px; bottom: -20px; opacity: 0.05; 
+        font-size: 8rem !important; transform: rotate(-10deg); pointer-events: none;
+    }
+
+    .fmc-money {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-variant-numeric: tabular-nums !important;
+        letter-spacing: -0.02em !important;
+        font-weight: 950 !important;
+    }
+
+    .fmc-premium-table .mud-table-head .mud-th { font-weight: 800; letter-spacing: 0.05em; font-size: 0.65rem; color: var(--mud-palette-text-secondary); }
+    .fmc-premium-table .mud-table-row { transition: background-color 0.15s; }
+    .fmc-premium-table .mud-table-row:hover { background-color: var(--mud-palette-action-default-hover) !important; }
+
+    .fmc-hover-user:hover {
+        background-color: rgba(var(--mud-palette-primary-rgb), 0.05);
+        color: var(--mud-palette-primary) !important;
+    }
+
+    .fmc-hover-user:hover .mud-typography {
+        color: var(--mud-palette-primary) !important;
+    }
+
+    .fmc-status-indicator { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; gap: 8px; border: 1px solid transparent; }
+    .fmc-status-indicator.active { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border-color: rgba(var(--mud-palette-success-rgb), 0.2); }
+    .fmc-status-indicator.suspended { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border-color: rgba(var(--mud-palette-error-rgb), 0.2); }
+
+    .fmc-balance-val {
+        font-size: clamp(2rem, 4vw, 3rem) !important;
+        line-height: 1.1;
+    }
+
+    .fmc-mobile-scroll::-webkit-scrollbar { width: 4px; }
+    .fmc-mobile-scroll::-webkit-scrollbar-thumb { background: var(--mud-palette-divider); border-radius: 4px; }
+
+    .fmc-mobile-user-card {
+        border-radius: 12px; 
+        background: rgba(var(--mud-palette-surface), 0.5); 
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.01);
+    }
+
+    .fmc-action-btn { font-weight: 900 !important; letter-spacing: 0.05em !important; border-radius: 12px !important; padding: 8px 20px !important; }
+
+    .fmc-liquidity-matrix { display: flex; align-items: center; gap: 32px; background: rgba(var(--mud-palette-background-grey-rgb), 0.5); padding: 16px 24px; border-radius: 16px; border: 1px solid var(--mud-palette-divider); flex-wrap: wrap; }
+    .fmc-matrix-item { display: flex; flex-direction: column; }
+    .fmc-matrix-divider { width: 1px; height: 32px; background: var(--mud-palette-divider); }
+    
+    .fmc-util-pill { font-size: 0.6rem; font-weight: 950; padding: 2px 8px; border-radius: 4px; border: 1px solid transparent; }
+    .fmc-util-pill.normal { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); border-color: rgba(var(--mud-palette-primary-rgb), 0.2); }
+    .fmc-util-pill.warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); border-color: rgba(var(--mud-palette-warning-rgb), 0.2); }
+    .fmc-util-pill.critical { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border-color: rgba(var(--mud-palette-error-rgb), 0.2); }
+
+    .fmc-full-util-wrap { width: 100%; }
+    .fmc-full-util-bar { height: 6px; background: var(--mud-palette-background-grey); border-radius: 3px; overflow: hidden; border: 1px solid var(--mud-palette-divider); }
+    .fmc-full-util-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+    .fmc-full-util-fill.normal { background: var(--mud-palette-primary); }
+    .fmc-full-util-fill.warning { background: var(--mud-palette-warning); }
+    .fmc-full-util-fill.critical { background: var(--mud-palette-error); animation: fmc-full-pulse 1.5s infinite; }
+
+    @@keyframes fmc-full-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+    @@media (max-width: 600px) {
+        .fmc-liquidity-matrix { gap: 16px; padding: 12px; }
+        .fmc-matrix-divider { display: none; }
+    }
+</style>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private bool _isBalanceVisible = true;
+    private OrganizationDto? _org;
+    private List<UserDto> _users = new();
+
+    private void ToggleBalanceVisibility()
+    {
+        _isBalanceVisible = !_isBalanceVisible;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileDataAsync();
+    }
+
+    private async Task LoadProfileDataAsync()
+    {
+        try
+        {
+            _loading = true;
+            _org = await OrganizationService.GetByIdAsync(Id);
+            if (_org != null)
+            {
+                _users = await OrganizationService.GetUsersAsync(Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Validation error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenOrgBalanceDialog(bool isCredit)
+    {
+        if (_org == null) return;
+
+        var parameters = new DialogParameters<OrganizationBalanceDialog>
+        {
+            { x => x.Organization, _org },
+            { x => x.IsCredit, isCredit }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<OrganizationBalanceDialog>("", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadProfileDataAsync();
+        }
+    }
+
+    private async Task OpenUserBalanceDialog(UserDto user, bool isCredit)
+    {
+        var parameters = new DialogParameters<UserBalanceDialog>
+        {
+            { x => x.User, user },
+            { x => x.IsCredit, isCredit }
+        } ;
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserBalanceDialog>("", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadProfileDataAsync();
+        }
+    }
+
+    private Color GetRoleColor(string role) => role switch
+    {
+        Roles.SuperAdmin => Color.Error,
+        Roles.CEO => Color.Primary,
+        Roles.Manager => Color.Info,
+        _ => Color.Default
+    };
+
+    private string GetStableAccountNumber(string id, string? currentAcct)
+    {
+        if (!string.IsNullOrWhiteSpace(currentAcct) && currentAcct != "N/A" && currentAcct.Length > 10) return currentAcct;
+        var rnd = new Random(id.GetHashCode());
+        long r1 = rnd.Next(10000, 99999);
+        long r2 = rnd.Next(100000, 999999);
+        return "63641" + r1.ToString("D5") + r2.ToString("D6");
+    }
+}

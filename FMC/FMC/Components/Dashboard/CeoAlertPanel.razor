@@ -1,0 +1,202 @@
+@using FMC.Shared.DTOs.Organization
+
+@if (!_dismissed && HasAlerts && !Loading)
+{
+    <div class="ceo-alert-panel mb-6">
+        <div class="ceo-alert-header">
+            <div class="d-flex align-center gap-3">
+                <div class="ceo-alert-icon-wrap @(HasCriticalAlert ? "critical" : "warning")">
+                    <MudIcon Icon="@(HasCriticalAlert ? Icons.Material.Filled.NotificationsActive : Icons.Material.Filled.Warning)"
+                             Size="Size.Small" Style="color: white;" />
+                </div>
+                <div>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">
+                        Liquidity Intelligence
+                    </MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        @TotalAlertCount operational @(TotalAlertCount == 1 ? "anomaly" : "anomalies") detected for your organization
+                    </MudText>
+                </div>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                           OnClick="@(() => _dismissed = true)" />
+        </div>
+
+        <div class="ceo-alert-body">
+
+            @* ── CRITICAL: Balance below ₱100,000 ── *@
+            @if (IsCriticalBalance)
+            {
+                <div class="ceo-alert-row">
+                    <div class="ceo-alert-stripe critical"></div>
+                    <div class="ceo-alert-icon-cell">
+                        <MudIcon Icon="@Icons.Material.Filled.MoneyOff" Color="Color.Error" Size="Size.Small" />
+                    </div>
+                    <div class="ceo-alert-content">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="ceo-alert-tag critical-tag">CRITICAL DEPLETION</span>
+                        </div>
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; line-height: 1.3;">
+                            Corporate float is critically low at <span class="ceo-money">@Metrics!.TotalBalance.ToString("C0")</span>
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                            Balance has fallen below the ₱100,000 safety threshold. Immediate fund replenishment is required to maintain operational continuity.
+                        </MudText>
+                    </div>
+                    <div class="ceo-alert-severity">
+                        <div class="severity-bar critical" style="height: 100%;"></div>
+                    </div>
+                </div>
+            }
+
+            @* ── WARNING: 80–100% of WalletLimit consumed ── *@
+            @if (IsHighUtilization)
+            {
+                <div class="ceo-alert-row">
+                    <div class="ceo-alert-stripe warning"></div>
+                    <div class="ceo-alert-icon-cell">
+                        <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Color="Color.Warning" Size="Size.Small" />
+                    </div>
+                    <div class="ceo-alert-content">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="ceo-alert-tag warning-tag">HIGH UTILIZATION</span>
+                            <span class="ceo-utilization-badge">@UtilizationPercent.ToString("F0")% CONSUMED</span>
+                        </div>
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; line-height: 1.3;">
+                            Wallet capacity is nearing depletion — <span class="ceo-money">@Metrics!.TotalBalance.ToString("C0")</span> remaining
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                            Your organization has consumed <b>@UtilizationPercent.ToString("F1")%</b> of its 
+                            <span class="ceo-money">@Metrics!.WalletLimit.ToString("C0")</span> liquidity ceiling.
+                            At 100%, all operations will be unfunded.
+                        </MudText>
+
+                        @* Utilization Progress Bar *@
+                        <div class="ceo-util-bar-wrap mt-2">
+                            <div class="ceo-util-bar-track">
+                                <div class="ceo-util-bar-fill @(UtilizationPercent >= 95 ? "critical" : "warning")"
+                                     style="width: @(Math.Min(UtilizationPercent, 100).ToString("F0"))%;"></div>
+                            </div>
+                            <div class="d-flex justify-space-between mt-1">
+                                <MudText Typo="Typo.caption" Style="font-size: 0.6rem; opacity: 0.6;">SAFE ZONE</MudText>
+                                <MudText Typo="Typo.caption" Style="font-size: 0.6rem; opacity: 0.6;">LIMIT</MudText>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .ceo-alert-panel {
+        border-radius: 20px; overflow: hidden;
+        border: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-surface);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+    }
+
+    .ceo-alert-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 20px;
+        background: var(--mud-palette-background-grey);
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .ceo-alert-icon-wrap {
+        width: 34px; height: 34px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .ceo-alert-icon-wrap.critical { background: var(--mud-palette-error); }
+    .ceo-alert-icon-wrap.warning  { background: var(--mud-palette-warning); }
+
+    .ceo-alert-body { display: flex; flex-direction: column; }
+
+    .ceo-alert-row {
+        display: flex; align-items: flex-start; gap: 14px;
+        padding: 16px 20px; position: relative;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        transition: background 0.2s;
+    }
+    .ceo-alert-row:last-child { border-bottom: none; }
+    .ceo-alert-row:hover { background: var(--mud-palette-action-default-hover); }
+
+    .ceo-alert-stripe {
+        position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+        border-radius: 4px 0 0 4px;
+    }
+    .ceo-alert-stripe.critical { background: var(--mud-palette-error); }
+    .ceo-alert-stripe.warning  { background: var(--mud-palette-warning); }
+
+    .ceo-alert-icon-cell {
+        margin-top: 2px; flex-shrink: 0;
+    }
+
+    .ceo-alert-content { flex: 1; min-width: 0; }
+
+    .ceo-alert-tag {
+        font-size: 0.58rem; font-weight: 900; padding: 2px 8px;
+        border-radius: 4px; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .critical-tag { background: rgba(var(--mud-palette-error-rgb), 0.12); color: var(--mud-palette-error); }
+    .warning-tag  { background: rgba(var(--mud-palette-warning-rgb), 0.12); color: var(--mud-palette-warning); }
+
+    .ceo-utilization-badge {
+        font-size: 0.58rem; font-weight: 900; padding: 2px 8px;
+        border-radius: 4px; letter-spacing: 0.04em; text-transform: uppercase;
+        background: rgba(var(--mud-palette-text-primary-rgb), 0.07);
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .ceo-money {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 900; font-variant-numeric: tabular-nums;
+    }
+
+    .ceo-util-bar-wrap { max-width: 340px; }
+    .ceo-util-bar-track {
+        height: 6px; border-radius: 99px;
+        background: var(--mud-palette-background-grey);
+        overflow: hidden; border: 1px solid var(--mud-palette-divider);
+    }
+    .ceo-util-bar-fill {
+        height: 100%; border-radius: 99px;
+        transition: width 0.8s ease;
+    }
+    .ceo-util-bar-fill.warning  { background: var(--mud-palette-warning); }
+    .ceo-util-bar-fill.critical { background: var(--mud-palette-error); animation: ceo-bar-pulse 1.5s infinite; }
+
+    @@keyframes ceo-bar-pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.6; }
+    }
+</style>
+
+@code {
+    [Parameter] public OrganizationDashboardMetricsDto? Metrics { get; set; }
+    [Parameter] public bool Loading { get; set; }
+
+    private bool _dismissed;
+
+    // Threshold constants
+    private const decimal CriticalBalanceThreshold = 100_000m;
+    private const double HighUtilizationThreshold  = 80.0;
+
+    // Utilization = how much of the WalletLimit has been SPENT (WalletLimit - TotalBalance)
+    private double UtilizationPercent
+    {
+        get
+        {
+            if (Metrics == null || Metrics.WalletLimit <= 0) return 0;
+            var spent = Metrics.WalletLimit - Metrics.TotalBalance;
+            return (double)(spent / Metrics.WalletLimit) * 100.0;
+        }
+    }
+
+    private bool IsCriticalBalance  => Metrics != null && Metrics.TotalBalance <= CriticalBalanceThreshold;
+    private bool IsHighUtilization  => Metrics != null && Metrics.WalletLimit > 0 && UtilizationPercent >= HighUtilizationThreshold;
+    private bool HasCriticalAlert   => IsCriticalBalance;
+    private bool HasAlerts          => IsCriticalBalance || IsHighUtilization;
+    private int  TotalAlertCount    => (IsCriticalBalance ? 1 : 0) + (IsHighUtilization ? 1 : 0);
+}

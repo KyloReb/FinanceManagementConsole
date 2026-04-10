@@ -53,6 +53,11 @@ public interface IIdentityService
     Task<List<UserDto>> GetAllUsersAsync();
 
     /// <summary>
+    /// Retrieves a list of users belonging to a specific organization.
+    /// </summary>
+    Task<List<UserDto>> GetUsersByOrganizationAsync(Guid organizationId);
+
+    /// <summary>
     /// Finds a user by their unique identifier.
     /// </summary>
     Task<UserDto?> GetUserByIdAsync(string id);

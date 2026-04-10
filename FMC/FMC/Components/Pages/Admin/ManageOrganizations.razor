@@ -10,147 +10,184 @@
 @inject OrganizationApiService OrganizationService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IBrowserViewportService BrowserViewportService
 
-<PageTitle>Manage Organizations - FMC</PageTitle>
+<PageTitle>Organization Directory | FMC</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
-    <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between mb-8 gap-4">
-        <div>
-            <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.02em;">Manage Organizations</MudText>
-            <MudText Typo="Typo.body1" Class="mud-text-secondary">Centralized Corporate Entities Directory</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12">
+    @* PLATINUM HEADER *@
+    <div class="fmc-org-header mb-8 flex-wrap gap-4">
+        <div class="d-flex align-center">
+            <div class="fmc-org-bar mr-4"></div>
+            <div>
+                <MudText Typo="Typo.h4" Class="fmc-org-hero-text">Manage Organizations</MudText>
+                <MudText Typo="Typo.body1" Class="fmc-org-subtitle d-none d-sm-block">Centralized Corporate Entities & Multi-Tenant Directory</MudText>
+            </div>
         </div>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                   StartIcon="@Icons.Material.Filled.DomainAdd" 
-                   Size="Size.Large"
-                   OnClick="OpenCreateDialog" 
-                   Style="border-radius: 10px; text-transform: none; font-weight: 600; padding: 10px 24px;">
-            Register Organization
-        </MudButton>
+                   StartIcon="@Icons.Material.Filled.DomainAdd" Size="Size.Large"
+                   OnClick="OpenCreateDialog" Class="fmc-org-action-btn">Register Organization</MudButton>
     </div>
 
-    <MudPaper Elevation="0" Class="pa-4 pa-sm-6 overflow-x-auto" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
-        <MudDataGrid @ref="_grid" Items="@_organizations" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
-                      Filterable="true" SortMode="SortMode.Multiple" DragDropColumnReordering="true" ColumnResizeMode="ResizeMode.None"
-                      ShowColumnOptions="true" Elevation="0" QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-admin-grid">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6" Style="font-weight: 600;">System Tenants</MudText>
-                <MudSpacer />
-                <MudTextField @bind-Value="_searchString" Placeholder="Search by name or ID..." 
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                              IconSize="Size.Medium" Class="mt-0" Clearable="true" 
-                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-                <MudMenu Icon="@Icons.Material.Filled.ViewColumn" IconColor="Color.Primary" Class="ml-2" Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" AriaLabel="Column Visibility Menu">
-                    <div class="px-4 py-2">
-                        <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: var(--mud-palette-primary)">DISPLAY COLUMNS</MudText>
-                    </div>
-                    <MudDivider />
-                    @if (_grid != null)
-                    {
-                        @foreach (var col in _grid.RenderedColumns.Where(x => !string.IsNullOrWhiteSpace(x.Title)))
-                        {
-#pragma warning disable BL0005, MUD0012
-                            <MudMenuItem AutoClose="false" OnClick="@(() => { col.Hidden = !col.Hidden; StateHasChanged(); })">
-                                <div class="d-flex align-center cursor-pointer">
-                                    <MudCheckBox T="bool" Value="@(!col.Hidden)" Color="Color.Primary" Dense="true" Size="Size.Small" ReadOnly="true" />
-#pragma warning restore BL0005, MUD0012
-                                    <MudText Typo="Typo.body2" Class="ml-2">@col.Title</MudText>
+    @if (_loading)
+    {
+        <div class="d-flex flex-column align-center justify-center py-20">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Retrieving corporate registry...</MudText>
+        </div>
+    }
+    else
+    {
+        @if (!_isMobile)
+        {
+            @* DESKTOP DIAGNOSTIC GRID *@
+            <MudPaper Elevation="0" Class="fmc-org-surface">
+                <MudDataGrid @ref="_grid" Items="@_organizations" Hover="true" Bordered="false" Striped="false" 
+                              Filterable="true" SortMode="SortMode.Multiple" Elevation="0" 
+                              QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-org-grid">
+                    <ToolBarContent>
+                        <MudText Typo="Typo.h6" Style="font-weight: 800;">System Tenants</MudText>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="_searchString" Placeholder="Search by name or ID..." 
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-search-box" />
+                    </ToolBarContent>
+                    <Columns>
+                        <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;">
+                            <CellTemplate>
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Small">
+                                     <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
+                                                  Disabled='@(context.Item.Name == "Nationlink/Infoserve Inc.")'
+                                                  OnClick="@(() => OpenEditDialog(context.Item))">Edit</MudMenuItem>
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
+                                                 Disabled='@(context.Item.Name == "Nationlink/Infoserve Inc.")'
+                                                 OnClick="@(() => ConfirmDelete(context.Item))" 
+                                                 IconColor="Color.Error">Delete</MudMenuItem>
+                                </MudMenu>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Name" Title="Organization">
+                            <CellTemplate>
+                                <div class="d-flex align-center">
+                                    <MudAvatar Color="@GetAvatarColor(context.Item.Name)" Variant="Variant.Filled" Size="Size.Small" Class="mr-3">
+                                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
+                                    </MudAvatar>
+                                    <div class="d-flex flex-column">
+                                        <MudText Typo="Typo.body2" Style="font-weight: 800;">@context.Item.Name</MudText>
+                                        <MudText Typo="Typo.caption" Style="opacity:0.5; font-family:monospace; font-size:0.6rem;">@context.Item.Id</MudText>
+                                    </div>
                                 </div>
-                            </MudMenuItem>
-                        }
-                    }
-                </MudMenu>
-            </ToolBarContent>
-            <Columns>
-                <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;" Resizable="false">
-                    <CellTemplate>
-                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Size="Size.Small">
-                             <MudMenuItem Icon="@Icons.Material.Filled.Edit" 
-                                          Disabled='@(context.Item.Name == "Nationlink/Infoserve Inc.")'
-                                          OnClick="@(() => OpenEditDialog(context.Item))">
-                                 @(context.Item.Name == "Nationlink/Infoserve Inc." ? "System Organization Locked" : "Edit Details")
-                             </MudMenuItem>
-                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
-                                         Disabled='@(context.Item.Name == "Nationlink/Infoserve Inc.")'
-                                         OnClick="@(() => ConfirmDelete(context.Item))" 
-                                         IconColor="Color.Error">
-                                <MudText Color="@(context.Item.Name == "Nationlink/Infoserve Inc." ? Color.Default : Color.Error)">
-                                    @(context.Item.Name == "Nationlink/Infoserve Inc." ? "System Protected" : "Delete Organization")
-                                </MudText>
-                            </MudMenuItem>
-                        </MudMenu>
-                    </CellTemplate>
-                </TemplateColumn>
-                <PropertyColumn Property="x => x.Name" Title="Organization" Hideable="true" Resizable="true">
-                    <CellTemplate>
-                        <div class="d-flex align-center">
-                            <MudAvatar Color="@GetAvatarColor(context.Item.Name)" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
-                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
-                            </MudAvatar>
-                            <div class="d-flex flex-column">
-                                <MudText Typo="Typo.body1" Style="font-weight: 600;">@context.Item.Name</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Item.Id</MudText>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property='x => x.CeoName ?? "Unassigned"' Title="Chief Executive" />
+                        <PropertyColumn Property="x => x.UserCount" Title="Users">
+                            <CellTemplate>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Style="font-weight:800; border-radius:6px;">
+                                    @context.Item.UserCount
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.CreatedAt" Title="Registration">
+                            <CellTemplate>
+                                <MudText Typo="Typo.body2" Style="font-weight:600;">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.IsActive" Title="Status">
+                            <CellTemplate>
+                                <MudChip T="string" Size="Size.Small" Color="@(context.Item.IsActive ? Color.Success : Color.Error)" 
+                                         Variant="Variant.Filled" Style="border-radius: 6px; font-weight:800; font-size:0.6rem;">
+                                    @(context.Item.IsActive ? "ACTIVE" : "SUSPENDED")
+                                </MudChip>
+                            </CellTemplate>
+                        </PropertyColumn>
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="OrganizationDto" />
+                    </PagerContent>
+                </MudDataGrid>
+            </MudPaper>
+        }
+        else
+        {
+            @* MOBILE DOSSIER VIEW *@
+            <div class="d-flex flex-column gap-3">
+                <MudTextField @bind-Value="_searchString" Placeholder="Search organizations..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Class="mb-2" />
+                
+                @foreach (var org in _organizations.Where(o => QuickFilter(o)))
+                {
+                    <div class="fmc-org-mobile-card">
+                        <div class="fmc-mobile-header pa-4">
+                            <div class="d-flex justify-space-between align-start">
+                                <div class="d-flex gap-3">
+                                    <MudAvatar Color="@GetAvatarColor(org.Name)" Size="Size.Medium">
+                                        <MudIcon Icon="@Icons.Material.Filled.Business" />
+                                    </MudAvatar>
+                                    <div class="d-flex flex-column" style="max-width: 200px;">
+                                        <MudText Typo="Typo.body1" Style="font-weight:950; line-height:1.2;">@org.Name</MudText>
+                                        <MudText Typo="Typo.caption" Style="opacity:0.6; font-family:monospace; font-size:0.6rem; overflow:hidden; text-overflow:ellipsis;">@org.Id</MudText>
+                                    </div>
+                                </div>
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Small" AnchorOrigin="Origin.BottomRight">
+                                     <MudMenuItem OnClick="@(() => OpenEditDialog(org))" Disabled='@(org.Name == "Nationlink/Infoserve Inc.")'>Edit</MudMenuItem>
+                                     <MudMenuItem OnClick="@(() => ConfirmDelete(org))" Disabled='@(org.Name == "Nationlink/Infoserve Inc.")' IconColor="Color.Error">Delete</MudMenuItem>
+                                </MudMenu>
                             </div>
                         </div>
-                    </CellTemplate>
-                </PropertyColumn>
-                
-                <PropertyColumn Property='x => string.IsNullOrEmpty(x.CeoName) ? "Unassigned" : x.CeoName' Title="Chief Executive" Hideable="true" Resizable="true">
-                    <CellTemplate>
-                        <div class="d-flex align-center">
-                            <MudIcon Icon="@Icons.Material.Filled.PersonOutline" Size="Size.Small" Color="Color.Secondary" Class="mr-2" />
-                            <MudText Typo="Typo.body2">@context.Item.CeoName</MudText>
+                        <div class="fmc-mobile-body px-4 py-3">
+                            <div class="fmc-mobile-row">
+                                <span class="fmc-mobile-label">CHIEF EXECUTIVE</span>
+                                <span class="fmc-mobile-val">@(org.CeoName ?? "Unassigned")</span>
+                            </div>
+                            <div class="fmc-mobile-row">
+                                <span class="fmc-mobile-label">WORKFORCE</span>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight:900; height:20px;">@org.UserCount users</MudChip>
+                            </div>
+                            <div class="fmc-mobile-row">
+                                <span class="fmc-mobile-label">STATUS</span>
+                                <MudChip T="string" Color="@(org.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Filled" Style="font-weight:900; height:20px; font-size:0.55rem;">
+                                    @(org.IsActive ? "ACTIVE" : "SUSPENDED")
+                                </MudChip>
+                            </div>
                         </div>
-                    </CellTemplate>
-                </PropertyColumn>
-                
-                <PropertyColumn Property="x => x.Description" Title="Description" Hideable="true" Resizable="true" />
-                
-                <PropertyColumn Property="x => x.UserCount" Title="Affiliated Users" Hideable="true" Resizable="true">
-                    <CellTemplate>
-                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined" Style="border-radius: 6px; font-weight: 600;">
-                            @context.Item.UserCount users
-                        </MudChip>
-                    </CellTemplate>
-                </PropertyColumn>
-
-                <PropertyColumn Property="x => x.CreatedAt" Title="Registration Date" Hideable="true" Resizable="true">
-                    <CellTemplate>
-                        <MudText Typo="Typo.body2">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
-                    </CellTemplate>
-                </PropertyColumn>
-
-                <PropertyColumn Property="x => x.IsActive" Title="Operational Status" Hideable="true" Resizable="true">
-                    <CellTemplate>
-                        @if (context.Item.IsActive)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Style="border-radius: 6px;">Active</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Style="border-radius: 6px;">Suspended</MudChip>
-                        }
-                    </CellTemplate>
-                </PropertyColumn>
-            </Columns>
-            <PagerContent>
-                <MudDataGridPager T="OrganizationDto" />
-            </PagerContent>
-        </MudDataGrid>
-    </MudPaper>
+                    </div>
+                }
+            </div>
+        }
+    }
 </MudContainer>
 
 <style>
-    .fmc-admin-grid { width: 100% !important; table-layout: auto !important; }
-    .fmc-admin-grid .mud-table-container { overflow-x: auto; }
-    .fmc-admin-grid .mud-table-head { background-color: var(--mud-palette-background-grey); }
-    .fmc-admin-grid .mud-table-row:hover { background-color: var(--mud-palette-action-hover) !important; }
+    /* ORGANIZATION DIRECTORY PREMIUM DESIGN */
+    .fmc-org-header { display: flex; align-items: center; justify-content: space-between; }
+    .fmc-org-bar { width: 6px; height: 50px; background: linear-gradient(to bottom, var(--mud-palette-primary), var(--mud-palette-info)); border-radius: 4px; }
+    .fmc-org-hero-text { font-weight: 950; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); }
+    .fmc-org-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.7; font-weight: 600; }
+    .fmc-org-action-btn { border-radius: 12px; text-transform:none; font-weight: 800; padding: 10px 24px !important; }
 
-    /* Mobile specific styles */
-    .grid-pair { display: grid; grid-template-columns: 70px 1fr; align-items: center; }
-    .label { font-weight: 700; color: var(--mud-palette-text-disabled); text-transform: uppercase; letter-spacing: 0.05em; }
+    /* Surface & Grid */
+    .fmc-org-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
+    .fmc-org-grid .mud-table-head { background: var(--mud-palette-background-grey); }
+    .fmc-org-grid .mud-th { font-weight: 950 !important; font-size: 0.65rem !important; letter-spacing: 0.1em; text-transform: uppercase; padding: 16px 24px !important; color: var(--mud-palette-text-secondary); }
+    .fmc-org-grid .mud-td { padding: 14px 24px !important; border-bottom: 1px solid var(--mud-palette-divider); }
+    .fmc-search-box { width: 280px; }
+    .fmc-search-box .mud-input-outlined { border-radius: 12px; background: var(--mud-palette-surface); }
+
+    /* Mobile Cards */
+    .fmc-org-mobile-card { background: var(--mud-palette-surface); border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 8px; }
+    .fmc-mobile-header { border-bottom: 1px solid var(--mud-palette-background-grey); }
+    .fmc-mobile-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.03); }
+    .fmc-mobile-row:last-child { border-bottom: none; }
+    .fmc-mobile-label { font-size: 0.55rem; font-weight: 900; color: var(--mud-palette-text-secondary); opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
+    .fmc-mobile-val { font-size: 0.8rem; font-weight: 800; color: var(--mud-palette-text-primary); }
+
+    @@media (max-width: 600px) {
+        .fmc-org-hero-text { font-size: 1.5rem !important; }
+        .fmc-org-header { flex-direction: column; align-items: stretch; gap: 16px; }
+        .fmc-org-action-btn { width: 100%; order: -1; }
+    }
 </style>
-
-@inject IBrowserViewportService BrowserViewportService
 
 @code {
     private MudDataGrid<OrganizationDto> _grid = default!;
@@ -160,14 +197,14 @@
     private bool _isMobile = false;
 
     public Guid Id { get; } = Guid.NewGuid();
-    public ResizeOptions ResizeOptions { get; } = new() { ReportRate = 50, NotifyOnBreakpointOnly = true };
+    public ResizeOptions ResizeOptions { get; } = new() { ReportRate = 100, NotifyOnBreakpointOnly = true };
 
     public async Task NotifyBrowserViewportChangeAsync(BrowserViewportEventArgs e)
     {
-        var newIsMobile = e.Breakpoint < Breakpoint.Sm;
-        if (_isMobile != newIsMobile)
+        var mobile = e.Breakpoint < Breakpoint.Sm;
+        if (_isMobile != mobile)
         {
-            _isMobile = newIsMobile;
+            _isMobile = mobile;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -182,8 +219,8 @@
         if (firstRender)
         {
             _isMobile = await BrowserViewportService.GetCurrentBreakpointAsync() < Breakpoint.Sm;
-            StateHasChanged();
             await BrowserViewportService.SubscribeAsync(this);
+            StateHasChanged();
         }
     }
 
@@ -209,13 +246,13 @@
         }
     }
 
-    private Func<OrganizationDto, bool> QuickFilter => x =>
+    private bool QuickFilter(OrganizationDto x)
     {
         if (string.IsNullOrWhiteSpace(_searchString)) return true;
         if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
         if (x.Id.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
         return false;
-    };
+    }
 
     private Color GetAvatarColor(string name)
     {
@@ -238,12 +275,6 @@
 
     private async Task OpenEditDialog(OrganizationDto org)
     {
-        if (org.Name == "Nationlink/Infoserve Inc.")
-        {
-            Snackbar.Add("CRITICAL: Super-Tenant records cannot be modified.", Severity.Warning);
-            // return; // Typically we would block this, but allowed in UI demonstration until fully scoped.
-        }
-
         var parameters = new DialogParameters<OrganizationDialog>() { { x => x.OrganizationToEdit, org } };
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<OrganizationDialog>("Modify Organization", parameters, options);
@@ -257,20 +288,6 @@
 
     private async Task ConfirmDelete(OrganizationDto org)
     {
-        if (org.Name == "Nationlink/Infoserve Inc.")
-        {
-            Snackbar.Add("CRITICAL: The System Host Tenant cannot be deleted.", Severity.Error);
-            return;
-        }
-
-        var parameters = new DialogParameters<MudMessageBox>()
-        {
-            { x => x.Title, "Suspend Tenant" },
-            { x => x.MarkupMessage, new Microsoft.AspNetCore.Components.MarkupString($"Are you sure you want to logically delete <b>{org.Name}</b>? Operations for its {org.UserCount} affiliated users will be suspended.") },
-            { x => x.YesText, "Suspend" },
-            { x => x.NoText, "Cancel" }
-        };
-
         var result = await DialogService.ShowMessageBoxAsync("Suspend Organization", 
             $"Are you sure you want to logically delete {org.Name}?", 
             yesText: "Suspend", cancelText: "Cancel");

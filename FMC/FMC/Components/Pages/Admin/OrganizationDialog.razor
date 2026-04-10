@@ -26,6 +26,13 @@
                                 <MudTextField @bind-Value="_model.Description" Label="Business Description" 
                                               Lines="3" Variant="Variant.Outlined" FullWidth="true" />
                             </MudItem>
+                            <MudItem xs="12">
+                                <MudNumericField @bind-Value="_model.WalletLimit" Label="Assigned Balance (Liquidity Ceiling)" 
+                                                 Variant="Variant.Outlined" FullWidth="true" 
+                                                 Format="N0" Adornment="Adornment.Start" 
+                                                 AdornmentFontFamily="'JetBrains Mono',monospace"
+                                                 AdornmentText="₱" HelperText="The maximum operational float before depletion alerts trigger." />
+                            </MudItem>
                             @if (!IsCreate)
                             {
                                 <MudItem xs="12" Class="d-flex align-center justify-space-between mt-4 pa-4" 
@@ -179,6 +186,7 @@
             _model.Description = OrganizationToEdit.Description;
             _model.IsActive = OrganizationToEdit.IsActive;
             _model.ChiefExecutiveId = OrganizationToEdit.ChiefExecutiveId;
+            _model.WalletLimit = OrganizationToEdit.WalletLimit;
 
             // Load users affiliated with this organization
             try
@@ -258,7 +266,8 @@
                 var dto = new CreateOrganizationDto
                 {
                     Name = _model.Name,
-                    Description = _model.Description
+                    Description = _model.Description,
+                    WalletLimit = _model.WalletLimit
                 };
                 success = await OrganizationService.CreateAsync(dto);
             }
@@ -270,7 +279,8 @@
                     Name = _model.Name,
                     Description = _model.Description,
                     IsActive = _model.IsActive,
-                    ChiefExecutiveId = _model.ChiefExecutiveId
+                    ChiefExecutiveId = _model.ChiefExecutiveId,
+                    WalletLimit = _model.WalletLimit
                 };
                 success = await OrganizationService.UpdateAsync(dto);
             }
@@ -302,5 +312,6 @@
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
         public string? ChiefExecutiveId { get; set; }
+        public decimal WalletLimit { get; set; } = 1_000_000m;
     }
 }

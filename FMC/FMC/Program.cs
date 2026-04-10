@@ -83,6 +83,7 @@ builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<OrganizationApiService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<SecurityStateService>();
 #endregion
 
 var app = builder.Build();

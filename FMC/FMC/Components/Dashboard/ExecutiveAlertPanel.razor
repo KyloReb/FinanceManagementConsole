@@ -1,0 +1,241 @@
+@using FMC.Shared.DTOs.Organization
+@inject IDialogService DialogService
+
+<style>
+    .fmc-alert-surface { 
+        border-radius: 20px; border: 1px solid var(--mud-palette-divider); 
+        background: var(--mud-palette-surface); overflow: hidden;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.03); margin-bottom: 24px;
+    }
+    .fmc-alert-header-area { 
+        padding: 16px 24px; background: var(--mud-palette-background-grey); 
+        border-bottom: 1px solid var(--mud-palette-divider);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .fmc-alert-hub-icon { 
+        width: 36px; height: 36px; background: rgba(var(--mud-palette-warning-rgb), 0.1); 
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    }
+    .fmc-alert-list-hub { display: flex; flex-direction: column; }
+    .fmc-alert-row-hub { 
+        padding: 16px 24px; display: flex; align-items: center; gap: 16px;
+        border-bottom: 1px solid var(--mud-palette-divider); transition: background 0.2s;
+        position: relative;
+    }
+    .fmc-alert-row-hub:last-child { border-bottom: none; }
+    .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
+    
+    .fmc-alert-indicator-hub { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+    .fmc-alert-indicator-hub.critical { background: var(--mud-palette-error); }
+    .fmc-alert-indicator-hub.warning { background: var(--mud-palette-warning); }
+    .fmc-alert-indicator-hub.info { background: var(--mud-palette-info); }
+
+    .fmc-alert-content-hub { flex: 1; min-width: 0; }
+    .fmc-alert-entity-title { font-weight: 850; font-size: 0.9rem; }
+    .fmc-alert-tag-hub { 
+        font-size: 0.6rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; 
+        letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .fmc-tag-critical { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+    .fmc-tag-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .fmc-tag-info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
+
+    .fmc-alert-actions-hub { display: flex; align-items: center; gap: 8px; }
+</style>
+
+@if (!_dismissed && HasAlerts && !Loading)
+{
+    <div class="fmc-alert-surface">
+        <div class="fmc-alert-header-area">
+            <div class="d-flex align-center gap-3">
+                <div class="fmc-alert-hub-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Warning" Size="Size.Small" />
+                </div>
+                <div>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">Intelligence Oversight</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@TotalAlerts operational anomaly detected</MudText>
+                </div>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _dismissed = true)" />
+        </div>
+
+        <div class="fmc-alert-list-hub">
+
+            @* ── CRITICAL: Zero / Negative Balance ── *@
+            @if (ZeroBalanceTenants.Any())
+            {
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub critical"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub fmc-tag-critical">CRITICAL LIQUIDITY</span>
+                            @foreach (var t in ZeroBalanceTenants.Take(2))
+                            {
+                                <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-entity-title">@t.Name</MudLink>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            Tenant wallets depleted. Institutional service at risk.
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                   OnClick="@(() => OpenAdjustmentDialog(ZeroBalanceTenants.First(), true))"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Resolve</MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── CRITICAL: Balance ≤ ₱100,000 ── *@
+            @if (LowBalanceTenants.Any())
+            {
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub critical"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub fmc-tag-critical">NEAR-DEPLETION</span>
+                            @foreach (var t in LowBalanceTenants.Take(3))
+                            {
+                                <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-entity-title">@t.Name</MudLink>
+                            }
+                            @if (LowBalanceTenants.Count > 3)
+                            {
+                                <span class="fmc-alert-tag-hub" style="background:rgba(var(--mud-palette-error-rgb),0.08); color:var(--mud-palette-error);">+@(LowBalanceTenants.Count - 3) more</span>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @LowBalanceTenants.Count subscriber @(LowBalanceTenants.Count == 1 ? "wallet has" : "wallets have") fallen below the ₱100,000 safety threshold.
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                   OnClick="@(() => OpenAdjustmentDialog(LowBalanceTenants.First(), true))"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Fund</MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── WARNING: ≥80% Wallet Utilization ── *@
+            @if (HighUtilizationTenants.Any())
+            {
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub warning"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub fmc-tag-warning">HIGH UTILIZATION</span>
+                            @foreach (var t in HighUtilizationTenants.Take(3))
+                            {
+                                <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-entity-title">
+                                    @t.Name <span style="font-size:0.6rem; opacity:0.7;">(@GetUtilization(t).ToString("F0")%)</span>
+                                </MudLink>
+                            }
+                            @if (HighUtilizationTenants.Count > 3)
+                            {
+                                <span class="fmc-alert-tag-hub fmc-tag-warning">+@(HighUtilizationTenants.Count - 3) more</span>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @HighUtilizationTenants.Count subscriber @(HighUtilizationTenants.Count == 1 ? "wallet has" : "wallets have") consumed ≥80% of their liquidity ceiling. Replenishment recommended.
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                                   Href="/admin/organizations"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── WARNING: Suspended Tenants ── *@
+            @if (SuspendedTenants.Any())
+            {
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub warning"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub fmc-tag-warning">ACCESS SUSPENDED</span>
+                            @foreach (var t in SuspendedTenants.Take(2))
+                            {
+                                <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-entity-title">@t.Name</MudLink>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            Organizations currently in-active state across the network.
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                                   Href="/admin/organizations"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── INFO: No CEO Assigned ── *@
+            @if (NoCeoTenants.Any())
+            {
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub info"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub fmc-tag-info">LEADERSHIP VOID</span>
+                            @foreach (var t in NoCeoTenants.Take(2))
+                            {
+                                <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-entity-title">@t.Name</MudLink>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            System entities operating without designated executive oversight.
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                   Href="/admin/organizations"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Assign</MudButton>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public List<OrganizationDto> Organizations { get; set; } = new();
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback OnActionCompleted { get; set; }
+
+    private bool _dismissed;
+
+    private const decimal CriticalBalanceThreshold = 100_000m;
+    private const double HighUtilizationThreshold  = 80.0;
+
+    private List<OrganizationDto> ZeroBalanceTenants        => Organizations.Where(o => o.TotalBalance <= 0 && o.IsActive).ToList();
+    private List<OrganizationDto> LowBalanceTenants         => Organizations.Where(o => o.IsActive && o.TotalBalance > 0 && o.TotalBalance <= CriticalBalanceThreshold).ToList();
+    private List<OrganizationDto> HighUtilizationTenants    => Organizations.Where(o => o.IsActive && o.WalletLimit > 0 && GetUtilization(o) >= HighUtilizationThreshold && o.TotalBalance > CriticalBalanceThreshold).ToList();
+    private List<OrganizationDto> SuspendedTenants          => Organizations.Where(o => !o.IsActive).ToList();
+    private List<OrganizationDto> NoCeoTenants              => Organizations.Where(o => string.IsNullOrWhiteSpace(o.CeoName)).ToList();
+
+    private static double GetUtilization(OrganizationDto o) =>
+        o.WalletLimit <= 0 ? 0 : (double)((o.WalletLimit - o.TotalBalance) / o.WalletLimit) * 100.0;
+
+    private bool HasAlerts  => ZeroBalanceTenants.Any() || LowBalanceTenants.Any() || HighUtilizationTenants.Any() || SuspendedTenants.Any() || NoCeoTenants.Any();
+    private int  TotalAlerts => ZeroBalanceTenants.Count + LowBalanceTenants.Count + HighUtilizationTenants.Count + SuspendedTenants.Count + NoCeoTenants.Count;
+
+    private async Task OpenAdjustmentDialog(OrganizationDto org, bool isCredit)
+    {
+        var parameters = new DialogParameters { ["Organization"] = org, ["IsCredit"] = isCredit };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        
+        var dialog = await DialogService.ShowAsync<FMC.Components.Pages.Admin.OrganizationBalanceDialog>(
+            isCredit ? "Credit Wallet" : "Debit Wallet", 
+            parameters, 
+            options);
+            
+        var result = await dialog.Result;
+        
+        if (result is not null && !result.Canceled)
+        {
+            await OnActionCompleted.InvokeAsync();
+        }
+    }
+}

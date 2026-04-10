@@ -20,14 +20,24 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
             .AsNoTracking()
             .OrderByDescending(t => t.Date)
             .Take(request.Count)
-            .Select(t => new TransactionDto
+            .Select(t => new 
+            { 
+                T = t, 
+                OrgName = _context.Organizations
+                    .Where(o => o.Id.ToString() == t.TenantId)
+                    .Select(o => o.Name)
+                    .FirstOrDefault() 
+            })
+            .Select(x => new TransactionDto
             {
-                Id = t.Id,
-                Date = t.Date,
-                Amount = t.Amount,
-                Label = t.Label,
-                AccountId = t.AccountId,
-                Category = t.Category
+                Id = x.T.Id,
+                Date = x.T.Date,
+                Amount = x.T.Amount,
+                Label = x.T.Label,
+                AccountId = x.T.AccountId,
+                Category = x.T.Category,
+                Subscriber = x.OrgName ?? "System Node",
+                Status = string.IsNullOrWhiteSpace(x.T.Status) ? "Successful" : x.T.Status
             })
             .ToListAsync(cancellationToken);
     }

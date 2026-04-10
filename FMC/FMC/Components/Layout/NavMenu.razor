@@ -1,40 +1,118 @@
 ﻿@inject AuthService AuthService
 @inject NavigationManager NavigationManager
 
-<MudNavMenu>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-    <MudNavLink Href="transactions" Icon="@Icons.Material.Filled.List">Transactions</MudNavLink>
-    <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.AccountBalance">Accounts</MudNavLink>
-    <MudNavLink Href="budgets" Icon="@Icons.Material.Filled.PieChart">Budgets</MudNavLink>
-    <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Assessment">Reports</MudNavLink>
-    <MudDivider Class="my-2" />
-    <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+<div class="fmc-nav-container">
+    <div class="fmc-nav-scroll">
+        @* ── CORE SUITE ── *@
+        <div class="fmc-nav-group-label">CORE SUITE</div>
+        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Class="fmc-nav-link">Dashboard</MudNavLink>
+        <MudNavLink Href="transactions" Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="fmc-nav-link">Transactions</MudNavLink>
+        <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.CreditCard" Class="fmc-nav-link">Accounts</MudNavLink>
+        <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Insights" Class="fmc-nav-link">Reports</MudNavLink>
 
-    <AuthorizeView Roles="@FMC.Shared.Auth.Roles.CEO">
-        <Authorized>
-            <MudDivider Class="my-2" />
-            <MudNavLink Href="ceo/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Business">Corporate Overview</MudNavLink>
-        </Authorized>
-    </AuthorizeView>
+        <AuthorizeView Roles="@FMC.Shared.Auth.Roles.CEO">
+            <Authorized>
+                <div class="fmc-nav-group-divider"></div>
+                @* ── CORPORATE OVERSIGHT ── *@
+                <div class="fmc-nav-group-label">CORPORATE</div>
+                <MudNavLink Href="ceo/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Domain" Class="fmc-nav-link">Corporate Overview</MudNavLink>
+            </Authorized>
+        </AuthorizeView>
 
-    <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin">
-        <Authorized>
-            <MudDivider Class="my-2" />
-            <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
-                <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.People">Manage Users</MudNavLink>
-                <MudNavLink Href="admin/audit" Icon="@Icons.Material.Filled.Security">Audit Intelligence</MudNavLink>
-                <MudNavLink Href="admin/login-logs" Icon="@Icons.Material.Filled.AssignmentInd">Login Logs</MudNavLink>
-                <MudNavLink Href="admin/docs" Icon="@Icons.Material.Filled.MenuBook">System Docs</MudNavLink>
-            </MudNavGroup>
-        </Authorized>
-    </AuthorizeView>
-</MudNavMenu>
+        <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin">
+            <Authorized>
+                <div class="fmc-nav-group-divider"></div>
+                @* ── ADMINISTRATION ── *@
+                <div class="fmc-nav-group-label">ADMINISTRATION</div>
+                <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.ManageAccounts" Class="fmc-nav-link">Personnel Directory</MudNavLink>
+                <MudNavLink Href="admin/audit" Icon="@Icons.Material.Filled.Shield" Class="fmc-nav-link">Audit Intelligence</MudNavLink>
+                <MudNavLink Href="admin/docs" Icon="@Icons.Material.Filled.LibraryBooks" Class="fmc-nav-link">System Artifacts</MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <div class="fmc-nav-group-divider"></div>
+        @* ── SYSTEM ── *@
+        <div class="fmc-nav-group-label">SYSTEM</div>
+        <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Tune" Class="fmc-nav-link">Console Settings</MudNavLink>
+    </div>
+
+    @* Premium Quick Logout *@
+    <div class="fmc-nav-footer">
+        <button class="fmc-nav-logout-btn" @onclick="LogoutAsync">
+            <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Class="mr-2" />
+            <span>Terminate Session</span>
+        </button>
+    </div>
+</div>
+
+<style>
+    .fmc-nav-container { 
+        height: 100%; display: flex; flex-direction: column; 
+        background-color: var(--mud-palette-surface);
+        padding: 12px 0 0 0;
+    }
+    .fmc-nav-scroll { flex: 1; overflow-y: auto; padding-right: 4px; }
+    
+    .fmc-nav-group-label { 
+        padding: 24px 24px 8px 24px; font-size: 0.62rem; font-weight: 900; 
+        color: var(--mud-palette-text-secondary); opacity: 0.6; letter-spacing: 0.15em;
+    }
+    
+    .fmc-nav-group-divider { margin: 12px 24px; height: 1px; background: var(--mud-palette-divider); opacity: 0.5; }
+
+    /* Premium Link Styling */
+    .fmc-nav-link { 
+        margin: 4px 12px; border-radius: 12px !important; 
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        height: 48px !important; display: flex !important; align-items: center !important;
+        color: var(--mud-palette-text-secondary) !important;
+        font-weight: 600 !important; font-size: 0.88rem !important;
+    }
+    
+    .fmc-nav-link:hover { 
+        background: rgba(var(--mud-palette-primary-rgb), 0.04) !important; 
+        color: var(--mud-palette-primary) !important;
+    }
+    
+    /* Elegant Active State */
+    ::deep .mud-nav-link.active { 
+        background: linear-gradient(90deg, rgba(var(--mud-palette-primary-rgb), 0.08) 0%, rgba(var(--mud-palette-primary-rgb), 0) 100%) !important;
+        color: var(--mud-palette-primary) !important;
+        font-weight: 800 !important;
+        position: relative;
+    }
+    
+    ::deep .mud-nav-link.active::before {
+        content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px;
+        background: var(--mud-palette-primary); border-radius: 0 4px 4px 0;
+        box-shadow: 2px 0 8px rgba(var(--mud-palette-primary-rgb), 0.4);
+    }
+    
+    .fmc-nav-link .mud-nav-link-icon-default { 
+        margin-right: 16px !important; transition: transform 0.25s;
+        color: inherit !important;
+    }
+    
+    .fmc-nav-link:hover .mud-nav-link-icon-default { transform: translateX(2px); }
+
+    /* Footer / Logout */
+    .fmc-nav-footer { padding: 16px 12px 24px; border-top: 1px solid var(--mud-palette-divider); }
+    .fmc-nav-logout-btn { 
+        width: 100%; height: 44px; display: flex; align-items: center; justify-content: center;
+        background: transparent; border: 1px solid var(--mud-palette-divider); border-radius: 12px;
+        color: var(--mud-palette-text-secondary); font-size: 0.78rem; font-weight: 800;
+        transition: all 0.2s; cursor: pointer;
+    }
+    .fmc-nav-logout-btn:hover { 
+        background: rgba(var(--mud-palette-error-rgb), 0.05);
+        border-color: rgba(var(--mud-palette-error-rgb), 0.2);
+        color: var(--mud-palette-error);
+</style>
 
 @code {
     private async Task LogoutAsync()
     {
-        // Simple logout trigger for the user to definitely be able to exit
         await AuthService.Logout("current");
-        NavigationManager.NavigateTo("/login");
+        NavigationManager.NavigateTo("/login", true);
     }
 }

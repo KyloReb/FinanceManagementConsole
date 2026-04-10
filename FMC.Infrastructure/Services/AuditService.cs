@@ -169,8 +169,7 @@ public class AuditService : IAuditService
         if (category == "financial")
         {
             if (!string.IsNullOrEmpty(tenantId))
-                query = query.Where(a => a.TenantId == tenantId || 
-                    (a.Action == "CREDIT" || a.Action == "DEBIT"));
+                query = query.Where(a => a.TenantId == tenantId);
             else
                 query = query.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
         }

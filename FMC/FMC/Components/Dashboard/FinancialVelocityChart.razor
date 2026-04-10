@@ -1,0 +1,215 @@
+@using FMC.Shared.DTOs.Admin
+@using System.Linq
+@inject IJSRuntime JS
+
+<div class="fmc-robinhood-chart-container" @onmousemove="HandleMouseMove" @onmouseleave="HandleMouseLeave">
+    <div class="fmc-chart-header-overlay">
+        <div class="d-flex align-center justify-space-between">
+            <div class="d-flex flex-column">
+                <div class="d-flex align-center gap-2 mb-1">
+                    <MudText Typo="Typo.h6" Class="fmc-chart-label">Wallet Balance</MudText>
+                    @if (Series != null && Series.Count > 1)
+                    {
+                        <div class="fmc-series-badge">
+                            <MudIcon Icon="@Icons.Material.Filled.Interests" Size="Size.Small" Style="font-size: 0.7rem;" />
+                            <span>@(_activeSeriesName)</span>
+                        </div>
+                    }
+                </div>
+                <div class="d-flex align-end gap-3">
+                    <MudText Typo="Typo.h4" Class="fmc-chart-val">
+                        @(_isHovering ? _hoveredValue.ToString("C2") : CurrentBalance.ToString("C2"))
+                    </MudText>
+                    @if (_isHovering) { <div class="fmc-hover-date">@_hoveredLabel</div> }
+                </div>
+            </div>
+            <div class="d-flex flex-column align-end gap-2">
+                <div class="fmc-trend-indicator">
+                    <span>@(_isHovering ? "INSPECTION" : "LIVE FEED")</span>
+                </div>
+                @if (Series != null && Series.Count > 1)
+                {
+                    <div class="fmc-pill-switcher">
+                        @for (int i = 0; i < Series.Count; i++)
+                        {
+                            var idx = i; // capture for lambda
+                            var isActive = _activeSeriesIndex == idx;
+                            <button class="fmc-pill @(isActive ? "active" : "")"
+                                    style="@(isActive ? $"background:{GetColorForIndex(idx)};border-color:{GetColorForIndex(idx)};" : "")"
+                                    @onclick="@(() => OnSeriesSelectionChangedMud(idx))">
+                                @Series[idx].Name
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (Loading) {
+        <div class="fmc-chart-loading"><MudProgressCircular Color="Color.Inherit" Indeterminate="true" /></div>
+    } else {
+        <div class="fmc-svg-wrapper">
+            <svg viewBox="0 0 1000 400" preserveAspectRatio="none" class="fmc-main-svg">
+                <defs>
+                    <linearGradient id="@($"chartGradient_{_activeSeriesIndex}")" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="@($"stop-color:{_activeColor};stop-opacity:0.2")" />
+                        <stop offset="100%" style="@($"stop-color:{_activeColor};stop-opacity:0")" />
+                    </linearGradient>
+                </defs>
+                @if (Points.Any()) {
+                    <path d="@GetFillPath()" fill="@($"url(#chartGradient_{_activeSeriesIndex})")" />
+                    <path d="@GetLinePath()" fill="none" stroke="@_activeColor" stroke-width="3" />
+                    @if (_isHovering && _hoverIdx >= 0 && _hoverIdx < Points.Count) {
+                        <line x1="@Points[_hoverIdx].X" y1="0" x2="@Points[_hoverIdx].X" y2="400" stroke="var(--mud-palette-divider)" stroke-dasharray="4" />
+                        <circle cx="@Points[_hoverIdx].X" cy="@Points[_hoverIdx].Y" r="6" fill="@_activeColor" />
+                    } else if (!_isHovering) {
+                        <circle cx="@Points.Last().X" cy="@Points.Last().Y" r="5" fill="@_activeColor" class="fmc-pulse-dot" />
+                    }
+                }
+            </svg>
+        </div>
+    }
+
+    <div class="fmc-timeframe-row">
+        @foreach (var tf in _timeframes) {
+            <button class="fmc-tf-btn @(SelectedTimeframe == tf.Value ? "active" : "")" @onclick="@(() => OnTimeframeChanged.InvokeAsync(tf.Value))">@tf.Label</button>
+        }
+    </div>
+</div>
+
+<style>
+    .fmc-robinhood-chart-container {
+        background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider); border-radius: 20px;
+        padding: 20px; position: relative; overflow: hidden; min-height: 140px; display: flex; flex-direction: column;
+        cursor: crosshair; transition: border-color 0.3s;
+    }
+    .fmc-robinhood-chart-container:hover { border-color: rgba(var(--mud-palette-primary-rgb), 0.5); }
+    .fmc-chart-label { font-size: 0.75rem !important; opacity: 0.6; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+    .fmc-chart-val { font-weight: 900 !important; font-family: 'JetBrains Mono', monospace; font-size: 1.5rem !important; }
+    .fmc-hover-date { padding: 2px 8px; background: var(--mud-palette-background-grey); border-radius: 6px; font-size: 0.7rem; font-weight: 800; color: var(--mud-palette-text-secondary); }
+    .fmc-trend-indicator { background: rgba(var(--mud-palette-primary-rgb), 0.1); padding: 4px 10px; border-radius: 20px; color: var(--mud-palette-primary); font-size: 0.55rem; font-weight: 900; }
+    
+    .fmc-series-badge { 
+        display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; 
+        background: @_activeColor; color: white; 
+        font-size: 0.6rem; font-weight: 900; text-transform: uppercase;
+        transition: background-color 0.3s;
+    }
+
+    .fmc-pill-switcher { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 220px; }
+    .fmc-pill {
+        appearance: none; border: 1px solid var(--mud-palette-divider);
+        background: transparent; border-radius: 99px;
+        padding: 3px 10px; font-size: 0.62rem; font-weight: 800;
+        color: var(--mud-palette-text-secondary); cursor: pointer;
+        transition: all 0.2s; white-space: nowrap;
+    }
+    .fmc-pill:hover { background: var(--mud-palette-action-default-hover); }
+    .fmc-pill.active { color: white; }
+
+    .fmc-svg-wrapper { flex: 1; min-height: 60px; position: relative; }
+    .fmc-main-svg { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .fmc-tf-btn { background: transparent; border: none; padding: 4px 10px; border-radius: 6px; color: var(--mud-palette-text-secondary); font-size: 0.65rem; font-weight: 800; transition: 0.2s; }
+    .fmc-tf-btn:hover { background: rgba(var(--mud-palette-action-default-rgb), 0.05); }
+    .fmc-tf-btn.active { background: var(--mud-palette-primary); color: var(--mud-palette-primary-text); }
+    .fmc-pulse-dot { animation: fmc-dot-pulse 2s infinite; }
+    @@keyframes fmc-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @@media (max-width: 600px) { .fmc-robinhood-chart-container { min-height: 200px; padding: 12px; } .fmc-chart-val { font-size: 1.25rem !important; } }
+</style>
+
+@code {
+    [Parameter] public List<ChartSeries<double>> Series { get; set; } = new();
+    [Parameter] public string[] Labels { get; set; } = Array.Empty<string>();
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string SelectedTimeframe { get; set; } = "Daily";
+    [Parameter] public EventCallback<string> OnTimeframeChanged { get; set; }
+
+    private List<(string Label, string Value)> _timeframes = new() { ("1D", "Daily"), ("1W", "Weekly"), ("1M", "Monthly"), ("3M", "Quarterly"), ("1Y", "Yearly") };
+    private List<Point> Points = new();
+    private List<double> Values = new();
+    
+    private int _activeSeriesIndex = 0;
+    private string _activeSeriesName => (Series != null && _activeSeriesIndex < Series.Count) ? Series[_activeSeriesIndex].Name : "Default";
+    
+    private string _activeColor => GetColorForIndex(_activeSeriesIndex);
+
+    private static string GetColorForIndex(int idx) => idx switch
+    {
+        0 => "var(--mud-palette-primary)",
+        1 => "#10b981",
+        2 => "#3b82f6",
+        3 => "#f59e0b",
+        4 => "#8b5cf6",
+        5 => "#ec4899",
+        _ => "var(--mud-palette-secondary)"
+    };
+
+    private double CurrentBalance => Values.Any() ? Values.Last() : 0;
+    private bool _isHovering;
+    private int _hoverIdx = -1;
+    private double _hoveredValue;
+    private string _hoveredLabel = "";
+
+    protected override void OnParametersSet()
+    {
+        // Sanitize stale indices when Series collection changes
+        if (Series == null || Series.Count == 0)
+        {
+            _activeSeriesIndex = 0;
+        }
+        else if (_activeSeriesIndex >= Series.Count)
+        {
+            _activeSeriesIndex = 0;
+        }
+        // Always reset hover state when data changes to prevent stale index
+        _isHovering = false;
+        _hoverIdx   = -1;
+        CalculatePoints();
+    }
+
+    private void OnSeriesSelectionChangedMud(int index)
+    {
+        _activeSeriesIndex = index;
+        _isHovering = false;
+        _hoverIdx   = -1;
+        CalculatePoints();
+    }
+
+    private void CalculatePoints()
+    {
+        // Always clear first so stale Points/Values never leak into the render
+        Points = new();
+        Values = new();
+
+        if (Series == null || !Series.Any()) return;
+        if (_activeSeriesIndex < 0 || _activeSeriesIndex >= Series.Count) return;
+        var data = Series[_activeSeriesIndex].Data;
+        if (data == null || data.Count() < 2) return;
+
+        Values = data.ToList();
+        double min = Values.Min(), max = Values.Max(),
+               range = max - min == 0 ? 1 : max - min,
+               pad = range * 0.1, dMin = min - pad, dRange = (max + pad) - dMin;
+        Points = Enumerable.Range(0, Values.Count)
+            .Select(i => new Point(
+                (float)i / (Values.Count - 1) * 1000,
+                400 - (float)((Values[i] - dMin) / dRange * 400)))
+            .ToList();
+    }
+
+    private async Task HandleMouseMove(MouseEventArgs e) {
+        if (!Values.Any()) return;
+        _isHovering = true;
+        // Efficient proportional calculation - works perfectly for standard responsive layouts
+        var clientWidth = await JS.InvokeAsync<double>("eval", "document.querySelector('.fmc-robinhood-chart-container')?.clientWidth || 1");
+        double percent = Math.Clamp((e.OffsetX / clientWidth), 0, 1);
+        _hoverIdx = Math.Clamp((int)Math.Round(percent * (Values.Count - 1)), 0, Values.Count - 1);
+        _hoveredValue = Values[_hoverIdx];
+        _hoveredLabel = (Labels != null && _hoverIdx < Labels.Length) ? Labels[_hoverIdx] : "";
+    }
+    private void HandleMouseLeave() { _isHovering = false; _hoverIdx = -1; }
+    private string GetLinePath() => "M " + string.Join(" L ", Points.Select(p => $"{p.X:F0} {p.Y:F0}"));
+    private string GetFillPath() => $"{GetLinePath()} L {Points.Last().X:F0} 400 L {Points.First().X:F0} 400 Z";
+    private record Point(float X, float Y);
+}

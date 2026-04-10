@@ -47,7 +47,18 @@ public class Organization : BaseEntity
     public string? ChiefExecutiveId { get; set; }
 
     /// <summary>
+    /// The maximum operational float or credit limit for the organization's collective wallet.
+    /// </summary>
+    public decimal WalletLimit { get; set; } = 1000000;
+
+    /// <summary>
     /// Soft-Deletion chronological footprint.
     /// </summary>
     public DateTime? DeletedAt { get; set; }
+
+    /// <summary>
+    /// The unique 16-digit card/account number for this subscriber, starting with 63641.
+    /// </summary>
+    [StringLength(16)]
+    public string AccountNumber { get; set; } = string.Empty;
 }

@@ -4,6 +4,7 @@
 @using FMC.Services.Api
 @attribute [Authorize(Roles = Roles.SuperAdmin)]
 @inject AdminService AdminService
+@inject OrganizationApiService OrgService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
@@ -24,6 +25,32 @@
             Add New User
         </MudButton>
     </div>
+
+    @* System KPI Summary *@
+    <MudGrid Spacing="3" Class="mb-8">
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="0" Class="pa-6 d-flex align-center" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-background-grey);">
+                <div class="fmc-kpi-icon mr-4" style="background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); padding: 12px; border-radius: 12px;">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
+                </div>
+                <div>
+                    <MudText Typo="Typo.overline" Style="font-weight: 800; opacity: 0.6; letter-spacing: 1px;">TOTAL SYSTEM CAPITAL</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;">@_totalSystemBalance.ToString("C2")</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudPaper Elevation="0" Class="pa-6 d-flex align-center" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-background-grey);">
+                <div class="fmc-kpi-icon mr-4" style="background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); padding: 12px; border-radius: 12px;">
+                    <MudIcon Icon="@Icons.Material.Filled.CorporateFare" />
+                </div>
+                <div>
+                    <MudText Typo="Typo.overline" Style="font-weight: 800; opacity: 0.6; letter-spacing: 1px;">LICENSED ORGANIZATIONS</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;">@_totalOrgs</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 
     <MudPaper Elevation="0" Class="pa-6" Style="border-radius: 16px; border: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface);">
         <MudDataGrid @ref="_grid" Items="@_users" Loading="@_loading" Hover="true" Bordered="false" Striped="false" 
@@ -139,6 +166,8 @@
     private List<UserDto> _users = new();
     private bool _loading = true;
     private string _searchString = "";
+    private decimal _totalSystemBalance = 0;
+    private int _totalOrgs = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -150,11 +179,20 @@
         try
         {
             _loading = true;
-            _users = await AdminService.GetUsersAsync();
+            var usersTask = AdminService.GetUsersAsync();
+            var orgsTask = OrgService.GetOrganizationsAsync();
+
+            await Task.WhenAll(usersTask, orgsTask);
+
+            _users = await usersTask;
+            var orgs = await orgsTask;
+
+            _totalSystemBalance = _users.Sum(u => u.Balance);
+            _totalOrgs = orgs.Count;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error loading users: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error loading system state: {ex.Message}", Severity.Error);
         }
         finally
         {

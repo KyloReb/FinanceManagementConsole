@@ -29,6 +29,11 @@ public class OrganizationDto
     /// </summary>
     public decimal TotalBalance { get; set; }
 
+    /// <summary>
+    /// Total amount of money that has been distributed into affiliated user's personal accounts.
+    /// </summary>
+    public decimal Usage { get; set; }
+
     /// <summary>Total number of users affiliated with this organization.</summary>
     public int UserCount { get; set; }
 
@@ -37,6 +42,12 @@ public class OrganizationDto
 
     /// <summary>The unique ID of the Chief Executive user.</summary>
     public string? ChiefExecutiveId { get; set; }
+
+    /// <summary>The maximum operational float for the organization's wallet.</summary>
+    public decimal WalletLimit { get; set; }
+
+    /// <summary>The unique card/account number for this subscriber.</summary>
+    public string AccountNumber { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -50,6 +61,9 @@ public class CreateOrganizationDto
 
     /// <summary>Optional business description for context.</summary>
     public string? Description { get; set; }
+
+    /// <summary>The initial maximum operational float for the organization's wallet.</summary>
+    public decimal WalletLimit { get; set; } = 1_000_000m;
 }
 
 /// <summary>
@@ -72,6 +86,9 @@ public class UpdateOrganizationDto
 
     /// <summary>Whether the organization should be marked as active or suspended.</summary>
     public bool IsActive { get; set; }
+
+    /// <summary>The revised maximum operational float for the organization.</summary>
+    public decimal WalletLimit { get; set; }
 }
 
 /// <summary>
@@ -87,4 +104,7 @@ public class OrganizationDashboardMetricsDto
 
     /// <summary>Total settlement volume in the last 24 hours.</summary>
     public decimal DailyVolume { get; set; }
+
+    /// <summary>The designated liquidity ceiling for the organization.</summary>
+    public decimal WalletLimit { get; set; }
 }

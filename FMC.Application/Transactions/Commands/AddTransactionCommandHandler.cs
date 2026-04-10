@@ -22,7 +22,8 @@ public class AddTransactionCommandHandler : IRequestHandler<AddTransactionComman
             Amount = request.Transaction.Amount,
             Label = request.Transaction.Label,
             AccountId = request.Transaction.AccountId,
-            Category = request.Transaction.Category
+            Category = request.Transaction.Category,
+            Status = request.Transaction.Status
         };
 
         _context.Transactions.Add(entity);

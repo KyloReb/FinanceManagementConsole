@@ -3,60 +3,59 @@
 @using FMC.Services.Api
 @using Microsoft.AspNetCore.Components.Authorization
 
-<MudDialog Class="fmc-user-balance-dialog">
+<MudDialog Class="fmc-balance-dialog">
+    <TitleContent>
+        <div class="d-flex align-center px-2 pt-2">
+            <MudIcon Icon="@(IsCredit ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.PersonRemove)" 
+                     Color="@(IsCredit ? Color.Success : Color.Error)" Class="mr-3" />
+            <MudText Typo="Typo.h6" Style="font-weight: 800;">@(IsCredit ? "Credit Subscriber Wallet" : "Debit Subscriber Wallet")</MudText>
+        </div>
+    </TitleContent>
     <DialogContent>
         <div class="pa-4">
-            @* PERSONAL LEDGER HEADER *@
-            <div class="d-flex align-center mb-6">
-                <MudAvatar Color="@(IsCredit ? Color.Success : Color.Error)" Size="Size.Large" Class="mr-4" Style="font-weight:900;">
-                    @(User.FirstName?[0])@(User.LastName?[0])
-                </MudAvatar>
-                <div class="d-flex flex-column">
-                    <MudText Typo="Typo.h6" Style="font-weight: 800;">@(IsCredit ? "Credit Personal Wallet" : "Debit Personal Wallet")</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Adjusting balance for @User.DisplayName</MudText>
+            @* SUBSCRIBER IDENTITY SECTION *@
+            <div class="fmc-subscriber-header mb-8">
+                <div class="d-flex align-center">
+                    <MudAvatar Color="@(IsCredit ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Large" Class="mr-4" Style="font-weight: 800;">
+                        @User.FirstName?[0]@User.LastName?[0]
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.h5" Style="font-weight: 900; line-height: 1.1;">@User.DisplayName</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">SUBSCRIBER ID: @User.IdGuid.ToString().ToUpper()</MudText>
+                    </div>
                 </div>
             </div>
 
             <MudGrid Spacing="3">
                 <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1" Style="font-weight: 800; color: var(--mud-palette-text-secondary); opacity: 0.8;">ADJUSTMENT AMOUNT (PHP)</MudText>
                     <MudNumericField T="decimal?"
                                      Value="_amount"
                                      ValueChanged="OnAmountChanged"
-                                     Label="Adjustment Magnitude" Variant="Variant.Outlined" 
+                                     Variant="Variant.Outlined" 
                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Payments"
-                                     Format="N0" HideSpinButtons="true" Min="0.01m"
-                                     Placeholder="e.g. 5,000" Class="fmc-amount-field"
+                                     Format="N2" HideSpinButtons="true" Min="0.01m"
+                                     Placeholder="0.00" Class="fmc-dashboard-amount-field user"
                                      Validation="@(new Func<decimal?, string?>(ValidateAmount))" />
                 </MudItem>
+                
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="_label" Label="Transaction Reference / Note" 
-                                  Placeholder="e.g. Performance Bonus, Manual Reimbursement..."
+                    <MudTextField @bind-Value="_label" Label="Transaction Memo / Reference (Optional)" 
+                                  Placeholder="Specify the reason for this personal ledger update..."
                                   Variant="Variant.Outlined" Lines="2" />
-                </MudItem>
-
-                <MudItem xs="12">
-                    <MudAlert Severity="MudBlazor.Severity.Info" Class="mb-3 fmc-security-alert" Variant="Variant.Filled">
-                        Step-Up Authentication required to authorize personal ledger modifications.
-                    </MudAlert>
-                    <MudTextField @bind-Value="_adminPassword" Label="Confirm Administrator Password" 
-                                  Variant="Variant.Outlined" InputType="@PasswordInput" 
-                                  Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon"
-                                  OnAdornmentClick="TogglePasswordVisibility"
-                                  Immediate="true"
-                                  HelperText="Re-verify your credentials to commit this change" Required="true" />
                 </MudItem>
             </MudGrid>
 
-            @* BALANCE IMPACT TRACKER *@
-            <div class="mt-8 pa-4 fmc-impact-box">
+            @* BALANCE IMPACT ANALYSIS *@
+            <div class="mt-8 fmc-impact-summary">
                 <div class="d-flex justify-space-between mb-2">
-                    <MudText Typo="Typo.body2">Current User Balance:</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Current Balance:</MudText>
                     <MudText Typo="Typo.body2" Style="font-weight: 700;">@User.Balance.ToString("C")</MudText>
                 </div>
-                <div class="d-flex justify-space-between">
-                    <MudText Typo="Typo.body2" Style="font-weight:800;">Resulting Balance:</MudText>
-                    <MudText Typo="Typo.h6" Style="font-weight: 900;" 
-                             Color="@((CalculateNewBalance() ?? 0) < 0 ? MudBlazor.Color.Error : MudBlazor.Color.Info)">
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.body1" Style="font-weight: 800;">Resulting Balance:</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;" 
+                             Color="@((CalculateNewBalance() ?? 0) < 0 ? Color.Error : Color.Info)">
                         @((CalculateNewBalance() ?? 0).ToString("C"))
                     </MudText>
                 </div>
@@ -64,22 +63,22 @@
         </div>
     </DialogContent>
     <DialogActions>
-        <div class="fmc-dialog-footer">
-            <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 600;">Cancel</MudButton>
+        <div class="px-8 pb-8 d-flex w-100 gap-3">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 700;">Cancel</MudButton>
             <MudSpacer />
-            <MudButton Color="@(IsCredit ? MudBlazor.Color.Success : MudBlazor.Color.Error)" 
+            <MudButton Color="@(IsCredit ? Color.Success : Color.Error)" 
                        Variant="Variant.Filled" 
                        Disabled="@(!IsFormValid())" 
-                       OnClick="SubmitAsync"
-                       Style="text-transform:none; font-weight: 700; border-radius: 10px; padding: 10px 32px;">
+                       OnClick="HandleSubmitClick"
+                       Style="text-transform:none; font-weight: 800; border-radius: 12px; height: 48px; min-width: 180px;">
                 @if (_isProcessing)
                 {
-                    <MudProgressCircular Size="MudBlazor.Size.Small" Indeterminate="true" Class="mr-2" />
-                    <MudText>Authorizing...</MudText>
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Processing...</span>
                 }
                 else
                 {
-                    <MudText>Confirm @(IsCredit ? "Credit" : "Debit")</MudText>
+                    <span>Confirm @(IsCredit ? "Credit" : "Debit") Selection</span>
                 }
             </MudButton>
         </div>
@@ -87,53 +86,28 @@
 </MudDialog>
 
 <style>
-    .fmc-user-balance-dialog { 
-        border-radius: 20px !important; 
-        overflow: hidden; 
-        background-color: var(--mud-palette-surface) !important;
-    }
-    .fmc-amount-field .mud-input-root { 
-        font-size: 1.75rem !important; 
-        font-weight: 900 !important; 
-        color: var(--mud-palette-info) !important; 
-    }
-    .fmc-impact-box { 
-        background-color: var(--mud-palette-background-grey); 
-        border-radius: 14px; 
-        border: 1px solid var(--mud-palette-divider);
-        padding: 16px;
-    }
-    .fmc-dialog-footer {
-        padding: 20px 32px;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        background-color: var(--mud-palette-background-grey);
-        border-top: 1px solid var(--mud-palette-divider);
-    }
-    .fmc-security-alert { border-radius:12px; font-weight:700; font-size:0.8rem; }
+    .fmc-balance-dialog { border-radius: 20px !important; overflow: hidden; background-color: var(--mud-palette-surface) !important; max-width: 480px !important; }
+    
+    .fmc-subscriber-header { padding: 12px; background: var(--mud-palette-background-grey); border-radius: 16px; border: 1px solid var(--mud-palette-divider); }
+    
+    .fmc-dashboard-amount-field .mud-input-root { font-size: 2rem !important; font-weight: 900 !important; color: var(--mud-palette-text-primary) !important; }
+    .fmc-dashboard-amount-field.user .mud-input-root { color: var(--mud-palette-info) !important; }
+
+    .fmc-impact-summary { background: var(--mud-palette-background-grey); border-radius: 16px; padding: 20px; border: 1px solid var(--mud-palette-divider); }
 </style>
 
 @code {
     [Inject] private OrganizationApiService OrgService { get; set; } = default!;
-    [Inject] private AuthService AuthService { get; set; } = default!;
-    [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
-    [CascadingParameter] MudBlazor.IMudDialogInstance MudDialog { get; set; } = default!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public UserDto User { get; set; } = default!;
     [Parameter] public bool IsCredit { get; set; }
 
     private decimal? _amount;
     private string _label = "";
-    private string _adminPassword = "";
     private bool _isProcessing;
-    private bool _showPassword;
-
-    private InputType PasswordInput => _showPassword ? InputType.Text : InputType.Password;
-    private string PasswordInputIcon => _showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
-
-    private void TogglePasswordVisibility() => _showPassword = !_showPassword;
 
     private string? ValidateAmount(decimal? value)
     {
@@ -141,7 +115,7 @@
         return null;
     }
 
-    private bool IsFormValid() => (_amount ?? 0) > 0 && !string.IsNullOrWhiteSpace(_adminPassword) && !_isProcessing;
+    private bool IsFormValid() => (_amount ?? 0) > 0 && !_isProcessing;
 
     private void OnAmountChanged(decimal? value)
     {
@@ -157,47 +131,42 @@
 
     private void Cancel() => MudDialog.Cancel();
 
-    private async Task SubmitAsync()
+    private async Task HandleSubmitClick()
     {
         if (!IsFormValid()) return;
 
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<SecurityVerificationDialog>("", options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await SubmitFinalAsync();
+        }
+    }
+
+    private async Task SubmitFinalAsync()
+    {
         try
         {
             _isProcessing = true;
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var emailClaim = authState.User.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.Email || c.Type == "email")?.Value;
-
-            if (string.IsNullOrEmpty(emailClaim))
-            {
-                 Snackbar.Add("Identity session failure. Missing email claim. Please re-login.", MudBlazor.Severity.Error);
-                 return;
-            }
-
-            // Step-Up Authentication: Verify CEO Password
-            var authResult = await AuthService.Login(new FMC.Shared.DTOs.Auth.LoginRequestDto { Identifier = emailClaim, Password = _adminPassword });
-            if (authResult == null)
-            {
-                Snackbar.Add("Security Check Failed: Incorrect password.", MudBlazor.Severity.Error);
-                return;
-            }
-
             decimal adjustment = IsCredit ? (_amount ?? 0) : -(_amount ?? 0);
             var success = await OrgService.AdjustUserBalanceAsync(User.IdGuid, adjustment, _label);
             
             if (success)
             {
                 OrgService.NotifyDataChanged();
-                Snackbar.Add($"Ledger updated for {User.DisplayName}", MudBlazor.Severity.Success);
-                MudDialog.Close(MudBlazor.DialogResult.Ok(true));
+                Snackbar.Add($"Personal ledger updated for {User.DisplayName}", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
-                Snackbar.Add("Ledger submission failed. Possible organizational limit reached.", MudBlazor.Severity.Error);
+                Snackbar.Add("Ledger submission failed. Possible organizational limit reached.", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Infrastructure Error: {ex.Message}", MudBlazor.Severity.Error);
+            Snackbar.Add($"Infrastructure Error: {ex.Message}", Severity.Error);
         }
         finally
         {

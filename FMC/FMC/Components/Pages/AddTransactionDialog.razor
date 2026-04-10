@@ -5,8 +5,13 @@
     <DialogContent>
         <MudForm @ref="_form">
             <MudDatePicker Label="Date" @bind-Date="_date" Required="true" />
-            <MudTextField T="string" Label="Label" @bind-Value="_transaction.Label" Required="true" MaxLength="100" />
+            <MudTextField T="string" Label="Subscriber" @bind-Value="_transaction.Subscriber" Required="true" MaxLength="100" />
             <MudTextField T="string" Label="Category" @bind-Value="_transaction.Category" Required="true" />
+            <MudSelect T="string" Label="Status" @bind-Value="_transaction.Status">
+                <MudSelectItem Value="@("Successful")">Successful</MudSelectItem>
+                <MudSelectItem Value="@("Pending")">Pending</MudSelectItem>
+                <MudSelectItem Value="@("Error")">Error</MudSelectItem>
+            </MudSelect>
             <MudNumericField T="decimal" Label="Amount" @bind-Value="_transaction.Amount" Required="true" HideSpinButtons="true" />
         </MudForm>
     </DialogContent>

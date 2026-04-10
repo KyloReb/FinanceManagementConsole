@@ -38,4 +38,9 @@ public class Transaction : BaseEntity
     /// </summary>
     [Required]
     public string Category { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The operational status of the transaction (e.g. Successful, Pending, Failed).
+    /// </summary>
+    public string Status { get; set; } = "Successful";
 }

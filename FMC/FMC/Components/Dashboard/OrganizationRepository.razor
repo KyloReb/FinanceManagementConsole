@@ -1,0 +1,215 @@
+@using FMC.Shared.DTOs.Organization
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject OrganizationApiService OrgService
+
+<MudPaper Elevation="0" Class="fmc-main-surface">
+    <div class="fmc-header-area">
+        <div class="d-flex align-center">
+            <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" /></div>
+            <div>
+                <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Subscriber Wallet Repository</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Real-time ledger balances across all tenants</MudText>
+            </div>
+        </div>
+        <div class="fmc-control-orchestrator">
+            <div class="fmc-suite-element fmc-search-box">
+                <MudTextField @bind-Value="_searchString" 
+                               Placeholder="Search tenants or CEOs..." 
+                               Adornment="Adornment.Start" 
+                               AdornmentIcon="@Icons.Material.Filled.Search" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.None" />
+            </div>
+        </div>
+    </div>
+
+    @* ── DESKTOP TABLE ── *@
+    <div class="fmc-desktop-table">
+        <MudTable Items="@FilteredOrganizations" Hover="true" Elevation="0" Loading="@Loading" Class="fmc-premium-table" OnRowClick="OrgRowClicked" T="OrganizationDto">
+            <HeaderContent>
+                <MudTh>TENANT ORGANIZATION</MudTh>
+                <MudTh Style="width:100px;">STATUS</MudTh>
+                <MudTh>USAGE</MudTh>
+                <MudTh>CURRENT BALANCE</MudTh>
+                <MudTh Style="text-align:right;">ACTIONS</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="orgItem">
+                @{
+                    var usage = orgItem.Usage;
+                    var totalBalance = orgItem.TotalBalance;
+                    var currentBalance = totalBalance - usage;
+                    var usagePct = totalBalance > 0 ? (double)(usage / totalBalance) * 100.0 : 0;
+                }
+                <MudTd>
+                    <div class="d-flex align-center gap-3">
+                        <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium" Style="background-color:var(--mud-palette-background-grey); font-weight:800;">
+                            @orgItem.Name?[0]
+                        </MudAvatar>
+                        <div>
+                            <MudText Style="font-weight:800;">@orgItem.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">CEO: @(orgItem.CeoName ?? "Unassigned")</MudText>
+                        </div>
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <div class="fmc-status-pill @(orgItem.IsActive ? "active" : "suspended") scale-75 transform-origin-left">
+                        <div class="fmc-pulse"></div>
+                        <span>@(orgItem.IsActive ? "ACT" : "OFF")</span>
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <div class="d-flex flex-column" style="min-width: 120px;">
+                        <MudText Style="font-weight:800; font-size: 0.85rem;">@usage.ToString("C0")</MudText>
+                        <div class="d-flex align-center gap-2">
+                            <div class="flex-grow-1" style="height:4px; background:var(--mud-palette-divider); border-radius:2px; overflow:hidden;">
+                                <div style="height:100%; width:@(Math.Min(usagePct, 100).ToString("F0"))%; background:@(usagePct >= 80 ? "var(--mud-palette-error)" : "var(--mud-palette-primary)");"></div>
+                            </div>
+                            <MudText Typo="Typo.caption" Style="font-size: 0.65rem; font-weight:800;">@usagePct.ToString("F0")%</MudText>
+                        </div>
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace; font-size: 1rem;"
+                             Color="@(currentBalance < 0 ? Color.Error : Color.Default)">
+                        @currentBalance.ToString("C")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">LIMIT: @totalBalance.ToString("C0")</MudText>
+                </MudTd>
+                <MudTd Style="text-align:right;">
+                    <div class="d-flex align-center justify-end gap-2">
+                        <MudTooltip Text="Credit Wallet">
+                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary"
+                                           Variant="Variant.Outlined" Size="Size.Small"
+                                           OnClick="@(() => OpenAdjustmentDialog(orgItem, true))"
+                                           Style="border-radius:8px;" />
+                        </MudTooltip>
+                        <MudTooltip Text="Debit Wallet">
+                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error"
+                                           Variant="Variant.Outlined" Size="Size.Small"
+                                           OnClick="@(() => OpenAdjustmentDialog(orgItem, false))"
+                                           Style="border-radius:8px;" />
+                        </MudTooltip>
+                        <MudDivider Vertical="true" FlexItem="true" Style="height:22px; margin:0 2px;" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default"
+                                       Size="Size.Small" Href="@($"/admin/organizations/{orgItem.Id}")"
+                                       Style="border-radius:8px;" />
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <div class="pa-10 d-flex flex-column align-center mud-text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" />
+                    <MudText>No tenants match your search.</MudText>
+                </div>
+            </NoRecordsContent>
+        </MudTable>
+    </div>
+
+    @* ── MOBILE CARDS ── *@
+    <div class="fmc-mobile-cards">
+        @if (Loading)
+        {
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="fmc-mobile-card">
+                    <MudSkeleton Width="60%" Height="20px" Class="mb-2" />
+                    <MudSkeleton Width="40%" Height="16px" Class="mb-3" />
+                    <MudSkeleton Width="80%" Height="16px" />
+                </div>
+            }
+        }
+        else if (!FilteredOrganizations.Any())
+        {
+            <div class="pa-8 d-flex flex-column align-center mud-text-secondary">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" />
+                <MudText>No tenants match your search.</MudText>
+            </div>
+        }
+        else
+        {
+            @foreach (var org in FilteredOrganizations)
+            {
+                <div class="fmc-mobile-card" @onclick="@(() => OrgRowClickedMobile(org.Id))">
+                    <div class="fmc-mobile-row-main">
+                        <div class="d-flex align-center gap-3">
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Style="font-weight:800;">@org.Name?[0]</MudAvatar>
+                            <div class="flex-grow-1">
+                                <MudText Style="font-weight:800; font-size: 0.85rem;">@org.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">CEO: @(org.CeoName ?? "Unassigned")</MudText>
+                            </div>
+                            <div class="fmc-status-pill @(org.IsActive ? "active" : "suspended") scale-75 transform-origin-left">
+                                <span>@(org.IsActive ? "ACT" : "OFF")</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="fmc-mobile-row-details">
+                        <div class="mobile-detail-group">
+                            @{
+                                var usageM = org.WalletLimit - org.TotalBalance;
+                                var usagePctM = org.WalletLimit > 0 ? (double)(usageM / org.WalletLimit) * 100.0 : 0;
+                            }
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">USAGE: @usagePctM.ToString("F0")%</MudText>
+                            <MudText Style="font-weight:800; font-size: 0.8rem;">@usageM.ToString("C0")</MudText>
+                        </div>
+                        <div class="mobile-detail-group">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">BALANCE</MudText>
+                            <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(org.TotalBalance < 100000 ? Color.Error : Color.Default)">
+                                @org.TotalBalance.ToString("C0")
+                            </MudText>
+                        </div>
+                        <div class="mobile-action-group ml-auto">
+                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => OpenAdjustmentDialog(org, true))" />
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public List<OrganizationDto> Organizations { get; set; } = new();
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback OnActionCompleted { get; set; }
+
+    private string _searchString = "";
+
+    private List<OrganizationDto> FilteredOrganizations => Organizations
+        .Where(o => string.IsNullOrWhiteSpace(_searchString)
+            || o.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
+            || (o.CeoName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
+        .ToList();
+
+    private void OrgRowClicked(TableRowClickEventArgs<OrganizationDto> args)
+    {
+        if (args.Item != null)
+        {
+            Navigation.NavigateTo($"/admin/organizations/{args.Item.Id}");
+        }
+    }
+
+    private void OrgRowClickedMobile(Guid orgId)
+    {
+        Navigation.NavigateTo($"/admin/organizations/{orgId}");
+    }
+
+    private async Task OpenAdjustmentDialog(OrganizationDto org, bool isCredit)
+    {
+        var parameters = new DialogParameters { ["Organization"] = org, ["IsCredit"] = isCredit };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        
+        var dialog = await DialogService.ShowAsync<FMC.Components.Pages.Admin.OrganizationBalanceDialog>(
+            isCredit ? "Credit Wallet" : "Debit Wallet", 
+            parameters, 
+            options);
+            
+        var result = await dialog.Result;
+        
+        if (result is not null && !result.Canceled)
+        {
+            await OnActionCompleted.InvokeAsync();
+        }
+    }
+}

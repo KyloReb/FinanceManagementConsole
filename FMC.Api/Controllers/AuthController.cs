@@ -39,12 +39,14 @@ public class AuthController : ControllerBase
         if (result == null)
         {
             // Log Failed Login Attempt (Security Forensic)
-            await _auditService.RecordAuthEventAsync("Login Failed", null, ip, userAgent, $"Failed attempt for: {request.Identifier}");
+            string eventType = request.IsStepUp ? "Step-Up Verification Failed" : "Login Failed";
+            await _auditService.RecordAuthEventAsync(eventType, null, ip, userAgent, $"Failed attempt for: {request.Identifier}");
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
         // Record Successful Login
-        await _auditService.RecordAuthEventAsync("Login Success", result.UserId, ip, userAgent, "Successful login session established");
+        string successEvent = request.IsStepUp ? "Step-Up Verification Success" : "Login Success";
+        await _auditService.RecordAuthEventAsync(successEvent, result.UserId, ip, userAgent, "Successful authentication session");
 
         // Set the refresh token as an HTTP-only cookie for a session-hardened flow
         SetRefreshTokenCookie(result.RefreshToken);

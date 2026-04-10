@@ -2,9 +2,11 @@
 @using FMC.Shared.Auth
 @using FMC.Shared.DTOs.Organization
 @using FMC.Shared.DTOs.User
+@using FMC.Shared.DTOs.Admin
 @inject AuthenticationStateProvider AuthProvider
-@inject OrganizationApiService OrgService 
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@using FMC.Components.Dashboard
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
     <AuthorizeView Roles="@(Roles.SuperAdmin + "," + Roles.CEO)">
@@ -114,332 +116,39 @@
                     </div>
                 </MudItem>
 
-                @* ── SYSTEM ALERT PANEL (only renders when issues exist) ── *@
-                @if (!_alertsDismissed && _hasAlerts && !_loading)
-                {
-                    <MudItem xs="12">
-                        <div class="fmc-alert-panel">
-                            <div class="fmc-alert-header">
-                                <div class="d-flex align-center gap-3">
-                                    <div class="fmc-alert-icon-wrap">
-                                        <MudIcon Icon="@Icons.Material.Filled.NotificationImportant" Color="Color.Warning" Size="Size.Small" />
-                                    </div>
-                                    <div>
-                                        <MudText Typo="Typo.body1" Style="font-weight: 800; color: var(--mud-palette-warning);">System Alerts</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@_totalAlerts item@(_totalAlerts == 1 ? "" : "s") require your attention</MudText>
-                                    </div>
-                                </div>
-                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Default"
-                                               OnClick="@(() => _alertsDismissed = true)"
-                                               Style="margin: -4px -4px -4px 0;" />
-                            </div>
-
-                            <div class="fmc-alert-body">
-                                @if (_zeroBalanceTenants.Any())
-                                {
-                                    <div class="fmc-alert-row fmc-alert-critical">
-                                        <div class="fmc-alert-severity-bar"></div>
-                                        <div class="fmc-alert-row-icon">
-                                            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Style="font-size: 1.1rem; color: var(--mud-palette-error);" />
-                                        </div>
-                                        <div class="fmc-alert-row-content">
-                                            <div class="d-flex align-center flex-wrap gap-2">
-                                                <span class="fmc-alert-badge fmc-badge-error">ZERO BALANCE</span>
-                                                @foreach (var t in _zeroBalanceTenants.Take(3))
-                                                {
-                                                    <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-tenant-link">@t.Name</MudLink>
-                                                }
-                                                @if (_zeroBalanceTenants.Count > 3)
-                                                {
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">+@(_zeroBalanceTenants.Count - 3) more</MudText>
-                                                }
-                                            </div>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
-                                                @_zeroBalanceTenants.Count active tenant@(_zeroBalanceTenants.Count == 1 ? "" : "s") with depleted wallets — service may be impacted
-                                            </MudText>
-                                        </div>
-                                        <MudTooltip Text="Credit wallet now">
-                                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
-                                                       Style="text-transform:none; font-weight:700; border-radius:8px; white-space:nowrap;"
-                                                       OnClick="@(() => OpenAdjustmentDialog(_zeroBalanceTenants.First(), true))">
-                                                Resolve
-                                            </MudButton>
-                                        </MudTooltip>
-                                    </div>
-                                }
-
-                                @if (_suspendedTenants.Any())
-                                {
-                                    <div class="fmc-alert-row fmc-alert-warning">
-                                        <div class="fmc-alert-severity-bar fmc-bar-warning"></div>
-                                        <div class="fmc-alert-row-icon">
-                                            <MudIcon Icon="@Icons.Material.Filled.PauseCircle" Style="font-size: 1.1rem; color: var(--mud-palette-warning);" />
-                                        </div>
-                                        <div class="fmc-alert-row-content">
-                                            <div class="d-flex align-center flex-wrap gap-2">
-                                                <span class="fmc-alert-badge fmc-badge-warning">SUSPENDED</span>
-                                                @foreach (var t in _suspendedTenants.Take(3))
-                                                {
-                                                    <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-tenant-link">@t.Name</MudLink>
-                                                }
-                                                @if (_suspendedTenants.Count > 3)
-                                                {
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">+@(_suspendedTenants.Count - 3) more</MudText>
-                                                }
-                                            </div>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
-                                                @_suspendedTenants.Count tenant@(_suspendedTenants.Count == 1 ? "" : "s") currently offline — access restricted
-                                            </MudText>
-                                        </div>
-                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
-                                                   Style="text-transform:none; font-weight:700; border-radius:8px; white-space:nowrap;"
-                                                   Href="/admin/organizations">
-                                            Review
-                                        </MudButton>
-                                    </div>
-                                }
-
-                                @if (_noCeoTenants.Any())
-                                {
-                                    <div class="fmc-alert-row fmc-alert-info">
-                                        <div class="fmc-alert-severity-bar fmc-bar-info"></div>
-                                        <div class="fmc-alert-row-icon">
-                                            <MudIcon Icon="@Icons.Material.Filled.PersonOff" Style="font-size: 1.1rem; color: var(--mud-palette-info);" />
-                                        </div>
-                                        <div class="fmc-alert-row-content">
-                                            <div class="d-flex align-center flex-wrap gap-2">
-                                                <span class="fmc-alert-badge fmc-badge-info">NO CEO</span>
-                                                @foreach (var t in _noCeoTenants.Take(3))
-                                                {
-                                                    <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-tenant-link">@t.Name</MudLink>
-                                                }
-                                                @if (_noCeoTenants.Count > 3)
-                                                {
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">+@(_noCeoTenants.Count - 3) more</MudText>
-                                                }
-                                            </div>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
-                                                @_noCeoTenants.Count tenant@(_noCeoTenants.Count == 1 ? "" : "s") without a designated executive
-                                            </MudText>
-                                        </div>
-                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info"
-                                                   Style="text-transform:none; font-weight:700; border-radius:8px; white-space:nowrap;"
-                                                   Href="/admin/organizations">
-                                            Assign
-                                        </MudButton>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </MudItem>
-                }
+                @* ── SYSTEM ALERT PANEL ── *@
+                <MudItem xs="12">
+                    <ExecutiveAlertPanel Organizations="_organizations" 
+                                         Loading="_loading" 
+                                         OnActionCompleted="RefreshDashboard" />
+                </MudItem>
 
 
 
                 @* MAIN REPOSITORY TABLE *@
                 <MudItem xs="12">
-                    <MudPaper Elevation="0" Class="fmc-main-surface">
-                        <div class="fmc-header-area">
-                            <div class="d-flex align-center">
-                                <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" /></div>
-                                <div>
-                                    <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Subscriber Wallet Repository</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Real-time ledger balances across all tenants</MudText>
-                                </div>
-                            </div>
-                            <div style="width: 360px;">
-                                <MudTextField @bind-Value="_searchString" Placeholder="Search by tenant or CEO..." 
-                                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.FilterList" 
-                                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-enterprise-search" />
-                            </div>
-                        </div>
-
-                        @* ── DESKTOP TABLE (hidden on mobile) ── *@
-                        <div class="fmc-desktop-table">
-                            <MudTable Items="@_filteredOrgs" Hover="true" Elevation="0" Loading="@_loading" Class="fmc-premium-table">
-                                <HeaderContent>
-                                    <MudTh>TENANT ORGANIZATION</MudTh>
-                                    <MudTh>STATUS</MudTh>
-                                    <MudTh>LEDGER BALANCE</MudTh>
-                                    <MudTh>USERS</MudTh>
-                                    <MudTh Style="text-align:right;">ACTIONS</MudTh>
-                                </HeaderContent>
-                                <RowTemplate Context="orgItem">
-                                    <MudTd>
-                                        <div class="d-flex align-center gap-3">
-                                            <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium" Style="background-color:var(--mud-palette-background-grey); font-weight:800;">
-                                                @orgItem.Name?[0]
-                                            </MudAvatar>
-                                            <div>
-                                                <MudText Style="font-weight:800;">@orgItem.Name</MudText>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">CEO: @(orgItem.CeoName ?? "Unassigned")</MudText>
-                                            </div>
-                                        </div>
-                                    </MudTd>
-                                    <MudTd>
-                                        <div class="fmc-status-pill @(orgItem.IsActive ? "active" : "suspended")">
-                                            <div class="fmc-pulse"></div>
-                                            <span>@(orgItem.IsActive ? "OPERATIONAL" : "SUSPENDED")</span>
-                                        </div>
-                                    </MudTd>
-                                    <MudTd>
-                                        <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;"
-                                                 Color="@(orgItem.TotalBalance < 0 ? Color.Error : Color.Default)">
-                                            @orgItem.TotalBalance.ToString("C")
-                                        </MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">NET LIQUIDITY</MudText>
-                                    </MudTd>
-                                    <MudTd>
-                                        <div class="d-flex align-center gap-1">
-                                            <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Class="mud-text-secondary" />
-                                            <MudText Typo="Typo.body2" Style="font-weight:700;">@orgItem.UserCount</MudText>
-                                        </div>
-                                    </MudTd>
-                                    <MudTd Style="text-align:right;">
-                                        <div class="d-flex align-center justify-end gap-2">
-                                            <MudTooltip Text="Credit Wallet">
-                                                <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary"
-                                                               Variant="Variant.Outlined" Size="Size.Small"
-                                                               OnClick="@(() => OpenAdjustmentDialog(orgItem, true))"
-                                                               Style="border-radius:8px;" />
-                                            </MudTooltip>
-                                            <MudTooltip Text="Debit Wallet">
-                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error"
-                                                               Variant="Variant.Outlined" Size="Size.Small"
-                                                               OnClick="@(() => OpenAdjustmentDialog(orgItem, false))"
-                                                               Style="border-radius:8px;" />
-                                            </MudTooltip>
-                                            <MudDivider Vertical="true" FlexItem="true" Style="height:22px; margin:0 2px;" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default"
-                                                           Size="Size.Small" Href="@($"/admin/organizations/{orgItem.Id}")"
-                                                           Style="border-radius:8px;" />
-                                        </div>
-                                    </MudTd>
-                                </RowTemplate>
-                                <NoRecordsContent>
-                                    <div class="pa-10 d-flex flex-column align-center mud-text-secondary">
-                                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" />
-                                        <MudText>No tenants match your search.</MudText>
-                                    </div>
-                                </NoRecordsContent>
-                            </MudTable>
-                        </div>
-
-                        @* ── MOBILE CARDS (hidden on desktop) ── *@
-                        <div class="fmc-mobile-cards">
-                            @if (_loading)
-                            {
-                                @for (int i = 0; i < 3; i++)
-                                {
-                                    <div class="fmc-mobile-card">
-                                        <MudSkeleton Width="60%" Height="20px" Class="mb-2" />
-                                        <MudSkeleton Width="40%" Height="16px" Class="mb-3" />
-                                        <MudSkeleton Width="80%" Height="16px" />
-                                    </div>
-                                }
-                            }
-                            else if (!_filteredOrgs.Any())
-                            {
-                                <div class="pa-8 d-flex flex-column align-center mud-text-secondary">
-                                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" />
-                                    <MudText>No tenants match your search.</MudText>
-                                </div>
-                            }
-                            else
-                            {
-                                @foreach (var org in _filteredOrgs)
-                                {
-                                    <div class="fmc-mobile-card">
-                                        @* Row 1: Avatar + Name LEFT | Balance RIGHT *@
-                                        <div class="fmc-mobile-row-main">
-                                            <div class="d-flex align-center gap-3">
-                                                <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small"
-                                                           Style="background-color:var(--mud-palette-background-grey); font-weight:800; font-size:0.75rem;">
-                                                    @org.Name?[0]
-                                                </MudAvatar>
-                                                <div>
-                                                    <MudText Typo="Typo.body2" Style="font-weight:800; line-height:1.2;">@org.Name</MudText>
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.65rem;">@(org.CeoName ?? "No CEO")</MudText>
-                                                </div>
-                                            </div>
-                                            <div class="text-right">
-                                                <MudText Typo="Typo.body2" Style="font-weight:900; font-family:'JetBrains Mono',monospace;"
-                                                         Color="@(org.TotalBalance < 0 ? Color.Error : Color.Default)">
-                                                    @org.TotalBalance.ToString("C")
-                                                </MudText>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.6rem;">NET LIQUIDITY</MudText>
-                                            </div>
-                                        </div>
-                                        @* Row 2: Status + Personnel LEFT | Action Buttons RIGHT *@
-                                        <div class="fmc-mobile-row-sub">
-                                            <div class="d-flex align-center gap-2">
-                                                <div class="fmc-status-pill @(org.IsActive ? "active" : "suspended")" style="padding:4px 10px; font-size:0.6rem;">
-                                                    <div class="fmc-pulse"></div>
-                                                    <span>@(org.IsActive ? "ACTIVE" : "SUSPENDED")</span>
-                                                </div>
-                                                <div class="d-flex align-center gap-1">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Class="mud-text-secondary" Style="font-size:0.9rem;" />
-                                                    <MudText Typo="Typo.caption" Style="font-weight:700;">@org.UserCount</MudText>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-center gap-1">
-                                                <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary"
-                                                               Variant="Variant.Outlined" Size="Size.Small"
-                                                               OnClick="@(() => OpenAdjustmentDialog(org, true))"
-                                                               Style="border-radius:8px; width:34px; height:34px;" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error"
-                                                               Variant="Variant.Outlined" Size="Size.Small"
-                                                               OnClick="@(() => OpenAdjustmentDialog(org, false))"
-                                                               Style="border-radius:8px; width:34px; height:34px;" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default"
-                                                               Size="Size.Small" Href="@($"/admin/organizations/{org.Id}")"
-                                                               Style="border-radius:8px; width:34px; height:34px;" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            }
-                        </div>
-                    </MudPaper>
+                        @if (context.User.IsInRole(Roles.CEO))
+                    {
+                        <PersonnelRepository Users="_users" 
+                                             RecentLogs="_auditLogs"
+                                             Loading="_loading" 
+                                             OnActionCompleted="RefreshDashboard" />
+                    }
+                    else
+                    {
+                        <OrganizationRepository Organizations="_organizations"
+                                                Loading="_loading"
+                                                OnActionCompleted="RefreshDashboard" />
+                    }
                 </MudItem>
 
                 @* ── ENTERPRISE FINANCIAL VELOCITY (Line Chart) ── *@
                 <MudItem xs="12">
-                    <MudPaper Elevation="0" Class="fmc-main-surface pa-8 mb-6">
-                        <div class="fmc-chart-header mb-6">
-                            <div class="fmc-chart-title">
-                                <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.Timeline" Color="Color.Primary" /></div>
-                                <div>
-                                    <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Cumulative Liquidity Trend</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Track the historical balance progression of active network wallets</MudText>
-                                </div>
-                            </div>
-                            <div class="fmc-chart-controls">
-                                <div class="fmc-timeframe-selector">
-                                    <MudButton OnClick="@(() => SetTimeframe("Daily"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Daily" ? "fmc-btn-active" : ""))">DAILY</MudButton>
-                                    <MudButton OnClick="@(() => SetTimeframe("Monthly"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Monthly" ? "fmc-btn-active" : ""))">MONTHLY</MudButton>
-                                    <MudButton OnClick="@(() => SetTimeframe("Quarterly"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Quarterly" ? "fmc-btn-active" : ""))">QUARTERLY</MudButton>
-                                    <MudButton OnClick="@(() => SetTimeframe("Yearly"))" Class="@("fmc-timeframe-btn " + (_selectedTimeframe == "Yearly" ? "fmc-btn-active" : ""))">YEARLY</MudButton>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        @if (_auditLoading)
-                        {
-                            <div class="d-flex flex-column justify-center align-center" style="height:350px;">
-                                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Synthesizing network metrics...</MudText>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="fmc-chart-container" style="min-height:420px; width: 100%; overflow: visible;">
-                                <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@_lineChartSeries" 
-                                          @attributes="@(new Dictionary<string, object> { { "XAxisLabels", _lineChartLabels } })"
-                                          Width="100%" Height="380px" ChartOptions="@_lineChartOptions" />
-                            </div>
-                        }
-                    </MudPaper>
+                    <FinancialVelocityChart Series="_lineChartSeries" 
+                                            Labels="_lineChartLabels" 
+                                            Loading="_auditLoading"
+                                            SelectedTimeframe="_selectedTimeframe"
+                                            OnTimeframeChanged="ChangeTimeframe" />
                 </MudItem>
 
                 @* ── LEDGER ADJUSTMENT LOG (Audit Feed) ── *@
@@ -694,12 +403,11 @@
     .fmc-enterprise-search .mud-input-slot { font-size: 0.85rem; padding: 10px 16px !important; }
 
     /* Custom Status Indicators */
-    .fmc-status-pill { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 50px; font-size: 0.7rem; font-weight: 800; gap: 8px; border: 1px solid transparent; }
+    .fmc-status-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 800; gap: 6px; border: 1px solid transparent; }
     .fmc-status-pill.active { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border-color: rgba(var(--mud-palette-success-rgb), 0.2); }
     .fmc-status-pill.suspended { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border-color: rgba(var(--mud-palette-error-rgb), 0.2); }
     
     .fmc-pulse { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: fmc-breathing 2s infinite ease-in-out; }
-    @@keyframes fmc-breathing { 0% { transform: scale(0.9); opacity: 0.6; } 50% { transform: scale(1.4); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.6; } }
 
     .fmc-table-transparent { background-color: transparent !important; }
 
@@ -707,34 +415,7 @@
     .fmc-desktop-table { display: block; }
     .fmc-mobile-cards  { display: none; }
 
-    .fmc-chart-header { display: flex; align-items: center; justify-content: space-between; }
-    .fmc-chart-title { display: flex; align-items: center; }
-    .fmc-chart-controls { display: flex; align-items: center; gap: 24px; }
-    .fmc-chart-legend { display: flex; gap: 8px; }
-
-    @@media (max-width: 768px) {
-        .fmc-desktop-table { display: none; }
-        .fmc-mobile-cards  { display: block; }
-        .fmc-header-area   { flex-direction: column; align-items: flex-start; gap: 12px; }
-        .fmc-header-area > div:last-child { width: 100%; }
-
-        /* Dashboard Header compaction */
-        .fmc-hero-text { font-size: 2.2rem !important; line-height: 1.1; }
-        .fmc-dashboard-header { flex-direction: column; align-items: flex-start; gap: 16px; margin-bottom: 24px !important; }
-        .fmc-dashboard-header .d-flex.gap-3 { width: 100%; justify-content: space-between; }
-        .fmc-dashboard-header .d-flex.gap-3 button { flex: 1; padding-left: 8px !important; padding-right: 8px !important; font-size: 0.8rem; }
-
-        /* Mobile 2x2 Grid Adjustments for KPIs */
-        .fmc-glass-card { padding: 16px 12px; }
-        .fmc-card-label { font-size: 0.55rem; letter-spacing: 0.05em; }
-        .fmc-kpi-val { font-size: 1.35rem !important; }
-        .fmc-card-icon-bg { font-size: 5rem !important; right: -12px; top: -12px; }
-
-        .fmc-chart-header { flex-direction: column; align-items: flex-start; gap: 20px; }
-        .fmc-chart-title { flex-direction: row; align-items: center; gap: 0; }
-        .fmc-chart-controls { flex-direction: column; align-items: flex-start; gap: 16px; width: 100%; }
-        .fmc-timeframe-selector { width: 100%; overflow-x: auto; padding-bottom: 4px; justify-content: flex-start; }
-
+    @@media (max-width: 960px) {
         .fmc-audit-header-inner { flex-direction: column; align-items: flex-start !important; gap: 16px; width: 100%; }
         .fmc-audit-title { flex-direction: row; align-items: center; justify-content: flex-start !important; width: 100%; gap: 0; }
         .fmc-audit-controls { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
@@ -761,79 +442,6 @@
         align-items: center;
         justify-content: space-between;
     }
-    .text-right { text-align: right; }
-
-    /* ── ALERT PANEL ──────────────────────────────────────────── */
-    .fmc-alert-panel {
-        border-radius: 16px;
-        border: 1px solid var(--mud-palette-divider);
-        border-left: 4px solid var(--mud-palette-warning);
-        background-color: var(--mud-palette-surface);
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
-    }
-    .fmc-alert-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 20px;
-        background-color: var(--mud-palette-background-grey);
-        border-bottom: 1px solid var(--mud-palette-divider);
-    }
-    .fmc-alert-icon-wrap {
-        width: 34px; height: 34px;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(var(--mud-palette-warning-rgb), 0.12);
-        border-radius: 8px;
-    }
-    .fmc-alert-body { padding: 4px 0; }
-    .fmc-alert-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 20px;
-        border-bottom: 1px solid var(--mud-palette-divider);
-        position: relative;
-        transition: background-color 0.15s;
-    }
-    .fmc-alert-row:last-child { border-bottom: none; }
-    .fmc-alert-row:hover { background-color: var(--mud-palette-action-default-hover); }
-    .fmc-alert-severity-bar {
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 3px;
-        background: var(--mud-palette-error);
-    }
-    .fmc-bar-warning { background: var(--mud-palette-warning) !important; }
-    .fmc-bar-info    { background: var(--mud-palette-info) !important; }
-    .fmc-alert-row-icon {
-        width: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .fmc-alert-row-content { flex: 1; min-width: 0; }
-    .fmc-alert-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 50px;
-        font-size: 0.6rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-    }
-    .fmc-badge-error   { background: rgba(var(--mud-palette-error-rgb), 0.1);   color: var(--mud-palette-error);   border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
-    .fmc-badge-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
-    .fmc-badge-info    { background: rgba(var(--mud-palette-info-rgb), 0.1);    color: var(--mud-palette-info);    border: 1px solid rgba(var(--mud-palette-info-rgb), 0.2); }
-    .fmc-alert-tenant-link {
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: var(--mud-palette-text-primary) !important;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-        text-decoration-color: var(--mud-palette-divider);
-    }
-    .fmc-alert-tenant-link:hover { text-decoration-color: var(--mud-palette-primary); color: var(--mud-palette-primary) !important; }
 
     /* ── AUDIT FEED PANEL ───────────────────────────────────────── */
     .fmc-audit-surface {
@@ -951,10 +559,21 @@
         .fmc-audit-amt    { font-size: 0.78rem; }
     }
 
-    /* Chart Customization */
-    .fmc-chart-container .mud-chart-line { stroke-width: 3px !important; }
-    .fmc-chart-container .mud-chart { width: 100% !important; margin: 0 !important; max-width: none !important; }
-    .fmc-chart-container svg { width: 100% !important; max-width: none !important; }
+    .fmc-control-orchestrator { display: flex; align-items: center; gap: 8px; justify-content: flex-end; width: 100%; max-width: 580px; }
+    .fmc-suite-element { height: 40px; position: relative; }
+    .fmc-search-box { flex: 1; min-width: 260px; }
+    .fmc-filter-box { width: 220px; }
+    
+    /* Universal Component Alignment */
+    .fmc-suite-element .mud-input-outlined { background: var(--mud-palette-surface) !important; border-radius: 12px !important; height: 40px !important; border: 1px solid var(--mud-palette-divider) !important; padding: 0 !important; }
+    .fmc-suite-element .mud-input-slot { height: 40px !important; padding: 0 12px !important; display: flex !important; align-items: center !important; font-size: 0.85rem !important; }
+    .fmc-suite-element .mud-input-adornment-start { position: absolute; left: 12px; top: 0; bottom: 0; margin: 0 !important; height: 40px !important; display: flex; align-items: center; color: var(--mud-palette-text-secondary); opacity: 0.6; pointer-events: none; }
+    .fmc-suite-element .mud-input-adornment-end { position: absolute !important; right: 0px !important; top: 0; bottom: 0; margin: 0 !important; height: 40px !important; width: 34px !important; display: flex; align-items: center; justify-content: center; z-index: 5; }
+    .fmc-search-box .mud-input-slot { padding-left: 40px !important; }
+    .fmc-filter-box .mud-select-input { padding-right: 34px !important; font-weight: 700 !important; }
+    .fmc-filter-box .mud-input-adornment-end .mud-icon-button { padding: 4px !important; }
+    
+    .fmc-suite-element .mud-icon-root { font-size: 1.1rem !important; }
     
     .fmc-timeframe-selector { background: var(--mud-palette-background-grey); padding: 4px; border-radius: 12px; display: flex; gap: 2px; }
     .fmc-timeframe-btn { 
@@ -973,29 +592,12 @@
 @code {
     private bool _loading = true;
     private bool _auditLoading = true;
-    private string _searchString = "";
+    private bool _isCeo;
+    private bool _isSuperAdmin;
     private List<OrganizationDto> _organizations = new();
-    private List<FMC.Shared.DTOs.Admin.AuditLogDto> _auditLogs = new();
-    private bool _alertsDismissed;
+    private List<UserDto> _users = new();
+    private List<AuditLogDto> _auditLogs = new();
     private int _auditLogLimit = 20;
-
-    // Computed alert properties
-    private List<OrganizationDto> _zeroBalanceTenants =>
-        _organizations.Where(o => o.TotalBalance <= 0 && o.IsActive).ToList();
-    private List<OrganizationDto> _suspendedTenants =>
-        _organizations.Where(o => !o.IsActive).ToList();
-    private List<OrganizationDto> _noCeoTenants =>
-        _organizations.Where(o => string.IsNullOrWhiteSpace(o.CeoName)).ToList();
-    private bool _hasAlerts =>
-        _zeroBalanceTenants.Any() || _suspendedTenants.Any() || _noCeoTenants.Any();
-    private int _totalAlerts =>
-        _zeroBalanceTenants.Count + _suspendedTenants.Count + _noCeoTenants.Count;
-
-    private List<OrganizationDto> _filteredOrgs => _organizations
-        .Where(o => string.IsNullOrWhiteSpace(_searchString)
-            || o.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
-            || (o.CeoName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
-        .ToList();
     
     // Legacy metrics
     private decimal _totalBalance = 0;
@@ -1027,8 +629,10 @@
             // 1. Check Role
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             var user = authState.User;
+            _isCeo = user.IsInRole(Roles.CEO);
+            _isSuperAdmin = user.IsInRole(Roles.SuperAdmin);
             
-            if (user.IsInRole(Roles.SuperAdmin) || user.IsInRole(Roles.CEO))
+            if (_isSuperAdmin || _isCeo)
             {
                 // Security: CEOs can only see their own organization, SuperAdmins see all.
                 if (user.IsInRole(Roles.CEO))
@@ -1036,15 +640,21 @@
                     var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
                     if (Guid.TryParse(orgIdClaim, out var orgId))
                     {
-                        var org = await OrgService.GetByIdAsync(orgId);
+                        var orgTask = OrgService.GetByIdAsync(orgId);
+                        var usersTask = OrgService.GetUsersAsync(orgId);
+                        var auditTask = OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial");
+                        
+                        await Task.WhenAll(orgTask, usersTask, auditTask);
+                        
+                        var org = await orgTask;
                         if (org != null) 
                         {
                             _organizations = new List<OrganizationDto> { org };
-                            _totalBalance = org.TotalBalance; // Set for standard view if fallback happens
+                            _totalBalance = org.TotalBalance;
                         }
                         
-                        // CEOs see their own financial logs for synchronization
-                        _auditLogs = (await OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial")).ToList();
+                        _users = (await usersTask).ToList();
+                        _auditLogs = (await auditTask).ToList();
                     }
                 }
                 else // SuperAdmin
@@ -1092,46 +702,12 @@
         }
     }
 
-    private bool FilterFunc(OrganizationDto org)
+    private async Task RefreshDashboard()
     {
-        if (string.IsNullOrWhiteSpace(_searchString)) return true;
-        if (org.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if (org.CeoName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
-        return false;
+        await OnInitializedAsync();
     }
 
-    private async Task OpenAdjustmentDialog(OrganizationDto org, bool isCredit)
-    {
-        var parameters = new DialogParameters { ["Organization"] = org, ["IsCredit"] = isCredit };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
-        
-        var dialog = await DialogService.ShowAsync<FMC.Components.Pages.Admin.OrganizationBalanceDialog>(
-            isCredit ? "Credit Wallet" : "Debit Wallet", 
-            parameters, 
-            options);
-            
-        var result = await dialog.Result;
-        
-        if (result is not null && !result.Canceled)
-        {
-            // Refresh to show updated balances and audit logs
-            _auditLoading = true;
-            var orgsTask = OrgService.GetOrganizationsAsync();
-            var auditTask = OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial");
-            
-            await Task.WhenAll(orgsTask, auditTask);
-            
-            _organizations = (await orgsTask).ToList();
-            _auditLogs = (await auditTask).ToList();
-            
-            PrepareLineChartData();
-            
-            _auditLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private void SetTimeframe(string timeframe)
+    private async Task ChangeTimeframe(string timeframe)
     {
         _selectedTimeframe = timeframe;
         PrepareLineChartData();
@@ -1142,19 +718,19 @@
     {
         _auditLogLimit = newLimit;
         _auditLoading = true;
-        StateHasChanged(); // Show loading immediately
+        StateHasChanged(); 
         
         var auditLogs = await OrgService.GetRecentAuditLogsAsync(_auditLogLimit, "financial");
         _auditLogs = auditLogs.ToList();
         
-        // Re-process the chart data since the audit pool might have changed
         PrepareLineChartData();
         
         _auditLoading = false;
         StateHasChanged();
     }
 
-    private void PrepareLineChartData()
+    [Inject] private OrganizationApiService OrgService { get; set; } = default!;
+      private void PrepareLineChartData()
     {
         _lineChartSeries.Clear();
         int count = _selectedTimeframe switch { "Daily" => 14, "Monthly" => 12, "Quarterly" => 8, "Yearly" => 5, _ => 14 };
@@ -1208,8 +784,16 @@
             .Select(t => t.Name)
             .ToList();
 
-        var trackedEntities = topTenants.ToList();
-        trackedEntities.Add("Others");
+        var trackedEntities = new List<string>();
+        if (_isSuperAdmin)
+        {
+            trackedEntities.Add("TOTAL SYSTEM");
+        }
+        trackedEntities.AddRange(topTenants);
+        if (_isSuperAdmin)
+        {
+            trackedEntities.Add("Others");
+        }
 
         foreach (var tenant in trackedEntities)
         {
@@ -1217,7 +801,11 @@
             
             // 2. Identify the current real-time balance for this entity group
             double runningBalance = 0;
-            if (tenant == "Others")
+            if (tenant == "TOTAL SYSTEM")
+            {
+                runningBalance = (double)_organizations.Sum(o => o.TotalBalance);
+            }
+            else if (tenant == "Others")
             {
                 runningBalance = (double)_organizations
                     .Where(o => !topTenants.Contains(string.IsNullOrWhiteSpace(o.Name) ? "System" : o.Name))
@@ -1239,7 +827,12 @@
                 var sliceLogs = relevantLogs.Where(l => l.CreatedAt >= slice.start && l.CreatedAt < slice.end);
                 
                 double sliceMovement = 0;
-                if (tenant == "Others") 
+                if (tenant == "TOTAL SYSTEM")
+                {
+                    sliceMovement = (double)sliceLogs
+                        .Sum(l => l.Action == "DEBIT" ? -(l.Amount ?? 0) : (l.Amount ?? 0));
+                }
+                else if (tenant == "Others") 
                 {
                     sliceMovement = (double)sliceLogs
                         .Where(l => !topTenants.Contains(string.IsNullOrWhiteSpace(l.EntityName) ? "System" : l.EntityName))
@@ -1257,7 +850,7 @@
             }
 
             // Bind each resulting line array to its corresponding Tenant Series name to satisfy tooltip requirements intelligently.
-            if (dataPoints.Any(d => d != 0) || tenant == "Others") 
+            if (dataPoints.Any(d => d != 0) || (tenant == "Others" && _isSuperAdmin)) 
             {
                 var shortTenant = tenant.Length > 15 ? tenant.Substring(0, 15) + ".." : tenant;
                 _lineChartSeries.Add(new ChartSeries<double> { Name = shortTenant, Data = dataPoints });
@@ -1268,5 +861,8 @@
         _lineChartOptions = new ChartOptions { 
             ChartPalette = new[] { "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#64748b" }
         };
+
+        // Trigger JS formatting for axis labels
+        _ = Task.Delay(50).ContinueWith(_ => JS.InvokeVoidAsync("chartHelper.formatYAxis"));
     }
 }

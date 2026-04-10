@@ -187,6 +187,26 @@
             }
         };
 
+        window.chartHelper = {
+            formatYAxis: function() {
+                setTimeout(() => {
+                    const labels = document.querySelectorAll('.mud-charts-yaxis text');
+                    labels.forEach(label => {
+                        const raw = label.textContent.trim().replace(/[^\d.-]/g, '');
+                        if (!isNaN(raw) && raw !== '') {
+                            const val = parseFloat(raw);
+                            // Format as currency (Peso)
+                            label.textContent = val.toLocaleString('en-PH', { 
+                                style: 'currency', 
+                                currency: 'PHP', 
+                                maximumFractionDigits: 0 
+                            });
+                        }
+                    });
+                }, 150);
+            }
+        };
+
         window.scrollToSection = (id) => {
             const element = document.getElementById(id);
             if (element) {

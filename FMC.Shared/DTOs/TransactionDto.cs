@@ -8,4 +8,6 @@ public class TransactionDto
     public string Label { get; set; } = string.Empty;
     public Guid AccountId { get; set; }
     public string Category { get; set; } = string.Empty;
+    public string Subscriber { get; set; } = string.Empty;
+    public string Status { get; set; } = "Successful";
 }

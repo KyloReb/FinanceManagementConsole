@@ -14,8 +14,10 @@ public class UserDto
     public bool IsActive { get; set; }
     public string? Organization { get; set; }
     public Guid? OrganizationId { get; set; }
+    public string OrganizationAccountNumber { get; set; } = string.Empty;
     public decimal Balance { get; set; }
     public List<string> Roles { get; set; } = new();
+    public string AccountNumber { get; set; } = string.Empty;
 }
 
 public class UpdateUserDto

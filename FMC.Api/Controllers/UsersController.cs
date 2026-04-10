@@ -35,6 +35,17 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<UserDto>>> GetAll()
     {
+        if (User.IsInRole(Roles.CEO))
+        {
+            var ceoOrgId = User.FindFirst("OrganizationId")?.Value;
+            if (string.IsNullOrEmpty(ceoOrgId) || !Guid.TryParse(ceoOrgId, out var orgId)) 
+            {
+                return Ok(new List<UserDto>());
+            }
+            
+            return Ok(await _identityService.GetUsersByOrganizationAsync(orgId));
+        }
+
         return Ok(await _identityService.GetAllUsersAsync());
     }
 

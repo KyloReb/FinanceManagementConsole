@@ -26,7 +26,11 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
     {
         public string? UserId => null;
         public string? TenantId => null;
+        public Guid? OrganizationId => null;
         public bool IsAuthenticated => false;
         public bool IsSuperAdmin => true;
+        public bool IsCeo => false;
+        public bool IsMaker => false;
+        public bool IsApprover => false;
     }
 }

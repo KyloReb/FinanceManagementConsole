@@ -1,4 +1,5 @@
-﻿@inject AuthService AuthService
+﻿@using FMC.Shared.Auth
+@inject AuthService AuthService
 @inject NavigationManager NavigationManager
 
 <div class="fmc-nav-container">
@@ -10,22 +11,30 @@
         <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.CreditCard" Class="fmc-nav-link">Accounts</MudNavLink>
         <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Insights" Class="fmc-nav-link">Reports</MudNavLink>
 
-        <AuthorizeView Roles="@FMC.Shared.Auth.Roles.CEO">
+        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")">
             <Authorized>
                 <div class="fmc-nav-group-divider"></div>
-                @* ── CORPORATE OVERSIGHT ── *@
+                @* ── CRITICAL FORENSICS ── *@
+                <div class="fmc-nav-group-label">SECURITY REVIEWS</div>
+                <MudNavLink Href="admin/audit" Icon="@Icons.Material.Filled.Shield" Class="fmc-nav-link">Audit Intelligence</MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@Roles.CEO">
+            <Authorized>
+                <div class="fmc-nav-group-divider"></div>
                 <div class="fmc-nav-group-label">CORPORATE</div>
+                <MudNavLink Href="/pending-requests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PendingActions" Class="fmc-nav-link">Pending Requests</MudNavLink>
                 <MudNavLink Href="ceo/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Domain" Class="fmc-nav-link">Corporate Overview</MudNavLink>
             </Authorized>
         </AuthorizeView>
 
-        <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin">
+        <AuthorizeView Roles="@Roles.SuperAdmin">
             <Authorized>
                 <div class="fmc-nav-group-divider"></div>
                 @* ── ADMINISTRATION ── *@
-                <div class="fmc-nav-group-label">ADMINISTRATION</div>
+                <div class="fmc-nav-group-label">SYSTEM ADMINISTRATION</div>
                 <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.ManageAccounts" Class="fmc-nav-link">Personnel Directory</MudNavLink>
-                <MudNavLink Href="admin/audit" Icon="@Icons.Material.Filled.Shield" Class="fmc-nav-link">Audit Intelligence</MudNavLink>
                 <MudNavLink Href="admin/docs" Icon="@Icons.Material.Filled.LibraryBooks" Class="fmc-nav-link">System Artifacts</MudNavLink>
             </Authorized>
         </AuthorizeView>

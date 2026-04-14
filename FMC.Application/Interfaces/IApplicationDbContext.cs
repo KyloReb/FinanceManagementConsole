@@ -12,6 +12,7 @@ public interface IApplicationDbContext
     DbSet<Organization> Organizations { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<SystemAlert> SystemAlerts { get; }
+    DbSet<ApplicationUser> Users { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

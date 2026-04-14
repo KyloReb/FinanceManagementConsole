@@ -16,15 +16,7 @@ public interface IIdentityService
     /// <returns>An AuthResponseDto if successful; otherwise null.</returns>
     Task<AuthResponseDto?> LoginAsync(LoginRequestDto request);
 
-    /// <summary>
-    /// Registers a new user.
-    /// </summary>
-    Task<bool> RegisterAsync(RegisterRequestDto request);
-
-    /// <summary>
-    /// Verifies a user's email using a 6-digit OTP code sent during registration.
-    /// </summary>
-    Task<bool> VerifyEmailAsync(VerifyEmailRequestDto request);
+    // Public Registration and Email Verification methods removed to enforce administrative-only user provisioning.
 
     /// <summary>
     /// Initiates a forgot password flow, generating an OTP and sending an email.

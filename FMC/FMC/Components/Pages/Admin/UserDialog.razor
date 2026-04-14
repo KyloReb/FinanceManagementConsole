@@ -65,9 +65,10 @@
                                Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
                                PopoverClass="fmc-roles-select" offsety="true" Dense="true">
                         <MudSelectItem Value="@Roles.SuperAdmin">Super Administrator</MudSelectItem>
-                        <MudSelectItem Value="@Roles.CEO">CEO (Finance Admin)</MudSelectItem>
-                        <MudSelectItem Value="@Roles.Manager">Manager</MudSelectItem>
-                        <MudSelectItem Value="@Roles.User">Standard User</MudSelectItem>
+                        <MudSelectItem Value="@Roles.CEO">CEO (Primary Subscriber)</MudSelectItem>
+                        <MudSelectItem Value="@Roles.Maker">Maker</MudSelectItem>
+                        <MudSelectItem Value="@Roles.Approver">Approver</MudSelectItem>
+                        <MudSelectItem Value="@Roles.User">Standard User (Principal)</MudSelectItem>
                     </MudSelect>
                 </MudItem>
 
@@ -157,9 +158,9 @@
                 LastName = User.LastName,
                 Organization = User.Organization,
                 IsActive = User.IsActive,
-                Roles = User.Roles.ToList()
+                Role = User.Role
             };
-            _selectedRole = User.Roles.FirstOrDefault() ?? Roles.User;
+            _selectedRole = User.Role;
         }
     }
 
@@ -173,7 +174,7 @@
         _isLoading = true;
         try
         {
-            _model.Roles = new List<string> { _selectedRole };
+            _model.Role = _selectedRole;
             bool result;
 
             if (User == null)
@@ -186,7 +187,7 @@
                     LastName = _model.LastName!,
                     Organization = _model.Organization!,
                     Password = _password,
-                    Roles = _model.Roles
+                    Role = _model.Role
                 };
                 result = await AdminService.CreateUserAsync(createDto);
             }
@@ -200,7 +201,7 @@
                     LastName = _model.LastName!,
                     Organization = _model.Organization!,
                     Password = string.IsNullOrWhiteSpace(_password) ? null : _password,
-                    Roles = _model.Roles,
+                    Role = _model.Role,
                     IsActive = _model.IsActive
                 };
                 result = await AdminService.UpdateUserAsync(updateDto);

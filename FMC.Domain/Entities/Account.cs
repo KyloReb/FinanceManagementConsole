@@ -19,4 +19,9 @@ public class Account : BaseEntity
     /// The current available balance in the account.
     /// </summary>
     public decimal Balance { get; set; }
+
+    /// <summary>
+    /// The organization that owns or manages this account.
+    /// </summary>
+    public Guid? OrganizationId { get; set; }
 }

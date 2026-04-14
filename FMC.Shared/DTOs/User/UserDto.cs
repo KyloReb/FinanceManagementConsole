@@ -16,7 +16,7 @@ public class UserDto
     public Guid? OrganizationId { get; set; }
     public string OrganizationAccountNumber { get; set; } = string.Empty;
     public decimal Balance { get; set; }
-    public List<string> Roles { get; set; } = new();
+    public string Role { get; set; } = string.Empty;
     public string AccountNumber { get; set; } = string.Empty;
 }
 
@@ -38,7 +38,7 @@ public class UpdateUserDto
     public string? Password { get; set; } // Optional: only if updating password
 
     public string? Organization { get; set; }
-    public List<string> Roles { get; set; } = new();
+    public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
 }
 
@@ -64,5 +64,5 @@ public class CreateUserDto
     [Required]
     public string Organization { get; set; } = string.Empty;
 
-    public List<string> Roles { get; set; } = new();
+    public string Role { get; set; } = string.Empty;
 }

@@ -4,17 +4,18 @@ using FMC.Shared.DTOs.Admin;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 
 namespace FMC.Infrastructure.Services;
 
 public class AuditService : IAuditService
 {
     private readonly IApplicationDbContext _context;
-    private readonly Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> _userManager;
+    private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
     private readonly ISystemAlertService _alertService;
     private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
 
-    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<FMC.Infrastructure.Data.ApplicationUser> userManager, ISystemAlertService alertService, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
+    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager, ISystemAlertService alertService, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _userManager = userManager;

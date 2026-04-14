@@ -59,6 +59,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     /// </summary>
     public DbSet<SystemAlert> SystemAlerts { get; set; }
 
+    /// <inheritdoc />
+    public override DbSet<ApplicationUser> Users => Set<ApplicationUser>();
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
@@ -98,8 +101,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         base.OnModelCreating(builder);
 
         // Global Query Filters for Tenancy and Soft Deletions
-        builder.Entity<Transaction>().HasQueryFilter(t => _currentUserService.IsSuperAdmin || t.TenantId == _currentUserService.TenantId);
-        builder.Entity<Account>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId);
+        builder.Entity<Transaction>().HasQueryFilter(t => _currentUserService.IsSuperAdmin || t.TenantId == _currentUserService.TenantId || (t.OrganizationId != null && t.OrganizationId == _currentUserService.OrganizationId));
+        builder.Entity<Account>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId || (a.OrganizationId != null && a.OrganizationId == _currentUserService.OrganizationId));
         builder.Entity<Budget>().HasQueryFilter(b => _currentUserService.IsSuperAdmin || b.TenantId == _currentUserService.TenantId);
         builder.Entity<AuditLog>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId);
         builder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
@@ -119,5 +122,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<Account>().Property(a => a.Balance).HasColumnType("decimal(18,2)");
         builder.Entity<Budget>().Property(b => b.Limit).HasColumnType("decimal(18,2)");
         builder.Entity<AuditLog>().Property(a => a.Amount).HasColumnType("decimal(18,2)");
+        builder.Entity<Organization>().Property(o => o.WalletLimit).HasColumnType("decimal(18,2)");
     }
 }

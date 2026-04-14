@@ -1,0 +1,213 @@
+@using FMC.Shared.DTOs
+@using FMC.Shared.Auth
+@using FMC.Services.Api
+@using MudBlazor
+@inject OrganizationApiService OrgService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Color="Color.Info" />
+            <MudText Typo="Typo.h6">Transaction Details</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="fmc-details-container pa-4">
+            <div class="d-flex justify-space-between align-center mb-6">
+                <div>
+                    <MudText Typo="Typo.h5" Class="fmc-financial-mono" Color="@(Transaction.Amount < 0 ? Color.Error : Color.Success)">
+                        @Transaction.Amount.ToString("C")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">ESTABLISHED @Transaction.Date.ToString("MMM dd, yyyy HH:mm")</MudText>
+                </div>
+                <MudChip T="string" Color="@GetStatusColor(Transaction.Status)" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 900;">
+                    @Transaction.Status.ToUpper()
+                </MudChip>
+            </div>
+
+            <MudDivider Class="my-4" />
+
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">SUBSCRIBER</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: 800;">@Transaction.Subscriber</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">ACCOUNT NUMBER</MudText>
+                    <div class="d-flex align-center gap-1">
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; font-family: 'Roboto Mono', monospace;">
+                            @GetMaskedAccount(Transaction.AccountNumber)
+                        </MudText>
+                        <MudIconButton Icon="@(_showFullAccount ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
+                                       Size="Size.Small" OnClick="@(() => _showFullAccount = !_showFullAccount)" 
+                                       Class="pa-0" Style="opacity: 0.5;" />
+                    </div>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">DESCRIPTION / LABEL</MudText>
+                    <MudText Typo="Typo.body2">@Transaction.Label</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">MAKER / INITIATOR</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@Transaction.MakerName</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">REFERENCE ID</MudText>
+                    <MudText Typo="Typo.body2" Style="font-size: 0.7rem; font-family: 'Roboto Mono', monospace;">@Transaction.Id.ToString().ToUpper()</MudText>
+                </MudItem>
+                
+                @if (Transaction.Status != "Pending")
+                {
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">RESOLUTION AUTHORITY</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 800; color: var(--mud-palette-info);">@(Transaction.ApproverName ?? "System Auto-Settlement")</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">COMPLETION TIMESTAMP</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 700;">@(Transaction.ActionDate?.ToString("MMM dd, yyyy HH:mm") ?? "N/A")</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @if (!string.IsNullOrEmpty(Transaction.RejectionReason))
+            {
+                <div class="mt-4 pa-4 mud-alert-error" style="border-radius: 12px; border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2);">
+                    <MudText Typo="Typo.caption" Style="font-weight: 950; color: var(--mud-palette-error); letter-spacing: 0.05em;">DENIAL REASON</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@Transaction.RejectionReason</MudText>
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
+        <MudSpacer />
+        @if (Transaction.Status == "Pending")
+        {
+            @if (IsOwnTransaction)
+            {
+                <MudButton Color="Color.Error" 
+                           Variant="Variant.Filled" 
+                           StartIcon="@Icons.Material.Filled.DeleteForever" 
+                           OnClick="CancelTransaction"
+                           Disabled="@_processing"
+                           Style="font-weight: 800; text-transform:none; border-radius: 8px;">
+                    @(_processing ? "Processing..." : "Cancel Request")
+                </MudButton>
+            }
+            else if (_isApprover)
+            {
+                <MudButton Color="Color.Error" 
+                           Variant="Variant.Outlined" 
+                           OnClick="@(() => ProcessDecision(false))"
+                           Disabled="@_processing"
+                           Style="font-weight: 700; text-transform:none;">Reject</MudButton>
+                <MudButton Color="Color.Success" 
+                           Variant="Variant.Filled" 
+                           OnClick="@(() => ProcessDecision(true))"
+                           Disabled="@_processing"
+                           Style="font-weight: 900; text-transform:none; border-radius: 8px;">Approve</MudButton>
+            }
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public TransactionDto Transaction { get; set; } = default!;
+    [Parameter] public bool IsOwnTransaction { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private bool _processing;
+    private bool _showFullAccount;
+    private bool _isApprover;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateTask;
+        _isApprover = authState.User.IsInRole(Roles.Approver);
+    }
+
+    private string GetMaskedAccount(string? account)
+    {
+        if (string.IsNullOrEmpty(account)) return "N/A";
+        if (_showFullAccount) return account;
+        if (account.Length <= 10) return account; // Too short to mask 6+4
+
+        return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task CancelTransaction()
+    {
+        try 
+        {
+            _processing = true;
+            var success = await OrgService.CancelTransactionAsync(Transaction.Id);
+            if (success)
+            {
+                Snackbar.Add("Transaction request cancelled successfully.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else 
+            {
+                Snackbar.Add("Failed to cancel transaction.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    private async Task ProcessDecision(bool approve)
+    {
+        try
+        {
+            _processing = true;
+            bool success = false;
+            
+            if (approve)
+            {
+                success = await OrgService.ApproveTransactionAsync(Transaction.Id);
+                if (success) Snackbar.Add("Transaction approved successfully.", Severity.Success);
+            }
+            else
+            {
+                success = await OrgService.RejectTransactionAsync(Transaction.Id, "Rejected via Detail Inspection");
+                if (success) Snackbar.Add("Transaction rejected.", Severity.Warning);
+            }
+
+            if (success)
+            {
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add("Action failed. Check permissions or account balance.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Pending" => Color.Warning,
+        "Approved" => Color.Success,
+        "Rejected" => Color.Error,
+        "Cancelled" => Color.Default,
+        _ => Color.Info
+    };
+}

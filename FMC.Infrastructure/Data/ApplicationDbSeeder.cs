@@ -20,8 +20,8 @@ public static class ApplicationDbSeeder
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-        // 1. Seed Roles (SuperAdmin, CEO, Manager, User)
-        string[] roleNames = { Roles.SuperAdmin, Roles.CEO, Roles.Manager, Roles.User };
+        // 1. Seed Roles (SuperAdmin, CEO, Maker, Approver, User)
+        string[] roleNames = { Roles.SuperAdmin, Roles.CEO, Roles.Maker, Roles.Approver, Roles.User };
         foreach (var roleName in roleNames)
         {
             if (!await roleManager.RoleExistsAsync(roleName))
@@ -75,12 +75,29 @@ public static class ApplicationDbSeeder
         else
         {
             // Link existing admin to the organization if not already linked
+            bool needsUpdate = false;
+            if (!adminUser.IsActive) { adminUser.IsActive = true; needsUpdate = true; }
             if (adminUser.OrganizationId == null || adminUser.OrganizationId != primaryOrg.Id)
             {
                 adminUser.OrganizationId = primaryOrg.Id;
                 adminUser.Organization = primaryOrg.Name;
-                await userManager.UpdateAsync(adminUser);
+                needsUpdate = true;
             }
+            if (needsUpdate) await userManager.UpdateAsync(adminUser);
+
+            if (!await userManager.IsInRoleAsync(adminUser, Roles.SuperAdmin))
+            {
+                await userManager.AddToRoleAsync(adminUser, Roles.SuperAdmin);
+            }
+        }
+
+        // 4. Specifically activate 'david' if he exists, to facilitate user testing
+        var david = await userManager.FindByNameAsync("david") ?? await userManager.FindByEmailAsync("david.rebancos@nationlink.ph");
+        if (david != null && !david.IsActive)
+        {
+            david.IsActive = true;
+            await userManager.UpdateAsync(david);
         }
     }
 }
+

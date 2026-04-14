@@ -137,4 +137,57 @@ public class OrganizationApiService
         var response = await _httpClient.PostAsync($"api/alerts/{id}/resolve", null);
         return response.IsSuccessStatusCode;
     }
+
+    /// <summary>
+    /// Approver Endpoint: Commits a pending transaction.
+    /// </summary>
+    public async Task<bool> ApproveTransactionAsync(Guid transactionId)
+    {
+        var response = await _httpClient.PostAsync($"api/users/transactions/{transactionId}/approve", null);
+        if (!response.IsSuccessStatusCode)
+        {
+            var msg = await response.Content.ReadAsStringAsync();
+            throw new Exception(!string.IsNullOrEmpty(msg) ? msg : "Approval failed.");
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Approver Endpoint: Rejects a pending transaction with reason.
+    /// </summary>
+    public async Task<bool> RejectTransactionAsync(Guid transactionId, string reason)
+    {
+        var response = await _httpClient.PostAsJsonAsync($"api/users/transactions/{transactionId}/reject", new { Reason = reason });
+        return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>
+    /// Retrieves the list of transactions awaiting approval for an organization.
+    /// </summary>
+    public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid orgId, string? status = null, int count = 50)
+    {
+        string url = $"api/users/organizations/{orgId}/transactions?count={count}";
+        if (!string.IsNullOrEmpty(status)) url += $"&status={status}";
+        
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>(url) ?? new();
+    }
+
+    public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetPendingTransactionsAsync(Guid orgId)
+    {
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/pending-transactions") ?? new();
+    }
+
+    public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetTodayTransactionsAsync(Guid orgId)
+    {
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/today-transactions") ?? new();
+    }
+
+    /// <summary>
+    /// Maker Endpoint: Cancels a pending transaction initiated by the current user.
+    /// </summary>
+    public async Task<bool> CancelTransactionAsync(Guid transactionId)
+    {
+        var response = await _httpClient.DeleteAsync($"api/users/transactions/{transactionId}/cancel");
+        return response.IsSuccessStatusCode;
+    }
 }

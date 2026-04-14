@@ -143,6 +143,7 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
     /// <summary>Returns true if the JWT token is expired (with a 10-second buffer).</summary>
     private static bool IsTokenExpired(string token)
     {
+        if (string.IsNullOrWhiteSpace(token)) return true;
         try
         {
             var parts = token.Split('.');
@@ -154,11 +155,18 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
             if (doc.RootElement.TryGetProperty("exp", out var expProp))
             {
                 var expTime = DateTimeOffset.FromUnixTimeSeconds(expProp.GetInt64());
-                return expTime <= DateTimeOffset.UtcNow.AddSeconds(10);
+                var isExpired = expTime <= DateTimeOffset.UtcNow.AddSeconds(10);
+                if (isExpired) Console.WriteLine($"[AuthProv] Token is EXPIRED (Exp: {expTime:u}, Now: {DateTimeOffset.UtcNow:u})");
+                return isExpired;
             }
+            // If exp claim is missing entirely, we treat it as potentially permanent but suspicious in this system
+            return false; 
         }
-        catch { /* Treat unparseable tokens as expired */ }
-        return true;
+        catch (Exception ex)
+        { 
+            Console.WriteLine($"[AuthProv] Token expiration check FAILED: {ex.Message}");
+            return true; // Treat unparseable tokens as expired for security
+        }
     }
 
 
@@ -196,10 +204,35 @@ public class ApiAuthenticationStateProvider : AuthenticationStateProvider
 
     private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
+        var claims = new List<Claim>();
         var payload = jwt.Split('.')[1];
         var jsonBytes = ParseBase64WithoutPadding(payload);
-        var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-        return keyValuePairs!.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString()!));
+        
+        using var jsonDoc = JsonDocument.Parse(jsonBytes);
+        foreach (var prop in jsonDoc.RootElement.EnumerateObject())
+        {
+            var key = prop.Name;
+            var value = prop.Value;
+
+            // Normalize key if it's a short-name for standard Identity claims
+            if (key == "role") key = ClaimTypes.Role;
+            if (key == "unique_name" || key == "name") key = ClaimTypes.Name;
+            if (key == "sub") key = ClaimTypes.NameIdentifier;
+            if (key == "email") key = ClaimTypes.Email;
+
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var element in value.EnumerateArray())
+                {
+                    claims.Add(new Claim(key, element.ToString()));
+                }
+            }
+            else
+            {
+                claims.Add(new Claim(key, value.ToString()));
+            }
+        }
+        return claims;
     }
 
     private byte[] ParseBase64WithoutPadding(string base64)

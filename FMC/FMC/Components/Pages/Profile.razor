@@ -44,15 +44,14 @@
                     <MudText Typo="Typo.h5" Align="Align.Center" Style="font-weight:800; letter-spacing:-0.5px; line-height:1.2;">@_user.DisplayName</MudText>
                     <MudText Typo="Typo.body2" Class="mud-text-secondary" Align="Align.Center">@_user.Email</MudText>
                     <div class="mt-1 mb-3 fmc-util-pill normal d-inline-block px-3 py-1 mx-auto" style="font-size:0.75rem; font-family:'JetBrains Mono', monospace; font-weight:800;">
-                        ACCT: @GetStableAccountNumber(_user.Id.ToString(), _user.AccountNumber)
+                        ACCT: @MaskAccountNumber(GetStableAccountNumber(_user.Id.ToString(), _user.AccountNumber))
                     </div>
                     
                     <div class="d-flex gap-2 flex-wrap justify-center mb-4">
-                        @foreach (var role in _user.Roles)
-                        {
-                            var colorClass = role == Roles.SuperAdmin ? "admin" : role == Roles.CEO ? "ceo" : "user";
-                            <span class="fmc-profile-badge @colorClass">@role</span>
+                        @{
+                            var colorClass = _user.Role == Roles.SuperAdmin ? "admin" : _user.Role == Roles.CEO ? "ceo" : "user";
                         }
+                        <span class="fmc-profile-badge @colorClass">@_user.Role</span>
                     </div>
 
                     <MudDivider Class="mb-4 w-100" Style="opacity:0.2;" />
@@ -108,10 +107,10 @@
                                   Style="@(_user.OrganizationId.HasValue ? "cursor: pointer;" : "")"
                                   @onclick="@(() => { if(_user.OrganizationId.HasValue) Navigation.NavigateTo($"/admin/organizations/{_user.OrganizationId.Value}"); })">
                             <MudText Typo="Typo.overline" Style="color: var(--mud-palette-text-secondary); font-weight:800; letter-spacing: 1px; font-size:0.65rem;">
-                                @(_user.Roles.Contains(Roles.SuperAdmin) ? "SYSTEM AUTHORITY" : "TENANT")
+                                @(_user.Role == Roles.SuperAdmin ? "SYSTEM AUTHORITY" : "TENANT")
                             </MudText>
                             <div class="fmc-org-compact mt-2">
-                                <MudIcon Icon="@(_user.Roles.Contains(Roles.SuperAdmin) ? Icons.Material.Filled.AdminPanelSettings : Icons.Material.Filled.Business)" 
+                                <MudIcon Icon="@(_user.Role == Roles.SuperAdmin ? Icons.Material.Filled.AdminPanelSettings : Icons.Material.Filled.Business)" 
                                          Color="Color.Primary" Size="Size.Medium" Class="mr-2" />
                                 <div class="fmc-org-details w-100" style="overflow:hidden;">
                                     <MudText Typo="Typo.body1" Class="fmc-org-name-compact" Style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@(_user.Organization ?? "Global Core")</MudText>
@@ -125,7 +124,7 @@
                     </MudItem>
 
                     @* Institutional Liquidity Card for CEOs/Admins *@
-                    @if (_user.Roles.Contains(Roles.CEO) || _user.Roles.Contains(Roles.SuperAdmin))
+                    @if (_user.Role == Roles.CEO || _user.Role == Roles.SuperAdmin)
                     {
                         <MudItem xs="12">
                             <MudPaper Elevation="0" Class="pa-6 fmc-institutional-card">
@@ -434,7 +433,7 @@
     private bool _loadingHistory = true;
     private bool _isForeignProfile = false;
 
-    private bool IsAdminOrCeo => _user?.Roles.Any(r => r == Roles.SuperAdmin || r == Roles.CEO) ?? false;
+    private bool IsAdminOrCeo => _user?.Role == Roles.SuperAdmin || _user?.Role == Roles.CEO;
 
     protected override async Task OnInitializedAsync()
     {
@@ -466,10 +465,11 @@
                     var currentUser = await AuthService.GetCurrentUserAsync();
                     if (currentUser == null) { Navigation.NavigateTo("/login"); return; }
                     
-                    bool isSuperAdmin = currentUser.Roles.Contains(Roles.SuperAdmin);
-                    bool isTargetOrgCeo = currentUser.Roles.Contains(Roles.CEO) && currentUser.OrganizationId == _user.OrganizationId;
+                    bool isSuperAdmin = currentUser.Role == Roles.SuperAdmin;
+                    bool isOrgStaff = (currentUser.Role == Roles.CEO || currentUser.Role == Roles.Maker || currentUser.Role == Roles.Approver) 
+                                      && currentUser.OrganizationId == _user.OrganizationId;
                     
-                    if (!isSuperAdmin && !isTargetOrgCeo)
+                    if (!isSuperAdmin && !isOrgStaff)
                     {
                         Snackbar.Add("Access Denied: You do not have permission to view this forensic identity profile.", Severity.Error);
                         Navigation.NavigateTo("/profile");
@@ -509,6 +509,12 @@
         if (last.Length > 0) initial += last[0];
         
         return initial;
+    }
+
+    private string MaskAccountNumber(string acct)
+    {
+        if (string.IsNullOrEmpty(acct) || acct.Length < 10) return acct;
+        return $"{acct.Substring(0, 6)} {new string('*', acct.Length - 10)} {acct.Substring(acct.Length - 4)}";
     }
 
     private string GetStableAccountNumber(string id, string? currentAcct)

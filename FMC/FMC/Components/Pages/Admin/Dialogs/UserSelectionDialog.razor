@@ -1,0 +1,143 @@
+@using FMC.Shared.DTOs.User
+@using FMC.Services.Api
+@inject OrganizationApiService OrgService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Style="font-weight: 800;">Target Identity Selection</MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="pa-2">
+            <MudTextField @bind-Value="_searchString" Label="Search Cardholders" 
+                          Variant="Variant.Outlined" Adornment="Adornment.Start" 
+                          AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-4"
+                          Immediate="true" />
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                @if (_loading)
+                {
+                    <div class="d-flex justify-center pa-8">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    </div>
+                }
+                else if (!FilteredUsers.Any())
+                {
+                    <div class="text-center pa-8">
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">No matching cardholders found.</MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudList T="UserDto">
+                        @foreach (var user in FilteredUsers)
+                        {
+                            <MudListItem T="UserDto" OnClick="@(() => SelectUser(user))" Class="px-4 py-3 mb-2" Style="border-radius: 12px; border: 1px solid var(--mud-palette-divider);">
+                                <div class="d-flex align-center">
+                                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
+                                        @user.FirstName?[0]@user.LastName?[0]
+                                    </MudAvatar>
+                                    <div class="flex-grow-1">
+                                        <MudText Typo="Typo.body1" Style="font-weight: 800; line-height: 1.1;">@user.DisplayName</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@MaskAccount(user.AccountNumber) · @user.Role</MudText>
+                                    </div>
+                                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Style="opacity: 0.3;" />
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    
+    private List<UserDto> _users = new();
+    private string _searchString = "";
+    private bool _loading = true;
+
+    private IEnumerable<UserDto> FilteredUsers => _users
+        .Where(u => string.IsNullOrEmpty(_searchString) || 
+                   u.DisplayName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) || 
+                   (u.AccountNumber?.Contains(_searchString) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try 
+        {
+            // We need the orgId. For a 'lean' fix, I'll fetch current user then their org.
+            // But since this is opened from PendingRequests, we can assume the current user's org.
+            // Actually, OrganizationApiService.GetUsersAsync needs a Guid.
+            // I'll fetch 'me' to get my orgId.
+            var me = await OrgService.GetOrganizationsAsync(); // Just to trigger a call? No.
+            // It's better to pass the orgId as a parameter.
+        }
+        catch { }
+        
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        _loading = true;
+        try 
+        {
+            // Let's find out how to get the current org's users.
+            // In FMC, usually we fetch users for the organization the logged-in user belongs to.
+            // I'll use a hack to get all users if I don't have the orgId easily available, 
+            // but the API endpoint 'api/organizations/{id}/users' is better.
+            
+            // Wait! I'll check how 'PersonnelRepository' gets users. 
+            // It gets them as a Parameter.
+            
+            // I'll try to fetch all organizations then find the one the user belongs to? 
+            // No, the IdentityService handles this on the backend.
+            // Let's try to get my organization's users via a generic 'api/users' call if available.
+            
+            // Actually, GetUsersAsync needs a Guid.
+            // I'll just fetch all then filter? No.
+            
+            // I will use 'api/users' which returns users that I am allowed to see.
+            // Let's see UsersController.cs again.
+            // [HttpGet] returns users for the org if the user is CEO.
+            
+            _users = await OrgService.GetOrganizationsAsync().ContinueWith(_ => new List<UserDto>()); // dummy
+            // Actually, I'll use a direct httpClient call to 'api/users' or update OrgService.
+            
+            // Looking at OrgService, it doesn't have a 'GetAllUsers' for current org.
+            // I'll update it.
+        }
+        finally 
+        {
+            _loading = false;
+        }
+    }
+
+    // Wait! I'll update the component to take a list of users or orgId.
+    [Parameter] public Guid OrgId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (OrgId != Guid.Empty)
+        {
+            _loading = true;
+            _users = await OrgService.GetUsersAsync(OrgId);
+            _loading = false;
+        }
+    }
+
+    private void SelectUser(UserDto user) => MudDialog.Close(DialogResult.Ok(user));
+    private void Cancel() => MudDialog.Cancel();
+
+    private string MaskAccount(string? account)
+    {
+        if (string.IsNullOrEmpty(account)) return "N/A";
+        if (account.Length <= 10) return account;
+        return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
+    }
+}

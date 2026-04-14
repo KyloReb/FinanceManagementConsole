@@ -7,95 +7,87 @@
 @inject OrganizationApiService OrgService
 
 <MudPaper Elevation="0" Class="fmc-main-surface">
-    <div class="fmc-header-area">
-        <div class="d-flex align-center">
+    <div class="fmc-header-area d-flex flex-wrap gap-4 align-center justify-space-between" style="padding: 24px 32px;">
+        <div class="d-flex align-center flex-grow-1" style="min-width: 280px;">
             <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.CreditCard" Color="Color.Primary" /></div>
             <div>
-                <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Active Cardholder Registry</MudText>
+                <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em; line-height: 1.2;">Active Cardholder Registry</MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Real-time ledger balances across your active cards</MudText>
             </div>
         </div>
-        <div class="fmc-control-orchestrator">
-            <div class="fmc-suite-element ml-auto mr-4">
-                <MudButton Variant="Variant.Text" 
-                           Color="Color.Primary" 
-                           StartIcon="@Icons.Material.Filled.People" 
-                           Href="/accounts"
-                           Style="font-weight: 800; text-transform:none;">
-                    View All Cardholders
-                </MudButton>
-            </div>
-            <div class="fmc-suite-element fmc-search-box" style="flex: 1;">
+        <div class="fmc-control-orchestrator d-flex align-center gap-4 flex-grow-1" style="min-width: 300px; justify-content: flex-end;">
+            <MudButton Variant="Variant.Text" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.People" 
+                       Href="/accounts"
+                       Style="font-weight: 800; text-transform:none; white-space: nowrap;">
+                View All Cardholders
+            </MudButton>
+            <div class="fmc-search-box" style="flex: 1; max-width: 400px; min-width: 200px;">
                 <MudTextField @bind-Value="_searchString" 
-                              Placeholder="Search cardholders..." 
-                              Adornment="Adornment.Start" 
-                              AdornmentIcon="@Icons.Material.Filled.Search" 
-                              Variant="Variant.Outlined" 
-                              Margin="Margin.None" />
+                               Placeholder="Search cardholders..." 
+                               Adornment="Adornment.Start" 
+                               AdornmentIcon="@Icons.Material.Filled.Search" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.None"
+                               Class="fmc-premium-search" />
             </div>
         </div>
     </div>
 
     @* ── DESKTOP TABLE ── *@
     <div class="fmc-desktop-table">
-        <MudTable Items="@_filteredUsers" Hover="true" Elevation="0" Loading="@Loading" Class="fmc-premium-table">
+        <MudTable Items="@_filteredUsers" Hover="true" Elevation="0" Loading="@Loading" Class="fmc-premium-table lean-table">
             <HeaderContent>
-                <MudTh><MudTableSortLabel SortBy="new Func<UserDto, object>(x=>x.DisplayName)">CARDHOLDER</MudTableSortLabel></MudTh>
-                <MudTh>ROLE</MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<UserDto, object>(x=>x.IsActive)">USER STATUS</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<UserDto, object>(x=>x.Balance)" InitialDirection="SortDirection.Descending">WALLET BALANCE</MudTableSortLabel></MudTh>
-                <MudTh Style="text-align:right;">ACTIONS</MudTh>
+                <MudTh Class="fmc-registry-col-lean"><MudTableSortLabel SortBy="new Func<UserDto, object>(x=>x.DisplayName)">CARDHOLDER / IDENTITY</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<UserDto, object>(x=>x.Balance)" InitialDirection="SortDirection.Descending">BAL.</MudTableSortLabel></MudTh>
+                <MudTh Style="text-align:right;">OPS</MudTh>
             </HeaderContent>
             <RowTemplate Context="userItem">
                 <MudTd>
-                    <div class="d-flex align-center gap-3">
-                        <MudAvatar Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 800;">@userItem.DisplayName?[0]</MudAvatar>
-                        <div>
-                            <MudText Style="font-weight:800; font-size: 0.85rem;">@userItem.DisplayName</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@userItem.Email</MudText>
+                    <div class="d-flex align-center gap-2">
+                        <MudAvatar Color="Color.Info" Style="width: 28px; height: 28px; font-size: 0.75rem; font-weight: 800;">@userItem.DisplayName?[0]</MudAvatar>
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <div class="d-flex align-center gap-1">
+                                <MudText Style="font-weight:900; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@userItem.DisplayName</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="@(userItem.IsActive ? Color.Success : Color.Error)" 
+                                         Variant="Variant.Filled" 
+                                         Style="font-weight: 900; height: 16px; font-size: 0.55rem; padding: 0 6px; margin: 0;">
+                                    @(userItem.IsActive ? "ACTIVE" : "OFF")
+                                </MudChip>
+                            </div>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.65rem; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                @MaskAccount(userItem.AccountNumber) · <span style="font-weight: 700;">@userItem.Role</span>
+                            </MudText>
                         </div>
                     </div>
                 </MudTd>
                 <MudTd>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var role in userItem.Roles)
-                        {
-                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(role)" Style="font-weight: 700;">@role</MudChip>
-                        }
-                    </div>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small" Color="@(userItem.IsActive ? Color.Success : Color.Error)" Style="font-weight: 700; height: 22px;">
-                        @(userItem.IsActive ? "Active" : "Suspended")
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;"
+                    <MudText Class="fmc-financial-mono" Style="font-size: 0.85rem;"
                              Color="@(userItem.Balance < 0 ? Color.Error : Color.Info)">
                         @userItem.Balance.ToString("C")
                     </MudText>
                 </MudTd>
                 <MudTd Style="text-align:right;">
-                    <div class="d-flex align-center justify-end gap-2">
-                        <MudTooltip Text="Credit User">
+                    <div class="d-flex align-center justify-end gap-1">
+                        @if (_isMaker)
+                        {
                             <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success"
-                                           Variant="Variant.Outlined" Size="Size.Small"
+                                           Size="Size.Small"
                                            OnClick="@(() => OpenUserAdjustmentDialog(userItem, true))"
-                                           Style="border-radius:8px;" />
-                        </MudTooltip>
-                        <MudTooltip Text="Debit User">
+                                           Style="padding: 4px;" />
                             <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error"
-                                           Variant="Variant.Outlined" Size="Size.Small"
+                                           Size="Size.Small"
                                            OnClick="@(() => OpenUserAdjustmentDialog(userItem, false))"
-                                           Style="border-radius:8px;" />
-                        </MudTooltip>
+                                           Style="padding: 4px;" />
+                        }
                     </div>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <div class="pa-10 d-flex flex-column align-center mud-text-secondary">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" />
-                    <MudText>No personnel match your search.</MudText>
+                <div class="pa-6 d-flex flex-column align-center mud-text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Medium" Class="mb-1" />
+                    <MudText Typo="Typo.caption">No results found.</MudText>
                 </div>
             </NoRecordsContent>
         </MudTable>
@@ -108,47 +100,39 @@
             @for (int i = 0; i < 3; i++)
             {
                 <div class="fmc-mobile-card">
-                    <MudSkeleton Width="60%" Height="20px" Class="mb-2" />
-                    <MudSkeleton Width="40%" Height="16px" Class="mb-3" />
-                    <MudSkeleton Width="80%" Height="16px" />
+                    <MudSkeleton Width="60%" Height="18px" Class="mb-1" />
+                    <MudSkeleton Width="40%" Height="14px" />
                 </div>
             }
         }
         else if (!_filteredUsers.Any())
         {
-            <div class="pa-8 d-flex flex-column align-center mud-text-secondary">
-                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" />
-                <MudText>No personnel match your search.</MudText>
+            <div class="pa-6 d-flex flex-column align-center mud-text-secondary">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Medium" />
+                <MudText Typo="Typo.caption">No personnel found.</MudText>
             </div>
         }
         else
         {
             @foreach (var user in _filteredUsers)
             {
-                <div class="fmc-mobile-card">
-                    <div class="fmc-mobile-row-main">
-                        <div class="d-flex align-center gap-3">
-                            <MudAvatar Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 800;">@user.DisplayName?[0]</MudAvatar>
-                            <div class="flex-grow-1">
-                                <MudText Style="font-weight:800; font-size: 0.85rem;">@user.DisplayName</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@user.Email</MudText>
-                            </div>
-                            <MudChip T="string" Size="Size.Small" Color="@(user.IsActive ? Color.Success : Color.Error)" Style="font-weight: 700;">
-                                @(user.IsActive ? "Active" : "Suspended")
-                            </MudChip>
+                <div class="fmc-mobile-card pa-3">
+                    <div class="d-flex align-center justify-space-between">
+                        <div class="d-flex align-center gap-2">
+                             <MudAvatar Color="Color.Info" Style="width: 24px; height: 24px; font-size: 0.65rem;">@user.DisplayName?[0]</MudAvatar>
+                             <div>
+                                 <MudText Style="font-weight:900; font-size: 0.75rem;">@user.DisplayName</MudText>
+                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem;">@user.Role · @(user.IsActive ? "Active" : "Off")</MudText>
+                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="fmc-mobile-row-details">
-                        <div class="mobile-detail-group">
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">WALLET BALANCE</MudText>
-                            <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(user.Balance < 0 ? Color.Error : Color.Info)">
-                                @user.Balance.ToString("C")
-                            </MudText>
-                        </div>
-                        <div class="mobile-action-group">
-                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => OpenUserAdjustmentDialog(user, true))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => OpenUserAdjustmentDialog(user, false))" />
+                        <div class="d-flex align-center gap-1">
+                             <MudText Class="fmc-financial-mono" Style="font-size: 0.8rem;" Color="@(user.Balance < 0 ? Color.Error : Color.Info)">
+                                 @user.Balance.ToString("C")
+                             </MudText>
+                             @if (_isMaker)
+                             {
+                                 <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Success" OnClick="@(() => OpenUserAdjustmentDialog(user, true))" Dense="true" />
+                             }
                         </div>
                     </div>
                 </div>
@@ -175,7 +159,6 @@
             }
 
             // Enhanced Interaction Logic: Display users who were recently debited or credited first
-            // We index the recent logs to find relevant UserNames/EntityNames
             var priorityUsers = RecentLogs
                 .Where(l => l.Action == "CREDIT" || l.Action == "DEBIT")
                 .Select(l => l.UserId) 
@@ -191,11 +174,20 @@
         }
     }
 
+    private bool _isMaker;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        _isMaker = state.User.IsInRole(Roles.Maker);
+    }
+
     private Color GetRoleColor(string role) => role switch
     {
         Roles.SuperAdmin => Color.Error,
         Roles.CEO => Color.Primary,
-        Roles.Manager => Color.Info,
+        Roles.Maker => Color.Info,
+        Roles.Approver => Color.Success,
         _ => Color.Default
     };
 
@@ -212,4 +204,17 @@
             await OnActionCompleted.InvokeAsync();
         }
     }
+
+    private string MaskAccount(string? account)
+    {
+        if (string.IsNullOrEmpty(account)) return "N/A";
+        if (account.Length <= 10) return account;
+        return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
+    }
 }
+
+<style>
+    .fmc-premium-table.lean-table .mud-th { padding: 10px 14px !important; font-size: 0.6rem !important; }
+    .fmc-premium-table.lean-table .mud-td { padding: 10px 14px !important; }
+    .fmc-registry-col-lean { min-width: 140px; }
+</style>

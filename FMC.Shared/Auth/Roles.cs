@@ -16,9 +16,14 @@ public static class Roles
     public const string CEO = "CEO";
 
     /// <summary>
-    /// Middle privilege level. Access to business accounts and transaction management.
+    /// Financial operations role. Authorized to initiate credit/debit requests for cardholders.
     /// </summary>
-    public const string Manager = "Manager";
+    public const string Maker = "Maker";
+
+    /// <summary>
+    /// Financial verification role. Authorized to approve or reject pending transaction requests.
+    /// </summary>
+    public const string Approver = "Approver";
 
     /// <summary>
     /// Standard privilege level. Access to personal financial data only.

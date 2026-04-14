@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FMC.Api.Controllers;
 
-[Authorize(Policy = Roles.Manager)]
+[Authorize(Policy = Roles.CEO)]
 [ApiController]
 [Route("api/[controller]")]
 public class BudgetsController : ControllerBase

@@ -9,5 +9,12 @@ public class TransactionDto
     public Guid AccountId { get; set; }
     public string Category { get; set; } = string.Empty;
     public string Subscriber { get; set; } = string.Empty;
-    public string Status { get; set; } = "Successful";
+    public string Status { get; set; } = "Pending";
+    public string? MakerName { get; set; }
+    public string? MakerId { get; set; }
+    public string? AccountNumber { get; set; }
+    public string? ApproverName { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime? ActionDate { get; set; }
+    public Guid? OrganizationId { get; set; }
 }

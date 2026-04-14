@@ -1,5 +1,6 @@
 using FMC.Application.Interfaces;
 using FMC.Infrastructure.Data;
+using FMC.Domain.Entities;
 using FMC.Shared.DTOs.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -46,17 +47,31 @@ public class IdentityService : IIdentityService
 
     public async Task<AuthResponseDto?> LoginAsync(LoginRequestDto request)
     {
-        // Find user by Identifier (Email or Username) and Include Organization details
-        var user = await _context.Users
-            .Include(u => u.OrganizationInfo)
-            .FirstOrDefaultAsync(u => (u.Email == request.Identifier || u.UserName == request.Identifier) && u.IsActive);
+        _logger.LogInformation("[Login-Trace] Attempting login for: {Identifier}", request.Identifier);
 
-        if (user == null) return null;
+        // Find user using UserManager which correctly handles normalization and collation
+        var user = await _userManager.FindByNameAsync(request.Identifier) 
+                ?? await _userManager.FindByEmailAsync(request.Identifier);
+
+        if (user == null)
+        {
+            _logger.LogWarning("[Login-Trace] Identity NOT FOUND for: {Identifier}", request.Identifier);
+            return null;
+        }
+
+        if (!user.IsActive)
+        {
+            _logger.LogWarning("[Login-Trace] Account INACTIVE for user: {Email}", user.Email);
+            return null;
+        }
+
+        // Ensure Organization info is loaded for token claims
+        await _context.Entry(user).Reference(u => u.OrganizationInfo).LoadAsync();
 
         // 1. Check if the account is currently locked out
         if (await _userManager.IsLockedOutAsync(user))
         {
-            _logger.LogWarning("SECURITY ALERT: Brute-force attempt blocked. Account {Email} is currently locked.", user.Email);
+            _logger.LogWarning("[Login-Trace] Account LOCKED OUT for user: {Email}", user.Email);
             return null; 
         }
 
@@ -64,10 +79,13 @@ public class IdentityService : IIdentityService
         
         if (!result) 
         {
+            _logger.LogWarning("[Login-Trace] Password VERIFICATION FAILED for user: {Email}", user.Email);
             // 2. Increment failed access count to trigger lockout if threshold is reached
             await _userManager.AccessFailedAsync(user);
             return null;
         }
+
+        _logger.LogInformation("[Login-Trace] Password SUCCESS for user: {Email}. Resolving claims...", user.Email);
 
         // 3. Reset failed access count on successful login
         await _userManager.ResetAccessFailedCountAsync(user);
@@ -99,93 +117,7 @@ public class IdentityService : IIdentityService
         };
     }
 
-    public async Task<bool> RegisterAsync(RegisterRequestDto request)
-    {
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser != null) return false;
-
-        var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Name == request.Organization && !o.IsDeleted);
-
-        var user = new ApplicationUser
-        {
-            UserName = request.Username,
-            Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Organization = request.Organization,
-            OrganizationId = org?.Id,
-            IsActive = true,
-            EmailConfirmed = false, // Must verify email
-            AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
-        };
-
-        var result = await _userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded) return false;
-
-        // Assign default role to every new user
-        await _userManager.AddToRoleAsync(user, FMC.Shared.Auth.Roles.User);
-
-        // Generate OTP (6-digits)
-        var otp = new Random().Next(100000, 999999).ToString();
-        var cacheKey = $"reg_otp_{request.Email.ToLowerInvariant()}";
-        
-        // Store in cache for 10 minutes
-        await _cacheService.SetAsync(cacheKey, otp, TimeSpan.FromMinutes(10));
-
-        // Retrieve logo bytes from Embedded Constant
-        var logoBytes = Convert.FromBase64String(BrandingConstants.NationlinkLogoBase64);
-        var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-
-        _logger.LogInformation("Registration Email Logo attached via CID. Size: {Size} bytes", logoBytes.Length);
-
-        // Build Professional HTML Email — logo attached via proper MIME CID
-        var body = $@"
-            <div style=""font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 12px; background-color: #ffffff;"">
-                <div style=""text-align: center; padding: 20px 0;"">
-                    <img src=""cid:nlklogo"" alt=""Nationlink"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
-                    <p style=""font-size: 12px; color: #95a5a6; margin-top: 6px;"">Finance Management Console</p>
-                </div>
-                <div style=""background-color: #f8f9fa; padding: 30px; border-radius: 8px; text-align: center; border: 1px solid #f1f2f6;"">
-                    <h2 style=""color: #2d3436; margin-top: 0; font-size: 18px; font-weight: 600;"">Activate Your Account</h2>
-                    <p style=""color: #636e72; font-size: 15px; line-height: 1.5;"">Thank you for registering. Please use the verification code below to confirm your email address and activate your account.</p>
-                    <div style=""margin: 24px auto; background-color: #ffffff; padding: 15px; border: 2px dashed #2980b9; border-radius: 10px; display: inline-block; max-width: 100%; box-sizing: border-box; user-select: all; word-break: break-word;"">
-                        <span style=""font-size: 32px; font-weight: 800; color: #2980b9; letter-spacing: 6px; font-family: 'Courier New', monospace; user-select: all;"">{otp}</span>
-                    </div>
-                    <p style=""color: #95a5a6; font-size: 12px; margin-top: 8px;"">Double-click code to quickly select it</p>
-                    <p style=""color: #b2bec3; font-size: 13px; margin-top: 12px;"">This code is valid for <strong>10 minutes</strong>.</p>
-                </div>
-                <div style=""margin-top: 30px; padding: 20px; border-top: 1px solid #eee; text-align: center;"">
-                    <p style=""color: #b2bec3; font-size: 12px; line-height: 1.6;"">
-                        <strong>If you did not request this account:</strong> Please ignore this email.
-                    </p>
-                    <p style=""color: #dfe6e9; font-size: 11px; margin-top: 12px;"">&copy; {DateTime.UtcNow.Year} Nationlink FMC Security</p>
-                </div>
-            </div>";
-
-        await _emailService.SendEmailAsync(request.Email, "FMC Registration: Verification Code", body, attachments);
-        
-        return true;
-    }
-
-    public async Task<bool> VerifyEmailAsync(VerifyEmailRequestDto request)
-    {
-        var cacheKey = $"reg_otp_{request.Email.ToLowerInvariant()}";
-        var storedOtp = await _cacheService.GetAsync<string>(cacheKey);
-
-        if (string.IsNullOrEmpty(storedOtp) || storedOtp != request.Otp)
-            return false;
-
-        var user = await _userManager.FindByEmailAsync(request.Email);
-        if (user == null) return false;
-
-        user.EmailConfirmed = true;
-        await _userManager.UpdateAsync(user);
-
-        // Consume OTP
-        await _cacheService.RemoveAsync(cacheKey);
-
-        return true;
-    }
+    // Public Registration and Email Verification methods removed to enforce administrative-only user provisioning.
 
     public async Task<ForgotPasswordResponseDto?> ForgotPasswordAsync(ForgotPasswordRequestDto request)
     {
@@ -337,7 +269,7 @@ public class IdentityService : IIdentityService
                 OrganizationAccountNumber = user.OrganizationInfo?.AccountNumber ?? string.Empty,
                 IsActive = user.IsActive,
                 Balance = balance,
-                Roles = roles.ToList(),
+                Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
                 AccountNumber = user.AccountNumber
             });
         }
@@ -377,7 +309,7 @@ public class IdentityService : IIdentityService
                 OrganizationAccountNumber = user.OrganizationInfo?.AccountNumber ?? string.Empty,
                 IsActive = user.IsActive,
                 Balance = balance,
-                Roles = roles.ToList(),
+                Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
                 AccountNumber = user.AccountNumber
             });
         }
@@ -415,7 +347,7 @@ public class IdentityService : IIdentityService
             OrganizationAccountNumber = user.OrganizationInfo?.AccountNumber ?? string.Empty,
             IsActive = user.IsActive,
             Balance = balance,
-            Roles = roles.ToList(),
+            Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
             AccountNumber = user.AccountNumber
         };
     }
@@ -440,10 +372,10 @@ public class IdentityService : IIdentityService
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded) return false;
 
-        if (request.Roles.Any())
+        if (!string.IsNullOrEmpty(request.Role))
         {
-            await EnsureRolesExistAsync(request.Roles);
-            await _userManager.AddToRolesAsync(user, request.Roles);
+            await EnsureRolesExistAsync(new[] { request.Role });
+            await _userManager.AddToRoleAsync(user, request.Role);
         }
         else
         {
@@ -470,12 +402,19 @@ public class IdentityService : IIdentityService
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded) return false;
 
-        // Sync Roles
+        // Sync Roles (Single Role Only)
         var currentRoles = await _userManager.GetRolesAsync(user);
         await _userManager.RemoveFromRolesAsync(user, currentRoles);
         
-        await EnsureRolesExistAsync(request.Roles);
-        await _userManager.AddToRolesAsync(user, request.Roles);
+        if (!string.IsNullOrEmpty(request.Role))
+        {
+            await EnsureRolesExistAsync(new[] { request.Role });
+            await _userManager.AddToRoleAsync(user, request.Role);
+        }
+        else
+        {
+            await _userManager.AddToRoleAsync(user, FMC.Shared.Auth.Roles.User);
+        }
 
         // Update Password if provided
         if (!string.IsNullOrEmpty(request.Password))

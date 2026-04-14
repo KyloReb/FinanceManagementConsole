@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\FMC.Shared\FMC.Shared.csproj" />
+    <ProjectReference Include="..\..\FMC.Application\FMC.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

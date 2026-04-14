@@ -5,7 +5,7 @@
 @using MudBlazor.Services
 @implements IAsyncDisposable
 @implements IBrowserViewportObserver
-@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO)]
+@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
 @inject FMC.Services.Api.AdminService AdminService
 @inject FMC.Services.Api.OrganizationApiService OrganizationService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -26,20 +26,23 @@
                 <MudText Typo="Typo.body1" Class="fmc-acc-subtitle d-none d-sm-block">Comprehensive institutional oversight of all liquidity endpoints.</MudText>
             </div>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" 
-                   Size="Size.Large" Class="fmc-acc-action-btn">Initiate New Account</MudButton>
+        @if (_isCEOOrAdmin)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" 
+                       Size="Size.Large" Class="fmc-acc-action-btn">Initiate New Account</MudButton>
+        }
     </div>
 
     @* ANALYTICS GLASS CARDS *@
     <MudGrid Spacing="3" Class="mb-10">
         <MudItem xs="12" sm="4" md="4">
             <div class="fmc-acc-glass-card accent-primary">
-                <MudText Typo="Typo.subtitle2" Class="fmc-acc-card-label">@(_isCeo ? "MANAGED INSTITUTIONAL LIQUIDITY" : "TOTAL SYSTEM LIQUIDITY")</MudText>
+                <MudText Typo="Typo.subtitle2" Class="fmc-acc-card-label">@(_isOrgScoped ? "MANAGED INSTITUTIONAL LIQUIDITY" : "TOTAL SYSTEM LIQUIDITY")</MudText>
                 <MudText Typo="Typo.h4" Class="fmc-acc-kpi-val fmc-money">₱@(_users?.Sum(u => u.Balance).ToString("N2") ?? "0.00")</MudText>
                 <div class="fmc-acc-card-icon"><MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" /></div>
             </div>
         </MudItem>
-        @if (_isCeo && _organization != null)
+        @if (_isOrgScoped && _organization != null)
         {
             <MudItem xs="12" sm="4" md="4">
                 <div class="fmc-acc-glass-card accent-info">
@@ -49,9 +52,9 @@
                 </div>
             </MudItem>
         }
-        <MudItem xs="12" sm="4" md="@(_isCeo ? 4 : 3)">
+        <MudItem xs="12" sm="4" md="@(_isOrgScoped ? 4 : 3)">
             <div class="fmc-acc-glass-card accent-success">
-                <MudText Typo="Typo.subtitle2" Class="fmc-acc-card-label">@(_isCeo ? "AFFILIATED ENDPOINTS" : "TOTAL SYSTEM ENDPOINTS")</MudText>
+                <MudText Typo="Typo.subtitle2" Class="fmc-acc-card-label">@(_isOrgScoped ? "AFFILIATED ENDPOINTS" : "TOTAL SYSTEM ENDPOINTS")</MudText>
                 <MudText Typo="Typo.h4" Class="fmc-acc-kpi-val">@(_users?.Count ?? 0)</MudText>
                 <div class="fmc-acc-card-icon"><MudIcon Icon="@Icons.Material.Filled.Group" /></div>
             </div>
@@ -79,13 +82,12 @@
     {
         @if (!_isMobile)
         {
-            @* DESKTOP REPOSITORY TABLE *@
             <div class="fmc-acc-surface">
-                <MudTable Items="@FilteredUsers" Hover="true" Elevation="0" Class="fmc-acc-table" HorizontalScrollbar="true">
+                <MudTable Items="@FilteredUsers" Hover="true" Elevation="0" Class="fmc-acc-table" HorizontalScrollbar="true"
+                          OnRowClick="@((TableRowClickEventArgs<UserDto> e) => Navigation.NavigateTo($"/profile/{e.Item.Id}"))" RowClass="cursor-pointer">
                     <HeaderContent>
                         <MudTh Class="fmc-th"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.DisplayName)">INSTITUTIONAL IDENTITY</MudTableSortLabel></MudTh>
                         <MudTh Class="fmc-th">AUTHORITY</MudTh>
-                        <MudTh Class="fmc-th"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.IsActive)">STATUS</MudTableSortLabel></MudTh>
                         <MudTh Class="fmc-th">DISTRICT / TENANT</MudTh>
                         <MudTh Class="fmc-th" Style="text-align:right"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.Balance)">LIQUIDITY BALANCE</MudTableSortLabel></MudTh>
                         <MudTh Class="fmc-th" Style="text-align:right">FINANCIAL ACTIONS</MudTh>
@@ -95,24 +97,19 @@
                             <div class="d-flex align-center">
                                 <MudAvatar Color="Color.Info" Class="mr-3 fmc-avatar-shadow" Style="font-weight:950; font-size:0.8rem;">@(GetInitials(context))</MudAvatar>
                                 <div>
-                                    <MudText Typo="Typo.body1" Style="font-weight:900; letter-spacing:-0.02em;">@context.DisplayName</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:600;">@context.Email</MudText>
+                                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                                        <MudText Typo="Typo.body1" Inline="true" Style="font-weight:900; letter-spacing:-0.02em;">@context.DisplayName</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)" 
+                                                 Style="font-weight: 950; height: 16px; font-size: 0.55rem; letter-spacing: 0.05em; padding: 0 6px; margin: 0;">
+                                            @(context.IsActive ? "ACTIVE" : "SUSPENDED")
+                                        </MudChip>
+                                    </div>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700; font-family:'JetBrains Mono', monospace; font-size: 0.65rem;">@($"CARD: {context.AccountNumber}")</MudText>
                                 </div>
                             </div>
                         </MudTd>
                         <MudTd>
-                            <div class="d-flex gap-1 flex-wrap">
-                                @foreach (var role in context.Roles)
-                                {
-                                    <span class="fmc-role-tag @(role == Roles.SuperAdmin ? "admin" : (role == Roles.CEO ? "ceo" : "user"))">@role</span>
-                                }
-                            </div>
-                        </MudTd>
-                        <MudTd>
-                            <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)" 
-                                     Style="font-weight: 900; height: 20px; font-size: 0.6rem; letter-spacing: 0.05em;">
-                                @(context.IsActive ? "ACTIVE" : "SUSPENDED")
-                            </MudChip>
+                            <span class="fmc-role-tag @(context.Role == Roles.SuperAdmin ? "admin" : (context.Role == Roles.CEO ? "ceo" : "user"))">@context.Role</span>
                         </MudTd>
                         <MudTd>
                             <div class="d-flex flex-column">
@@ -125,7 +122,7 @@
                                 ₱@context.Balance.ToString("N2")
                             </MudText>
                         </MudTd>
-                        <MudTd Style="text-align:right">
+                        <MudTd Style="text-align:right" @onclick:stopPropagation="true">
                             <div class="d-flex justify-end gap-2">
                                 <MudTooltip Text="Credit Ledger">
                                     <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" 
@@ -134,12 +131,6 @@
                                 <MudTooltip Text="Debit Ledger">
                                     <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" 
                                                    OnClick="@(() => OpenUserAdjustmentDialog(context, false))" Class="fmc-action-icon-fin" />
-                                </MudTooltip>
-                                <MudDivider Vertical="true" FlexItem="true" DividerType="DividerType.Middle" Class="mx-1" Style="height: 20px;" />
-                                <MudTooltip Text="Forensic View">
-                                    <MudIconButton Icon="@Icons.Material.Filled.QueryStats" Color="Color.Info" Size="Size.Small" 
-                                                   OnClick="@(() => Navigation.NavigateTo($"/profile/{context.Id}"))"
-                                                   Class="fmc-action-icon" />
                                 </MudTooltip>
                             </div>
                         </MudTd>
@@ -156,14 +147,17 @@
             <div class="d-flex flex-column gap-3">
                 @foreach (var user in FilteredUsers)
                 {
-                    <div class="fmc-acc-mobile-card">
+                    <div class="fmc-acc-mobile-card cursor-pointer" @onclick="@(() => Navigation.NavigateTo($"/profile/{user.Id}"))">
                         <div class="fmc-mobile-header pa-4">
                             <div class="d-flex justify-space-between align-start">
                                 <div class="d-flex gap-3">
                                     <MudAvatar Color="Color.Info" Style="font-weight:950;" Class="fmc-avatar-shadow">@(GetInitials(user))</MudAvatar>
                                     <div class="d-flex flex-column">
-                                        <MudText Typo="Typo.body1" Style="font-weight:950; line-height:1.1; letter-spacing:-0.02em;">@user.DisplayName</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:600;">@user.Email</MudText>
+                                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; line-height: 1;">
+                                            <MudText Typo="Typo.body1" Inline="true" Style="font-weight:950; letter-spacing:-0.02em;">@user.DisplayName</MudText>
+                                            <div style="width:6px; height:6px; border-radius:50%; background-color:@(user.IsActive ? "var(--mud-palette-success)" : "var(--mud-palette-error)")"></div>
+                                        </div>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700; font-family:'JetBrains Mono', monospace; font-size: 0.6rem;">@($"CARD: {user.AccountNumber}")</MudText>
                                     </div>
                                 </div>
                                 <div class="text-right d-flex flex-column align-end">
@@ -179,18 +173,8 @@
                             </div>
                             <div class="d-flex justify-space-between align-center">
                                 <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; letter-spacing:0.05em;">IDENTITY ROLE</MudText>
-                                <div class="d-flex gap-1">
-                                    @foreach (var role in user.Roles)
-                                    {
-                                        <span class="fmc-role-tag s-small @(role == Roles.SuperAdmin ? "admin" : (role == Roles.CEO ? "ceo" : "user"))">@role</span>
-                                    }
-                                </div>
+                                    <span class="fmc-role-tag s-small @(user.Role == Roles.SuperAdmin ? "admin" : (user.Role == Roles.CEO ? "ceo" : "user"))">@user.Role</span>
                             </div>
-                        </div>
-                        <div class="fmc-mobile-footer pa-3">
-                             <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.QueryStats" 
-                                        FullWidth="true" OnClick="@(() => Navigation.NavigateTo($"/profile/{user.Id}"))"
-                                        Style="text-transform:none; font-weight:950; border-radius:12px; height:44px;">Forensic Profile Trace</MudButton>
                         </div>
                     </div>
                 }
@@ -226,8 +210,6 @@
     .fmc-acc-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
     .fmc-acc-search-box { flex-grow: 1; max-width: 500px; }
     .fmc-acc-input .mud-input-outlined { border-radius: 14px; background: var(--mud-palette-surface); }
-    .fmc-acc-select { width: 180px; }
-    .fmc-acc-select .mud-input-outlined { border-radius: 14px; background: var(--mud-palette-surface); }
 
     /* Repository Surface */
     .fmc-acc-surface { border-radius: 24px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 4px 25px rgba(0,0,0,0.02); }
@@ -242,8 +224,6 @@
     .fmc-role-tag.s-small { padding: 2px 6px; font-size: 0.55rem; }
 
     /* Action Icons */
-    .fmc-action-icon { background: rgba(var(--mud-palette-info-rgb), 0.06) !important; border-radius: 10px !important; transition: transform 0.2s; }
-    .fmc-action-icon:hover { transform: scale(1.1); background: rgba(var(--mud-palette-info-rgb), 0.1) !important; }
     .fmc-action-icon-fin { border-radius: 10px !important; border-width: 1px !important; transition: all 0.2s; }
     .fmc-action-icon-fin:hover { transform: scale(1.1); background: rgba(var(--mud-palette-action-default-rgb), 0.05); }
     .fmc-avatar-shadow { box-shadow: 0 4px 12px rgba(var(--mud-palette-info-rgb), 0.2); }
@@ -254,10 +234,12 @@
     .fmc-table-balance { font-size: 1.15rem; color: var(--mud-palette-info); }
 
     /* Mobile Dozier View */
-    .fmc-acc-mobile-card { background: var(--mud-palette-surface); border-radius: 24px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.02); }
+    .fmc-acc-mobile-card { background: var(--mud-palette-surface); border-radius: 24px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.02); margin-bottom: 12px; transition: transform 0.2s; }
+    .fmc-acc-mobile-card:active { transform: scale(0.98); }
     .fmc-mobile-header { border-bottom: 1px solid var(--mud-palette-background-grey); background: linear-gradient(to right, var(--mud-palette-surface), var(--mud-palette-background-grey)); }
     .fmc-mobile-body { background: var(--mud-palette-surface); }
-    .fmc-mobile-footer { background: var(--mud-palette-background-grey); }
+
+    .cursor-pointer { cursor: pointer; }
 
     @@media (max-width: 600px) {
         .fmc-acc-hero-text { font-size: 1.5rem !important; }
@@ -265,8 +247,6 @@
         .fmc-acc-action-btn { width: 100%; }
         .fmc-acc-toolbar { flex-direction: column; align-items: stretch; }
         .fmc-acc-search-box { max-width: 100%; order: 2; }
-        .fmc-acc-filter-box { order: 1; }
-        .fmc-acc-select { width: 100%; }
         .fmc-acc-kpi-val { font-size: 1.4rem !important; }
     }
 </style>
@@ -276,7 +256,8 @@
     private OrganizationDto? _organization;
     private bool _loading = true;
     private string _searchString = "";
-    private bool _isCeo = false;
+    private bool _isOrgScoped = false;
+    private bool _isCEOOrAdmin = false;
     private bool _isMobile = false;
     public Guid Id { get; } = Guid.NewGuid();
     public ResizeOptions ResizeOptions { get; } = new() { ReportRate = 100, NotifyOnBreakpointOnly = true };
@@ -284,9 +265,11 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        _isCeo = authState.User.IsInRole(Roles.CEO) && !authState.User.IsInRole(Roles.SuperAdmin);
+        var user = authState.User;
+        _isCEOOrAdmin = user.IsInRole(Roles.CEO) || user.IsInRole(Roles.SuperAdmin);
+        _isOrgScoped = !user.IsInRole(Roles.SuperAdmin);
         
-        await LoadData(authState.User);
+        await LoadData(user);
     }
 
     private async Task LoadData(System.Security.Claims.ClaimsPrincipal user)
@@ -296,7 +279,7 @@
             _loading = true;
             await LoadUsers();
 
-            if (_isCeo)
+            if (_isOrgScoped)
             {
                 var orgIdStr = user.FindFirst("OrganizationId")?.Value;
                 if (Guid.TryParse(orgIdStr, out var orgId))
@@ -305,9 +288,9 @@
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            Snackbar.Add("Failed to generate account inventory trace.", Severity.Error);
+            Snackbar.Add($"Failed to generate account inventory trace: {ex.Message}", Severity.Error);
         }
         finally
         {

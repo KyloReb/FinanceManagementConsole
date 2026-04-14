@@ -84,6 +84,7 @@ builder.Services.AddScoped<OrganizationApiService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<SecurityStateService>();
+builder.Services.AddScoped<FMC.Application.Interfaces.ICurrentUserService, BlazorCurrentUserService>();
 #endregion
 
 var app = builder.Build();

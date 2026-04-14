@@ -21,6 +21,7 @@ public class OrganizationService : IOrganizationService
     private readonly IAuditService _auditService;
     private readonly ISystemAlertService _alertService;
     private readonly IIdentityService _identityService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<OrganizationService> _logger;
 
     public OrganizationService(
@@ -29,6 +30,7 @@ public class OrganizationService : IOrganizationService
         IAuditService auditService,
         ISystemAlertService alertService,
         IIdentityService identityService,
+        ICurrentUserService currentUserService,
         ILogger<OrganizationService> logger)
     {
         _repository = repository;
@@ -36,6 +38,7 @@ public class OrganizationService : IOrganizationService
         _auditService = auditService;
         _alertService = alertService;
         _identityService = identityService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -194,9 +197,9 @@ public class OrganizationService : IOrganizationService
         var hasRole = await _context.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id, cancellationToken);
         if (!hasRole)
         {
-            // Remove other mutually exclusive leadership roles first (CEO/Manager) to keep it clean
+            // Remove other mutually exclusive leadership roles first (CEO/Maker/Approver) to keep it clean
             var rolesToRemove = await _context.Roles
-                .Where(r => r.Name == FMC.Shared.Auth.Roles.CEO || r.Name == FMC.Shared.Auth.Roles.Manager || r.Name == FMC.Shared.Auth.Roles.User)
+                .Where(r => r.Name == FMC.Shared.Auth.Roles.CEO || r.Name == FMC.Shared.Auth.Roles.Maker || r.Name == FMC.Shared.Auth.Roles.Approver || r.Name == FMC.Shared.Auth.Roles.User)
                 .Select(r => r.Id)
                 .ToListAsync(cancellationToken);
 
@@ -308,7 +311,15 @@ public class OrganizationService : IOrganizationService
     /// <inheritdoc />
     public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default)
     {
-        // 1. Identify the user and their organization context (for logging)
+        // 1. Security Check: Only Maker can initiate. SuperAdmins focus on Org-level funding.
+        if (!_currentUserService.IsMaker || _currentUserService.IsSuperAdmin)
+        {
+            _logger.LogWarning("[OrganizationService] Access Denied: User {UserId} (Maker:{IsMaker}, SuperAdmin:{IsAdmin}) tried to initiate cardholder transaction.", 
+                _currentUserService.UserId, _currentUserService.IsMaker, _currentUserService.IsSuperAdmin);
+            return false; 
+        }
+
+        // 2. Identify the target user
         var user = await _context.Users.OfType<ApplicationUser>()
             .Include(u => u.OrganizationInfo)
             .IgnoreQueryFilters()
@@ -316,7 +327,7 @@ public class OrganizationService : IOrganizationService
 
         if (user == null) return false;
 
-        // 2. Identify the personal wallet account (TenantId = UserId)
+        // 3. Identify the personal wallet account
         var tenantId = user.Id;
         var account = await _context.Accounts
             .IgnoreQueryFilters()
@@ -329,49 +340,37 @@ public class OrganizationService : IOrganizationService
                 Id = Guid.NewGuid(),
                 Name = $"Wallet: {user.FirstName} {user.LastName}",
                 Balance = 0,
-                TenantId = tenantId
+                TenantId = tenantId,
+                OrganizationId = user.OrganizationId
             };
             await _context.Accounts.AddAsync(account, cancellationToken);
         }
 
-        // 2.1 Deduct from Organization's Core Wallet (Transfer logic)
-        if (user.OrganizationId.HasValue)
-        {
-            var orgTenantId = user.OrganizationId.Value.ToString();
-            var orgAccount = await _context.Accounts
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(a => a.TenantId == orgTenantId, cancellationToken);
-
-            if (orgAccount != null)
-            {
-                orgAccount.Balance -= amount;
-                _logger.LogInformation("[OrganizationService] Deducted {Amount} from Org Wallet {OrgId} for user allotment", amount, orgTenantId);
-            }
-        }
-
-        // 3. Persist individual transaction
+        // 4. Create PENDING Transaction (Maker Step)
+        // No balance adjustment happens here!
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
-            Label = label ?? (amount >= 0 ? "Adjustment Credit" : "Adjustment Debit"),
+            Label = label ?? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request"),
             Amount = amount,
             Date = DateTime.UtcNow,
             Category = "Subscriber Allotment",
             TenantId = tenantId,
-            AccountId = account.Id
+            AccountId = account.Id,
+            Status = "Pending",
+            MakerId = _currentUserService.UserId,
+            OrganizationId = user.OrganizationId
         };
         
-        account.Balance += amount;
         await _context.Transactions.AddAsync(transaction, cancellationToken);
 
-        // 4. Trace the forensic audit event
-        var actionType = amount >= 0 ? "CREDIT" : "DEBIT";
+        // 4. Trace the forensic audit event for Initiation
         await _auditService.RecordFinancialEventAsync(
-            actionType, 
+            "INITIATE_" + (amount >= 0 ? "CREDIT" : "DEBIT"), 
             user.OrganizationId ?? Guid.Empty, 
             $"{user.FirstName} {user.LastName}", 
             Math.Abs(amount), 
-            label ?? "Individual Performance Adjustment", 
+            label ?? "Pending Allotment Initiation", 
             performedBy,
             null,
             tenantId
@@ -379,10 +378,253 @@ public class OrganizationService : IOrganizationService
 
         await _context.SaveChangesAsync(cancellationToken);
         
-        _logger.LogInformation("[OrganizationService] Adjusted USER balance for {UserId} by {Amount}. Label: {Label}", 
-            userId, amount, label);
+        _logger.LogInformation("[OrganizationService] Transaction PENDING for {UserId} by Maker {MakerId}. Amount: {Amount}", 
+            userId, _currentUserService.UserId, amount);
 
         return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ApproveTransactionAsync(Guid transactionId, string approverId, CancellationToken cancellationToken = default)
+    {
+        // 1. Security Check: Only Approver can commit
+        if (!_currentUserService.IsApprover) throw new ApplicationException("Access Denied: You do not have the Approver role required for this action.");
+
+        var transaction = await _context.Transactions
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == transactionId && t.Status == "Pending", cancellationToken);
+
+        if (transaction == null) throw new ApplicationException("Transaction not found or already processed.");
+
+        // 2. Mutual Exclusion (4-Eyes Principle): Maker cannot be Approver
+        if (transaction.MakerId == approverId)
+        {
+            await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, "N/A", transaction.Amount, "4-Eyes Violation: Maker tried to approve own request.", approverId, null, transaction.TenantId);
+            throw new ApplicationException("Four-Eyes Policy: You cannot approve transactions you initiated.");
+        }
+
+        // 3. Organization Isolation: Approver must belong to the same org
+        var approver = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == approverId, cancellationToken);
+        bool txHasOrg = transaction.OrganizationId.HasValue && transaction.OrganizationId != Guid.Empty;
+        bool sameOrg = !txHasOrg || (approver != null && approver.OrganizationId == transaction.OrganizationId);
+        
+        if (approver == null || (!sameOrg && !_currentUserService.IsSuperAdmin))
+        {
+            await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, "N/A", transaction.Amount, "Residency Violation: Approver belongs to different organization.", approverId, null, transaction.TenantId);
+            throw new ApplicationException("Organizational Security: You can only approve transactions for your own organization.");
+        }
+
+        // 4. Identify Accounts for Transfer
+        var userAccount = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == transaction.AccountId, cancellationToken);
+        if (userAccount == null) throw new ApplicationException("Target cardholder account not found.");
+
+        // Correctly handle the Transfer logic now
+        if (transaction.OrganizationId.HasValue)
+        {
+            var orgTenantId = transaction.OrganizationId.Value.ToString();
+            var orgAccount = await _context.Accounts
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(a => a.TenantId == orgTenantId, cancellationToken);
+
+            if (orgAccount != null)
+            {
+                orgAccount.Balance -= transaction.Amount;
+            }
+        }
+
+        userAccount.Balance += transaction.Amount;
+        transaction.Status = "Approved";
+        transaction.ApproverId = approverId;
+        transaction.ActionDate = DateTime.UtcNow;
+
+        // Audit Trail for Final Commitment
+        await _auditService.RecordFinancialEventAsync(
+            "APPROVED", 
+            transaction.OrganizationId ?? Guid.Empty, 
+            userAccount.Name, 
+            Math.Abs(transaction.Amount), 
+            "Allotment Approved and Settled", 
+            approverId,
+            null,
+            userAccount.TenantId
+        );
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, CancellationToken cancellationToken = default)
+    {
+        // 1. Security Check: Only Approver can reject
+        if (!_currentUserService.IsApprover) throw new ApplicationException("Access Denied: You do not have the Approver role.");
+
+        var transaction = await _context.Transactions
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == transactionId && t.Status == "Pending", cancellationToken);
+
+        if (transaction == null) return false;
+
+        transaction.Status = "Rejected";
+        transaction.ApproverId = approverId;
+        transaction.ActionDate = DateTime.UtcNow;
+        transaction.RejectionReason = reason;
+
+        await _auditService.RecordFinancialEventAsync(
+            "REJECTED", 
+            transaction.OrganizationId ?? Guid.Empty, 
+            "N/A", 
+            Math.Abs(transaction.Amount), 
+            $"Transaction Rejected: {reason}", 
+            approverId,
+            null,
+            transaction.TenantId
+        );
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetPendingTransactionsAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        // 1. Multi-Tenant Security: Block cross-org viewing unless SuperAdmin
+        if (!_currentUserService.IsSuperAdmin)
+        {
+            var userOrgId = _currentUserService.TenantId;
+            if (string.IsNullOrEmpty(userOrgId) || Guid.Parse(userOrgId) != organizationId)
+            {
+                _logger.LogWarning("[OrganizationService] Security Violation: User {Id} tried to view pending tx for different Org {OrgId}.", _currentUserService.UserId, organizationId);
+                return Enumerable.Empty<FMC.Shared.DTOs.TransactionDto>();
+            }
+        }
+
+        var transactions = await _context.Transactions
+            .IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == organizationId && t.Status == "Pending")
+            .OrderByDescending(t => t.Date)
+            .ToListAsync(cancellationToken);
+
+        var result = new List<FMC.Shared.DTOs.TransactionDto>();
+        foreach(var t in transactions)
+        {
+            var account = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == t.AccountId, cancellationToken);
+            var makerAttribute = await _context.Users.FindAsync(new object[] { t.MakerId ?? "" }, cancellationToken);
+            
+            // Resolve Subscriber details (User or Org)
+            string subscriberName = "N/A";
+            string? accountNumber = null;
+
+            if (account != null)
+            {
+                subscriberName = account.Name.Replace("Wallet: ", "");
+                // Attempt to resolve User account number
+                var user = await _context.Users.FindAsync(new object[] { account.TenantId ?? "" }, cancellationToken);
+                if (user != null)
+                {
+                    accountNumber = user.AccountNumber;
+                }
+                else if (Guid.TryParse(account.TenantId, out var orgId))
+                {
+                    // Attempt to resolve Organization account number
+                    var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == orgId, cancellationToken);
+                    if (org != null)
+                    {
+                        accountNumber = org.AccountNumber;
+                    }
+                }
+            }
+
+            result.Add(new FMC.Shared.DTOs.TransactionDto
+            {
+                Id = t.Id,
+                Date = t.Date,
+                Amount = t.Amount,
+                Label = t.Label,
+                AccountId = t.AccountId,
+                Category = t.Category,
+                Status = t.Status,
+                Subscriber = subscriberName,
+                AccountNumber = accountNumber,
+                MakerName = makerAttribute != null ? $"{makerAttribute.FirstName} {makerAttribute.LastName}" : "System",
+                MakerId = t.MakerId
+            });
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetTodayTransactionsAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        // 1. Multi-Tenant Security: Block cross-org viewing unless SuperAdmin
+        if (!_currentUserService.IsSuperAdmin)
+        {
+            var userOrgId = _currentUserService.TenantId;
+            if (string.IsNullOrEmpty(userOrgId) || Guid.Parse(userOrgId) != organizationId)
+            {
+                _logger.LogWarning("[OrganizationService] Security Violation: User {Id} tried to view today's logs for different Org {OrgId}.", _currentUserService.UserId, organizationId);
+                return Enumerable.Empty<FMC.Shared.DTOs.TransactionDto>();
+            }
+        }
+
+        var today = DateTime.UtcNow.Date;
+        var transactions = await _context.Transactions
+            .IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == organizationId && t.Date >= today)
+            .OrderByDescending(t => t.Date)
+            .ToListAsync(cancellationToken);
+
+        var result = new List<FMC.Shared.DTOs.TransactionDto>();
+        foreach(var t in transactions)
+        {
+            var account = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == t.AccountId, cancellationToken);
+            var makerAttribute = await _context.Users.FindAsync(new object[] { t.MakerId ?? "" }, cancellationToken);
+            var approver = !string.IsNullOrEmpty(t.ApproverId) 
+                ? await _context.Users.FindAsync(new object[] { t.ApproverId }, cancellationToken) 
+                : null;
+            
+            // Resolve Subscriber details (User or Org)
+            string subscriberName = "N/A";
+            string? accountNumber = null;
+
+            if (account != null)
+            {
+                subscriberName = account.Name.Replace("Wallet: ", "");
+                var user = await _context.Users.FindAsync(new object[] { account.TenantId ?? "" }, cancellationToken);
+                if (user != null)
+                {
+                    accountNumber = user.AccountNumber;
+                }
+                else if (Guid.TryParse(account.TenantId, out var orgId))
+                {
+                    var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == orgId, cancellationToken);
+                    if (org != null)
+                    {
+                        accountNumber = org.AccountNumber;
+                    }
+                }
+            }
+
+            result.Add(new FMC.Shared.DTOs.TransactionDto
+            {
+                Id = t.Id,
+                Date = t.Date,
+                Amount = t.Amount,
+                Label = t.Label,
+                AccountId = t.AccountId,
+                Category = t.Category,
+                Status = t.Status,
+                Subscriber = subscriberName,
+                AccountNumber = accountNumber,
+                MakerName = makerAttribute != null ? $"{makerAttribute.FirstName} {makerAttribute.LastName}" : "System",
+                MakerId = t.MakerId,
+                ApproverName = approver != null ? $"{approver.FirstName} {approver.LastName}" : null,
+                ActionDate = t.ActionDate
+            });
+        }
+
+        return result;
     }
 
     // ─────────────────────────────────────
@@ -444,4 +686,107 @@ public class OrganizationService : IOrganizationService
         WalletLimit = org.WalletLimit,
         AccountNumber = org.AccountNumber
     };
+
+    /// <inheritdoc />
+    public async Task<bool> CancelTransactionAsync(Guid transactionId, string makerId, CancellationToken cancellationToken = default)
+    {
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(t => t.Id == transactionId && t.Status == "Pending", cancellationToken);
+
+        if (transaction == null) return false;
+
+        // Security: Only the original Maker can cancel their own pending request
+        if (transaction.MakerId != makerId)
+        {
+            _logger.LogWarning("[OrganizationService] Security Violation: User {Id} tried to cancel transaction {TxId} created by {MakerId}.", makerId, transactionId, transaction.MakerId);
+            return false;
+        }
+
+        transaction.Status = "Cancelled";
+        transaction.ActionDate = DateTime.UtcNow;
+
+        await _auditService.RecordFinancialEventAsync(
+            "CANCELLED", 
+            transaction.OrganizationId ?? Guid.Empty, 
+            "N/A", 
+            Math.Abs(transaction.Amount), 
+            "Transaction Cancelled by Maker", 
+            makerId,
+            null,
+            transaction.TenantId
+        );
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+    /// <inheritdoc />
+    public async Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, CancellationToken cancellationToken = default)
+    {
+        // 1. Multi-Tenant Security check
+        if (!_currentUserService.IsSuperAdmin && _currentUserService.OrganizationId != organizationId)
+        {
+            _logger.LogWarning("[Security] Unauthorized history access attempt by {UserId} for Org {OrgId}", _currentUserService.UserId, organizationId);
+            return Enumerable.Empty<FMC.Shared.DTOs.TransactionDto>();
+        }
+
+        var query = _context.Transactions.IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == organizationId);
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(t => t.Status == status);
+        }
+
+        var transactions = await query
+            .OrderByDescending(t => t.Date)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
+        var result = new List<FMC.Shared.DTOs.TransactionDto>();
+        foreach (var t in transactions)
+        {
+            var account = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == t.AccountId, cancellationToken);
+            var maker = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.MakerId, cancellationToken);
+            var approver = !string.IsNullOrEmpty(t.ApproverId) 
+                ? await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.ApproverId, cancellationToken) 
+                : null;
+
+            string subscriberName = "System Node";
+            string? accountNumber = null;
+
+            if (account != null)
+            {
+                subscriberName = account.Name.Replace("Wallet: ", "");
+                var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == account.TenantId, cancellationToken);
+                if (user != null)
+                {
+                    accountNumber = user.AccountNumber;
+                }
+                else
+                {
+                    var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id.ToString() == account.TenantId, cancellationToken);
+                    if (org != null) accountNumber = org.AccountNumber;
+                }
+            }
+
+            result.Add(new FMC.Shared.DTOs.TransactionDto
+            {
+                Id = t.Id,
+                Date = t.Date,
+                Amount = t.Amount,
+                Label = t.Label,
+                AccountId = t.AccountId,
+                Category = t.Category,
+                Status = string.IsNullOrWhiteSpace(t.Status) ? "Successful" : t.Status,
+                Subscriber = subscriberName,
+                AccountNumber = accountNumber,
+                MakerName = maker != null ? $"{maker.FirstName} {maker.LastName}" : "System",
+                MakerId = t.MakerId,
+                ApproverName = approver != null ? $"{approver.FirstName} {approver.LastName}" : null,
+                ActionDate = t.ActionDate,
+                OrganizationId = t.OrganizationId
+            });
+        }
+        return result;
+    }
 }

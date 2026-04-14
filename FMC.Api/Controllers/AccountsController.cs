@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FMC.Api.Controllers;
 
-[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.User},{Roles.Manager},{Roles.CEO}")]
+[Authorize(Roles = $"{Roles.SuperAdmin},{Roles.User},{Roles.Maker},{Roles.Approver},{Roles.CEO}")]
 [ApiController]
 [Route("api/[controller]")]
 public class AccountsController : ControllerBase

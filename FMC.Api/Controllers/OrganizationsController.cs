@@ -11,7 +11,7 @@ namespace FMC.Api.Controllers;
 /// All endpoints are restricted to SuperAdmin role to prevent unauthorized tenant data mutation.
 /// Route: /api/organizations
 /// </summary>
-[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO)]
+[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
@@ -36,6 +36,7 @@ public class OrganizationsController : ControllerBase
     /// <param name="request">The adjustment payload (Amount & Label).</param>
     /// <response code="200">Balance successfully updated.</response>
     /// <response code="404">No organization or account found corresponding to the ID.</response>
+    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO)]
     [HttpPost("{id:guid}/adjust-balance")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -98,6 +99,7 @@ public class OrganizationsController : ControllerBase
     /// <response code="201">Organization successfully created.</response>
     /// <response code="400">Validation error in the request payload.</response>
     /// <response code="409">An organization with the same name already exists.</response>
+    [Authorize(Roles = Roles.SuperAdmin)]
     [HttpPost]
     [ProducesResponseType(typeof(OrganizationDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -129,6 +131,7 @@ public class OrganizationsController : ControllerBase
     /// <response code="400">Validation error in the request payload.</response>
     /// <response code="404">No active organization was found with the given ID.</response>
     /// <response code="409">The revised name conflicts with another existing organization.</response>
+    [Authorize(Roles = Roles.SuperAdmin)]
     [HttpPut]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -159,6 +162,7 @@ public class OrganizationsController : ControllerBase
     /// <param name="id">The UUID of the organization to logically remove.</param>
     /// <response code="204">Organization successfully soft-deleted.</response>
     /// <response code="404">No active organization was found with the given ID.</response>
+    [Authorize(Roles = Roles.SuperAdmin)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

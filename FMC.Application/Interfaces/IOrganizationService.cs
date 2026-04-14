@@ -55,7 +55,36 @@ public interface IOrganizationService
     Task<bool> AdjustBalanceAsync(Guid organizationId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// CEO/Admin Endpoint: Performs a balance adjustment for an individual user's personal wallet.
+    /// CEO/Admin Endpoint: Initiates a balance adjustment for an individual user's personal wallet (Maker Step).
     /// </summary>
     Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Approver Endpoint: Commits a pending transaction to the ledger and updates balances.
+    /// </summary>
+    Task<bool> ApproveTransactionAsync(Guid transactionId, string approverId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Approver Endpoint: Rejects a pending transaction.
+    /// </summary>
+    Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all transactions currently in 'Pending' status for a specific organization.
+    /// </summary>
+    Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetPendingTransactionsAsync(Guid organizationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all transactions occurs today (local time) for a specific organization.
+    /// </summary>
+    Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetTodayTransactionsAsync(Guid organizationId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Maker/Approver Endpoint: Retrieves a historical record of transactions for an organization.
+    /// </summary>
+    Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Maker Endpoint: Cancels a pending transaction that was initiated by the current user.
+    /// </summary>
+    Task<bool> CancelTransactionAsync(Guid transactionId, string makerId, CancellationToken cancellationToken = default);
 }

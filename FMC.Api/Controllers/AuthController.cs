@@ -54,26 +54,10 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
-    {
-        var result = await _identityService.RegisterAsync(request);
-        if (!result) return BadRequest(new { message = "Registration failed. Email or Username may already be in use." });
+    // Public Registration Endpoint has been removed. 
+    // New users must be created by a SuperAdmin or CEO via secure administration interfaces.
 
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var userAgent = Request.Headers.UserAgent.ToString();
-        await _auditService.RecordAuthEventAsync("Registration", null, ip, userAgent, $"New user registered: {request.Email}");
-
-        return Ok(new { message = "Registration successful. Please check your email for the verification code." });
-    }
-
-    [HttpPost("verify-email")]
-    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto request)
-    {
-        var result = await _identityService.VerifyEmailAsync(request);
-        if (!result) return BadRequest(new { message = "Invalid or expired verification code." });
-        return Ok(new { message = "Email verified successfully." });
-    }
+    // Email Verification endpoint has been removed as accounts are now verified by default upon administrative creation.
 
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)

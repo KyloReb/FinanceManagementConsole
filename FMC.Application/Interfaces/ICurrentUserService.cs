@@ -15,6 +15,11 @@ public interface ICurrentUserService
     /// In this implementation, UserId acts as the primary TenantId.
     /// </summary>
     string? TenantId { get; }
+    
+    /// <summary>
+    /// The specific organization identifier if the user belongs to one.
+    /// </summary>
+    Guid? OrganizationId { get; }
 
     /// <summary>
     /// Returns true if a user is currently authenticated.
@@ -25,4 +30,19 @@ public interface ICurrentUserService
     /// Returns true if the user acts as a global administrator (SuperAdmin).
     /// </summary>
     bool IsSuperAdmin { get; }
+    
+    /// <summary>
+    /// Returns true if the user has the CEO role.
+    /// </summary>
+    bool IsCeo { get; }
+
+    /// <summary>
+    /// Returns true if the user has the Maker role for financial initiation.
+    /// </summary>
+    bool IsMaker { get; }
+
+    /// <summary>
+    /// Returns true if the user has the Approver role for financial verification.
+    /// </summary>
+    bool IsApprover { get; }
 }

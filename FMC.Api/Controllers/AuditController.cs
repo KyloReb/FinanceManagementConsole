@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FMC.Api.Controllers;
 
-[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO)]
+[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
 [ApiController]
 [Route("api/[controller]")]
 public class AuditController : ControllerBase
@@ -27,8 +27,8 @@ public class AuditController : ControllerBase
     [HttpGet("logs")]
     public async Task<ActionResult<List<AuditLogDto>>> GetRecentLogs([FromQuery] int count = 20, [FromQuery] string? category = null, [FromQuery] string? tenantId = null)
     {
-        // Security: CEOs can only see their own organization logs
-        if (User.IsInRole(Roles.CEO))
+        // Security: Non-SuperAdmins can only see their own organization logs
+        if (!User.IsInRole(Roles.SuperAdmin))
         {
             var userOrgClaim = User.FindFirst("OrganizationId")?.Value;
             if (!string.IsNullOrEmpty(userOrgClaim))

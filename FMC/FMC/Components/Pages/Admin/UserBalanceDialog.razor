@@ -156,12 +156,12 @@
             if (success)
             {
                 OrgService.NotifyDataChanged();
-                Snackbar.Add($"Personal ledger updated for {User.DisplayName}", Severity.Success);
+                Snackbar.Add($"Success: Personal ledger adjustment request submitted for approval.", Severity.Info);
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
-                Snackbar.Add("Ledger submission failed. Possible organizational limit reached.", Severity.Error);
+                Snackbar.Add("Submission failed. Ensure you have the Maker role and the user belongs to your organization.", Severity.Error);
             }
         }
         catch (Exception ex)

@@ -1,0 +1,134 @@
+@using FMC.Shared.DTOs
+@using FMC.Shared.Auth
+@inject OrganizationApiService OrgService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthProvider
+
+<MudPaper Elevation="0" Class="fmc-main-surface">
+    <div class="fmc-header-area">
+        <div class="d-flex align-center">
+            <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning);">
+                <MudIcon Icon="@Icons.Material.Filled.PendingActions" />
+            </div>
+            <div>
+                <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Transaction Approval Queue</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Transactions awaiting verification before commitment</MudText>
+            </div>
+        </div>
+    </div>
+
+    <div class="fmc-content-body pa-0">
+        @if (_loading)
+        {
+            <div class="d-flex justify-center pa-10">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else if (!_pendingTransactions.Any())
+        {
+            <div class="pa-10 d-flex flex-column align-center mud-text-secondary">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Class="mb-2" />
+                <MudText>Clear! No transactions currently pending.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudSimpleTable Hover="true" Bordered="false" Striped="false" Elevation="0" Class="fmc-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>User Account</th>
+                        <th>Maker</th>
+                        <th>Amount</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tx in _pendingTransactions)
+                    {
+                        <tr>
+                            <td>@tx.Date.ToString("MMM dd, HH:mm")</td>
+                            <td>
+                                <MudText Typo="Typo.body2" Style="font-weight: 600;">@tx.Label</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Batch Ref: @tx.Id.ToString().Substring(0, 8)</MudText>
+                            </td>
+                            <td>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@tx.MakerName</MudChip>
+                            </td>
+                            <td>
+                                <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(tx.Amount < 0 ? Color.Error : Color.Success)">
+                                    @(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("C")
+                                </MudText>
+                            </td>
+                            <td style="text-align:right;">
+                                <div class="d-flex align-center justify-end gap-2">
+                                    <MudButton StartIcon="@Icons.Material.Filled.Check" Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => Approve(tx.Id))">Approve</MudButton>
+                                    <MudButton StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="@(() => Reject(tx.Id))">Reject</MudButton>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        }
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter] public Guid OrganizationId { get; set; }
+    
+    private List<TransactionDto> _pendingTransactions = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        try
+        {
+            if (OrganizationId != Guid.Empty)
+            {
+                _pendingTransactions = await OrgService.GetPendingTransactionsAsync(OrganizationId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading queue: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Approve(Guid id)
+    {
+        var success = await OrgService.ApproveTransactionAsync(id);
+        if (success)
+        {
+            Snackbar.Add("Transaction Approved and Committed.", Severity.Success);
+            await LoadDataAsync();
+        }
+        else
+        {
+            Snackbar.Add("Approval Denied: Possible self-approval violation or system error.", Severity.Error);
+        }
+    }
+
+    private async Task Reject(Guid id)
+    {
+        // Simple prompt for reason
+        var reason = "Manual Rejection by Approver";
+        var success = await OrgService.RejectTransactionAsync(id, reason);
+        if (success)
+        {
+            Snackbar.Add("Transaction Rejected.", Severity.Warning);
+            await LoadDataAsync();
+        }
+    }
+}

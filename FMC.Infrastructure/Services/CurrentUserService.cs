@@ -34,6 +34,16 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    /// <inheritdoc />
+    public Guid? OrganizationId
+    {
+        get
+        {
+            var orgIdStr = _httpContextAccessor.HttpContext?.User?.FindFirstValue("OrganizationId");
+            return Guid.TryParse(orgIdStr, out var id) ? id : null;
+        }
+    }
+
     /// <summary>
     /// True if the HTTP Context has an authenticated User identity.
     /// </summary>
@@ -43,4 +53,10 @@ public class CurrentUserService : ICurrentUserService
     /// Evaluates if the current user has the SuperAdmin/System Admin role, bypassing standard tenancy.
     /// </summary>
     public bool IsSuperAdmin => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin) == true;
+
+    public bool IsCeo => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.CEO) == true;
+    
+    public bool IsMaker => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.Maker) == true;
+    
+    public bool IsApprover => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.Approver) == true;
 }

@@ -3,12 +3,14 @@
 @using FMC.Shared.DTOs.Organization
 @using FMC.Shared.DTOs.User
 @using FMC.Services.Api
+@using FMC.Components.Dashboard
 @using MudBlazor
-@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@attribute [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")]
 @inject OrganizationApiService OrganizationService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthProvider
 
 <PageTitle>Subscriber Profile | FMC</PageTitle>
 
@@ -139,6 +141,13 @@
                     </div>
 
                     <div class="mb-4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">SUBSCRIBER ACCOUNT</MudText>
+                        <MudText Typo="Typo.body1" Style="font-weight: 700; font-family: 'JetBrains Mono', monospace;">
+                            @MaskAccountNumber(_org.AccountNumber)
+                        </MudText>
+                    </div>
+
+                    <div class="mb-4">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">CREATED ON</MudText>
                         <MudText Typo="Typo.body2" Style="font-weight: 600;">@_org.CreatedAt.ToString("MMM dd, yyyy")</MudText>
                     </div>
@@ -146,7 +155,7 @@
                     <div class="mb-4">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">ACCOUNT NUMBER</MudText>
                         <MudText Typo="Typo.body2" Style="font-weight: 700; letter-spacing: 0.1em;" Color="Color.Primary">
-                            @GetStableAccountNumber(_org.Id.ToString(), _org.AccountNumber)
+                            @MaskAccountNumber(GetStableAccountNumber(_org.Id.ToString(), _org.AccountNumber))
                         </MudText>
                     </div>
 
@@ -170,6 +179,13 @@
                     @liquidityCard
                 </div>
 
+                @if (_isApprover)
+                {
+                    <div class="mb-6">
+                        <PendingApprovalQueue OrganizationId="Id" />
+                    </div>
+                }
+
                 <MudPaper Elevation="0" Class="fmc-glass-surface pa-6">
                     <MudText Typo="Typo.h6" Style="font-weight: 800;" Class="mb-4">Affiliated Users Matrix</MudText>
                     <div class="d-none d-md-block">
@@ -188,17 +204,12 @@
                                         <div>
                                             <MudText Typo="Typo.body2" Style="font-weight: 700; color: var(--mud-palette-text-primary);">@userCtx.DisplayName</MudText>
                                             <MudText Typo="Typo.caption" Class="mud-text-secondary">@userCtx.Email</MudText>
-                                            <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1" Style="letter-spacing: 0.05em;">Acct: <span style="font-weight: 600;">@GetStableAccountNumber(userCtx.Id, userCtx.AccountNumber)</span></MudText>
+                                            <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1" Style="letter-spacing: 0.05em;">Acct: <span style="font-weight: 600;">@MaskAccountNumber(GetStableAccountNumber(userCtx.Id, userCtx.AccountNumber))</span></MudText>
                                         </div>
                                     </div>
                                 </MudTd>
                                 <MudTd DataLabel="Role">
-                                    <div class="d-flex flex-wrap gap-1">
-                                        @foreach (var role in userCtx.Roles)
-                                        {
-                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(role)" Style="font-weight: 700;">@role</MudChip>
-                                        }
-                                    </div>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(userCtx.Role)" Style="font-weight: 700;">@userCtx.Role</MudChip>
                                 </MudTd>
                                 <MudTd DataLabel="Ledger" Style="text-align: right;">
                                     <MudText Class="fmc-money" Typo="Typo.body2" Color="@(userCtx.Balance < 0 ? Color.Error : Color.Default)">@userCtx.Balance.ToString("C")</MudText>
@@ -208,12 +219,15 @@
                                 </MudTd>
                                 <MudTd Style="text-align: right;">
                                     <div class="d-flex justify-end gap-2">
-                                        <MudTooltip Text="Debit User">
-                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, false))" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Credit User">
-                                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, true))" />
-                                        </MudTooltip>
+                                        @if (_isMaker)
+                                        {
+                                            <MudTooltip Text="Debit User">
+                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, false))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="Credit User">
+                                                <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, true))" />
+                                            </MudTooltip>
+                                        }
                                     </div>
                                 </MudTd>
                             </RowTemplate>
@@ -235,26 +249,21 @@
                                             <div>
                                                 <MudText Typo="Typo.body1" Style="font-weight: 800; font-size: 0.95rem; color: var(--mud-palette-text-primary);">@userCtx.DisplayName</MudText>
                                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">@userCtx.Email</MudText>
-                                                <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1" Style="letter-spacing: 0.05em;">Acct: <span style="font-weight: 600;">@GetStableAccountNumber(userCtx.Id, userCtx.AccountNumber)</span></MudText>
+                                                <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1" Style="letter-spacing: 0.05em;">Acct: <span style="font-weight: 600;">@MaskAccountNumber(GetStableAccountNumber(userCtx.Id, userCtx.AccountNumber))</span></MudText>
                                             </div>
                                         </div>
                                         <MudText Class="fmc-money" Typo="Typo.body2" Style="font-weight: 900;" Color="@(userCtx.Balance < 0 ? Color.Error : Color.Default)">@userCtx.Balance.ToString("C")</MudText>
                                     </div>
                                     <div class="d-flex align-center justify-space-between mt-2 pt-2" style="border-top: 1px solid var(--mud-palette-divider);">
-                                        <div class="d-flex flex-wrap gap-1">
-                                            @foreach (var role in userCtx.Roles)
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(userCtx.Role)" Style="font-weight: 700; height: 20px;">@userCtx.Role</MudChip>
+                                        <div class="d-flex gap-2">
+                                            @if (_isMaker)
                                             {
-                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetRoleColor(role)" Style="font-weight: 700; height: 20px;">@role</MudChip>
+                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, false))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, true))" />
                                             }
+                                            <MudChip T="string" Size="Size.Small" Color="@(userCtx.IsActive ? Color.Success : Color.Error)" Style="height: 20px; font-weight: 700;">@(userCtx.IsActive ? "Active" : "Suspended")</MudChip>
                                         </div>
-                                        <MudChip T="string" Size="Size.Small" Color="@(userCtx.IsActive ? Color.Success : Color.Error)" Style="height: 20px; font-weight: 700;">@(userCtx.IsActive ? "Active" : "Suspended")</MudChip>
-                                    </div>
-                                    <div class="d-flex align-center justify-end gap-4 mt-4 pt-3" style="border-top: 1px dashed var(--mud-palette-divider);">
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.RemoveCircle" 
-                                                   Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, false))" Style="font-weight: 800; font-size: 0.7rem;">DEBIT</MudButton>
-                                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AddCircle" 
-                                                   Size="Size.Small" OnClick="@(() => OpenUserBalanceDialog(userCtx, true))" 
-                                                   Style="font-weight: 800; font-size: 0.7rem; color: white !important;">CREDIT</MudButton>
                                     </div>
                                 </div>
                             }
@@ -294,12 +303,6 @@
         font-size: 8rem !important; transform: rotate(-10deg); pointer-events: none;
     }
 
-    .fmc-money {
-        font-family: 'JetBrains Mono', monospace !important;
-        font-variant-numeric: tabular-nums !important;
-        letter-spacing: -0.02em !important;
-        font-weight: 950 !important;
-    }
 
     .fmc-premium-table .mud-table-head .mud-th { font-weight: 800; letter-spacing: 0.05em; font-size: 0.65rem; color: var(--mud-palette-text-secondary); }
     .fmc-premium-table .mud-table-row { transition: background-color 0.15s; }
@@ -372,8 +375,14 @@
         _isBalanceVisible = !_isBalanceVisible;
     }
 
+    private bool _isMaker;
+    private bool _isApprover;
+
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        _isMaker = state.User.IsInRole(Roles.Maker);
+        _isApprover = state.User.IsInRole(Roles.Approver) || state.User.IsInRole(Roles.CEO) || state.User.IsInRole(Roles.SuperAdmin);
         await LoadProfileDataAsync();
     }
 
@@ -440,9 +449,16 @@
     {
         Roles.SuperAdmin => Color.Error,
         Roles.CEO => Color.Primary,
-        Roles.Manager => Color.Info,
+        Roles.Maker => Color.Info,
+        Roles.Approver => Color.Success,
         _ => Color.Default
     };
+
+    private string MaskAccountNumber(string acct)
+    {
+        if (string.IsNullOrEmpty(acct) || acct.Length < 10) return acct ?? "N/A";
+        return $"{acct.Substring(0, 6)} {new string('*', acct.Length - 10)} {acct.Substring(acct.Length - 4)}";
+    }
 
     private string GetStableAccountNumber(string id, string? currentAcct)
     {

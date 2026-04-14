@@ -4,58 +4,29 @@ This document outlines the enterprise-grade workflows for user registration and 
 
 ---
 
-## 1. Self-Service User Registration
-
-The registration flow ensures that every new account is tied to a verified email address before access is granted.
-
-### Workflow Steps:
-1.  **Front-End Submission**: 
-    -   User fills the form on `Register.razor`.
-    -   All inputs and navigation links are disabled during the `_isLoading` state to prevent duplicate submissions.
-2.  **Back-End Processing (`IdentityService.RegisterAsync`)**:
-    -   Validation check for existing Username or Email.
-    -   User entity created with `EmailConfirmed = false`.
-3.  **OTP & Email Delivery**:
-    -   A cryptographically random 6-digit OTP is generated.
-    -   The OTP is cached in **Redis** with a 10-minute TTL.
-    -   A branded HTML email is dispatched using CID-based image attachments (ensuring high-fidelity logo rendering in Gmail/Outlook).
-4.  **Pending Verification**:
-    -   The user is redirected to `VerifyEmail.razor`.
-    -   Account remains in a "locked" state until the correct OTP is provided.
-5.  **Final Activation**:
-    -   Upon successful verification, `EmailConfirmed` is set to `true`.
-    -   The OTP is explicitly consumed (removed from cache).
-
-### Workflow Visualization:
-```mermaid
-graph TD
-    A[User fills Registration Form] --> B{Form Valid?}
-    B -- No --> A
-    B -- Yes --> C[Submit to API]
-    
-    C --> D[IdentityService.RegisterAsync]
-    D --> E{User Exists?}
-    E -- Yes --> F[Return Error]
-    E -- No --> G[Create User Account\nEmailConfirmed = false]
-    
-    G --> H[Generate 6-digit OTP]
-    H --> I[Cache OTP in Redis\n10-minute TTL]
-    I --> J[Dispatch Branded HTML Email\nCID Logo Attachment]
-    
-    J --> K[Redirect to VerifyEmail.razor]
-    K --> L{OTP Entered?}
-    
-    L -- Match --> M[Activate Account\nEmailConfirmed = true]
-    L -- No Match --> K
-    
-    M --> N[Clear OTP from Redis]
-    N --> O[User Redirected to Login]
-    
-    style G fill:#f9f,stroke:#333,stroke-width:2px
-    style I fill:#bbf,stroke:#333,stroke-width:2px
-    style J fill:#dfd,stroke:#333,stroke-width:2px
-    style M fill:#dfd,stroke:#333,stroke-width:2px
-```
+## 1. Institutional User Provisioning
+ 
+ FMC uses a closed-loop user lifecycle. Public registration is disabled to ensure all identities are verified by an institutional administrator (CEO or SuperAdmin) before account activation.
+ 
+ ### Workflow Steps:
+ 1.  **Administrative Grant**: 
+    -   A CEO or SuperAdmin opens the `UserDialog.razor` from the management dashboard.
+    -   Personnel details and system roles (Maker, Approver, User) are specified.
+ 2.  **Entity Materialization**:
+    -   The system creates the `ApplicationUser` with `EmailConfirmed = true` by default.
+    -   A temporary system-generated account number is assigned (prefix `63641`).
+ 3.  **Secure Handover**:
+    -   The administrator communicates the initial credentials to the user via secure internal channels.
+ 
+ ### Workflow Visualization:
+ ```mermaid
+ graph TD
+     A[Admin opens User Management] --> B[Fill Personnel Details]
+     B --> C[Assign Roles: Maker/Approver/User]
+     C --> D[Submit to IdentityService.CreateUserAsync]
+     D --> E[Account Created: EmailConfirmed = true]
+     E --> F[User Login Authorized]
+ ```
 
 ---
 
@@ -97,34 +68,33 @@ graph TD
 
 ---
 
-## 3. Administrative User Creation (SuperAdmin)
-
-SuperAdmins can bypass the self-service flow to provision system accounts directly.
-
-### Workflow Steps:
-1.  **Dialog Management (`UserDialog.razor`)**:
-    -   Accessed via the `Manage Users` dashboard.
-    -   Supports complex role assignments (SuperAdmin, CEO, Manager, User).
-2.  **UI Hardening**:
-    -   All password fields feature a **Visibility Toggle** (Eye Icon) to ensure administrators can verify credentials before finalizing.
-    -   Form validation prevents submission of incomplete or duplicate identities.
-3.  **Data Persistence**:
-    -   Created users are immediately assigned their specific `IdentityRole` claims.
-    -   Admin-created accounts can be set to `Active` or `Inactive` toggles instantly.
-
----
-
-## 4. Security & Audit Specifications
-
-| Feature | Implementation Detail |
-| :--- | :--- |
-| **OTP Storage** | Redis Distributed Cache (10-minute sliding expiration) |
-| **Audit Logging** | Every Login, Registration, and Reset is logged via `RecordAuthEventAsync`. |
-| **Forensic Data** | Logs capture Timestamp, IP Address, Event Type, and User-Agent Details. |
-| **Mobile Design** | Zero-bleed CSS: OTP boxes use `max-width: 100%` and `box-sizing` for mobile email clients. |
-| **Password Visibility** | Adornment-based toggles with `InputType` state switching. |
-
----
-
-> [!IMPORTANT]
-> **Audit Integrity**: All registration events are logged under the "Registration" category in the Security Logs, allowing for immediate identification of account creation activity.
+## 3. Administrative User Creation (SuperAdmin / CEO)
+ 
+ Authorized administrators can provision system accounts directly via the management interface.
+ 
+ ### Workflow Steps:
+ 1.  **Dialog Management (`UserDialog.razor`)**:
+     -   Accessed via the `Manage Users` dashboard or `Organization Profile`.
+     -   Supports granular role assignments (**Maker**, **Approver**, **User**).
+ 2.  **UI Hardening**:
+     -   Form validation prevents submission of incomplete or duplicate identities.
+ 3.  **Data Persistence**:
+     -   Created users are assigned their specific roles and locked to their organization.
+ 
+ ---
+ 
+ ## 4. Security & Audit Specifications
+ 
+ | Feature | Implementation Detail |
+ | :--- | :--- |
+ | **Authentication Mode**| Closed Loop (Administrative Provisioning Only) |
+ | **Audit Logging** | Every Login, User Creation, and Reset is logged via `RecordAuthEventAsync`. |
+ | **Forensic Data** | Logs capture Timestamp, IP Address, Event Type, and Admin ID (for accountability). |
+ | **Password Security** | Standardized Identity rules enforced on all administrative passwords. |
+ 
+ ---
+ 
+ > [!IMPORTANT]
+ > **Audit Integrity**: All administrative creation events are logged under the "User Created" category, identifying both the new user and the administrator responsible for the provisioning.
+ 
+ *Document Version 1.1 - Last Refined: 2026-04-13*

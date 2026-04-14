@@ -98,11 +98,11 @@
                                  View Forensic Profile
                              </MudMenuItem>
                             <MudMenuItem Icon="@Icons.Material.Filled.Delete" 
-                                         Disabled="@context.Item.Roles.Contains(Roles.SuperAdmin)"
+                                         Disabled="@(context.Item.Role == Roles.SuperAdmin)"
                                          OnClick="@(() => ConfirmDelete(context.Item))" 
                                          IconColor="Color.Error">
-                                <MudText Color="@(context.Item.Roles.Contains(Roles.SuperAdmin) ? Color.Default : Color.Error)">
-                                    @(context.Item.Roles.Contains(Roles.SuperAdmin) ? "System Protected" : "Delete Account")
+                                <MudText Color="@(context.Item.Role == Roles.SuperAdmin ? Color.Default : Color.Error)">
+                                    @(context.Item.Role == Roles.SuperAdmin ? "System Protected" : "Delete Account")
                                 </MudText>
                             </MudMenuItem>
                         </MudMenu>
@@ -123,15 +123,10 @@
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.Email" Title="Email Address" Hideable="true" Resizable="true" />
                 <PropertyColumn Property="x => x.Organization" Title="Organization" Hideable="true" Resizable="true" />
-                <PropertyColumn Property='x => string.Join(", ", x.Roles)' Title="System Roles" Hideable="true" Resizable="true">
+                <PropertyColumn Property="x => x.Role" Title="System Role" Hideable="true" Resizable="true">
                     <CellTemplate>
-                        <div class="d-flex flex-wrap gap-1">
-                            @foreach (var role in context.Item.Roles)
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(role)" Variant="Variant.Text" 
-                                         Style="font-weight: 600; border: 1px solid currentColor;">@role</MudChip>
-                            }
-                        </div>
+                        <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.Item.Role)" Variant="Variant.Text" 
+                                 Style="font-weight: 600; border: 1px solid currentColor;">@context.Item.Role</MudChip>
                     </CellTemplate>
                 </PropertyColumn>
                 <PropertyColumn Property="x => x.IsActive" Title="Account Status" Hideable="true" Resizable="true">
@@ -206,7 +201,7 @@
         if (x.DisplayName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
         if (x.Email?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
         if (x.Organization?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
-        if (x.Roles.Any(r => r.Contains(_searchString, StringComparison.OrdinalIgnoreCase))) return true;
+        if (x.Role.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
         return false;
     };
 
@@ -214,7 +209,8 @@
     {
         Roles.SuperAdmin => Color.Error,
         Roles.CEO => Color.Primary,
-        Roles.Manager => Color.Info,
+        Roles.Maker => Color.Info,
+        Roles.Approver => Color.Success,
         _ => Color.Default
     };
 
@@ -258,7 +254,7 @@
 
     private async Task ConfirmDelete(UserDto user)
     {
-        if (user.Roles.Contains(Roles.SuperAdmin))
+        if (user.Role == Roles.SuperAdmin)
         {
             Snackbar.Add("CRITICAL: SuperAdmin accounts are system-protected and cannot be deleted.", Severity.Warning);
             return;

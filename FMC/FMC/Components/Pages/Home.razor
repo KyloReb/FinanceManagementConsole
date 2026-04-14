@@ -236,98 +236,109 @@
             </MudGrid>
         </Authorized>
         <NotAuthorized>
-            @* STANDARD USER DASHBOARD (KEEP CLEAN BUT MATCH STYLE) *@
-            <div class="d-flex align-center justify-space-between mb-8">
-                <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.01em;">Financial Overview</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/transactions/add"
-                           Style="border-radius: 12px; padding: 10px 24px;">
-                    Log Settlement
-                </MudButton>
-            </div>
+            @if (context.User.IsInRole(Roles.Maker) || context.User.IsInRole(Roles.Approver))
+            {
+                <MakerDashboard Organization="@(_organizations.FirstOrDefault() ?? new())"
+                                Users="_users"
+                                Loading="_loading"
+                                OnActionCompleted="RefreshDashboard" />
+            }
+            else
+            {
+                @* STANDARD USER DASHBOARD (KEEP CLEAN BUT MATCH STYLE) *@
+                <div class="d-flex align-center justify-space-between mb-8">
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.01em;">Financial Overview</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/transactions/add"
+                               Style="border-radius: 12px; padding: 10px 24px;">
+                        Log Settlement
+                    </MudButton>
+                </div>
 
-            <MudGrid Spacing="4">
-                @if (_loading)
-                {
-                    @for (int i = 0; i < 3; i++)
+                <MudGrid Spacing="4">
+                    @if (_loading)
+                    {
+                        @for (int i = 0; i < 3; i++)
+                        {
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudSkeleton Width="100%" Height="180px" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 16px;" />
+                            </MudItem>
+                        }
+                    }
+                    else
                     {
                         <MudItem xs="12" sm="6" md="4">
-                            <MudSkeleton Width="100%" Height="180px" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 16px;" />
+                            <div class="fmc-glass-card static">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">AVAILABLE CAPITAL</MudText>
+                                <MudText Typo="Typo.h3" Style="font-weight: 900; margin: 8px 0; font-family: 'JetBrains Mono', monospace;">@_totalBalance.ToString("C")</MudText>
+                                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" Size="Size.Large" Class="fmc-static-icon" />
+                                <div class="fmc-card-progress primary"></div>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="fmc-glass-card static">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">MONTHLY DISBURSEMENTS</MudText>
+                                <MudText Typo="Typo.h3" Color="Color.Error" Style="font-weight: 900; margin: 8px 0; font-family: 'JetBrains Mono', monospace;">@_monthlyExpenses.ToString("C")</MudText>
+                                <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Color="Color.Error" Size="Size.Large" Class="fmc-static-icon" />
+                                <div class="fmc-card-progress error"></div>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="fmc-glass-card static">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">ACTIVE ALLOCATIONS</MudText>
+                                <MudText Typo="Typo.h3" Color="Color.Info" Style="font-weight: 900; margin: 8px 0;">@_activeBudgetsCount</MudText>
+                                <MudIcon Icon="@Icons.Material.Filled.PivotTableChart" Color="Color.Info" Size="Size.Large" Class="fmc-static-icon" />
+                                <div class="fmc-card-progress info"></div>
+                            </div>
+                        </MudItem>
+
+                        <MudItem xs="12" md="8">
+                            <MudPaper Class="pa-8 fmc-main-surface" Elevation="0">
+                                <div class="d-flex align-center justify-space-between mb-8">
+                                    <div class="d-flex align-center">
+                                        <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" /></div>
+                                        <MudText Typo="Typo.h5" Style="font-weight: 700;">Recent Settlements</MudText>
+                                    </div>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward" Href="/transactions">Open Ledger</MudButton>
+                                </div>
+                                <MudTable Items="@_recentTransactions" Hover="true" Dense="true" Elevation="0" Class="fmc-table-transparent">
+                                    <HeaderContent>
+                                        <MudTh>SETTLEMENT DATE</MudTh>
+                                        <MudTh>MEMO</MudTh>
+                                        <MudTh>CATEGORY</MudTh>
+                                        <MudTh Style="text-align: right;">AMOUNT</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="txItem">
+                                        <MudTd DataLabel="Date">@(((TransactionDto)txItem).Date.ToShortDateString())</MudTd>
+                                        <MudTd DataLabel="Label"><b>@(((TransactionDto)txItem).Label)</b></MudTd>
+                                        <MudTd DataLabel="Category">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Style="font-weight: 700;">@(((TransactionDto)txItem).Category)</MudChip>
+                                        </MudTd>
+                                        <MudTd DataLabel="Amount" Style="text-align: right;">
+                                            <MudText Color="@(((TransactionDto)txItem).Amount < 0 ? Color.Error : Color.Success)" Style="font-weight: 800; font-family: 'JetBrains Mono', monospace;">
+                                                @(((TransactionDto)txItem).Amount.ToString("C"))
+                                            </MudText>
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudPaper Class="pa-8 fmc-main-surface" Elevation="0">
+                                <div class="d-flex align-center mb-8">
+                                    <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.QueryStats" Color="Color.Primary" /></div>
+                                    <MudText Typo="Typo.h5" Style="font-weight: 700;">Capital Allocation</MudText>
+                                </div>
+                                <div class="d-flex flex-column align-center">
+                                    <MudChart T="double" ChartType="ChartType.Donut" inputdata="@_chartData" inputlabels="@_chartLabels" Width="100%" Height="280px" />
+                                </div>
+                            </MudPaper>
                         </MudItem>
                     }
-                }
-                else
-                {
-                    <MudItem xs="12" sm="6" md="4">
-                        <div class="fmc-glass-card static">
-                            <MudText Typo="Typo.subtitle2" Class="fmc-card-label">AVAILABLE CAPITAL</MudText>
-                            <MudText Typo="Typo.h3" Style="font-weight: 900; margin: 8px 0;">@_totalBalance.ToString("C")</MudText>
-                            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" Size="Size.Large" Class="fmc-static-icon" />
-                            <div class="fmc-card-progress primary"></div>
-                        </div>
-                    </MudItem>
-                    <MudItem xs="12" sm="6" md="4">
-                        <div class="fmc-glass-card static">
-                            <MudText Typo="Typo.subtitle2" Class="fmc-card-label">MONTHLY DISBURSEMENTS</MudText>
-                            <MudText Typo="Typo.h3" Color="Color.Error" Style="font-weight: 900; margin: 8px 0;">@_monthlyExpenses.ToString("C")</MudText>
-                            <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Color="Color.Error" Size="Size.Large" Class="fmc-static-icon" />
-                            <div class="fmc-card-progress error"></div>
-                        </div>
-                    </MudItem>
-                    <MudItem xs="12" sm="6" md="4">
-                        <div class="fmc-glass-card static">
-                            <MudText Typo="Typo.subtitle2" Class="fmc-card-label">ACTIVE ALLOCATIONS</MudText>
-                            <MudText Typo="Typo.h3" Color="Color.Info" Style="font-weight: 900; margin: 8px 0;">@_activeBudgetsCount</MudText>
-                            <MudIcon Icon="@Icons.Material.Filled.PivotTableChart" Color="Color.Info" Size="Size.Large" Class="fmc-static-icon" />
-                            <div class="fmc-card-progress info"></div>
-                        </div>
-                    </MudItem>
-
-                    <MudItem xs="12" md="8">
-                        <MudPaper Class="pa-8 fmc-main-surface" Elevation="0">
-                            <div class="d-flex align-center justify-space-between mb-8">
-                                <div class="d-flex align-center">
-                                    <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" /></div>
-                                    <MudText Typo="Typo.h5" Style="font-weight: 700;">Recent Settlements</MudText>
-                                </div>
-                                <MudButton Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward" Href="/transactions">Open Ledger</MudButton>
-                            </div>
-                            <MudTable Items="@_recentTransactions" Hover="true" Dense="true" Elevation="0" Class="fmc-table-transparent">
-                                <HeaderContent>
-                                    <MudTh>SETTLEMENT DATE</MudTh>
-                                    <MudTh>MEMO</MudTh>
-                                    <MudTh>CATEGORY</MudTh>
-                                    <MudTh Style="text-align: right;">AMOUNT</MudTh>
-                                </HeaderContent>
-                                <RowTemplate Context="txItem">
-                                    <MudTd DataLabel="Date">@(((TransactionDto)txItem).Date.ToShortDateString())</MudTd>
-                                    <MudTd DataLabel="Label"><b>@(((TransactionDto)txItem).Label)</b></MudTd>
-                                    <MudTd DataLabel="Category">
-                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Style="font-weight: 700;">@(((TransactionDto)txItem).Category)</MudChip>
-                                    </MudTd>
-                                    <MudTd DataLabel="Amount" Style="text-align: right;">
-                                        <MudText Color="@(((TransactionDto)txItem).Amount < 0 ? Color.Error : Color.Success)" Style="font-weight: 800; font-family: 'JetBrains Mono', monospace;">
-                                            @(((TransactionDto)txItem).Amount.ToString("C"))
-                                        </MudText>
-                                    </MudTd>
-                                </RowTemplate>
-                            </MudTable>
-                        </MudPaper>
-                    </MudItem>
-
-                    <MudItem xs="12" md="4">
-                        <MudPaper Class="pa-8 fmc-main-surface" Elevation="0">
-                            <div class="d-flex align-center mb-8">
-                                <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.QueryStats" Color="Color.Primary" /></div>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700;">Capital Allocation</MudText>
-                            </div>
-                            <div class="d-flex flex-column align-center">
-                                <MudChart T="double" ChartType="ChartType.Donut" inputdata="@_chartData" inputlabels="@_chartLabels" Width="100%" Height="280px" />
-                            </div>
-                        </MudPaper>
-                    </MudItem>
-                }
-            </MudGrid>
+                </MudGrid>
+            }
         </NotAuthorized>
+
     </AuthorizeView>
 </MudContainer>
 
@@ -343,14 +354,13 @@
     .fmc-header-btn.secondary { border: 1px solid var(--mud-palette-divider) !important; }
 
     .fmc-responsive-val {
-        font-weight: 900 !important; 
         line-height: 1 !important; 
-        font-family: 'JetBrains Mono', monospace !important;
         font-size: clamp(1rem, 3.5vw, 2.2rem) !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
 
     /* Performance Panels - Adaptive Glass */
     .fmc-glass-card {
@@ -632,10 +642,10 @@
             _isCeo = user.IsInRole(Roles.CEO);
             _isSuperAdmin = user.IsInRole(Roles.SuperAdmin);
             
-            if (_isSuperAdmin || _isCeo)
+            if (_isSuperAdmin || _isCeo || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver))
             {
-                // Security: CEOs can only see their own organization, SuperAdmins see all.
-                if (user.IsInRole(Roles.CEO))
+                // Security: Organization-bound roles see their own organization, SuperAdmins see all.
+                if (!user.IsInRole(Roles.SuperAdmin))
                 {
                     var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
                     if (Guid.TryParse(orgIdClaim, out var orgId))

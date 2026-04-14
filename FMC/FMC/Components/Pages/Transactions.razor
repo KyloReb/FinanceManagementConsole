@@ -1,4 +1,6 @@
 @page "/transactions"
+@using FMC.Application.Interfaces
+@using FMC.Components.Pages.Admin.Dialogs
 @attribute [Authorize]
 
 <style>
@@ -126,6 +128,7 @@
         </div>
 
         <MudTable Items="@_transactions" Hover="true" Elevation="0" Loading="@_loading" 
+                 OnRowClick="OnRowClick" T="TransactionDto"
                  Filter="new Func<TransactionDto,bool>(FilterFunc1)" Class="fmc-premium-table">
             <HeaderContent>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Date)">TIMESTAMP</MudTableSortLabel></MudTh>
@@ -143,7 +146,13 @@
                     </div>
                 </MudTd>
                 <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:700;">@(string.IsNullOrEmpty(context!.Subscriber) ? "System Node" : context.Subscriber)</MudText>
+                    <div class="d-flex flex-column">
+                        <MudText Typo="Typo.body2" Style="font-weight:700;">@context!.Subscriber</MudText>
+                        @if (!string.IsNullOrEmpty(context.AccountNumber))
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetMaskedAccount(context.AccountNumber)</MudText>
+                        }
+                    </div>
                 </MudTd>
                 <MudTd>
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" Style="font-weight: 800; font-size: 0.65rem;">
@@ -184,6 +193,7 @@
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private ICurrentUserService CurrentUserService { get; set; } = default!;
 
     private bool _loading = true;
 
@@ -268,11 +278,34 @@
 
     private string GetStatusIcon(string status) => status?.ToLower() switch
     {
-        "successful" => Icons.Material.Filled.CheckCircle,
+        "successful" or "approved" => Icons.Material.Filled.CheckCircle,
         "pending" => Icons.Material.Filled.AccessTimeFilled,
-        "error" or "failed" => Icons.Material.Filled.Error,
+        "error" or "failed" or "rejected" => Icons.Material.Filled.Error,
         _ => Icons.Material.Filled.Help
     };
+
+    private string GetMaskedAccount(string? acc)
+    {
+        if (string.IsNullOrEmpty(acc) || acc.Length < 10) return acc ?? "N/A";
+        return $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}";
+    }
+
+    private async Task OnRowClick(TableRowClickEventArgs<TransactionDto> args)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters<PendingDetailDialog>
+        {
+            { x => x.Transaction, args.Item },
+            { x => x.IsOwnTransaction, args.Item.MakerId == CurrentUserService.UserId }
+        };
+
+        var dialog = await DialogService.ShowAsync<PendingDetailDialog>("Forensic Audit Investigation", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadTransactions();
+        }
+    }
 
     [Inject] private IReportService ReportService { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;

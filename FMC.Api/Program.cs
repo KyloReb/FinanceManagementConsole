@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FMC.Infrastructure.Authentication;
 using FMC.Infrastructure.Data;
+using FMC.Domain.Entities;
 using FMC.Application.Interfaces;
 using FMC.Application.Transactions.Queries;
 using FMC.Infrastructure.Services;
@@ -112,8 +113,9 @@ builder.Services.AddAuthentication(options =>
 // RBAC Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy(Roles.CEO, policy => policy.RequireRole(Roles.CEO));
-    options.AddPolicy(Roles.Manager, policy => policy.RequireRole(Roles.Manager, Roles.CEO));
+    options.AddPolicy(Roles.CEO, policy => policy.RequireRole(Roles.CEO, Roles.SuperAdmin));
+    options.AddPolicy(Roles.Maker, policy => policy.RequireRole(Roles.Maker));
+    options.AddPolicy(Roles.Approver, policy => policy.RequireRole(Roles.Approver));
 });
 
 // Database
@@ -160,7 +162,23 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // 2. Synchronize Device (Forensics) specifically for AuditLogs
+    // 2. Synchronize OrganizationId for Accounts and Transactions
+    var orgSyncTables = new[] { "Accounts", "Transactions" };
+    foreach (var table in orgSyncTables)
+    {
+        try
+        {
+            string sql = $"IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[{table}]') AND name = N'OrganizationId') " +
+                         $"BEGIN ALTER TABLE [{table}] ADD [OrganizationId] uniqueidentifier NULL; END";
+            await db.Database.ExecuteSqlRawAsync(sql);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error synchronizing OrganizationId for table {Table}", table);
+        }
+    }
+
+    // 3. Synchronize Device (Forensics) specifically for AuditLogs
     try
     {
         string deviceSql = "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[AuditLogs]') AND name = N'Device') " +

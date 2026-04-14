@@ -37,9 +37,10 @@
             <RowTemplate Context="orgItem">
                 @{
                     var usage = orgItem.Usage;
-                    var totalBalance = orgItem.TotalBalance;
-                    var currentBalance = totalBalance - usage;
-                    var usagePct = totalBalance > 0 ? (double)(usage / totalBalance) * 100.0 : 0;
+                    var totalLimit = orgItem.TotalBalance;
+                    var currentBalance = totalLimit - usage;
+                    var hasLimit = totalLimit > 0;
+                    var usagePct = hasLimit ? (double)(usage / totalLimit) * 100.0 : 0;
                 }
                 <MudTd>
                     <div class="d-flex align-center gap-3">
@@ -63,9 +64,9 @@
                         <MudText Style="font-weight:800; font-size: 0.85rem;">@usage.ToString("C0")</MudText>
                         <div class="d-flex align-center gap-2">
                             <div class="flex-grow-1" style="height:4px; background:var(--mud-palette-divider); border-radius:2px; overflow:hidden;">
-                                <div style="height:100%; width:@(Math.Min(usagePct, 100).ToString("F0"))%; background:@(usagePct >= 80 ? "var(--mud-palette-error)" : "var(--mud-palette-primary)");"></div>
+                                <div style="height:100%; width:@(Math.Min(usagePct, 100).ToString("F2"))%; background:@(usagePct >= 80 ? "var(--mud-palette-error)" : "var(--mud-palette-primary)");"></div>
                             </div>
-                            <MudText Typo="Typo.caption" Style="font-size: 0.65rem; font-weight:800;">@usagePct.ToString("F0")%</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 0.65rem; font-weight:800;">@usagePct.ToString("F1")%</MudText>
                         </div>
                     </div>
                 </MudTd>
@@ -74,7 +75,7 @@
                              Color="@(currentBalance < 0 ? Color.Error : Color.Default)">
                         @currentBalance.ToString("C")
                     </MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">LIMIT: @totalBalance.ToString("C0")</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">LIMIT: @totalLimit.ToString("C0")</MudText>
                 </MudTd>
                 <MudTd Style="text-align:right;">
                     <div class="d-flex align-center justify-end gap-2">
@@ -147,16 +148,17 @@
                     <div class="fmc-mobile-row-details">
                         <div class="mobile-detail-group">
                             @{
-                                var usageM = org.WalletLimit - org.TotalBalance;
-                                var usagePctM = org.WalletLimit > 0 ? (double)(usageM / org.WalletLimit) * 100.0 : 0;
+                                var usageM = org.Usage;
+                                var limitM = org.TotalBalance;
+                                var usagePctM = limitM > 0 ? (double)(usageM / limitM) * 100.0 : 0;
                             }
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">USAGE: @usagePctM.ToString("F0")%</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">USAGE: @usagePctM.ToString("F1")%</MudText>
                             <MudText Style="font-weight:800; font-size: 0.8rem;">@usageM.ToString("C0")</MudText>
                         </div>
                         <div class="mobile-detail-group">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">BALANCE</MudText>
-                            <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(org.TotalBalance < 100000 ? Color.Error : Color.Default)">
-                                @org.TotalBalance.ToString("C0")
+                            <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(org.TotalBalance - org.Usage < 100000 ? Color.Error : Color.Default)">
+                                @((org.TotalBalance - org.Usage).ToString("C0"))
                             </MudText>
                         </div>
                         <div class="mobile-action-group ml-auto">

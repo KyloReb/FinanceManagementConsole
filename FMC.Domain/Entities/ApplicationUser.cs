@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace FMC.Infrastructure.Data;
+namespace FMC.Domain.Entities;
 
 /// <summary>
 /// Extended ApplicationUser inheriting from IdentityUser to support custom profile data and lifecycle events.
@@ -52,7 +52,7 @@ public class ApplicationUser : IdentityUser
     /// <summary>
     /// Navigation property mapping the User to their respective Organization details.
     /// </summary>
-    public virtual FMC.Domain.Entities.Organization? OrganizationInfo { get; set; }
+    public virtual Organization? OrganizationInfo { get; set; }
 
     /// <summary>
     /// The unique 16-digit card/account number for this user, starting with 63641.

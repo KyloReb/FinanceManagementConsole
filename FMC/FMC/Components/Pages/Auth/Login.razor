@@ -60,15 +60,7 @@
             </MudButton>
 
             <div class="d-flex justify-center mt-6">
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Don't have an account?</MudText>
-                @if (!_isLoading)
-                {
-                    <MudLink href="/register" Underline="Underline.None" Typo="Typo.body2" Class="ml-1 fw-bold" Color="Color.Primary">Register</MudLink>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Class="ml-1 fw-bold mud-text-secondary">Register</MudText>
-                }
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Contact your organization administrator for account creation.</MudText>
             </div>
         </EditForm>
     </MudCard>
@@ -105,6 +97,8 @@
             _passwordInput = InputType.Text;
         }
     }
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
 
     private async Task HandleLoginAsync()
     {
@@ -117,8 +111,8 @@
             var result = await AuthService.Login(_model!);
             if (result != null)
             {
-                // Rely on SignalR state change to transition to Home instantly, preventing any SSR layout flashes
-                NavigationManager.NavigateTo("/");
+                // Rely on SignalR state change to transition to Home/ReturnUrl instantly, preventing any SSR layout flashes
+                NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl);
             }
             else
             {

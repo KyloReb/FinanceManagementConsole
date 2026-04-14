@@ -40,7 +40,32 @@ public class Transaction : BaseEntity
     public string Category { get; set; } = string.Empty;
 
     /// <summary>
-    /// The operational status of the transaction (e.g. Successful, Pending, Failed).
+    /// The operational status of the transaction (e.g. Pending, Approved, Rejected).
     /// </summary>
-    public string Status { get; set; } = "Successful";
+    public string Status { get; set; } = "Pending";
+
+    /// <summary>
+    /// The ID of the user who initiated this transaction (The Maker).
+    /// </summary>
+    public string? MakerId { get; set; }
+
+    /// <summary>
+    /// The ID of the user who approved or rejected this transaction (The Approver).
+    /// </summary>
+    public string? ApproverId { get; set; }
+
+    /// <summary>
+    /// The timestamp of the approval or rejection.
+    /// </summary>
+    public DateTime? ActionDate { get; set; }
+
+    /// <summary>
+    /// Feedback provided by the Approver if the transaction was rejected.
+    /// </summary>
+    public string? RejectionReason { get; set; }
+
+    /// <summary>
+    /// The organization context for this transaction.
+    /// </summary>
+    public Guid? OrganizationId { get; set; }
 }

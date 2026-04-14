@@ -76,7 +76,8 @@
                                                        Label="System Role" Dense="true" Variant="Variant.Outlined" 
                                                        AnchorOrigin="Origin.BottomCenter" Margin="Margin.Dense">
                                                 <MudSelectItem Value="@Roles.CEO">CEO</MudSelectItem>
-                                                <MudSelectItem Value="@Roles.Manager">Manager</MudSelectItem>
+                                                <MudSelectItem Value="@Roles.Maker">Maker</MudSelectItem>
+                                                <MudSelectItem Value="@Roles.Approver">Approver</MudSelectItem>
                                                 <MudSelectItem Value="@Roles.User">User</MudSelectItem>
                                             </MudSelect>
                                         </div>
@@ -204,7 +205,7 @@
 
     private void OnValidChanged(bool isValid) => _isValid = isValid;
 
-    private string GetPrimaryRole(UserDto user) => user.Roles.FirstOrDefault() ?? Roles.User;
+    private string GetPrimaryRole(UserDto user) => user.Role;
 
     private async Task SyncUserRole(UserDto user, string newRole)
     {
@@ -217,14 +218,14 @@
                 LastName = user.LastName!,
                 Email = user.Email!,
                 Organization = OrganizationToEdit?.Name,
-                Roles = new List<string> { newRole },
+                Role = newRole,
                 IsActive = user.IsActive
             };
 
             var success = await AdminService.UpdateUserAsync(updateDto);
             if (success)
             {
-                user.Roles = new List<string> { newRole }; // Update UI locally
+                user.Role = newRole; // Update UI locally
                 
                 // If the role became CEO, also update the Organization model's CEO link for persistence
                 if (newRole == Roles.CEO)

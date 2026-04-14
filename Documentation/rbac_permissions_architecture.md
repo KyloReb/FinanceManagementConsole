@@ -11,11 +11,13 @@ FMC uses a high-granularity RBAC model. Permissions are tied to **Roles**, which
 ```mermaid
 graph TD
     SA[SuperAdmin] -->|Full System Access| CORE[All Operations]
-    CEO[CEO] -->|Governance| FIN[All Financial Records]
-    CEO -->|Governance| AUD[Audit Log View]
-    MGR[Manager] -->|Operations| ACC[Managed Accounts]
-    MGR -->|Operations| TRX[Transaction Management]
-    USR[User] -->|Self-Service| PRV[Personal Data Only]
+    CEO[CEO] -->|Institutional Governance| FIN[User Creation & Global Logs]
+    MAK[Maker] -->|Initiation| TRX[Proposed Adjustments]
+    APP[Approver] -->|Validation| COM[Transaction Commitment]
+    USR[User] -->|Self-Service| PRV[Personal Identity Records]
+    
+    MAK -->|Submit| APP
+    APP -->|Approve/Reject| CORE
 ```
 
 ---
@@ -24,10 +26,11 @@ graph TD
 
 | Role | Responsibility | Data Visibility | Core Permissions |
 | :--- | :--- | :--- | :--- |
-| **SuperAdmin** | Infrastructure & Global Management | **Global (All Tenants)** | User Provisioning, System Config, Global Logs, Role Management. |
-| **CEO** | Business Oversight | **Tenant Wide** | Full Financial Audit, Executive Dashboards, System Logs. |
-| **Manager** | Operational Supervision | **Assigned Groups**| Transaction Approval, Account Management, Team Reporting. |
-| **User** | Standard Operations | **Owned Objects Only** | Personal Dashboard, Transaction Entry, Profile Management. |
+| **SuperAdmin** | Infrastructure & Global Management | **Global (All Tenants)** | User Provisioning, System Config, Role Management. |
+| **CEO** | Institutional Governance | **Tenant Wide** | User Creation, Operational Oversight, Full Forensic Logs. |
+| **Maker** | Financial Initiation | **Affiliated Users** | Create Credit/Debit Requests, Personal Ledger Edits. |
+| **Approver** | Financial Validation | **Tenant Queue** | Review, Approve, or Reject Maker Requests (Four-Eyes Principle). |
+| **User** | Standard Identity | **Self Only** | View Personal Ledger, Identity Verification. |
 
 ---
 
@@ -59,13 +62,13 @@ Even if a role permits viewing a record, the **Multi-Tenant Filter** ensures a u
 
 ## 4. Permission Mapping
 
-| Module | SuperAdmin | CEO | Manager | User |
-| :--- | :---: | :---: | :---: | :---: |
-| **User Creation** | ✅ | ❌ | ❌ | ❌ |
-| **View Audit Logs**| ✅ | ✅ | ❌ | ❌ |
-| **Global Financials**| ✅ | ✅ | ❌ | ❌ |
-| **Approve Transactions**| ✅ | ✅ | ✅ | ❌ |
-| **Personal Profile** | ✅ | ✅ | ✅ | ✅ |
+| Module | SuperAdmin | CEO | Maker | Approver | User |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **User Creation** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Initiate Adjustment** | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **Approve Financials** | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **View Audit Logs**| ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Personal Profile** | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -79,4 +82,4 @@ Even if a role permits viewing a record, the **Multi-Tenant Filter** ensures a u
 
 ---
 
-*Document Version 1.0 - Last Refined: 2026-03-27*
+*Document Version 1.1 - Last Refined: 2026-04-13*

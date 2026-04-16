@@ -305,6 +305,76 @@ public class OrganizationService : IOrganizationService
         await _context.Transactions.AddAsync(transaction, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
+        // ── Phase 3: CEO Funding Notification (SuperAdmin Credit) ────────────
+        if (amount > 0)
+        {
+            try
+            {
+                string? ceoEmail = null;
+                if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+                {
+                    ceoEmail = await _context.Users.IgnoreQueryFilters()
+                        .Where(u => u.Id == org.ChiefExecutiveId)
+                        .Select(u => u.Email)
+                        .FirstOrDefaultAsync(cancellationToken);
+                }
+
+                if (!string.IsNullOrEmpty(ceoEmail))
+                {
+                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
+                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
+                    
+                    var body = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
+                        <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
+                            <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
+                        </div>
+                        <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Wallet Credited Successfully</h2>
+                        <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                            This is an automated notification confirming that funds have been successfully credited to <strong>{org.Name}</strong> by the System Administrator.
+                        </p>
+                        
+                        <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
+                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Credit Details</h4>
+                            <table style=""width:100%;border-collapse:collapse;"">
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Organization Name</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{org.Name}</td>
+                                </tr>
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Organization Card Number</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(org.AccountNumber)}</td>
+                                </tr>
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Credit Amount</td>
+                                    <td style=""padding:12px 0;font-weight:800;color:#4834d4;text-align:right;font-size:18px;"">{amount:C}</td>
+                                </tr>
+                                <tr>
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">New Operational Balance</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{account.Balance:C}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
+                            These funds are now available for dispersal to your organization's cardholders and subscribers.
+                        </p>
+
+                        <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
+                            <p style=""color:#b2bec3;font-size:12px;margin:0;"">
+                                © {DateTime.UtcNow.Year} Nationlink Finance Management Console. All rights reserved.
+                            </p>
+                        </div>
+                    </div>";
+
+                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Funding Confirmation: {org.Name} Credited {amount:C}", body, attachments);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[OrganizationService] Failed to send CEO funding notification.");
+            }
+        }
+
         _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
             tenantId, amount, account.Balance);
 
@@ -427,6 +497,10 @@ public class OrganizationService : IOrganizationService
                                 <tr style=""border-bottom: 1px solid #e1e5ea;"">
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Target Cardholder</td>
                                     <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{user.FirstName} {user.LastName}</td>
+                                </tr>
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Service Card Number</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(user.AccountNumber)}</td>
                                 </tr>
                                 <tr style=""border-bottom: 1px solid #e1e5ea;"">
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Transaction Amount</td>
@@ -597,6 +671,10 @@ public class OrganizationService : IOrganizationService
                     }
 
                     // 3. Handle Workflow Approval Notification (Maker & CEO)
+                    var targetUser = await _context.Users.OfType<ApplicationUser>()
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(u => u.Id == transaction.TenantId, cancellationToken);
+                    
                     var makerEmail = await _context.Users.IgnoreQueryFilters().Where(u => u.Id == transaction.MakerId).Select(u => u.Email).FirstOrDefaultAsync(cancellationToken);
                     var workflowRecipients = new HashSet<string>();
                     if (!string.IsNullOrEmpty(makerEmail)) workflowRecipients.Add(makerEmail);
@@ -604,6 +682,9 @@ public class OrganizationService : IOrganizationService
 
                     if (workflowRecipients.Any())
                     {
+                        var targetName = targetUser != null ? $"{targetUser.FirstName} {targetUser.LastName}" : userAccount.Name;
+                        var targetCard = targetUser?.AccountNumber ?? "N/A";
+
                         var approvalBody = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
                             <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
                                 <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
@@ -615,9 +696,22 @@ public class OrganizationService : IOrganizationService
                             <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
                                 <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Transaction Details</h4>
                                 <table style=""width:100%;border-collapse:collapse;"">
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Recipient Cardholder</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{userAccount.Name}</td></tr>
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Approved Amount</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Amount:C}</td></tr>
-                                    <tr><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Reason</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Label}</td></tr>
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Recipient Cardholder</td>
+                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{targetName}</td>
+                                    </tr>
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Service Card Number</td>
+                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(targetCard)}</td>
+                                    </tr>
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Approved Amount</td>
+                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Amount:C}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Reason</td>
+                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Label}</td>
+                                    </tr>
                                 </table>
                             </div>
                             <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">The funds have been successfully settled to the subscriber account.</p>
@@ -1020,10 +1114,16 @@ public class OrganizationService : IOrganizationService
         }
 
         return alerts;
-
-        FMC.Shared.DTOs.Admin.SystemAlertDto CreateAlert(string title, string msg, string entityId, FMC.Shared.DTOs.Admin.AlertSeverityDto sev) => new()
-        {
-            Id = 0, Title = title, Message = msg, Severity = sev, EntityType = "Workflow", EntityId = entityId, CreatedAt = DateTime.UtcNow
-        };
     }
+
+    private string MaskCard(string? card)
+    {
+        if (string.IsNullOrWhiteSpace(card) || card.Length < 10) return "************";
+        return card.Substring(0, 6) + "******" + card.Substring(card.Length - 4);
+    }
+
+    FMC.Shared.DTOs.Admin.SystemAlertDto CreateAlert(string title, string msg, string entityId, FMC.Shared.DTOs.Admin.AlertSeverityDto sev) => new()
+    {
+        Id = 0, Title = title, Message = msg, Severity = sev, EntityType = "Workflow", EntityId = entityId, CreatedAt = DateTime.UtcNow
+    };
 }

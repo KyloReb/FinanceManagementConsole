@@ -355,7 +355,7 @@ public class OrganizationService : IOrganizationService
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Amount</td>
                                     <td style=""padding:12px 0;font-weight:800;color:{themeColor};text-align:right;font-size:18px;"">{Math.Abs(amount):C}</td>
                                 </tr>
-                                <tr>
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">New Operational Balance</td>
                                     <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{account.Balance:C}</td>
                                 </tr>
@@ -363,7 +363,7 @@ public class OrganizationService : IOrganizationService
                         </div>
 
                         <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
-                            Reason: <strong>{label ?? "Administrative Adjustment"}</strong>
+                            These funds are now available for dispersal to your organization's cardholders and subscribers.
                         </p>
 
                         <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
@@ -512,10 +512,6 @@ public class OrganizationService : IOrganizationService
                                 <tr style=""border-bottom: 1px solid #e1e5ea;"">
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Transaction Amount</td>
                                     <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{amount:C}</td>
-                                </tr>
-                                <tr>
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Reason</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{label ?? "Standard Allotment"}</td>
                                 </tr>
                             </table>
                         </div>
@@ -714,10 +710,6 @@ public class OrganizationService : IOrganizationService
                                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
                                         <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Approved Amount</td>
                                         <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Amount:C}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Reason</td>
-                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Label}</td>
                                     </tr>
                                 </table>
                             </div>
@@ -1125,8 +1117,9 @@ public class OrganizationService : IOrganizationService
 
     private string MaskCard(string? card)
     {
-        if (string.IsNullOrWhiteSpace(card) || card.Length < 10) return "************";
-        return card.Substring(0, 6) + "******" + card.Substring(card.Length - 4);
+        if (string.IsNullOrWhiteSpace(card)) return "****************";
+        if (card.Length <= 10) return card; // Not enough length to mask middle
+        return card.Substring(0, 6) + new string('*', card.Length - 10) + card.Substring(card.Length - 4);
     }
 
     FMC.Shared.DTOs.Admin.SystemAlertDto CreateAlert(string title, string msg, string entityId, FMC.Shared.DTOs.Admin.AlertSeverityDto sev) => new()

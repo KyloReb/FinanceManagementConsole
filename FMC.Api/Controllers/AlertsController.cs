@@ -12,17 +12,19 @@ namespace FMC.Api.Controllers;
 public class AlertsController : ControllerBase
 {
     private readonly ISystemAlertService _alertService;
+    private readonly IOrganizationService _orgService;
 
-    public AlertsController(ISystemAlertService alertService)
+    public AlertsController(ISystemAlertService alertService, IOrganizationService orgService)
     {
         _alertService = alertService;
+        _orgService = orgService;
     }
 
     [HttpGet("active")]
     public async Task<ActionResult<List<SystemAlertDto>>> GetActive()
     {
         var alerts = await _alertService.GetActiveAlertsAsync();
-        return Ok(alerts.Select(a => new SystemAlertDto
+        var dtos = alerts.Select(a => new SystemAlertDto
         {
             Id = a.Id,
             Title = a.Title,
@@ -32,7 +34,34 @@ public class AlertsController : ControllerBase
             CreatedAt = a.CreatedAt,
             EntityId = a.EntityId,
             EntityType = a.EntityType
-        }).ToList());
+        }).ToList();
+
+        // ── Dynamic Organization Capacity Threshold Alerts for SuperAdmin ──
+        var orgs = await _orgService.GetAllAsync();
+        foreach (var org in orgs)
+        {
+            var orgBalance = org.TotalBalance - org.Usage;
+            var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
+
+            if (usedPct >= 80m || orgBalance <= 100_000m)
+            {
+                var msg = usedPct >= 80m ? $"{org.Name} has {usedPct:F1}% of wallet allocated." : $"{org.Name} only has {orgBalance:C} remaining in org wallet.";
+                var sev = usedPct >= 80m ? AlertSeverityDto.Security : AlertSeverityDto.Warning;
+                
+                dtos.Insert(0, new SystemAlertDto
+                {
+                    Id = 0, // Synthetic ID to bypass db resolve
+                    Title = "Capacity Threshold",
+                    Message = msg,
+                    Severity = sev,
+                    EntityType = "Organization",
+                    EntityId = org.Id.ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        return Ok(dtos);
     }
 
     [HttpGet("count")]

@@ -126,7 +126,7 @@
                             @foreach (var t in HighUtilizationTenants.Take(3))
                             {
                                 <MudLink Href="@($"/admin/organizations/{t.Id}")" Class="fmc-alert-entity-title">
-                                    @t.Name <span style="font-size:0.6rem; opacity:0.7;">(@GetUtilization(t).ToString("F0")%)</span>
+                                    @t.Name <span style="font-size:0.6rem; opacity:0.7;">(@GetUtilizationPct(t).ToString("F0")%)</span>
                                 </MudLink>
                             }
                             @if (HighUtilizationTenants.Count > 3)
@@ -209,14 +209,14 @@
     private const decimal CriticalBalanceThreshold = 100_000m;
     private const double HighUtilizationThreshold  = 80.0;
 
-    private List<OrganizationDto> ZeroBalanceTenants        => Organizations.Where(o => o.TotalBalance <= 0 && o.IsActive).ToList();
-    private List<OrganizationDto> LowBalanceTenants         => Organizations.Where(o => o.IsActive && o.TotalBalance > 0 && o.TotalBalance <= CriticalBalanceThreshold).ToList();
-    private List<OrganizationDto> HighUtilizationTenants    => Organizations.Where(o => o.IsActive && o.WalletLimit > 0 && GetUtilization(o) >= HighUtilizationThreshold && o.TotalBalance > CriticalBalanceThreshold).ToList();
+    private static decimal GetOrgBalance(OrganizationDto o) => o.TotalBalance - o.Usage;
+    private static double GetUtilizationPct(OrganizationDto o) => o.TotalBalance <= 0 ? 0 : (double)(o.Usage / o.TotalBalance) * 100.0;
+
+    private List<OrganizationDto> ZeroBalanceTenants        => Organizations.Where(o => GetOrgBalance(o) <= 0 && o.IsActive).ToList();
+    private List<OrganizationDto> LowBalanceTenants         => Organizations.Where(o => o.IsActive && GetOrgBalance(o) > 0 && GetOrgBalance(o) <= CriticalBalanceThreshold).ToList();
+    private List<OrganizationDto> HighUtilizationTenants    => Organizations.Where(o => o.IsActive && o.TotalBalance > 0 && GetUtilizationPct(o) >= HighUtilizationThreshold && GetOrgBalance(o) > CriticalBalanceThreshold).ToList();
     private List<OrganizationDto> SuspendedTenants          => Organizations.Where(o => !o.IsActive).ToList();
     private List<OrganizationDto> NoCeoTenants              => Organizations.Where(o => string.IsNullOrWhiteSpace(o.CeoName)).ToList();
-
-    private static double GetUtilization(OrganizationDto o) =>
-        o.WalletLimit <= 0 ? 0 : (double)((o.WalletLimit - o.TotalBalance) / o.WalletLimit) * 100.0;
 
     private bool HasAlerts  => ZeroBalanceTenants.Any() || LowBalanceTenants.Any() || HighUtilizationTenants.Any() || SuspendedTenants.Any() || NoCeoTenants.Any();
     private int  TotalAlerts => ZeroBalanceTenants.Count + LowBalanceTenants.Count + HighUtilizationTenants.Count + SuspendedTenants.Count + NoCeoTenants.Count;

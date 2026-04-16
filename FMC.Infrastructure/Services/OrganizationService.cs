@@ -484,8 +484,15 @@ public class OrganizationService : IOrganizationService
 
                 if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
                 {
-                    var alertType = usedPct >= 80m ? "80% Utilization Alert" : "Low Balance Warning";
+                    var alertType = usedPct >= 80m ? $"{usedPct:F0}% Utilization Alert" : "Low Balance Warning";
+                    
+                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
+                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
+
                     var body = $@"<div style=""font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9fa;padding:24px;border-radius:8px;"">
+                        <div style=""text-align: center; padding-bottom: 20px;"">
+                            <img src=""cid:nlklogo"" alt=""Nationlink"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
+                        </div>
                         <h2 style=""color:#e17055;margin-top:0;"">{alertType}</h2>
                         <p style=""color:#636e72;"">Organization <strong>{org.Name}</strong> has triggered a balance threshold alert.</p>
                         <table style=""width:100%;border-collapse:collapse;margin:16px 0;"">
@@ -496,7 +503,7 @@ public class OrganizationService : IOrganizationService
                         <p style=""color:#b2bec3;font-size:12px;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console</p>
                     </div>";
 
-                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Alert: {alertType} — {org.Name}", body);
+                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Alert: {alertType} — {org.Name}", body, attachments);
                     _logger.LogWarning("[OrganizationService] Balance alert fired for {OrgName}: {UsedPct:F1}% used, remaining {OrgBalance:C}", org.Name, usedPct, orgBalance);
                 }
             }
@@ -851,7 +858,7 @@ public class OrganizationService : IOrganizationService
         if (role == FMC.Shared.Auth.Roles.Approver || role == FMC.Shared.Auth.Roles.CEO)
         {
             var pCount = await _context.Transactions.CountAsync(t => t.OrganizationId == organizationId && t.Status == "Pending", cancellationToken);
-            if (pCount > 0) alerts.Add(CreateAlert("Pending Validations", $"{pCount} request(s) waiting to be approved.", "Pending", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
+            if (pCount > 0) alerts.Add(CreateAlert("Pending Validations", $"{pCount} request(s) waiting to be approved.", $"Pending_{pCount}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
         }
 
         if (role == FMC.Shared.Auth.Roles.Maker || role == FMC.Shared.Auth.Roles.CEO)
@@ -860,7 +867,7 @@ public class OrganizationService : IOrganizationService
             if (role == FMC.Shared.Auth.Roles.Maker) q = q.Where(t => t.MakerId == userId);
             
             var aCount = await q.CountAsync(cancellationToken);
-            if (aCount > 0) alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", "Processed", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
+            if (aCount > 0) alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", $"Processed_{aCount}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
         }
 
         if (role == FMC.Shared.Auth.Roles.Maker || role == FMC.Shared.Auth.Roles.CEO || role == FMC.Shared.Auth.Roles.Approver)
@@ -881,7 +888,7 @@ public class OrganizationService : IOrganizationService
             {
                 var msg = usedPct >= 80m ? $"{usedPct:F1}% of wallet allocated." : $"Only {orgBalance:C} remaining in org wallet.";
                 var sev = usedPct >= 80m ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Security : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning;
-                alerts.Add(CreateAlert("Capacity Threshold", msg, "Threshold", sev));
+                alerts.Add(CreateAlert("Capacity Threshold", msg, $"Threshold_{(int)usedPct}", sev));
             }
         }
 

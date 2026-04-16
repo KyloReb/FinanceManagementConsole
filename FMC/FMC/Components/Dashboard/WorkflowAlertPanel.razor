@@ -1,6 +1,7 @@
 @using FMC.Shared.DTOs.Admin
 @using FMC.Services.Api
 @inject OrganizationApiService OrgService
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <style>
@@ -58,7 +59,7 @@
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">@_alerts.Count operational required @(_alerts.Count == 1 ? "action" : "actions") detected</MudText>
                 </div>
             </div>
-            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _panelDismissed = true)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => DismissPanel())" />
         </div>
 
         <div class="fmc-alert-list-hub">
@@ -73,13 +74,15 @@
                 var btnColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? Color.Error :
                                alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
                 
-                var href = alert.EntityId == "Pending" ? "/pending-requests" : "/transactions";
+                var href = alert.EntityId != null && alert.EntityId.StartsWith("Pending") ? "/pending-requests" : "/transactions";
                 var entityId = alert.EntityId ?? "";
                 // CEO: read-only visibility — cannot resolve, that's the Approver's job
-                var actionText = IsCeo ? "View" : (alert.EntityId == "Pending" ? "Resolve" : "Acknowledge");
+                bool isPending = alert.EntityId != null && alert.EntityId.StartsWith("Pending");
+                bool isThreshold = alert.EntityId != null && alert.EntityId.StartsWith("Threshold");
+                var actionText = IsCeo ? "View" : (isPending ? "Resolve" : "Acknowledge");
                 var actionVariant = IsCeo ? Variant.Outlined : Variant.Filled;
-                var badgeLabel = alert.EntityId == "Pending" ? "ACTION REQUIRED" :
-                                 alert.EntityId == "Threshold" ? "CAPACITY ALERT" : "COMPLETED";
+                var badgeLabel = isPending ? "ACTION REQUIRED" :
+                                 isThreshold ? "CAPACITY ALERT" : "COMPLETED";
 
                 <div class="fmc-alert-row-hub">
                     <div class="fmc-alert-indicator-hub @cssClass"></div>
@@ -122,10 +125,49 @@
 
     private bool AnyVisible => _alerts.Any(a => !_dismissed.Contains(a.EntityId ?? ""));
 
-    private void DismissAlert(string entityId)
+    private async Task DismissAlert(string entityId)
     {
         _dismissed.Add(entityId);
+        await SaveDismissed();
         StateHasChanged();
+    }
+
+    private async Task SaveDismissed()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_dismissed", System.Text.Json.JsonSerializer.Serialize(_dismissed));
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_panel_dismissed", _panelDismissed.ToString());
+        }
+        catch { }
+    }
+
+    private async Task DismissPanel()
+    {
+        _panelDismissed = true;
+        await SaveDismissed();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var dictStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "fmc_wf_dismissed");
+                if (!string.IsNullOrEmpty(dictStr))
+                {
+                    _dismissed = System.Text.Json.JsonSerializer.Deserialize<HashSet<string>>(dictStr) ?? new();
+                }
+                var panelClosedStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "fmc_wf_panel_dismissed");
+                if (!string.IsNullOrEmpty(panelClosedStr) && bool.TryParse(panelClosedStr, out bool closed))
+                {
+                    _panelDismissed = closed;
+                }
+                StateHasChanged();
+            }
+            catch { }
+        }
     }
 
     protected override async Task OnInitializedAsync()

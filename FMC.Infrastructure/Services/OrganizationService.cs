@@ -61,7 +61,7 @@ public class OrganizationService : IOrganizationService
 
             var userAccountSum = await (from u in _context.Users.OfType<ApplicationUser>()
                                where u.OrganizationId == org.Id
-                               join a in _context.Accounts on u.Id equals a.TenantId
+                               join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
                                select a.Balance).SumAsync(cancellationToken);
 
             var totalBalance = orgAccountSum + userAccountSum;
@@ -94,7 +94,7 @@ public class OrganizationService : IOrganizationService
 
         var userAccountSum = await (from u in _context.Users.OfType<ApplicationUser>()
                            where u.OrganizationId == org.Id
-                           join a in _context.Accounts on u.Id equals a.TenantId
+                           join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
                            select a.Balance).SumAsync(cancellationToken);
 
         var totalBalance = orgAccountSum + userAccountSum;

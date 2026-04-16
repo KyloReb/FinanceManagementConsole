@@ -108,7 +108,7 @@
                             <div class="fmc-card-content">
                                 <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET BALANCE</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
-                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@(_organizations.FirstOrDefault()?.WalletLimit.ToString("C") ?? "N/A")</MudText>
+                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@(_organizations.FirstOrDefault()?.TotalBalance.ToString("C") ?? "N/A")</MudText>
                                 </div>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Total credited by admin</MudText>
                             </div>
@@ -122,7 +122,7 @@
                             <div class="fmc-card-content">
                                 <MudText Typo="Typo.subtitle2" Class="fmc-card-label">CURRENT BALANCE</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
-                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@(_organizations.FirstOrDefault()?.TotalBalance.ToString("C") ?? "N/A")</MudText>
+                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@((_organizations.FirstOrDefault() is var o && o != null ? (o.TotalBalance - o.Usage).ToString("C") : "N/A"))</MudText>
                                 </div>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Remaining in org wallet</MudText>
                             </div>

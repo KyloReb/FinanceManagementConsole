@@ -22,6 +22,7 @@ public class OrganizationService : IOrganizationService
     private readonly ISystemAlertService _alertService;
     private readonly IIdentityService _identityService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IEmailService _emailService;
     private readonly ILogger<OrganizationService> _logger;
 
     public OrganizationService(
@@ -31,6 +32,7 @@ public class OrganizationService : IOrganizationService
         ISystemAlertService alertService,
         IIdentityService identityService,
         ICurrentUserService currentUserService,
+        IEmailService emailService,
         ILogger<OrganizationService> logger)
     {
         _repository = repository;
@@ -39,6 +41,7 @@ public class OrganizationService : IOrganizationService
         _alertService = alertService;
         _identityService = identityService;
         _currentUserService = currentUserService;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -450,6 +453,55 @@ public class OrganizationService : IOrganizationService
         );
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // ── Balance Threshold Alerts ──────────────────────────────────────────
+        if (transaction.OrganizationId.HasValue)
+        {
+            var orgId = transaction.OrganizationId.Value;
+            var org = await _repository.GetByIdAsync(orgId, cancellationToken);
+            if (org != null)
+            {
+                var orgBalance = await _context.Accounts.IgnoreQueryFilters()
+                    .Where(a => a.TenantId == orgId.ToString())
+                    .SumAsync(a => a.Balance, cancellationToken);
+
+                var userBalanceSum = await (from u in _context.Users.OfType<ApplicationUser>()
+                                             where u.OrganizationId == orgId
+                                             join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
+                                             select a.Balance).SumAsync(cancellationToken);
+
+                var total = orgBalance + userBalanceSum;
+                var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
+
+                // Resolve CEO email for this org
+                string? ceoEmail = null;
+                if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+                {
+                    var ceo = await _context.Users.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(u => u.Id == org.ChiefExecutiveId, cancellationToken);
+                    ceoEmail = ceo?.Email;
+                }
+
+                if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
+                {
+                    var alertType = usedPct >= 80m ? "80% Utilization Alert" : "Low Balance Warning";
+                    var body = $@"<div style=""font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9fa;padding:24px;border-radius:8px;"">
+                        <h2 style=""color:#e17055;margin-top:0;"">{alertType}</h2>
+                        <p style=""color:#636e72;"">Organization <strong>{org.Name}</strong> has triggered a balance threshold alert.</p>
+                        <table style=""width:100%;border-collapse:collapse;margin:16px 0;"">
+                            <tr><td style=""padding:8px;color:#636e72;"">Wallet Balance</td><td style=""padding:8px;font-weight:700;"">{total:C}</td></tr>
+                            <tr><td style=""padding:8px;color:#636e72;"">Current Balance</td><td style=""padding:8px;font-weight:700;color:{(orgBalance <= 100_000m ? "#e17055" : "#00b894")}"">{orgBalance:C}</td></tr>
+                            <tr><td style=""padding:8px;color:#636e72;"">Balance Used</td><td style=""padding:8px;font-weight:700;"">{userBalanceSum:C} ({usedPct:F1}%)</td></tr>
+                        </table>
+                        <p style=""color:#b2bec3;font-size:12px;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console</p>
+                    </div>";
+
+                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Alert: {alertType} — {org.Name}", body);
+                    _logger.LogWarning("[OrganizationService] Balance alert fired for {OrgName}: {UsedPct:F1}% used, remaining {OrgBalance:C}", org.Name, usedPct, orgBalance);
+                }
+            }
+        }
+
         return true;
     }
 

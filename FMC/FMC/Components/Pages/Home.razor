@@ -102,44 +102,46 @@
                 }
                 else
                 {
-                    @* CEO: Wallet Balance (total balance remaining) *@
-                    <MudItem xs="6" sm="6" md="4">
+                    @* CEO: Wallet Balance — total credited by SuperAdmin *@
+                    <MudItem xs="12" sm="4">
+                        <div class="fmc-glass-card">
+                            <div class="fmc-card-content">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET BALANCE</MudText>
+                                <div class="d-flex align-end gap-2 mt-1">
+                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@(_organizations.FirstOrDefault()?.WalletLimit.ToString("C") ?? "N/A")</MudText>
+                                </div>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Total credited by admin</MudText>
+                            </div>
+                            <div class="fmc-card-icon-bg primary"><MudIcon Icon="@Icons.Material.Filled.Wallet" /></div>
+                            <div class="fmc-card-progress primary"></div>
+                        </div>
+                    </MudItem>
+                    @* CEO: Current Balance — remaining available *@
+                    <MudItem xs="12" sm="4">
                         <div class="fmc-glass-card">
                             <div class="fmc-card-content">
                                 <MudText Typo="Typo.subtitle2" Class="fmc-card-label">CURRENT BALANCE</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
                                     <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@(_organizations.FirstOrDefault()?.TotalBalance.ToString("C") ?? "N/A")</MudText>
                                 </div>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Remaining in org wallet</MudText>
                             </div>
                             <div class="fmc-card-icon-bg success"><MudIcon Icon="@Icons.Material.Filled.AccountBalance" /></div>
                             <div class="fmc-card-progress success"></div>
                         </div>
                     </MudItem>
-                    @* CEO: Cardholder allocation (usage) *@
-                    <MudItem xs="6" sm="6" md="4">
+                    @* CEO: Balance Used — distributed to cardholders *@
+                    <MudItem xs="12" sm="4">
                         <div class="fmc-glass-card">
                             <div class="fmc-card-content">
-                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">CARDHOLDER ALLOCATION</MudText>
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">BALANCE USED</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
                                     <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val" Color="Color.Info">@(_organizations.FirstOrDefault()?.Usage.ToString("C") ?? "N/A")</MudText>
                                 </div>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Allocated to cardholders</MudText>
                             </div>
                             <div class="fmc-card-icon-bg info"><MudIcon Icon="@Icons.Material.Filled.Payments" /></div>
                             <div class="fmc-card-progress info"></div>
-                        </div>
-                    </MudItem>
-                    @* CEO: Network Uptime *@
-                    <MudItem xs="6" sm="6" md="4">
-                        <div class="fmc-glass-card">
-                            <div class="fmc-card-content">
-                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">NETWORK UPTIME</MudText>
-                                <div class="d-flex align-end gap-2 mt-1">
-                                    <MudText Typo="Typo.h3" Class="fmc-kpi-val" Style="font-weight: 900; line-height: 1;">99.9%</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; margin-bottom: 2px;">SECURE</MudText>
-                                </div>
-                            </div>
-                            <div class="fmc-card-icon-bg warning"><MudIcon Icon="@Icons.Material.Filled.FlashOn" /></div>
-                            <div class="fmc-card-progress warning"></div>
                         </div>
                     </MudItem>
                 }

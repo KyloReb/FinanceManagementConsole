@@ -484,26 +484,51 @@ public class OrganizationService : IOrganizationService
 
                 if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
                 {
-                    var alertType = usedPct >= 80m ? $"{usedPct:F0}% Utilization Alert" : "Low Balance Warning";
+                    var alertType = usedPct >= 80m ? $"{usedPct:F0}% Operational Capacity Alert" : "Critical Liquidity Advisory";
                     
                     var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
                     var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
 
-                    var body = $@"<div style=""font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9fa;padding:24px;border-radius:8px;"">
-                        <div style=""text-align: center; padding-bottom: 20px;"">
-                            <img src=""cid:nlklogo"" alt=""Nationlink"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
+                    var body = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
+                        <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
+                            <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
                         </div>
-                        <h2 style=""color:#e17055;margin-top:0;"">{alertType}</h2>
-                        <p style=""color:#636e72;"">Organization <strong>{org.Name}</strong> has triggered a balance threshold alert.</p>
-                        <table style=""width:100%;border-collapse:collapse;margin:16px 0;"">
-                            <tr><td style=""padding:8px;color:#636e72;"">Wallet Balance</td><td style=""padding:8px;font-weight:700;"">{total:C}</td></tr>
-                            <tr><td style=""padding:8px;color:#636e72;"">Current Balance</td><td style=""padding:8px;font-weight:700;color:{(orgBalance <= 100_000m ? "#e17055" : "#00b894")}"">{orgBalance:C}</td></tr>
-                            <tr><td style=""padding:8px;color:#636e72;"">Balance Used</td><td style=""padding:8px;font-weight:700;"">{userBalanceSum:C} ({usedPct:F1}%)</td></tr>
-                        </table>
-                        <p style=""color:#b2bec3;font-size:12px;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console</p>
+                        <h2 style=""color:#d63031;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">{alertType}</h2>
+                        <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                            This is an automated advisory regarding the operational liquidity of <strong>{org.Name}</strong>. Your tenant account has reached a structural capacity threshold and requires attention.
+                        </p>
+                        
+                        <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
+                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Account Overview</h4>
+                            <table style=""width:100%;border-collapse:collapse;"">
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Total Institutional Wallet</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{total:C}</td>
+                                </tr>
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Volume Dispersed to Subscribers</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{userBalanceSum:C} ({usedPct:F1}%)</td>
+                                </tr>
+                                <tr>
+                                    <td style=""padding:12px 0;color:#d63031;font-size:14px;font-weight:600;"">Remaining Organizational Capital</td>
+                                    <td style=""padding:12px 0;font-weight:800;color:#d63031;text-align:right;font-size:16px;"">{orgBalance:C}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
+                            We strongly advise replenishing your institutional reserve to ensure continuous operational functionality and prevent allotment failures within your network.
+                        </p>
+
+                        <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
+                            <p style=""color:#b2bec3;font-size:12px;margin:0;"">
+                                This is an automated system alert. Please do not reply directly to this thread.<br>
+                                © {DateTime.UtcNow.Year} Nationlink Finance Management Console. All rights reserved.
+                            </p>
+                        </div>
                     </div>";
 
-                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Alert: {alertType} — {org.Name}", body, attachments);
+                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {alertType} — {org.Name}", body, attachments);
                     _logger.LogWarning("[OrganizationService] Balance alert fired for {OrgName}: {UsedPct:F1}% used, remaining {OrgBalance:C}", org.Name, usedPct, orgBalance);
                 }
             }

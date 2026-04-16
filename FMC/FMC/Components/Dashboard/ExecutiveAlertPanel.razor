@@ -140,7 +140,7 @@
                     </div>
                     <div class="fmc-alert-actions-hub">
                         <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
-                                   Href="/admin/organizations"
+                                   Href="@($"/admin/organizations/{HighUtilizationTenants.First().Id}")"
                                    Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
                     </div>
                 </div>
@@ -165,7 +165,7 @@
                     </div>
                     <div class="fmc-alert-actions-hub">
                         <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
-                                   Href="/admin/organizations"
+                                   Href="@($"/admin/organizations/{SuspendedTenants.First().Id}")"
                                    Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
                     </div>
                 </div>
@@ -190,7 +190,7 @@
                     </div>
                     <div class="fmc-alert-actions-hub">
                         <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                   Href="/admin/organizations"
+                                   Href="@($"/admin/organizations/{NoCeoTenants.First().Id}")"
                                    Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Assign</MudButton>
                     </div>
                 </div>

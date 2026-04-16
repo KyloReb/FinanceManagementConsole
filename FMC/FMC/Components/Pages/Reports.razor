@@ -113,7 +113,7 @@
                     <MudText Typo="Typo.h6" Style="font-weight: 800;">Institutional Distribution</MudText>
                 </div>
                 <div class="d-flex flex-column align-center justify-center pa-8">
-                    <MudChart ChartType="ChartType.Donut" T="double" InputData="@_chartData" InputLabels="@_chartLabels" 
+                    <MudChart ChartType="ChartType.Donut" T="double" ChartSeries="@_donutSeries" ChartLabels="@_chartLabels" 
                               Width="220px" Height="220px" LegendPosition="Position.Bottom" />
                     <div class="mt-6 w-100">
                         <div class="d-flex justify-space-between mb-1">
@@ -182,6 +182,10 @@
     private string _search = "";
     private double[] _chartData = { 64, 36 };
     private string[] _chartLabels = { "Institutional", "Operational" };
+    private List<ChartSeries<double>> _donutSeries = new() 
+    { 
+        new ChartSeries<double> { Name = "Distribution", Data = new double[] { 64, 36 } } 
+    };
 
     private record ReportMetadata(string Name, string Description, string Category, DateTime GeneratedAt, string Filesize, string Roles = "");
     private List<ReportMetadata> _allReports = new()

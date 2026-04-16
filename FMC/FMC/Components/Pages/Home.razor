@@ -330,7 +330,7 @@
                                     <MudText Typo="Typo.h5" Style="font-weight: 700;">Capital Allocation</MudText>
                                 </div>
                                 <div class="d-flex flex-column align-center">
-                                    <MudChart T="double" ChartType="ChartType.Donut" inputdata="@_chartData" inputlabels="@_chartLabels" Width="100%" Height="280px" />
+                                    <MudChart T="double" ChartType="ChartType.Donut" ChartSeries="@_donutSeries" ChartLabels="@_chartLabels" Width="100%" Height="280px" />
                                 </div>
                             </MudPaper>
                         </MudItem>
@@ -616,6 +616,7 @@
     private List<TransactionDto> _recentTransactions = new();
     private double[] _chartData = Array.Empty<double>();
     private string[] _chartLabels = Array.Empty<string>();
+    private List<ChartSeries<double>> _donutSeries = new();
 
     // SuperAdmin Chart Data
     private List<ChartSeries<double>> _lineChartSeries = new();
@@ -700,6 +701,7 @@
 
                 _chartData = groupedData.Select(d => d.Amount).ToArray();
                 _chartLabels = groupedData.Select(d => d.Category).ToArray();
+                _donutSeries = new List<ChartSeries<double>> { new ChartSeries<double> { Name = "Allocation", Data = _chartData } };
             }
         }
         catch (Exception ex)

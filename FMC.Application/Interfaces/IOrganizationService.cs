@@ -87,4 +87,9 @@ public interface IOrganizationService
     /// Maker Endpoint: Cancels a pending transaction that was initiated by the current user.
     /// </summary>
     Task<bool> CancelTransactionAsync(Guid transactionId, string makerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetches high-priority operation alerts for specific user roles (CEO, Maker, Approver).
+    /// </summary>
+    Task<IEnumerable<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync(Guid organizationId, string userId, string role, CancellationToken cancellationToken = default);
 }

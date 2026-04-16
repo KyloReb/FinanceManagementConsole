@@ -195,6 +195,26 @@ public class UsersController : ControllerBase
         return Ok(transactions.ToList());
     }
 
+    /// <summary>
+    /// Fetches high-priority operation alerts for specific user roles (CEO, Maker, Approver).
+    /// </summary>
+    [Authorize(Roles = Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+    [HttpGet("workflow-alerts")]
+    public async Task<ActionResult<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>> GetWorkflowAlerts()
+    {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
+                   ?? User.FindFirst("role")?.Value;
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var orgIdStr = User.FindFirst("OrganizationId")?.Value;
+
+        if (string.IsNullOrEmpty(orgIdStr) || !Guid.TryParse(orgIdStr, out var orgId) 
+            || string.IsNullOrEmpty(role) || string.IsNullOrEmpty(userId))
+            return Ok(new List<FMC.Shared.DTOs.Admin.SystemAlertDto>());
+
+        var alerts = await _organizationService.GetWorkflowAlertsAsync(orgId, userId, role, HttpContext.RequestAborted);
+        return Ok(alerts.ToList());
+    }
+
     [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker)]
     [HttpGet("organizations/{orgId:guid}/today-transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetTodayTransactions(Guid orgId)

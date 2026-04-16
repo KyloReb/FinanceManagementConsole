@@ -30,7 +30,7 @@
 
     <div class="fmc-integrated-ledger">
         <MudTabs @ref="_tabs" ActivePanelIndexChanged="OnTabChanged" Centered="false" Rounded="false" ApplyEffectsToContainer="false" 
-                 PanelClass="" Color="Color.Default" Elevation="0" SliderColor="Color.Info" Class="fmc-integrated-tabs">
+                 Color="Color.Default" Elevation="0" SliderColor="Color.Info" Class="fmc-integrated-tabs">
             <MudTabPanel Text="Action Required" Icon="@Icons.Material.Filled.PendingActions">
                 <ChildContent>
                     @RenderTable(_pendingTransactions, "Pending")
@@ -72,7 +72,7 @@
         else
         {
             <MudTable Items="@items" Hover="true" Elevation="0" Class="fmc-premium-table" Striped="false" 
-                      OnRowClick="@((TableRowClickEventArgs<TransactionDto> e) => OpenDetail(e.Item))" RowClass="cursor-pointer">
+                      OnRowClick="@((TableRowClickEventArgs<TransactionDto> e) => OpenDetail(e.Item!))" RowClass="cursor-pointer">
                 <ToolBarContent>
                     <MudText Typo="Typo.h6" Style="font-weight: 900; font-size: 0.95rem; letter-spacing: 0.05em; opacity:0.8;">@status.ToUpper() RECORDS</MudText>
                     <MudSpacer />
@@ -180,7 +180,7 @@
     private string _searchString = "";
     private Guid _orgId;
 
-    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {

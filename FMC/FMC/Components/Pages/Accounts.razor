@@ -84,7 +84,7 @@
         {
             <div class="fmc-acc-surface">
                 <MudTable Items="@FilteredUsers" Hover="true" Elevation="0" Class="fmc-acc-table" HorizontalScrollbar="true"
-                          OnRowClick="@((TableRowClickEventArgs<UserDto> e) => Navigation.NavigateTo($"/profile/{e.Item.Id}"))" RowClass="cursor-pointer">
+                          OnRowClick="@((TableRowClickEventArgs<UserDto> e) => Navigation.NavigateTo($"/profile/{e.Item!.Id}"))" RowClass="cursor-pointer">
                     <HeaderContent>
                         <MudTh Class="fmc-th"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.DisplayName)">INSTITUTIONAL IDENTITY</MudTableSortLabel></MudTh>
                         <MudTh Class="fmc-th">AUTHORITY</MudTh>

@@ -36,7 +36,7 @@
         <MudSpacer />
 
         @* ── NOTIFICATION BELL ── *@
-        <AuthorizeView Roles="@Roles.SuperAdmin" Context="notifState">
+        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")" Context="notifState">
             <Authorized>
                 <MudMenu @bind-Open="_notifOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
                          Dense="true" PopoverClass="fmc-notif-popover mud-elevation-25">
@@ -290,12 +290,15 @@
         _notifOpen = false;
 
         // Optimistic UI updates
-        _notifications.RemoveAll(n => n.Id == notif.Id);
-        _alertCount = Math.Max(0, _alertCount - 1);
+        _notifications.RemoveAll(n => n.Id == notif.Id && n.Title == notif.Title);
+        _alertCount = _notifications.Count;
         StateHasChanged();
 
-        // Background enterprise resolution
-        await OrgService.ResolveAlertAsync(notif.Id);
+        if (notif.Id > 0)
+        {
+            // Background enterprise resolution for persistent system alerts
+            await OrgService.ResolveAlertAsync(notif.Id);
+        }
         OrgService.NotifyDataChanged(); // Let other components know an indicator was dismissed
 
         if (!string.IsNullOrEmpty(notif.Href))
@@ -322,24 +325,48 @@
         try
         {
             _notifications.Clear();
-            var dbAlerts = await OrgService.GetActiveAlertsAsync();
             
-            foreach (var alert in dbAlerts)
+            var authState = await AuthService.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            // 1. Fetch System Alerts (SuperAdmin only)
+            if (user.IsInRole(Roles.SuperAdmin))
             {
-                var severity = alert.Severity.ToString().ToLower();
-                _notifications.Add(new NotifItem(
-                    alert.Id,
-                    alert.Title, 
-                    alert.Message, 
-                    alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
-                    severity,
-                    1
-                ));
+                var dbAlerts = await OrgService.GetActiveAlertsAsync();
+                foreach (var alert in dbAlerts)
+                {
+                    _notifications.Add(new NotifItem(
+                        alert.Id,
+                        alert.Title, 
+                        alert.Message, 
+                        alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
+                        alert.Severity.ToString().ToLower(),
+                        1
+                    ));
+                }
             }
 
-            _alertCount = await OrgService.GetUnresolvedAlertCountAsync();
+            // 2. Fetch Workflow Alerts (CEO, Maker, Approver)
+            if (user.IsInRole(Roles.CEO) || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver))
+            {
+                var wfAlerts = await OrgService.GetWorkflowAlertsAsync();
+                foreach (var alert in wfAlerts)
+                {
+                    var href = alert.EntityId == "Pending" ? "/pending-requests" : "/transactions";
+                    _notifications.Add(new NotifItem(
+                        0, // Synthetic ID for transient workflow alerts
+                        alert.Title,
+                        alert.Message,
+                        href,
+                        alert.Severity.ToString().ToLower(),
+                        1
+                    ));
+                }
+            }
+
+            _alertCount = _notifications.Count;
         }
-        catch { /* Fallback for pre-rendering */ }
+        catch { /* Fallback for pre-rendering or auth latency */ }
     }
 
     private async Task LogoutAsync()

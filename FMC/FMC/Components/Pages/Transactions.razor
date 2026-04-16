@@ -295,8 +295,8 @@
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var parameters = new DialogParameters<PendingDetailDialog>
         {
-            { x => x.Transaction, args.Item },
-            { x => x.IsOwnTransaction, args.Item.MakerId == CurrentUserService.UserId }
+            { x => x.Transaction, args.Item! },
+            { x => x.IsOwnTransaction, args.Item!.MakerId == CurrentUserService.UserId }
         };
 
         var dialog = await DialogService.ShowAsync<PendingDetailDialog>("Forensic Audit Investigation", parameters, options);

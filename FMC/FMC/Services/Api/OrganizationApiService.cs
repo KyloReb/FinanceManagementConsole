@@ -91,6 +91,7 @@ public class OrganizationApiService
     public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label)
     {
         var response = await _httpClient.PostAsJsonAsync($"api/users/{userId}/adjust-balance", new { Amount = amount, Label = label });
+        if (response.IsSuccessStatusCode) NotifyDataChanged();
         return response.IsSuccessStatusCode;
     }
 
@@ -138,6 +139,11 @@ public class OrganizationApiService
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<List<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync()
+    {
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>("api/users/workflow-alerts") ?? new();
+    }
+
     /// <summary>
     /// Approver Endpoint: Commits a pending transaction.
     /// </summary>
@@ -149,6 +155,7 @@ public class OrganizationApiService
             var msg = await response.Content.ReadAsStringAsync();
             throw new Exception(!string.IsNullOrEmpty(msg) ? msg : "Approval failed.");
         }
+        NotifyDataChanged();
         return true;
     }
 
@@ -158,6 +165,7 @@ public class OrganizationApiService
     public async Task<bool> RejectTransactionAsync(Guid transactionId, string reason)
     {
         var response = await _httpClient.PostAsJsonAsync($"api/users/transactions/{transactionId}/reject", new { Reason = reason });
+        if (response.IsSuccessStatusCode) NotifyDataChanged();
         return response.IsSuccessStatusCode;
     }
 
@@ -188,6 +196,7 @@ public class OrganizationApiService
     public async Task<bool> CancelTransactionAsync(Guid transactionId)
     {
         var response = await _httpClient.DeleteAsync($"api/users/transactions/{transactionId}/cancel");
+        if (response.IsSuccessStatusCode) NotifyDataChanged();
         return response.IsSuccessStatusCode;
     }
 }

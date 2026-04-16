@@ -15,6 +15,8 @@ public class AuthService
     private readonly AuthenticationStateProvider _authStateProvider;
     private readonly IJSRuntime _js;
 
+    public Task<AuthenticationState> GetAuthenticationStateAsync() => _authStateProvider.GetAuthenticationStateAsync();
+
     public AuthService(HttpClient httpClient, AuthenticationStateProvider authStateProvider, IJSRuntime js)
     {
         _httpClient = httpClient;

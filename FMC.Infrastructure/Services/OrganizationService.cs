@@ -789,4 +789,59 @@ public class OrganizationService : IOrganizationService
         }
         return result;
     }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync(Guid organizationId, string userId, string role, CancellationToken cancellationToken = default)
+    {
+        var alerts = new List<FMC.Shared.DTOs.Admin.SystemAlertDto>();
+
+        // 1. Action Alerts: Pending Authorizations (Focus for Approvers and CEOs)
+        if (role == FMC.Shared.Auth.Roles.Approver || role == FMC.Shared.Auth.Roles.CEO)
+        {
+            var pendingCount = await _context.Transactions
+                .Where(t => t.OrganizationId == organizationId && t.Status == "Pending")
+                .CountAsync(cancellationToken);
+
+            if (pendingCount > 0)
+            {
+                alerts.Add(new FMC.Shared.DTOs.Admin.SystemAlertDto
+                {
+                    Id = 0, // Synthetic ID for UI-driven workflow indicators
+                    Title = "Pending Action Required",
+                    Message = $"{pendingCount} transaction{(pendingCount == 1 ? "" : "s")} awaiting your forensic authorization.",
+                    Severity = FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning,
+                    EntityType = "Workflow",
+                    EntityId = "Pending",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        // 2. Settlement Alerts: Confirmations (Focus for Makers and CEOs)
+        if (role == FMC.Shared.Auth.Roles.Maker || role == FMC.Shared.Auth.Roles.CEO)
+        {
+            var since = DateTime.UtcNow.AddDays(-1);
+            var completedCount = await _context.Transactions
+                .Where(t => t.OrganizationId == organizationId && 
+                            (t.Status == "Authorized" || t.Status == "Rejected") && 
+                            t.ActionDate >= since)
+                .CountAsync(cancellationToken);
+
+            if (completedCount > 0)
+            {
+                alerts.Add(new FMC.Shared.DTOs.Admin.SystemAlertDto
+                {
+                    Id = 0,
+                    Title = "Settlement Confirmation",
+                    Message = $"{completedCount} transaction{(completedCount == 1 ? "" : "s")} recently processed through the queue.",
+                    Severity = FMC.Shared.DTOs.Admin.AlertSeverityDto.Information,
+                    EntityType = "Workflow",
+                    EntityId = "Processed",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        return alerts;
+    }
 }

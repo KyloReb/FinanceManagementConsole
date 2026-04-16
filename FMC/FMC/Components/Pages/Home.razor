@@ -118,12 +118,21 @@
 
                 @* ── SYSTEM ALERT PANEL ── *@
                 <MudItem xs="12">
-                    <ExecutiveAlertPanel Organizations="_organizations" 
-                                         Loading="_loading" 
-                                         OnActionCompleted="RefreshDashboard" />
+                    @if (context.User.IsInRole(Roles.SuperAdmin))
+                    {
+                        <ExecutiveAlertPanel Organizations="_organizations" 
+                                             Loading="_loading" 
+                                             OnActionCompleted="RefreshDashboard" />
+                    }
+                    else if (context.User.IsInRole(Roles.CEO))
+                    {
+                        @* Show the workflow/intelligence alerts geared for CEO operations *@
+                        <WorkflowAlertPanel Loading="_loading" />
+                        
+                        @* Also optionally keep the executive alert panel so CEO can see low liquidity anomalies *@
+                        <ExecutiveAlertPanel Organizations="_organizations" Loading="_loading" OnActionCompleted="RefreshDashboard" />
+                    }
                 </MudItem>
-
-
 
                 @* MAIN REPOSITORY TABLE *@
                 <MudItem xs="12">

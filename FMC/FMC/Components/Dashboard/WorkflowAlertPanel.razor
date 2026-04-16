@@ -1,0 +1,134 @@
+@using FMC.Shared.DTOs.Admin
+@using FMC.Services.Api
+@inject OrganizationApiService OrgService
+@implements IDisposable
+
+<style>
+    .fmc-alert-surface { 
+        border-radius: 20px; border: 1px solid var(--mud-palette-divider); 
+        background: var(--mud-palette-surface); overflow: hidden;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.03); margin-bottom: 24px;
+    }
+    .fmc-alert-header-area { 
+        padding: 16px 24px; background: var(--mud-palette-background-grey); 
+        border-bottom: 1px solid var(--mud-palette-divider);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .fmc-alert-hub-icon { 
+        width: 36px; height: 36px; background: rgba(var(--mud-palette-info-rgb), 0.1); 
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    }
+    .fmc-alert-list-hub { display: flex; flex-direction: column; }
+    .fmc-alert-row-hub { 
+        padding: 16px 24px; display: flex; align-items: center; gap: 16px;
+        border-bottom: 1px solid var(--mud-palette-divider); transition: background 0.2s;
+        position: relative;
+    }
+    .fmc-alert-row-hub:last-child { border-bottom: none; }
+    .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
+    
+    .fmc-alert-indicator-hub { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+    .fmc-alert-indicator-hub.critical { background: var(--mud-palette-error); }
+    .fmc-alert-indicator-hub.warning { background: var(--mud-palette-warning); }
+    .fmc-alert-indicator-hub.info { background: var(--mud-palette-info); }
+
+    .fmc-alert-content-hub { flex: 1; min-width: 0; }
+    .fmc-alert-entity-title { font-weight: 850; font-size: 0.9rem; }
+    .fmc-alert-tag-hub { 
+        font-size: 0.6rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; 
+        letter-spacing: 0.05em; text-transform: uppercase; margin-right: 8px;
+    }
+    .fmc-tag-critical { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+    .fmc-tag-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .fmc-tag-info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
+
+    .fmc-alert-actions-hub { display: flex; align-items: center; gap: 8px; }
+</style>
+
+@if (!_dismissed && _alerts.Any() && !Loading)
+{
+    <div class="fmc-alert-surface">
+        <div class="fmc-alert-header-area">
+            <div class="d-flex align-center gap-3">
+                <div class="fmc-alert-hub-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" Size="Size.Small" />
+                </div>
+                <div>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">Intelligence Oversight</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@_alerts.Count operational required @(_alerts.Count == 1 ? "action" : "actions") detected</MudText>
+                </div>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _dismissed = true)" />
+        </div>
+
+        <div class="fmc-alert-list-hub">
+            @foreach (var alert in _alerts)
+            {
+                var cssClass = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "critical" :
+                               alert.Severity == AlertSeverityDto.Warning ? "warning" : "info";
+                
+                var tagColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "fmc-tag-critical" :
+                               alert.Severity == AlertSeverityDto.Warning ? "fmc-tag-warning" : "fmc-tag-info";
+
+                var btnColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? Color.Error :
+                               alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
+                
+                var href = alert.EntityId == "Pending" ? "/pending-requests" : "/transactions";
+                var actionText = alert.EntityId == "Pending" ? "Resolve" : "Acknowledge";
+                var badgeLabel = alert.EntityId == "Pending" ? "ACTION REQUIRED" : "COMPLETED";
+
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub @cssClass"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center mb-1">
+                            <span class="fmc-alert-tag-hub @tagColor">@badgeLabel</span>
+                            <MudText Typo="Typo.body2" Class="fmc-alert-entity-title">@alert.Title</MudText>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @alert.Message
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Filled" Color="@btnColor" Size="Size.Small"
+                                   Href="@href"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">@actionText</MudButton>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Loading { get; set; }
+    
+    private bool _dismissed;
+    private List<SystemAlertDto> _alerts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        OrgService.OnDataChanged += HandleDataChanged;
+        await LoadAlerts();
+    }
+
+    private async void HandleDataChanged()
+    {
+        await LoadAlerts();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadAlerts()
+    {
+        try
+        {
+            var data = await OrgService.GetWorkflowAlertsAsync();
+            _alerts = data.ToList();
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        OrgService.OnDataChanged -= HandleDataChanged;
+    }
+}

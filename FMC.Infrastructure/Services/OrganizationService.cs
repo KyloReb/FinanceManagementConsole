@@ -863,6 +863,28 @@ public class OrganizationService : IOrganizationService
             if (aCount > 0) alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", "Processed", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
         }
 
+        if (role == FMC.Shared.Auth.Roles.Maker || role == FMC.Shared.Auth.Roles.CEO || role == FMC.Shared.Auth.Roles.Approver)
+        {
+            var orgBalance = await _context.Accounts.IgnoreQueryFilters()
+                .Where(a => a.TenantId == organizationId.ToString())
+                .SumAsync(a => a.Balance, cancellationToken);
+
+            var userBalanceSum = await (from u in _context.Users.OfType<ApplicationUser>()
+                                         where u.OrganizationId == organizationId
+                                         join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
+                                         select a.Balance).SumAsync(cancellationToken);
+
+            var total = orgBalance + userBalanceSum;
+            var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
+
+            if (usedPct >= 80m || orgBalance <= 100_000m)
+            {
+                var msg = usedPct >= 80m ? $"{usedPct:F1}% of wallet allocated." : $"Only {orgBalance:C} remaining in org wallet.";
+                var sev = usedPct >= 80m ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Security : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning;
+                alerts.Add(CreateAlert("Capacity Threshold", msg, "Threshold", sev));
+            }
+        }
+
         return alerts;
 
         FMC.Shared.DTOs.Admin.SystemAlertDto CreateAlert(string title, string msg, string entityId, FMC.Shared.DTOs.Admin.AlertSeverityDto sev) => new()

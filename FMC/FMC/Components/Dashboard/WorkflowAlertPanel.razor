@@ -45,7 +45,7 @@
     .fmc-alert-actions-hub { display: flex; align-items: center; gap: 8px; }
 </style>
 
-@if (!_dismissed && _alerts.Any() && !Loading)
+@if (!_panelDismissed && AnyVisible && !Loading)
 {
     <div class="fmc-alert-surface">
         <div class="fmc-alert-header-area">
@@ -58,11 +58,11 @@
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">@_alerts.Count operational required @(_alerts.Count == 1 ? "action" : "actions") detected</MudText>
                 </div>
             </div>
-            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _dismissed = true)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _panelDismissed = true)" />
         </div>
 
         <div class="fmc-alert-list-hub">
-            @foreach (var alert in _alerts)
+            @foreach (var alert in _alerts.Where(a => !_dismissed.Contains(a.EntityId ?? "")))
             {
                 var cssClass = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "critical" :
                                alert.Severity == AlertSeverityDto.Warning ? "warning" : "info";
@@ -74,10 +74,12 @@
                                alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
                 
                 var href = alert.EntityId == "Pending" ? "/pending-requests" : "/transactions";
+                var entityId = alert.EntityId ?? "";
                 // CEO: read-only visibility — cannot resolve, that's the Approver's job
                 var actionText = IsCeo ? "View" : (alert.EntityId == "Pending" ? "Resolve" : "Acknowledge");
                 var actionVariant = IsCeo ? Variant.Outlined : Variant.Filled;
-                var badgeLabel = alert.EntityId == "Pending" ? "ACTION REQUIRED" : "COMPLETED";
+                var badgeLabel = alert.EntityId == "Pending" ? "ACTION REQUIRED" :
+                                 alert.EntityId == "Threshold" ? "CAPACITY ALERT" : "COMPLETED";
 
                 <div class="fmc-alert-row-hub">
                     <div class="fmc-alert-indicator-hub @cssClass"></div>
@@ -91,9 +93,18 @@
                         </MudText>
                     </div>
                     <div class="fmc-alert-actions-hub">
-                        <MudButton Variant="@actionVariant" Color="@btnColor" Size="Size.Small"
-                                   Href="@href"
-                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">@actionText</MudButton>
+                        @if (IsCeo)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="@btnColor" Size="Size.Small"
+                                       Href="@href"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">View</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Variant="Variant.Filled" Color="@btnColor" Size="Size.Small"
+                                       OnClick="@(() => DismissAlert(entityId))"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">@actionText</MudButton>
+                        }
                     </div>
                 </div>
             }
@@ -105,8 +116,17 @@
     [Parameter] public bool Loading { get; set; }
     [Parameter] public bool IsCeo { get; set; }
     
-    private bool _dismissed;
+    private bool _panelDismissed;
+    private HashSet<string> _dismissed = new();
     private List<SystemAlertDto> _alerts = new();
+
+    private bool AnyVisible => _alerts.Any(a => !_dismissed.Contains(a.EntityId ?? ""));
+
+    private void DismissAlert(string entityId)
+    {
+        _dismissed.Add(entityId);
+        StateHasChanged();
+    }
 
     protected override async Task OnInitializedAsync()
     {

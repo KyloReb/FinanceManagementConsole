@@ -57,10 +57,10 @@
                             </div>
                             
                             <div class="fmc-notif-tabs">
-                                <div class="fmc-notif-tab active">All</div>
-                                <div class="fmc-notif-tab">System</div>
-                                <div class="fmc-notif-tab">Activity</div>
-                                <div class="fmc-notif-tab">Other</div>
+                                <div class="fmc-notif-tab @(_selectedTab == "All" ? "active" : "")" @onclick="@(() => _selectedTab = "All")">All</div>
+                                <div class="fmc-notif-tab @(_selectedTab == "Activity" ? "active" : "")" @onclick="@(() => _selectedTab = "Activity")">Activity</div>
+                                <div class="fmc-notif-tab @(_selectedTab == "Thresholds" ? "active" : "")" @onclick="@(() => _selectedTab = "Thresholds")">Thresholds</div>
+                                <div class="fmc-notif-tab @(_selectedTab == "System" ? "active" : "")" @onclick="@(() => _selectedTab = "System")">System</div>
                             </div>
 
                             <div class="fmc-notif-body">
@@ -74,11 +74,12 @@
                                 }
                                 else
                                 {
-                                    @foreach (var notif in _notifications)
+                                    @foreach (var notif in FilteredNotifications)
                                     {
-                                        var isPending = notif.EntityId != null && notif.EntityId.StartsWith("Pending");
-                                        var actionText = isPending ? "Resolve ↗" : "Review ↗";
-                                        var itemType = isPending ? "Activity" : "System";
+                                        var isActivity = notif.EntityId != null && (notif.EntityId.StartsWith("Pending") || notif.EntityId.StartsWith("Processed"));
+                                        var isThreshold = notif.Title.Contains("Threshold") || notif.Title.Contains("Capacity") || notif.Title.Contains("Liquidity");
+                                        var actionText = isActivity ? "Resolve ↗" : "Review ↗";
+                                        var itemType = isActivity ? "Activity" : isThreshold ? "Oversight" : "System";
 
                                         <div class="fmc-notif-item">
                                             <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="margin-bottom: 8px; display: block;">@itemType · @notif.CreatedAt.ToString("MM/dd/yyyy")</MudText>
@@ -291,10 +292,19 @@
     private bool _notifOpen = false;
 
     // Notification state
+    private string _selectedTab = "All";
     private int _alertCount;
     private record NotifItem(long Id, string Title, string Description, string Href, string Severity, int Count, string? EntityId, DateTime CreatedAt);
     private List<NotifItem> _notifications = new();
     private HashSet<string> _dismissedNotifications = new();
+
+    private IEnumerable<NotifItem> FilteredNotifications => _selectedTab switch
+    {
+        "Activity" => _notifications.Where(n => n.EntityId != null && (n.EntityId.StartsWith("Pending") || n.EntityId.StartsWith("Processed"))),
+        "Thresholds" => _notifications.Where(n => n.Title.Contains("Capacity") || n.Title.Contains("Liquidity") || n.Title.Contains("Threshold")),
+        "System" => _notifications.Where(n => n.Id > 0 && !n.Title.Contains("Capacity") && !n.Title.Contains("Liquidity") && !n.Title.Contains("Threshold")),
+        _ => _notifications
+    };
 
     private async Task HandleAlertClick(NotifItem notif)
     {

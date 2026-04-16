@@ -305,8 +305,8 @@ public class OrganizationService : IOrganizationService
         await _context.Transactions.AddAsync(transaction, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // ── Phase 3: CEO Funding Notification (SuperAdmin Credit) ────────────
-        if (amount > 0)
+        // ── Phase 3: CEO Advisory Notification (SuperAdmin Adjustment) ───────
+        if (amount != 0)
         {
             try
             {
@@ -321,6 +321,13 @@ public class OrganizationService : IOrganizationService
 
                 if (!string.IsNullOrEmpty(ceoEmail))
                 {
+                    var isCredit = amount > 0;
+                    var themeColor = isCredit ? "#4834d4" : "#eb4d4b";
+                    var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
+                    var actionDesc = isCredit 
+                        ? $"funds have been successfully credited to <strong>{org.Name}</strong> by the System Administrator."
+                        : $"a debit adjustment has been applied to the <strong>{org.Name}</strong> organizational wallet by the System Administrator.";
+                    
                     var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
                     var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
                     
@@ -328,13 +335,13 @@ public class OrganizationService : IOrganizationService
                         <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
                             <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
                         </div>
-                        <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Wallet Credited Successfully</h2>
+                        <h2 style=""color:{themeColor};margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">{actionTitle}</h2>
                         <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                            This is an automated notification confirming that funds have been successfully credited to <strong>{org.Name}</strong> by the System Administrator.
+                            This is an automated advisory confirming that {actionDesc}
                         </p>
                         
                         <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Credit Details</h4>
+                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Transaction Details</h4>
                             <table style=""width:100%;border-collapse:collapse;"">
                                 <tr style=""border-bottom: 1px solid #e1e5ea;"">
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Organization Name</td>
@@ -345,8 +352,8 @@ public class OrganizationService : IOrganizationService
                                     <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(org.AccountNumber)}</td>
                                 </tr>
                                 <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Credit Amount</td>
-                                    <td style=""padding:12px 0;font-weight:800;color:#4834d4;text-align:right;font-size:18px;"">{amount:C}</td>
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Amount</td>
+                                    <td style=""padding:12px 0;font-weight:800;color:{themeColor};text-align:right;font-size:18px;"">{Math.Abs(amount):C}</td>
                                 </tr>
                                 <tr>
                                     <td style=""padding:12px 0;color:#636e72;font-size:14px;"">New Operational Balance</td>
@@ -356,7 +363,7 @@ public class OrganizationService : IOrganizationService
                         </div>
 
                         <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
-                            These funds are now available for dispersal to your organization's cardholders and subscribers.
+                            Reason: <strong>{label ?? "Administrative Adjustment"}</strong>
                         </p>
 
                         <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
@@ -366,12 +373,12 @@ public class OrganizationService : IOrganizationService
                         </div>
                     </div>";
 
-                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Funding Confirmation: {org.Name} Credited {amount:C}", body, attachments);
+                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {actionTitle} — {org.Name}", body, attachments);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[OrganizationService] Failed to send CEO funding notification.");
+                _logger.LogError(ex, "[OrganizationService] Failed to send CEO adjustment notification.");
             }
         }
 

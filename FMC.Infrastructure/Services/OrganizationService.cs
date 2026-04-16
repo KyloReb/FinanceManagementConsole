@@ -23,6 +23,7 @@ public class OrganizationService : IOrganizationService
     private readonly IIdentityService _identityService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IEmailService _emailService;
+    private readonly IEmailTemplateService _templateService;
     private readonly ILogger<OrganizationService> _logger;
 
     public OrganizationService(
@@ -33,6 +34,7 @@ public class OrganizationService : IOrganizationService
         IIdentityService identityService,
         ICurrentUserService currentUserService,
         IEmailService emailService,
+        IEmailTemplateService templateService,
         ILogger<OrganizationService> logger)
     {
         _repository = repository;
@@ -42,6 +44,7 @@ public class OrganizationService : IOrganizationService
         _identityService = identityService;
         _currentUserService = currentUserService;
         _emailService = emailService;
+        _templateService = templateService;
         _logger = logger;
     }
 
@@ -322,57 +325,17 @@ public class OrganizationService : IOrganizationService
                 if (!string.IsNullOrEmpty(ceoEmail))
                 {
                     var isCredit = amount > 0;
-                    var themeColor = isCredit ? "#4834d4" : "#eb4d4b";
-                    var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
-                    var actionDesc = isCredit 
-                        ? $"funds have been successfully credited to <strong>{org.Name}</strong> by the System Administrator."
-                        : $"a debit adjustment has been applied to the <strong>{org.Name}</strong> organizational wallet by the System Administrator.";
-                    
                     var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
                     var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
                     
-                    var body = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
-                        <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
-                            <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
-                        </div>
-                        <h2 style=""color:{themeColor};margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">{actionTitle}</h2>
-                        <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                            This is an automated advisory confirming that {actionDesc}
-                        </p>
-                        
-                        <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Transaction Details</h4>
-                            <table style=""width:100%;border-collapse:collapse;"">
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Organization Name</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{org.Name}</td>
-                                </tr>
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Organization Card Number</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(org.AccountNumber)}</td>
-                                </tr>
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Amount</td>
-                                    <td style=""padding:12px 0;font-weight:800;color:{themeColor};text-align:right;font-size:18px;"">{Math.Abs(amount):C}</td>
-                                </tr>
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">New Operational Balance</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{account.Balance:C}</td>
-                                </tr>
-                            </table>
-                        </div>
+                    var body = _templateService.GenerateWalletAdjustmentEmail(
+                        org.Name, 
+                        MaskCard(org.AccountNumber), 
+                        amount, 
+                        account.Balance, 
+                        isCredit);
 
-                        <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
-                            These funds are now available for dispersal to your organization's cardholders and subscribers.
-                        </p>
-
-                        <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
-                            <p style=""color:#b2bec3;font-size:12px;margin:0;"">
-                                © {DateTime.UtcNow.Year} Nationlink Finance Management Console. All rights reserved.
-                            </p>
-                        </div>
-                    </div>";
-
+                    var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
                     _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {actionTitle} — {org.Name}", body, attachments);
                 }
             }
@@ -489,44 +452,12 @@ public class OrganizationService : IOrganizationService
                     var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
                     var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
                     
-                    var body = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
-                        <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
-                            <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
-                        </div>
-                        <h2 style=""color:#ff9f43;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Pending Validation Request</h2>
-                        <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                            A new subscriber allotment request has been initiated by <strong>{makerName}</strong> and requires your validation to proceed.
-                        </p>
-                        
-                        <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Request Details</h4>
-                            <table style=""width:100%;border-collapse:collapse;"">
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Target Cardholder</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{user.FirstName} {user.LastName}</td>
-                                </tr>
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Service Card Number</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(user.AccountNumber)}</td>
-                                </tr>
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Transaction Amount</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{amount:C}</td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
-                            Please log in to the Intelligence Oversight panel of your Finance Management Console to review and approve this transaction.
-                        </p>
-
-                        <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
-                            <p style=""color:#b2bec3;font-size:12px;margin:0;"">
-                                This is an automated workflow notification.<br>
-                                © {DateTime.UtcNow.Year} Nationlink Finance Management Console. All rights reserved.
-                            </p>
-                        </div>
-                    </div>";
+                    var body = _templateService.GeneratePendingApprovalEmail(
+                        org.Name, 
+                        makerName, 
+                        $"{user.FirstName} {user.LastName}", 
+                        MaskCard(user.AccountNumber), 
+                        amount);
 
                     foreach (var email in recipients)
                     {
@@ -651,25 +582,7 @@ public class OrganizationService : IOrganizationService
                     if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
                     {
                         var alertType = usedPct >= 80m ? $"{usedPct:F0}% Operational Capacity Alert" : "Critical Liquidity Advisory";
-                        var thresholdBody = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
-                            <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
-                                <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
-                            </div>
-                            <h2 style=""color:#d63031;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">{alertType}</h2>
-                            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                                This is an automated advisory regarding the operational liquidity of <strong>{org.Name}</strong>. Your tenant account has reached a structural capacity threshold and requires attention.
-                            </p>
-                            <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Account Overview</h4>
-                                <table style=""width:100%;border-collapse:collapse;"">
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Total Institutional Wallet</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{total:C}</td></tr>
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Volume Dispersed to Subscribers</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{userBalanceSum:C} ({usedPct:F1}%)</td></tr>
-                                    <tr><td style=""padding:12px 0;color:#d63031;font-size:14px;font-weight:600;"">Remaining Organizational Capital</td><td style=""padding:12px 0;font-weight:800;color:#d63031;text-align:right;font-size:16px;"">{orgBalance:C}</td></tr>
-                                </table>
-                            </div>
-                            <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">We strongly advise replenishing your institutional reserve to ensure continuous functionality.</p>
-                            <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;""><p style=""color:#b2bec3;font-size:12px;margin:0;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console.</p></div>
-                        </div>";
+                        var thresholdBody = _templateService.GenerateCapacityThresholdEmail(org.Name, total, userBalanceSum, usedPct, orgBalance);
                         _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {alertType} — {org.Name}", thresholdBody, attachments);
                     }
 
@@ -688,34 +601,7 @@ public class OrganizationService : IOrganizationService
                         var targetName = targetUser != null ? $"{targetUser.FirstName} {targetUser.LastName}" : userAccount.Name;
                         var targetCard = targetUser?.AccountNumber ?? "N/A";
 
-                        var approvalBody = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
-                            <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
-                                <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
-                            </div>
-                            <h2 style=""color:#00b894;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Transaction Approved</h2>
-                            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                                Good news! A subscriber allotment request has been successfully validated and completed for <strong>{org.Name}</strong>.
-                            </p>
-                            <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Transaction Details</h4>
-                                <table style=""width:100%;border-collapse:collapse;"">
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Recipient Cardholder</td>
-                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{targetName}</td>
-                                    </tr>
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Service Card Number</td>
-                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{MaskCard(targetCard)}</td>
-                                    </tr>
-                                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Approved Amount</td>
-                                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Amount:C}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                            <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">The funds have been successfully settled to the subscriber account.</p>
-                            <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;""><p style=""color:#b2bec3;font-size:12px;margin:0;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console.</p></div>
-                        </div>";
+                        var approvalBody = _templateService.GenerateTransactionApprovedEmail(org.Name, targetName, MaskCard(targetCard), transaction.Amount);
                         foreach (var email in workflowRecipients)
                         {
                             _ = _emailService.SendEmailAsync(email, $"FMC Notification: Transaction Approved — {org.Name}", approvalBody, attachments);

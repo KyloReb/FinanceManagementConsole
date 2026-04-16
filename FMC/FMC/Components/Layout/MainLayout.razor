@@ -53,71 +53,50 @@
                     <ChildContent>
                         <div class="fmc-notif-panel">
                             <div class="fmc-notif-header">
-                                <div>
-                                    <MudText Typo="Typo.body2" Style="font-weight: 800;">System Alerts</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                        @(_alertCount == 0 ? "All systems operational" : $"{_alertCount} item{(_alertCount == 1 ? "" : "s")} need attention")
-                                    </MudText>
-                                </div>
-                                @if (_alertCount > 0)
-                                {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled"
-                                             Style="font-size:0.65rem; font-weight:800; height:20px; padding:0 8px;">
-                                        @_alertCount
-                                    </MudChip>
-                                }
+                                <MudText Typo="Typo.h6" Style="font-weight: 700;">Notification</MudText>
+                            </div>
+                            
+                            <div class="fmc-notif-tabs">
+                                <div class="fmc-notif-tab active">All</div>
+                                <div class="fmc-notif-tab">System</div>
+                                <div class="fmc-notif-tab">Activity</div>
+                                <div class="fmc-notif-tab">Other</div>
                             </div>
 
-                            @if (_alertCount == 0)
-                            {
-                                <div class="fmc-notif-empty">
-                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color: var(--mud-palette-success); font-size: 2rem;" />
-                                    <MudText Typo="Typo.body2" Style="font-weight:600; margin-top:8px;">No Issues Found</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">All tenants are healthy</MudText>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="fmc-notif-body">
+                            <div class="fmc-notif-body">
+                                @if (_alertCount == 0)
+                                {
+                                    <div class="fmc-notif-empty">
+                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color: var(--mud-palette-success); font-size: 2rem;" />
+                                        <MudText Typo="Typo.body2" Style="font-weight:600; margin-top:8px;">No Issues Found</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">All tenants are healthy</MudText>
+                                    </div>
+                                }
+                                else
+                                {
                                     @foreach (var notif in _notifications)
                                     {
-                                        var cssClass = notif.Severity is "critical" or "security" ? "critical" :
-                                                    notif.Severity == "warning" ? "warning" : "info";
-                                        
-                                        var tagColor = notif.Severity is "critical" or "security" ? "fmc-tag-critical" :
-                                                    notif.Severity == "warning" ? "fmc-tag-warning" : "fmc-tag-info";
+                                        var isPending = notif.EntityId != null && notif.EntityId.StartsWith("Pending");
+                                        var actionText = isPending ? "Resolve ↗" : "Review ↗";
+                                        var itemType = isPending ? "Activity" : "System";
 
-                                        var badgeLabel = notif.EntityId != null && notif.EntityId.StartsWith("Pending") ? "ACTION REQUIRED" :
-                                                         notif.EntityId != null && notif.EntityId.StartsWith("Threshold") ? "CAPACITY ALERT" : "COMPLETED";
-
-                                        var icon = notif.Severity is "critical" or "security" ? Icons.Material.Filled.Warning :
-                                                   notif.Severity == "warning" ? Icons.Material.Filled.NotificationImportant : Icons.Material.Filled.CheckCircle;
-
-                                        <div class="fmc-notif-item" @onclick="@(() => HandleAlertClick(notif))">
-                                            <div class="fmc-notif-indicator fmc-bg-@notif.Severity"></div>
-                                            <div class="fmc-notif-icon fmc-text-@notif.Severity">
-                                                <MudIcon Icon="@icon" Size="Size.Small" />
-                                            </div>
-                                            <div class="fmc-notif-item-content">
-                                                <div class="d-flex align-center mb-1">
-                                                    <span class="fmc-notif-tag @tagColor">@badgeLabel</span>
-                                                    @if (notif.Count > 1)
-                                                    {
-                                                        <span class="fmc-notif-count-badge fmc-badge-@notif.Severity">@notif.Count</span>
-                                                    }
-                                                </div>
-                                                <MudText Typo="Typo.body2" Class="fmc-notif-title">@notif.Title</MudText>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="line-height:1.3; display:block; margin-top:2px;">@notif.Description</MudText>
+                                        <div class="fmc-notif-item">
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="margin-bottom: 8px; display: block;">@itemType · @notif.CreatedAt.ToString("MM/dd/yyyy")</MudText>
+                                            <MudText Typo="Typo.body1" Style="font-weight: 700; margin-bottom: 6px;">@notif.Title</MudText>
+                                            <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="line-height:1.4; margin-bottom: 16px;">
+                                                @if(string.IsNullOrEmpty(notif.EntityId) || !notif.EntityId.StartsWith("Pending"))
+                                                {
+                                                    <span style="font-size: 1.1em;">🔔</span>
+                                                }
+                                                @notif.Description
+                                            </MudText>
+                                            
+                                            <div class="fmc-notif-action" @onclick="@(() => HandleAlertClick(notif))">
+                                                <span style="font-weight: 600; font-size: 0.85rem; cursor: pointer;">@actionText</span>
                                             </div>
                                         </div>
                                     }
-                                </div>
-                            }
-
-                            <div class="fmc-notif-footer">
-                                <MudButton FullWidth="true" Variant="Variant.Text" Color="Color.Primary"
-                                           Style="text-transform:none; font-weight:700; font-size:0.8rem;"
-                                           Href="/">View Dashboard</MudButton>
+                                }
                             </div>
                         </div>
                     </ChildContent>
@@ -240,76 +219,70 @@
     /* ── Notification Popover Panel ── */
     .fmc-notif-popover .mud-popover { padding: 0 !important; }
     .fmc-notif-panel {
-        width: 340px;
+        width: 360px;
         background-color: var(--mud-palette-surface);
-        border-radius: 16px;
+        border-radius: 12px;
         overflow: hidden;
     }
     .fmc-notif-header {
+        padding: 20px 20px 8px;
+    }
+    .fmc-notif-tabs {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 18px 20px 14px;
+        padding: 0 12px;
         border-bottom: 1px solid var(--mud-palette-divider);
-        background-color: var(--mud-palette-background-grey);
+    }
+    .fmc-notif-tab {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        color: var(--mud-palette-text-secondary);
+        font-weight: 500;
+        cursor: pointer;
+        position: relative;
+    }
+    .fmc-notif-tab.active {
+        color: var(--mud-palette-primary);
+        font-weight: 600;
+    }
+    .fmc-notif-tab.active::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 12px;
+        right: 12px;
+        height: 2px;
+        background-color: var(--mud-palette-primary);
+    }
+    
+    .fmc-notif-body { 
+        padding: 12px;
+        max-height: 400px;
+        overflow-y: auto;
     }
     .fmc-notif-empty {
         padding: 36px 20px;
         display: flex; flex-direction: column; align-items: center;
         text-align: center;
     }
-    .fmc-notif-body { padding: 0; }
-    .fmc-notif-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 20px 14px 16px;
-        cursor: pointer;
-        border-bottom: 1px solid var(--mud-palette-divider);
-        transition: background-color 0.15s;
-        position: relative;
-    }
-    .fmc-notif-item:last-child { border-bottom: none; }
-    .fmc-notif-item:hover { background-color: var(--mud-palette-action-default-hover); }
     
-    .fmc-notif-indicator { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
-    .fmc-bg-error, .fmc-bg-critical, .fmc-bg-security { background: var(--mud-palette-error); }
-    .fmc-bg-warning { background: var(--mud-palette-warning); }
-    .fmc-bg-info { background: var(--mud-palette-info); }
-
-    .fmc-notif-icon {
-        margin-top: 2px;
-        display: flex; align-items: center; justify-content: center;
-        width: 24px; height: 24px; border-radius: 50%;
+    .fmc-notif-item {
+        background-color: var(--mud-palette-background);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        display: flex;
+        flex-direction: column;
     }
-    .fmc-text-error, .fmc-text-critical, .fmc-text-security { color: var(--mud-palette-error); }
-    .fmc-text-warning { color: var(--mud-palette-warning); }
-    .fmc-text-info { color: var(--mud-palette-info); }
-
-    .fmc-notif-item-content { flex: 1; min-width: 0; }
-    .fmc-notif-title { font-weight: 800; font-size: 0.85rem; letter-spacing: -0.01em; }
-
-    .fmc-notif-tag { 
-        font-size: 0.55rem; font-weight: 900; padding: 2px 6px; border-radius: 4px; 
-        letter-spacing: 0.05em; text-transform: uppercase; margin-right: 8px;
-    }
-    .fmc-tag-critical { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
-    .fmc-tag-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
-    .fmc-tag-info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
-
-    .fmc-notif-count-badge {
-        font-size: 0.6rem; font-weight: 800;
-        padding: 1px 7px; border-radius: 50px;
-        flex-shrink: 0;
-    }
-    .fmc-badge-error, .fmc-badge-critical, .fmc-badge-security { background: rgba(var(--mud-palette-error-rgb), 0.1);   color: var(--mud-palette-error); }
-    .fmc-badge-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
-    .fmc-badge-info    { background: rgba(var(--mud-palette-info-rgb), 0.1);    color: var(--mud-palette-info); }
-    .fmc-notif-footer {
-        padding: 10px 12px;
+    .fmc-notif-item:last-child { margin-bottom: 0; }
+    
+    .fmc-notif-action {
         border-top: 1px solid var(--mud-palette-divider);
-        background-color: var(--mud-palette-background-grey);
+        padding-top: 12px;
+        text-align: center;
+        transition: opacity 0.2s;
     }
+    .fmc-notif-action:hover { opacity: 0.7; }
 </style>
 
 @code {
@@ -319,7 +292,7 @@
 
     // Notification state
     private int _alertCount;
-    private record NotifItem(long Id, string Title, string Description, string Href, string Severity, int Count, string? EntityId);
+    private record NotifItem(long Id, string Title, string Description, string Href, string Severity, int Count, string? EntityId, DateTime CreatedAt);
     private List<NotifItem> _notifications = new();
     private HashSet<string> _dismissedNotifications = new();
 
@@ -405,7 +378,8 @@
                         alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
                         alert.Severity.ToString().ToLower(),
                         1,
-                        alert.EntityId
+                        alert.EntityId,
+                        alert.CreatedAt
                     ));
                 }
             }
@@ -427,7 +401,8 @@
                         href,
                         alert.Severity.ToString().ToLower(),
                         1,
-                        alert.EntityId
+                        alert.EntityId,
+                        DateTime.UtcNow
                     ));
                 }
             }

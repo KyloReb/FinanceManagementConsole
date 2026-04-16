@@ -90,7 +90,10 @@
                         <MudTh Class="fmc-th">AUTHORITY</MudTh>
                         <MudTh Class="fmc-th">DISTRICT / TENANT</MudTh>
                         <MudTh Class="fmc-th" Style="text-align:right"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.Balance)">LIQUIDITY BALANCE</MudTableSortLabel></MudTh>
-                        <MudTh Class="fmc-th" Style="text-align:right">FINANCIAL ACTIONS</MudTh>
+                        @if (_canAdjust)
+                        {
+                            <MudTh Class="fmc-th" Style="text-align:right">FINANCIAL ACTIONS</MudTh>
+                        }
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd Class="py-5">
@@ -123,16 +126,19 @@
                             </MudText>
                         </MudTd>
                         <MudTd Style="text-align:right" @onclick:stopPropagation="true">
-                            <div class="d-flex justify-end gap-2">
-                                <MudTooltip Text="Credit Ledger">
-                                    <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" 
-                                                   OnClick="@(() => OpenUserAdjustmentDialog(context, true))" Class="fmc-action-icon-fin" />
-                                </MudTooltip>
-                                <MudTooltip Text="Debit Ledger">
-                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" 
-                                                   OnClick="@(() => OpenUserAdjustmentDialog(context, false))" Class="fmc-action-icon-fin" />
-                                </MudTooltip>
-                            </div>
+                            @if (_canAdjust)
+                            {
+                                <div class="d-flex justify-end gap-2">
+                                    <MudTooltip Text="Credit Ledger">
+                                        <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" 
+                                                       OnClick="@(() => OpenUserAdjustmentDialog(context, true))" Class="fmc-action-icon-fin" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Debit Ledger">
+                                        <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" 
+                                                       OnClick="@(() => OpenUserAdjustmentDialog(context, false))" Class="fmc-action-icon-fin" />
+                                    </MudTooltip>
+                                </div>
+                            }
                         </MudTd>
                     </RowTemplate>
                     <PagerContent>
@@ -258,6 +264,7 @@
     private string _searchString = "";
     private bool _isOrgScoped = false;
     private bool _isCEOOrAdmin = false;
+    private bool _canAdjust = false;
     private bool _isMobile = false;
     public Guid Id { get; } = Guid.NewGuid();
     public ResizeOptions ResizeOptions { get; } = new() { ReportRate = 100, NotifyOnBreakpointOnly = true };
@@ -268,6 +275,8 @@
         var user = authState.User;
         _isCEOOrAdmin = user.IsInRole(Roles.CEO) || user.IsInRole(Roles.SuperAdmin);
         _isOrgScoped = !user.IsInRole(Roles.SuperAdmin);
+        // Only Makers and SuperAdmins can credit/debit — CEO is read-only
+        _canAdjust = user.IsInRole(Roles.SuperAdmin) || user.IsInRole(Roles.Maker);
         
         await LoadData(user);
     }

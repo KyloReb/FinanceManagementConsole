@@ -74,7 +74,9 @@
                                alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
                 
                 var href = alert.EntityId == "Pending" ? "/pending-requests" : "/transactions";
-                var actionText = alert.EntityId == "Pending" ? "Resolve" : "Acknowledge";
+                // CEO: read-only visibility — cannot resolve, that's the Approver's job
+                var actionText = IsCeo ? "View" : (alert.EntityId == "Pending" ? "Resolve" : "Acknowledge");
+                var actionVariant = IsCeo ? Variant.Outlined : Variant.Filled;
                 var badgeLabel = alert.EntityId == "Pending" ? "ACTION REQUIRED" : "COMPLETED";
 
                 <div class="fmc-alert-row-hub">
@@ -89,7 +91,7 @@
                         </MudText>
                     </div>
                     <div class="fmc-alert-actions-hub">
-                        <MudButton Variant="Variant.Filled" Color="@btnColor" Size="Size.Small"
+                        <MudButton Variant="@actionVariant" Color="@btnColor" Size="Size.Small"
                                    Href="@href"
                                    Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">@actionText</MudButton>
                     </div>
@@ -101,6 +103,7 @@
 
 @code {
     [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool IsCeo { get; set; }
     
     private bool _dismissed;
     private List<SystemAlertDto> _alerts = new();

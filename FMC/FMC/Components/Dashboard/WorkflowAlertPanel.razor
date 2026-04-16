@@ -129,6 +129,7 @@
     {
         _dismissed.Add(entityId);
         await SaveDismissed();
+        OrgService.NotifyDataChanged();
         StateHasChanged();
     }
 
@@ -146,6 +147,7 @@
     {
         _panelDismissed = true;
         await SaveDismissed();
+        OrgService.NotifyDataChanged();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

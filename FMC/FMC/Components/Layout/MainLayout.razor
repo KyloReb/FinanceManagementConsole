@@ -5,6 +5,7 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject OrganizationApiService OrgService
+@inject IJSRuntime JSRuntime
 
 @*
     The main layout for the Finance Management Console.
@@ -80,14 +81,33 @@
                                 <div class="fmc-notif-body">
                                     @foreach (var notif in _notifications)
                                     {
+                                        var cssClass = notif.Severity is "critical" or "security" ? "critical" :
+                                                    notif.Severity == "warning" ? "warning" : "info";
+                                        
+                                        var tagColor = notif.Severity is "critical" or "security" ? "fmc-tag-critical" :
+                                                    notif.Severity == "warning" ? "fmc-tag-warning" : "fmc-tag-info";
+
+                                        var badgeLabel = notif.EntityId != null && notif.EntityId.StartsWith("Pending") ? "ACTION REQUIRED" :
+                                                         notif.EntityId != null && notif.EntityId.StartsWith("Threshold") ? "CAPACITY ALERT" : "COMPLETED";
+
+                                        var icon = notif.Severity is "critical" or "security" ? Icons.Material.Filled.Warning :
+                                                   notif.Severity == "warning" ? Icons.Material.Filled.NotificationImportant : Icons.Material.Filled.CheckCircle;
+
                                         <div class="fmc-notif-item" @onclick="@(() => HandleAlertClick(notif))">
-                                            <div class="fmc-notif-dot fmc-dot-@notif.Severity"></div>
+                                            <div class="fmc-notif-indicator fmc-bg-@notif.Severity"></div>
+                                            <div class="fmc-notif-icon fmc-text-@notif.Severity">
+                                                <MudIcon Icon="@icon" Size="Size.Small" />
+                                            </div>
                                             <div class="fmc-notif-item-content">
-                                                <div class="d-flex align-center justify-space-between">
-                                                    <MudText Typo="Typo.body2" Style="font-weight:700;">@notif.Title</MudText>
-                                                    <span class="fmc-notif-count-badge fmc-badge-@notif.Severity">@notif.Count</span>
+                                                <div class="d-flex align-center mb-1">
+                                                    <span class="fmc-notif-tag @tagColor">@badgeLabel</span>
+                                                    @if (notif.Count > 1)
+                                                    {
+                                                        <span class="fmc-notif-count-badge fmc-badge-@notif.Severity">@notif.Count</span>
+                                                    }
                                                 </div>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="line-height:1.3;">@notif.Description</MudText>
+                                                <MudText Typo="Typo.body2" Class="fmc-notif-title">@notif.Title</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="line-height:1.3; display:block; margin-top:2px;">@notif.Description</MudText>
                                             </div>
                                         </div>
                                     }
@@ -238,34 +258,51 @@
         display: flex; flex-direction: column; align-items: center;
         text-align: center;
     }
-    .fmc-notif-body { padding: 6px 0; }
+    .fmc-notif-body { padding: 0; }
     .fmc-notif-item {
         display: flex;
         align-items: flex-start;
         gap: 12px;
-        padding: 12px 20px;
+        padding: 14px 20px 14px 16px;
         cursor: pointer;
         border-bottom: 1px solid var(--mud-palette-divider);
         transition: background-color 0.15s;
+        position: relative;
     }
     .fmc-notif-item:last-child { border-bottom: none; }
     .fmc-notif-item:hover { background-color: var(--mud-palette-action-default-hover); }
-    .fmc-notif-dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        margin-top: 5px;
+    
+    .fmc-notif-indicator { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+    .fmc-bg-error, .fmc-bg-critical, .fmc-bg-security { background: var(--mud-palette-error); }
+    .fmc-bg-warning { background: var(--mud-palette-warning); }
+    .fmc-bg-info { background: var(--mud-palette-info); }
+
+    .fmc-notif-icon {
+        margin-top: 2px;
+        display: flex; align-items: center; justify-content: center;
+        width: 24px; height: 24px; border-radius: 50%;
     }
-    .fmc-dot-error   { background: var(--mud-palette-error); }
-    .fmc-dot-warning { background: var(--mud-palette-warning); }
-    .fmc-dot-info    { background: var(--mud-palette-info); }
+    .fmc-text-error, .fmc-text-critical, .fmc-text-security { color: var(--mud-palette-error); }
+    .fmc-text-warning { color: var(--mud-palette-warning); }
+    .fmc-text-info { color: var(--mud-palette-info); }
+
     .fmc-notif-item-content { flex: 1; min-width: 0; }
+    .fmc-notif-title { font-weight: 800; font-size: 0.85rem; letter-spacing: -0.01em; }
+
+    .fmc-notif-tag { 
+        font-size: 0.55rem; font-weight: 900; padding: 2px 6px; border-radius: 4px; 
+        letter-spacing: 0.05em; text-transform: uppercase; margin-right: 8px;
+    }
+    .fmc-tag-critical { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+    .fmc-tag-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .fmc-tag-info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
+
     .fmc-notif-count-badge {
         font-size: 0.6rem; font-weight: 800;
         padding: 1px 7px; border-radius: 50px;
         flex-shrink: 0;
     }
-    .fmc-badge-error   { background: rgba(var(--mud-palette-error-rgb), 0.1);   color: var(--mud-palette-error); }
+    .fmc-badge-error, .fmc-badge-critical, .fmc-badge-security { background: rgba(var(--mud-palette-error-rgb), 0.1);   color: var(--mud-palette-error); }
     .fmc-badge-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
     .fmc-badge-info    { background: rgba(var(--mud-palette-info-rgb), 0.1);    color: var(--mud-palette-info); }
     .fmc-notif-footer {
@@ -282,8 +319,9 @@
 
     // Notification state
     private int _alertCount;
-    private record NotifItem(long Id, string Title, string Description, string Href, string Severity, int Count);
+    private record NotifItem(long Id, string Title, string Description, string Href, string Severity, int Count, string? EntityId);
     private List<NotifItem> _notifications = new();
+    private HashSet<string> _dismissedNotifications = new();
 
     private async Task HandleAlertClick(NotifItem notif)
     {
@@ -292,14 +330,21 @@
         // Optimistic UI updates
         _notifications.RemoveAll(n => n.Id == notif.Id && n.Title == notif.Title);
         _alertCount = _notifications.Count;
-        StateHasChanged();
-
+        
         if (notif.Id > 0)
         {
             // Background enterprise resolution for persistent system alerts
             await OrgService.ResolveAlertAsync(notif.Id);
         }
+        else if (notif.EntityId != null)
+        {
+            // Transient workflow alert dismissals from navbar
+            _dismissedNotifications.Add(notif.EntityId);
+            try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_dismissed", System.Text.Json.JsonSerializer.Serialize(_dismissedNotifications)); } catch { }
+        }
+        
         OrgService.NotifyDataChanged(); // Let other components know an indicator was dismissed
+        StateHasChanged();
 
         if (!string.IsNullOrEmpty(notif.Href))
             NavigationManager.NavigateTo(notif.Href);
@@ -318,6 +363,24 @@
     {
         await LoadAlerts();
         await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var dictStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "fmc_wf_dismissed");
+                if (!string.IsNullOrEmpty(dictStr))
+                {
+                    _dismissedNotifications = System.Text.Json.JsonSerializer.Deserialize<HashSet<string>>(dictStr) ?? new();
+                    await LoadAlerts();
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
     }
 
     private async Task LoadAlerts()
@@ -341,7 +404,8 @@
                         alert.Message, 
                         alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
                         alert.Severity.ToString().ToLower(),
-                        1
+                        1,
+                        alert.EntityId
                     ));
                 }
             }
@@ -352,14 +416,18 @@
                 var wfAlerts = await OrgService.GetWorkflowAlertsAsync();
                 foreach (var alert in wfAlerts)
                 {
-                    var href = alert.EntityId == "Pending" ? "/pending-requests" : "/transactions";
+                    if (_dismissedNotifications.Contains(alert.EntityId ?? ""))
+                        continue;
+
+                    var href = alert.EntityId != null && alert.EntityId.StartsWith("Pending") ? "/pending-requests" : "/transactions";
                     _notifications.Add(new NotifItem(
                         0, // Synthetic ID for transient workflow alerts
                         alert.Title,
                         alert.Message,
                         href,
                         alert.Severity.ToString().ToLower(),
-                        1
+                        1,
+                        alert.EntityId
                     ));
                 }
             }

@@ -381,6 +381,88 @@ public class OrganizationService : IOrganizationService
 
         await _context.SaveChangesAsync(cancellationToken);
         
+        // ── Phase 1: Workflow Notifications (Pending Approval) ────────────────
+        try
+        {
+            var org = user.OrganizationInfo;
+            if (org != null)
+            {
+                var approverEmails = await (from u in _context.Users.OfType<ApplicationUser>()
+                                            where u.OrganizationId == org.Id
+                                            join ur in _context.UserRoles on u.Id equals ur.UserId
+                                            join r in _context.Roles on ur.RoleId equals r.Id
+                                            where r.Name == FMC.Shared.Auth.Roles.Approver
+                                            select u.Email).ToListAsync(cancellationToken);
+
+                string? ceoEmail = null;
+                if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+                {
+                    ceoEmail = await _context.Users.OfType<ApplicationUser>()
+                        .Where(u => u.Id == org.ChiefExecutiveId)
+                        .Select(u => u.Email)
+                        .FirstOrDefaultAsync(cancellationToken);
+                }
+
+                var recipients = approverEmails.ToHashSet();
+                if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
+
+                if (recipients.Any())
+                {
+                    var makerName = performedBy;
+                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
+                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
+                    
+                    var body = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
+                        <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
+                            <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
+                        </div>
+                        <h2 style=""color:#ff9f43;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Pending Validation Request</h2>
+                        <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                            A new subscriber allotment request has been initiated by <strong>{makerName}</strong> and requires your validation to proceed.
+                        </p>
+                        
+                        <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
+                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Request Details</h4>
+                            <table style=""width:100%;border-collapse:collapse;"">
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Target Cardholder</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{user.FirstName} {user.LastName}</td>
+                                </tr>
+                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Transaction Amount</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{amount:C}</td>
+                                </tr>
+                                <tr>
+                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Reason</td>
+                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{label ?? "Standard Allotment"}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
+                            Please log in to the Intelligence Oversight panel of your Finance Management Console to review and approve this transaction.
+                        </p>
+
+                        <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
+                            <p style=""color:#b2bec3;font-size:12px;margin:0;"">
+                                This is an automated workflow notification.<br>
+                                © {DateTime.UtcNow.Year} Nationlink Finance Management Console. All rights reserved.
+                            </p>
+                        </div>
+                    </div>";
+
+                    foreach (var email in recipients)
+                    {
+                        _ = _emailService.SendEmailAsync(email, $"FMC Action Required: Pending Approval for {org.Name}", body, attachments);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[OrganizationService] Failed to send workflow notifications for pending tx.");
+        }
+        
         _logger.LogInformation("[OrganizationService] Transaction PENDING for {UserId} by Maker {MakerId}. Amount: {Amount}", 
             userId, _currentUserService.UserId, amount);
 
@@ -453,85 +535,105 @@ public class OrganizationService : IOrganizationService
         );
 
         await _context.SaveChangesAsync(cancellationToken);
-
-        // ── Balance Threshold Alerts ──────────────────────────────────────────
-        if (transaction.OrganizationId.HasValue)
+        
+        // ── Workflow & Capacity Notifications ─────────────────────────────────
+        try
         {
-            var orgId = transaction.OrganizationId.Value;
-            var org = await _repository.GetByIdAsync(orgId, cancellationToken);
-            if (org != null)
+            if (transaction.OrganizationId.HasValue)
             {
-                var orgBalance = await _context.Accounts.IgnoreQueryFilters()
-                    .Where(a => a.TenantId == orgId.ToString())
-                    .SumAsync(a => a.Balance, cancellationToken);
-
-                var userBalanceSum = await (from u in _context.Users.OfType<ApplicationUser>()
-                                             where u.OrganizationId == orgId
-                                             join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                                             select a.Balance).SumAsync(cancellationToken);
-
-                var total = orgBalance + userBalanceSum;
-                var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
-
-                // Resolve CEO email for this org
-                string? ceoEmail = null;
-                if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+                var orgId = transaction.OrganizationId.Value;
+                var org = await _repository.GetByIdAsync(orgId, cancellationToken);
+                if (org != null)
                 {
-                    var ceo = await _context.Users.IgnoreQueryFilters()
-                        .FirstOrDefaultAsync(u => u.Id == org.ChiefExecutiveId, cancellationToken);
-                    ceoEmail = ceo?.Email;
-                }
+                    // 1. Resolve Common Data
+                    var orgBalance = await _context.Accounts.IgnoreQueryFilters()
+                        .Where(a => a.TenantId == orgId.ToString())
+                        .SumAsync(a => a.Balance, cancellationToken);
 
-                if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
-                {
-                    var alertType = usedPct >= 80m ? $"{usedPct:F0}% Operational Capacity Alert" : "Critical Liquidity Advisory";
-                    
+                    var userBalanceSum = await (from u in _context.Users.OfType<ApplicationUser>()
+                                                 where u.OrganizationId == orgId
+                                                 join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
+                                                 select a.Balance).SumAsync(cancellationToken);
+
+                    var total = orgBalance + userBalanceSum;
+                    var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
+
+                    string? ceoEmail = null;
+                    if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
+                    {
+                        ceoEmail = await _context.Users.IgnoreQueryFilters()
+                            .Where(u => u.Id == org.ChiefExecutiveId)
+                            .Select(u => u.Email)
+                            .FirstOrDefaultAsync(cancellationToken);
+                    }
+
                     var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
                     var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
 
-                    var body = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
-                        <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
-                            <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
-                        </div>
-                        <h2 style=""color:#d63031;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">{alertType}</h2>
-                        <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                            This is an automated advisory regarding the operational liquidity of <strong>{org.Name}</strong>. Your tenant account has reached a structural capacity threshold and requires attention.
-                        </p>
-                        
-                        <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                            <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Account Overview</h4>
-                            <table style=""width:100%;border-collapse:collapse;"">
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Total Institutional Wallet</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{total:C}</td>
-                                </tr>
-                                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                                    <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Volume Dispersed to Subscribers</td>
-                                    <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{userBalanceSum:C} ({usedPct:F1}%)</td>
-                                </tr>
-                                <tr>
-                                    <td style=""padding:12px 0;color:#d63031;font-size:14px;font-weight:600;"">Remaining Organizational Capital</td>
-                                    <td style=""padding:12px 0;font-weight:800;color:#d63031;text-align:right;font-size:16px;"">{orgBalance:C}</td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
-                            We strongly advise replenishing your institutional reserve to ensure continuous operational functionality and prevent allotment failures within your network.
-                        </p>
-
-                        <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;"">
-                            <p style=""color:#b2bec3;font-size:12px;margin:0;"">
-                                This is an automated system alert. Please do not reply directly to this thread.<br>
-                                © {DateTime.UtcNow.Year} Nationlink Finance Management Console. All rights reserved.
+                    // 2. Handle Capacity Threshold Advisory (SuperAdmin requirement)
+                    if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
+                    {
+                        var alertType = usedPct >= 80m ? $"{usedPct:F0}% Operational Capacity Alert" : "Critical Liquidity Advisory";
+                        var thresholdBody = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
+                            <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
+                                <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
+                            </div>
+                            <h2 style=""color:#d63031;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">{alertType}</h2>
+                            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                                This is an automated advisory regarding the operational liquidity of <strong>{org.Name}</strong>. Your tenant account has reached a structural capacity threshold and requires attention.
                             </p>
-                        </div>
-                    </div>";
+                            <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
+                                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Account Overview</h4>
+                                <table style=""width:100%;border-collapse:collapse;"">
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Total Institutional Wallet</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{total:C}</td></tr>
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Volume Dispersed to Subscribers</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{userBalanceSum:C} ({usedPct:F1}%)</td></tr>
+                                    <tr><td style=""padding:12px 0;color:#d63031;font-size:14px;font-weight:600;"">Remaining Organizational Capital</td><td style=""padding:12px 0;font-weight:800;color:#d63031;text-align:right;font-size:16px;"">{orgBalance:C}</td></tr>
+                                </table>
+                            </div>
+                            <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">We strongly advise replenishing your institutional reserve to ensure continuous functionality.</p>
+                            <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;""><p style=""color:#b2bec3;font-size:12px;margin:0;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console.</p></div>
+                        </div>";
+                        _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {alertType} — {org.Name}", thresholdBody, attachments);
+                    }
 
-                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {alertType} — {org.Name}", body, attachments);
-                    _logger.LogWarning("[OrganizationService] Balance alert fired for {OrgName}: {UsedPct:F1}% used, remaining {OrgBalance:C}", org.Name, usedPct, orgBalance);
+                    // 3. Handle Workflow Approval Notification (Maker & CEO)
+                    var makerEmail = await _context.Users.IgnoreQueryFilters().Where(u => u.Id == transaction.MakerId).Select(u => u.Email).FirstOrDefaultAsync(cancellationToken);
+                    var workflowRecipients = new HashSet<string>();
+                    if (!string.IsNullOrEmpty(makerEmail)) workflowRecipients.Add(makerEmail);
+                    if (!string.IsNullOrEmpty(ceoEmail)) workflowRecipients.Add(ceoEmail);
+
+                    if (workflowRecipients.Any())
+                    {
+                        var approvalBody = $@"<div style=""font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif;max-width:600px;margin:20px auto;background:#ffffff;padding:40px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.04);border:1px solid #eaeaea;"">
+                            <div style=""text-align: center; padding-bottom: 30px; border-bottom: 2px solid #f0f0f0;"">
+                                <img src=""cid:nlklogo"" alt=""Nationlink Dashboard"" width=""180"" style=""max-width: 180px; height: auto; display: block; margin: 0 auto;"" />
+                            </div>
+                            <h2 style=""color:#00b894;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Transaction Approved</h2>
+                            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                                Good news! A subscriber allotment request has been successfully validated and completed for <strong>{org.Name}</strong>.
+                            </p>
+                            <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
+                                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Transaction Details</h4>
+                                <table style=""width:100%;border-collapse:collapse;"">
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Recipient Cardholder</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{userAccount.Name}</td></tr>
+                                    <tr style=""border-bottom: 1px solid #e1e5ea;""><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Approved Amount</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Amount:C}</td></tr>
+                                    <tr><td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Reason</td><td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{transaction.Label}</td></tr>
+                                </table>
+                            </div>
+                            <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">The funds have been successfully settled to the subscriber account.</p>
+                            <div style=""border-top:1px solid #eeeeee;padding-top:20px;text-align:center;""><p style=""color:#b2bec3;font-size:12px;margin:0;"">© {DateTime.UtcNow.Year} Nationlink Finance Management Console.</p></div>
+                        </div>";
+                        foreach (var email in workflowRecipients)
+                        {
+                            _ = _emailService.SendEmailAsync(email, $"FMC Notification: Transaction Approved — {org.Name}", approvalBody, attachments);
+                        }
+                    }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[OrganizationService] Failed to send notifications during approval workflow.");
         }
 
         return true;

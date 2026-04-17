@@ -111,6 +111,16 @@ public class OrganizationRepository : IOrganizationRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IEnumerable<Transaction>> GetProcessedTransactionsSinceAsync(Guid organizationId, DateTime since, CancellationToken ct = default)
+    {
+        return await _context.Transactions
+            .IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == organizationId 
+                    && (t.Status == "Approved" || t.Status == "Rejected" || t.Status == "Successful")
+                    && t.ActionDate >= since)
+            .ToListAsync(ct);
+    }
+
     public async Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default)
     {
         var query = _context.Transactions.IgnoreQueryFilters().Where(t => t.OrganizationId == organizationId);

@@ -2,9 +2,11 @@
 @using FMC.Shared.DTOs
 @using FMC.Shared.Auth
 @using FMC.Services.Api
+@using FMC.Services
 @using FMC.Components.Pages.Admin
 @using FMC.Components.Pages.Admin.Dialogs
 @inject OrganizationApiService OrgService
+@inject IReportService ReportGen
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @attribute [Authorize(Roles = "SuperAdmin,CEO,Maker,Approver")]
@@ -29,24 +31,43 @@
     </div>
 
     <div class="fmc-integrated-ledger">
-        <MudTabs @ref="_tabs" ActivePanelIndexChanged="OnTabChanged" Centered="false" Rounded="false" ApplyEffectsToContainer="false" 
-                 Color="Color.Default" Elevation="0" SliderColor="Color.Info" Class="fmc-integrated-tabs">
-            <MudTabPanel Text="Action Required" Icon="@Icons.Material.Filled.PendingActions">
-                <ChildContent>
-                    @RenderTable(_pendingTransactions, "Pending")
-                </ChildContent>
-            </MudTabPanel>
-            <MudTabPanel Text="Authorized" Icon="@Icons.Material.Filled.CheckCircle">
-                <ChildContent>
-                    @RenderTable(_approvedTransactions, "Approved")
-                </ChildContent>
-            </MudTabPanel>
-            <MudTabPanel Text="Denied" Icon="@Icons.Material.Filled.Cancel">
-                <ChildContent>
-                    @RenderTable(_rejectedTransactions, "Rejected")
-                </ChildContent>
-            </MudTabPanel>
-        </MudTabs>
+        <div class="fmc-custom-tab-bar">
+            <button class="fmc-tab-btn @(GetActiveCls(0))" @onclick="@(() => SetTab(0))">
+                <MudIcon Icon="@Icons.Material.Filled.List" Size="Size.Small" Class="mr-2" />
+                ALL
+            </button>
+            <button class="fmc-tab-btn @(GetActiveCls(1))" @onclick="@(() => SetTab(1))">
+                <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Small" Class="mr-2" />
+                ACTION REQUIRED
+            </button>
+            <button class="fmc-tab-btn @(GetActiveCls(2))" @onclick="@(() => SetTab(2))">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-2" />
+                AUTHORIZED
+            </button>
+            <button class="fmc-tab-btn @(GetActiveCls(3))" @onclick="@(() => SetTab(3))">
+                <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Class="mr-2" />
+                DENIED
+            </button>
+        </div>
+
+        <div class="fmc-tab-content pa-4">
+            @if (_activeIndex == 0)
+            {
+                @RenderTable(_allTransactions, "Global")
+            }
+            else if (_activeIndex == 1)
+            {
+                @RenderTable(_pendingTransactions, "Pending")
+            }
+            else if (_activeIndex == 2)
+            {
+                @RenderTable(_approvedTransactions, "Authorized")
+            }
+            else if (_activeIndex == 3)
+            {
+                @RenderTable(_rejectedTransactions, "Denied")
+            }
+        </div>
     </div>
 </MudContainer>
 
@@ -72,13 +93,49 @@
         else
         {
             <MudTable Items="@items" Hover="true" Elevation="0" Class="fmc-premium-table" Striped="false" 
+                      Filter="new Func<TransactionDto,bool>(FilterFunc)"
                       OnRowClick="@((TableRowClickEventArgs<TransactionDto> e) => OpenDetail(e.Item!))" RowClass="cursor-pointer">
                 <ToolBarContent>
                     <MudText Typo="Typo.h6" Style="font-weight: 900; font-size: 0.95rem; letter-spacing: 0.05em; opacity:0.8;">@status.ToUpper() RECORDS</MudText>
                     <MudSpacer />
-                    <MudTextField @bind-Value="_searchString" Placeholder="Filter ledger..." 
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.FilterList" IconSize="Size.Medium" 
-                                  Class="mt-0" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 300px; border-radius: 8px;"></MudTextField>
+                    <div class="d-flex align-center gap-4 py-2">
+                        @if (_isCeo)
+                        {
+                            <div class="d-flex gap-2 mr-4">
+                                <MudTooltip Text="Export to Excel">
+                                    <MudIconButton Icon="@Icons.Custom.FileFormats.FileExcel" Color="Color.Success" Variant="Variant.Outlined" 
+                                                   OnClick="ExportToExcel" Style="border-radius: 8px;" />
+                                </MudTooltip>
+                                <MudTooltip Text="Export to PDF">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" Variant="Variant.Outlined" 
+                                                   OnClick="ExportToPdf" Style="border-radius: 8px;" />
+                                </MudTooltip>
+                            </div>
+                        }
+
+                        <div class="fmc-date-filter-container" style="position: relative;">
+                            <MudOverlay Visible="@_datePickerOpen" OnClick="@(() => _datePickerOpen = false)" ZIndex="9998" AutoClose="true" />
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.CalendarMonth" 
+                                       EndIcon="@Icons.Material.Filled.ArrowDropDown" OnClick="@(() => _datePickerOpen = !_datePickerOpen)"
+                                       Style="border-radius: 12px; min-width: 240px; height: 40px; font-weight: 800; text-transform: none; color: var(--mud-palette-text-primary); border-color: var(--mud-palette-divider); position: relative; z-index: 10000;">
+                                @(_filterDateRange?.Start?.ToString("MMM dd") ?? "Start") — @(_filterDateRange?.End?.ToString("MMM dd") ?? "End")
+                            </MudButton>
+                            
+                            <MudPopover Open="@_datePickerOpen" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" 
+                                        Class="fmc-datepicker-popover" Fixed="true" Style="z-index: 9999;">
+                                <div class="pa-2" style="background-color: #121212; width: 330px; overflow: hidden;">
+                                     <MudDateRangePicker DateRange="_filterDateRange" PickerVariant="PickerVariant.Static" 
+                                                         Elevation="0" Color="Color.Primary" Rounded="true" 
+                                                         Style="width: 100%;"
+                                                         DateRangeChanged="@(async dr => { _filterDateRange = dr; _datePickerOpen = false; StateHasChanged(); })" />
+                                </div>
+                            </MudPopover>
+                        </div>
+                                       
+                        <MudTextField @bind-Value="_searchString" Placeholder="Filter ledger..." 
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" 
+                                      Class="mt-0" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 300px; border-radius: 12px; font-weight: 700;"></MudTextField>
+                    </div>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x=>x.Date))">TIMESTAMP</MudTableSortLabel></MudTh>
@@ -87,6 +144,10 @@
                     @if (status == "Pending")
                     {
                         <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x=>x.MakerName ?? ""))">INITIATOR</MudTableSortLabel></MudTh>
+                    }
+                    else if (status == "Global")
+                    {
+                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x=>x.Status))">STATUS</MudTableSortLabel></MudTh>
                     }
                     else
                     {
@@ -111,10 +172,17 @@
                     </MudTd>
                     <MudTd DataLabel="Authority">
                         <div class="d-flex align-center">
-                            <MudAvatar Size="Size.Small" Color="Color.Surface" Class="mr-2" Style="width: 24px; height: 24px; font-size: 0.6rem; border:1px solid var(--mud-palette-divider);">
-                                @((context.ApproverName ?? context.MakerName ?? "S")[0])
-                            </MudAvatar>
-                            <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8;">@(context.Status == "Pending" ? context.MakerName : context.ApproverName ?? "System")</MudText>
+                            @if (status == "Global")
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled" Style="font-weight: 900; font-size: 0.6rem;">@context.Status.ToUpper()</MudChip>
+                            }
+                            else
+                            {
+                                <MudAvatar Size="Size.Small" Color="Color.Surface" Class="mr-2" Style="width: 24px; height: 24px; font-size: 0.6rem; border:1px solid var(--mud-palette-divider);">
+                                    @((context.ApproverName ?? context.MakerName ?? "S")[0])
+                                </MudAvatar>
+                                <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8;">@(context.Status == "Pending" ? context.MakerName : context.ApproverName ?? "System")</MudText>
+                            }
                         </div>
                     </MudTd>
                     <MudTd DataLabel="Settlement">
@@ -145,6 +213,9 @@
                         }
                     </MudTd>
                 </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10, 20, 50, 100}" />
+                </PagerContent>
             </MudTable>
         }
     };
@@ -153,32 +224,105 @@
 <style>
     :root { --fmc-font-premium: 'Inter', -apple-system, sans-serif; }
     .fmc-integrated-ledger { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; background-color: var(--mud-palette-surface); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-    .fmc-integrated-tabs .mud-tabs-toolbar { border-bottom: 2px solid var(--mud-palette-divider); background-color: rgba(var(--mud-palette-primary-rgb), 0.04); height: 64px; }
-    .fmc-integrated-tabs .mud-tab { font-weight: 900 !important; text-transform: uppercase !important; letter-spacing: 0.1em !important; font-size: 0.72rem !important; min-width: 180px; transition: all 0.3s ease; }
-    .fmc-integrated-tabs .mud-tab-active { color: var(--mud-palette-primary) !important; background-color: var(--mud-palette-surface); position: relative; }
-    .fmc-integrated-tabs .mud-tab-active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: var(--mud-palette-info); border-radius: 2px 2px 0 0; }
-    .fmc-integrated-tabs .mud-tab-slider { visibility: hidden !important; } /* Customizing active indicator via ::after */
+    .fmc-custom-tab-bar { display: flex; width: 100%; background: rgba(var(--mud-palette-primary-rgb), 0.04); height: 64px; border-bottom: 2px solid var(--mud-palette-divider); }
+    .fmc-tab-btn { flex: 1; border: none; background: transparent; color: var(--mud-palette-text-secondary); font-weight: 900; font-size: 0.75rem; letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; border-right: 1px solid rgba(var(--mud-palette-divider-rgb), 0.1); outline: none; }
+    .fmc-tab-btn:last-child { border-right: none; }
+    .fmc-tab-btn:hover { background: rgba(255,255,255,0.02); color: var(--mud-palette-text-primary); }
+    .fmc-tab-btn.active { color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.06); position: relative; }
+    .fmc-tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: var(--mud-palette-primary); }
+    .fmc-tab-content { min-height: 400px; }
+    
+    /* GLOBAL PICKER OVERRIDES (Targeting the Portal) */
+    .fmc-datepicker-popover .mud-picker-static-header { display: none !important; }
+    .fmc-datepicker-popover .mud-picker-header { background-color: #1a1a1c !important; color: var(--mud-palette-primary) !important; }
+    .fmc-datepicker-popover .mud-picker-header-label { color: var(--mud-palette-primary) !important; font-weight: 900 !important; }
+    .fmc-datepicker-popover .mud-picker-calendar-header { color: white !important; }
+    .fmc-datepicker-popover .mud-day { color: #ccc !important; }
     .fmc-premium-table { padding-bottom: 8px; }
     .fmc-premium-table .mud-table-head { background-color: transparent; }
     .fmc-premium-table .mud-th { font-weight: 950 !important; color: var(--mud-palette-text-secondary); font-size: 0.65rem !important; letter-spacing: 0.12em; text-transform: uppercase; padding: 22px 24px !important; border-bottom: 2px solid var(--mud-palette-divider); }
     .fmc-premium-table .mud-td { padding: 18px 24px !important; border-bottom: 1px solid rgba(var(--mud-palette-divider-rgb), 0.2); }
     .fmc-card-mono { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; background: rgba(var(--mud-palette-background-grey-rgb), 0.6); padding: 5px 10px; border-radius: 8px; opacity: 0.9; border: 1px solid var(--mud-palette-divider); color: var(--mud-palette-primary); }
     .fmc-empty-state { border: none; background: transparent !important; }
+    
+    /* ROBUST DATEPICKER POPOVER */
+    .fmc-datepicker-popover { background-color: #121212 !important; border: 1px solid #333 !important; border-radius: 16px !important; box-shadow: 0 15px 50px rgba(0,0,0,0.8) !important; overflow: hidden !important; z-index: 9999 !important; }
+    .fmc-date-activator { border: 1px solid var(--mud-palette-divider); border-radius: 12px; min-width: 240px; height: 40px; background: rgba(255,255,255,0.02); transition: all 0.2s; }
+    .fmc-date-activator:hover { border-color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.04); }
+    
+    .mud-picker-static-header { background-color: #1a1a1c !important; }
+    .mud-picker-calendar-header { padding: 12px !important; color: white !important; }
+    .mud-day { font-weight: 700 !important; border-radius: 10px !important; color: #ddd !important; }
+    .mud-day.mud-selected { background-color: var(--mud-palette-primary) !important; color: white !important; font-weight: 900 !important; }
+    
     .cursor-pointer { cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
     .cursor-pointer:hover { background-color: rgba(var(--mud-palette-primary-rgb), 0.04) !important; transform: scale(1.002); }
 </style>
 
 @code {
+    private List<TransactionDto> _allTransactions = new();
     private List<TransactionDto> _pendingTransactions = new();
     private List<TransactionDto> _approvedTransactions = new();
     private List<TransactionDto> _rejectedTransactions = new();
-    private MudTabs _tabs = default!;
     private bool _loading = true;
+    private int _activeIndex = 0;
+
+    private string GetActiveCls(int idx) => _activeIndex == idx ? "active" : "";
+    
+    private async Task SetTab(int idx)
+    {
+        _activeIndex = idx;
+        await OnTabChanged(idx);
+    }
     private bool _isApprover;
     private bool _isMaker;
+    private bool _isCeo;
     private string? _currentUserId;
     private string _searchString = "";
+    private DateRange? _filterDateRange;
+    private bool _datePickerOpen;
     private Guid _orgId;
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private async Task ExportToExcel()
+    {
+        var filtered = _allTransactions.Where(FilterFunc).ToList();
+        var bytes = ReportGen.GenerateExcel($"FMC_Ledger_{_orgId}", filtered);
+        await DownloadFile(bytes, $"FMC_Report_{DateTime.Now:yyyyMMdd}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+
+    private async Task ExportToPdf()
+    {
+        var filtered = _allTransactions.Where(FilterFunc).ToList();
+        var bytes = ReportGen.GeneratePdf($"Structural Settlement Report — {DateTime.Now:MMM dd, yyyy}", filtered);
+        await DownloadFile(bytes, $"FMC_Settlement_{DateTime.Now:yyyyMMdd}.pdf", "application/pdf");
+    }
+
+    private async Task DownloadFile(byte[] bytes, string fileName, string contentType)
+    {
+        using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+        await JS.InvokeVoidAsync("fmc_downloadFile", fileName, contentType, streamRef);
+    }
+
+    private bool FilterFunc(TransactionDto tx)
+    {
+        if (_filterDateRange != null && _filterDateRange.Start.HasValue && _filterDateRange.End.HasValue)
+        {
+            if (tx.Date.Date < _filterDateRange.Start.Value.Date || tx.Date.Date > _filterDateRange.End.Value.Date) 
+                return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        
+        if (tx.Subscriber.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if ((tx.AccountNumber ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (tx.Amount.ToString().Contains(_searchString)) return true;
+        if ((tx.Label ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if ((tx.ApproverName ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        
+        return false;
+    }
 
     [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
@@ -188,6 +332,7 @@
         var user = authState.User;
         _isApprover = user.IsInRole(Roles.Approver);
         _isMaker = user.IsInRole(Roles.Maker);
+        _isCeo = user.IsInRole(Roles.CEO);
         _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         
         var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
@@ -208,11 +353,11 @@
         _loading = true;
         try
         {
-            var allHistory = await OrgService.GetOrganizationTransactionsAsync(_orgId, count: 150);
-            
-            _pendingTransactions = allHistory.Where(t => t.Status == "Pending").ToList();
-            _approvedTransactions = allHistory.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList();
-            _rejectedTransactions = allHistory.Where(t => t.Status == "Rejected").ToList();
+            var allHistory = await OrgService.GetOrganizationTransactionsAsync(_orgId, count: 2000); // Increased for comprehensive reports
+            _allTransactions = allHistory.ToList();
+            _pendingTransactions = _allTransactions.Where(t => t.Status == "Pending").ToList();
+            _approvedTransactions = _allTransactions.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList();
+            _rejectedTransactions = _allTransactions.Where(t => t.Status == "Rejected").ToList();
         }
         catch (Exception ex)
         {

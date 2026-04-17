@@ -1,5 +1,6 @@
 using FMC.Application.Interfaces;
 using FMC.Infrastructure.Authentication;
+using FMC.Shared.Utils;
 
 namespace FMC.Infrastructure.Services;
 
@@ -33,8 +34,8 @@ public class EmailTemplateService : IEmailTemplateService
                 A new subscriber allotment request has been initiated by <strong>{makerName}</strong> and requires your validation to proceed.
             </p>
             
-            <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Request Details</h4>
+            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
+                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Request Details</h4>
                 <table style=""width:100%;border-collapse:collapse;"">
                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
                         <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Target Cardholder</td>
@@ -45,8 +46,8 @@ public class EmailTemplateService : IEmailTemplateService
                         <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{maskedCardNumber}</td>
                     </tr>
                     <tr>
-                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Transaction Amount</td>
-                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{amount:C}</td>
+                        <td style=""padding:16px 0 0 0;color:#2d3436;font-size:15px;font-weight:700;"">Transaction Amount</td>
+                        <td style=""padding:16px 0 0 0;font-weight:900;color:#ff9f43;text-align:right;font-size:22px;"">{amount:C}</td>
                     </tr>
                 </table>
             </div>
@@ -65,8 +66,8 @@ public class EmailTemplateService : IEmailTemplateService
             <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
                 Good news! A subscriber allotment request has been successfully validated and completed for <strong>{orgName}</strong>.
             </p>
-            <div style=""background:#f8f9fa;border-radius:8px;padding:24px;margin-bottom:24px;"">
-                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:14px;text-transform:uppercase;letter-spacing:1px;"">Transaction Details</h4>
+            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
+                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Transaction Details</h4>
                 <table style=""width:100%;border-collapse:collapse;"">
                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
                         <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Recipient Cardholder</td>
@@ -77,8 +78,8 @@ public class EmailTemplateService : IEmailTemplateService
                         <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{maskedCardNumber}</td>
                     </tr>
                     <tr>
-                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Approved Amount</td>
-                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{amount:C}</td>
+                        <td style=""padding:16px 0 0 0;color:#2d3436;font-size:15px;font-weight:700;"">Settled Amount</td>
+                        <td style=""padding:16px 0 0 0;font-weight:900;color:#00b894;text-align:right;font-size:22px;"">{amount:C}</td>
                     </tr>
                 </table>
             </div>
@@ -114,7 +115,7 @@ public class EmailTemplateService : IEmailTemplateService
                     </tr>
                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
                         <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Adjustment Amount</td>
-                        <td style=""padding:12px 0;font-weight:800;color:{themeColor};text-align:right;font-size:18px;"">{Math.Abs(amount):C}</td>
+                        <td style=""padding:12px 0;font-weight:900;color:{themeColor};text-align:right;font-size:22px;"">{Math.Abs(amount):C}</td>
                     </tr>
                     <tr>
                         <td style=""padding:12px 0;color:#636e72;font-size:14px;"">New Operational Balance</td>
@@ -147,6 +148,66 @@ public class EmailTemplateService : IEmailTemplateService
                 </table>
             </div>
             <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">We strongly advise replenishing your institutional reserve to ensure continuous functionality.</p>";
+
+        return GetContainer(content);
+    }
+
+    public string GenerateBatchNotificationEmail(string orgName, string batchAction, IEnumerable<FMC.Shared.DTOs.TransactionDto> transactions, bool hasAttachments)
+    {
+        var count = transactions.Count();
+        var totalAmount = transactions.Sum(t => t.Amount);
+        var previewItems = transactions.Take(20).ToList();
+
+        var tableRows = "";
+        foreach (var item in previewItems)
+        {
+            tableRows += $@"
+                <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                    <td style=""padding:8px 0;color:#2d3436;font-size:13px;"">{item.Subscriber}</td>
+                    <td style=""padding:8px 0;color:#636e72;font-size:13px;text-align:center;"">{FinanceUtils.MaskCard(item.AccountNumber ?? "")}</td>
+                    <td style=""padding:8px 0;font-weight:700;color:#2d3436;text-align:right;font-size:13px;"">{item.Amount:C}</td>
+                </tr>";
+        }
+
+        var attachmentNotice = hasAttachments 
+            ? $@"<p style=""background:#fff3cd; color:#856404; padding:12px; border-radius:8px; font-size:13px; margin-top:16px; border:1px solid #ffeeba;"">
+                    <strong>Notice:</strong> This batch contains {count} items. Due to the high volume, a full reconciliation report (Excel & PDF) has been attached to this email.
+                 </p>" 
+            : "";
+
+        var content = $@"
+            <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Batch {batchAction}</h2>
+            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                A batch of <strong>{count}</strong> transactions has been <strong>{batchAction.ToLower()}</strong> for <strong>{orgName}</strong>.
+            </p>
+
+            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
+                <table style=""width:100%;border-collapse:collapse;margin-bottom:16px;"">
+                    <tr>
+                        <td style=""color:#636e72;font-size:14px;"">Total Transactions</td>
+                        <td style=""font-weight:700;color:#2d3436;text-align:right;"">{count}</td>
+                    </tr>
+                    <tr>
+                        <td style=""color:#636e72;font-size:14px;"">Total Batch Value</td>
+                        <td style=""font-weight:900;color:#4834d4;text-align:right;font-size:18px;"">{totalAmount:C}</td>
+                    </tr>
+                </table>
+
+                <h4 style=""margin:20px 0 10px 0;color:#2d3436;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:0.6;"">Preview (First {previewItems.Count})</h4>
+                <table style=""width:100%;border-collapse:collapse;"">
+                    <thead>
+                        <tr style=""border-bottom: 2px solid #e1e5ea;"">
+                            <th style=""text-align:left;padding:8px 0;font-size:11px;color:#636e72;"">CARDHOLDER</th>
+                            <th style=""text-align:center;padding:8px 0;font-size:11px;color:#636e72;"">CARD NUMBER</th>
+                            <th style=""text-align:right;padding:8px 0;font-size:11px;color:#636e72;"">AMOUNT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tableRows}
+                    </tbody>
+                </table>
+                {attachmentNotice}
+            </div>";
 
         return GetContainer(content);
     }

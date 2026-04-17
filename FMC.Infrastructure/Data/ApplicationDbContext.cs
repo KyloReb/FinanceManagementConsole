@@ -112,6 +112,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<UserOtpVerification>()
             .HasIndex(o => o.ExpiresAt);
 
+        builder.Entity<Transaction>()
+            .HasIndex(t => t.OrganizationId);
+        builder.Entity<Transaction>()
+            .HasIndex(t => t.Date);
+        builder.Entity<Transaction>()
+            .HasIndex(t => t.Status);
+
         builder.Entity<AuditLog>()
             .HasIndex(a => a.UserId);
         builder.Entity<AuditLog>()

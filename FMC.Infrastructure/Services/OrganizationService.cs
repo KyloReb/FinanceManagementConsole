@@ -695,58 +695,69 @@ public class OrganizationService : IOrganizationService
     /// <inheritdoc />
     public async Task<IEnumerable<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync(Guid organizationId, string userId, string role, CancellationToken cancellationToken = default)
     {
-        var alerts = new List<FMC.Shared.DTOs.Admin.SystemAlertDto>();
-        var since = DateTime.UtcNow.AddDays(-1);
-
-        bool isCeo = role.Equals(FMC.Shared.Auth.Roles.CEO, StringComparison.OrdinalIgnoreCase);
-        bool isApprover = role.Equals(FMC.Shared.Auth.Roles.Approver, StringComparison.OrdinalIgnoreCase);
-        bool isMaker = role.Equals(FMC.Shared.Auth.Roles.Maker, StringComparison.OrdinalIgnoreCase);
-
-        if (isApprover || isCeo)
+        try 
         {
-            var txs = await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken);
-            var pCount = txs.Count();
-            if (pCount > 0) 
-            {
-                // Unique entityId to prevent improper dismissal blocking across multiple pending counts
-                var lastPendingDate = txs.Max(t => t.Date).Ticks;
-                alerts.Add(CreateAlert("Pending Validations", $"{pCount} request(s) waiting to be approved.", $"Pending_{organizationId}_{lastPendingDate}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
-            }
-        }
+            var alerts = new List<FMC.Shared.DTOs.Admin.SystemAlertDto>();
+            var since = DateTime.UtcNow.AddDays(-1);
 
-        if (isMaker || isCeo)
+            bool isCeo = role.Equals(FMC.Shared.Auth.Roles.CEO, StringComparison.OrdinalIgnoreCase);
+            bool isApprover = role.Equals(FMC.Shared.Auth.Roles.Approver, StringComparison.OrdinalIgnoreCase);
+            bool isMaker = role.Equals(FMC.Shared.Auth.Roles.Maker, StringComparison.OrdinalIgnoreCase);
+
+            if (isApprover || isCeo)
+            {
+                var txs = await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken);
+                var pCount = txs.Count();
+                if (pCount > 0) 
+                {
+                    var lastPendingDate = txs.Max(t => t.Date).Ticks;
+                    alerts.Add(CreateAlert("Pending Validations", $"{pCount} request(s) waiting to be approved.", $"Pending_{organizationId}_{lastPendingDate}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
+                }
+            }
+
+            if (isMaker || isCeo)
+            {
+                var processed = await _repository.GetProcessedTransactionsSinceAsync(organizationId, since, cancellationToken);
+                var q = processed.Where(t => t.Status == "Approved");
+                
+                if (isMaker && !isCeo) q = q.Where(t => t.MakerId == userId);
+                
+                var aCount = q.Count();
+                if (aCount > 0) 
+                {
+                    var lastActionDate = q.Max(t => t.ActionDate ?? DateTime.MinValue).Ticks;
+                    alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", $"Processed_{organizationId}_{lastActionDate}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
+                }
+            }
+
+            if (isMaker || isCeo || isApprover)
+            {
+                var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
+                var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
+
+                var total = orgBalance + userBalanceSum;
+                var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
+
+                if (usedPct >= 80m || orgBalance <= 100_000m)
+                {
+                    var msg = usedPct >= 80m ? $"{usedPct:F1}% of wallet allocated." : $"Only {orgBalance:C} remaining in org wallet.";
+                    var sev = usedPct >= 80m ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Security : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning;
+                    alerts.Add(CreateAlert("Capacity Threshold", msg, $"Threshold_{organizationId}_{(int)usedPct}", sev));
+                }
+            }
+
+            return alerts;
+        }
+        catch (OperationCanceledException)
         {
-            // We need to look at transactions that were ACTIONED (Approved/Rejected) since 'since'
-            var txs = await _repository.GetTransactionsByDateAsync(organizationId, since.AddDays(-7), cancellationToken);
-            var q = txs.Where(t => t.Status == "Approved" && t.ActionDate >= since);
-            
-            if (isMaker && !isCeo) q = q.Where(t => t.MakerId == userId);
-            
-            var aCount = q.Count();
-            if (aCount > 0) 
-            {
-                var lastActionDate = q.Max(t => t.ActionDate ?? DateTime.MinValue).Ticks;
-                alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", $"Processed_{organizationId}_{lastActionDate}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
-            }
+            _logger.LogInformation("[OrganizationService] Workflow alert generation canceled by request abort.");
+            return Enumerable.Empty<FMC.Shared.DTOs.Admin.SystemAlertDto>();
         }
-
-        if (isMaker || isCeo || isApprover)
+        catch (Exception ex)
         {
-            var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
-            var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
-
-            var total = orgBalance + userBalanceSum;
-            var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
-
-            if (usedPct >= 80m || orgBalance <= 100_000m)
-            {
-                var msg = usedPct >= 80m ? $"{usedPct:F1}% of wallet allocated." : $"Only {orgBalance:C} remaining in org wallet.";
-                var sev = usedPct >= 80m ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Security : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning;
-                alerts.Add(CreateAlert("Capacity Threshold", msg, $"Threshold_{organizationId}_{(int)usedPct}", sev));
-            }
+            _logger.LogError(ex, "[OrganizationService] Failed to generate workflow alerts for Org {OrgId}", organizationId);
+            return Enumerable.Empty<FMC.Shared.DTOs.Admin.SystemAlertDto>();
         }
-
-        return alerts;
     }
 
 

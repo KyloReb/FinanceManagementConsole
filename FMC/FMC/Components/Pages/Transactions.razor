@@ -260,20 +260,20 @@
 
     private async Task ExportExcel()
     {
-        var bytes = ReportService.GenerateExcel(_transactions);
-        await DownloadFile("Transactions.xlsx", bytes);
+        var bytes = ReportService.GenerateExcel("Fiscal Transaction Ledger", _transactions);
+        await DownloadFile("Transactions.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     private async Task ExportPdf()
     {
-        var bytes = ReportService.GeneratePdf(_transactions);
-        await DownloadFile("Transactions.pdf", bytes);
+        var bytes = ReportService.GeneratePdf("Forensic Settlement History", _transactions);
+        await DownloadFile("Transactions.pdf", bytes, "application/pdf");
     }
 
-    private async Task DownloadFile(string fileName, byte[] content)
+    private async Task DownloadFile(string fileName, byte[] content, string contentType)
     {
         using var streamRef = new DotNetStreamReference(new MemoryStream(content));
-        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        await JS.InvokeVoidAsync("fmc_downloadFile", fileName, contentType, streamRef);
     }
 
     private string GetStatusIcon(string status) => status?.ToLower() switch

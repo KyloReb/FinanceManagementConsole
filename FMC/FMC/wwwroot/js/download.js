@@ -1,6 +1,6 @@
-window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+window.fmc_downloadFile = async (fileName, contentType, contentStreamReference) => {
   const arrayBuffer = await contentStreamReference.arrayBuffer();
-  const blob = new Blob([arrayBuffer]);
+  const blob = new Blob([arrayBuffer], { type: contentType });
   const url = URL.createObjectURL(blob);
   const anchorElement = document.createElement('a');
   anchorElement.href = url;
@@ -9,3 +9,6 @@ window.downloadFileFromStream = async (fileName, contentStreamReference) => {
   anchorElement.remove();
   URL.revokeObjectURL(url);
 }
+
+window.downloadFileFromStream = window.fmc_downloadFile;
+

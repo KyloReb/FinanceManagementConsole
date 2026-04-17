@@ -1,5 +1,7 @@
 @using FMC.Shared.DTOs.Organization
+@using FMC.Shared.Auth
 @inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <style>
     .fmc-alert-surface { 
@@ -79,9 +81,15 @@
                         </MudText>
                     </div>
                     <div class="fmc-alert-actions-hub">
-                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
-                                   OnClick="@(() => OpenAdjustmentDialog(ZeroBalanceTenants.First(), true))"
-                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Resolve</MudButton>
+                        @if (_isSuperAdmin) {
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                       OnClick="@(() => OpenAdjustmentDialog(ZeroBalanceTenants.First(), true))"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Resolve</MudButton>
+                        } else {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                       Href="@($"/admin/organizations/{ZeroBalanceTenants.First().Id}")"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
+                        }
                     </div>
                 </div>
             }
@@ -108,9 +116,15 @@
                         </MudText>
                     </div>
                     <div class="fmc-alert-actions-hub">
-                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
-                                   OnClick="@(() => OpenAdjustmentDialog(LowBalanceTenants.First(), true))"
-                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Fund</MudButton>
+                        @if (_isSuperAdmin) {
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                       OnClick="@(() => OpenAdjustmentDialog(LowBalanceTenants.First(), true))"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Fund</MudButton>
+                        } else {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                       Href="@($"/admin/organizations/{LowBalanceTenants.First().Id}")"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
+                        }
                     </div>
                 </div>
             }
@@ -205,6 +219,13 @@
     [Parameter] public EventCallback OnActionCompleted { get; set; }
 
     private bool _dismissed;
+    private bool _isSuperAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isSuperAdmin = authState.User.IsInRole(Roles.SuperAdmin);
+    }
 
     private const decimal CriticalBalanceThreshold = 100_000m;
     private const double HighUtilizationThreshold  = 80.0;

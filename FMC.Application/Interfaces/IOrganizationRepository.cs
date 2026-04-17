@@ -62,6 +62,7 @@ public interface IOrganizationRepository
     Task<Transaction?> GetTransactionByIdAsync(Guid id, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetTransactionsByStatusAsync(Guid organizationId, string status, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetTransactionsByDateAsync(Guid organizationId, DateTime fromDate, CancellationToken ct = default);
+    Task<IEnumerable<Transaction>> GetProcessedTransactionsSinceAsync(Guid organizationId, DateTime since, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default);
     Task AddTransactionAsync(Transaction transaction, CancellationToken ct = default);
 

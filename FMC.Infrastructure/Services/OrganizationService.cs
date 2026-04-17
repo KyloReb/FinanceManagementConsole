@@ -1,7 +1,9 @@
 using FMC.Application.Interfaces;
+using FMC.Application.Organizations.Events;
 using FMC.Domain.Entities;
 using FMC.Infrastructure.Data;
 using FMC.Shared.DTOs.Organization;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,34 +19,31 @@ namespace FMC.Infrastructure.Services;
 public class OrganizationService : IOrganizationService
 {
     private readonly IOrganizationRepository _repository;
-    private readonly ApplicationDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly IPublisher _publisher;
+    private readonly ILedgerService _ledgerService;
     private readonly ISystemAlertService _alertService;
     private readonly IIdentityService _identityService;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IEmailService _emailService;
-    private readonly IEmailTemplateService _templateService;
     private readonly ILogger<OrganizationService> _logger;
 
     public OrganizationService(
         IOrganizationRepository repository,
-        ApplicationDbContext context,
         IAuditService auditService,
-        ISystemAlertService alertService,
+        IPublisher publisher,
+        ILedgerService ledgerService,
         IIdentityService identityService,
         ICurrentUserService currentUserService,
-        IEmailService emailService,
-        IEmailTemplateService templateService,
+        ISystemAlertService alertService,
         ILogger<OrganizationService> logger)
     {
         _repository = repository;
-        _context = context;
         _auditService = auditService;
-        _alertService = alertService;
+        _publisher = publisher;
+        _ledgerService = ledgerService;
         _identityService = identityService;
         _currentUserService = currentUserService;
-        _emailService = emailService;
-        _templateService = templateService;
+        _alertService = alertService;
         _logger = logger;
     }
 
@@ -52,30 +51,17 @@ public class OrganizationService : IOrganizationService
     public async Task<IEnumerable<OrganizationDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var organizations = await _repository.GetAllAsync(cancellationToken);
-
         var result = new List<OrganizationDto>();
+
         foreach (var org in organizations)
         {
-            var userCount = await _context.Users
-                .OfType<ApplicationUser>()
-                .CountAsync(u => u.OrganizationId == org.Id, cancellationToken);
-
-            var orgAccountSum = await _context.Accounts
-                .IgnoreQueryFilters()
-                .Where(a => a.TenantId == org.Id.ToString())
-                .SumAsync(a => a.Balance, cancellationToken);
-
-            var userAccountSum = await (from u in _context.Users.OfType<ApplicationUser>()
-                               where u.OrganizationId == org.Id
-                               join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                               select a.Balance).SumAsync(cancellationToken);
-
-            var totalBalance = orgAccountSum + userAccountSum;
-            var usage = userAccountSum;
-
+            var userCount = await _repository.GetUserCountAsync(org.Id, cancellationToken);
+            var orgBalance = await _repository.GetOrganizationBalanceAsync(org.Id, cancellationToken);
+            var totalUsage = await _repository.GetTotalUserBalanceAsync(org.Id, cancellationToken);
+            
             string? ceoName = await ResolveCeoNameAsync(org, cancellationToken);
 
-            result.Add(MapToDto(org, userCount, ceoName, totalBalance, usage));
+            result.Add(MapToDto(org, userCount, ceoName, orgBalance + totalUsage, totalUsage));
         }
 
         return result;
@@ -87,36 +73,22 @@ public class OrganizationService : IOrganizationService
         var org = await _repository.GetByIdAsync(id, cancellationToken);
         if (org == null) return null;
 
-        var userCount = await _context.Users
-            .OfType<ApplicationUser>()
-            .CountAsync(u => u.OrganizationId == org.Id, cancellationToken);
-
+        var userCount = await _repository.GetUserCountAsync(org.Id, cancellationToken);
+        var orgBalance = await _repository.GetOrganizationBalanceAsync(org.Id, cancellationToken);
+        var totalUsage = await _repository.GetTotalUserBalanceAsync(org.Id, cancellationToken);
+        
         string? ceoName = await ResolveCeoNameAsync(org, cancellationToken);
 
-        var orgAccountSum = await _context.Accounts
-            .IgnoreQueryFilters()
-            .Where(a => a.TenantId == org.Id.ToString())
-            .SumAsync(a => a.Balance, cancellationToken);
-
-        var userAccountSum = await (from u in _context.Users.OfType<ApplicationUser>()
-                           where u.OrganizationId == org.Id
-                           join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                           select a.Balance).SumAsync(cancellationToken);
-
-        var totalBalance = orgAccountSum + userAccountSum;
-        var usage = userAccountSum;
-
-        return MapToDto(org, userCount, ceoName, totalBalance, usage);
+        return MapToDto(org, userCount, ceoName, orgBalance + totalUsage, totalUsage);
     }
 
     /// <inheritdoc />
     public async Task<OrganizationDto> CreateAsync(CreateOrganizationDto dto, CancellationToken cancellationToken = default)
     {
         // Business Rule: Enforce unique organization names within the system.
-        var exists = await _context.Organizations
-            .AnyAsync(o => o.Name == dto.Name, cancellationToken);
+        if (await _repository.IsNameTakenAsync(dto.Name, null, cancellationToken))
 
-        if (exists)
+
         {
             _logger.LogWarning("[OrganizationService] Rejected duplicate creation attempt for name: {Name}", dto.Name);
             throw new InvalidOperationException($"An organization with the name '{dto.Name}' already exists.");
@@ -136,7 +108,7 @@ public class OrganizationService : IOrganizationService
         };
 
         await _repository.AddAsync(entity, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Created organization '{Name}' with Id: {Id}", entity.Name, entity.Id);
         return MapToDto(entity);
@@ -153,10 +125,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // Business Rule: Ensure the new name does not conflict with another existing organization.
-        var nameConflict = await _context.Organizations
-            .AnyAsync(o => o.Name == dto.Name && o.Id != dto.Id, cancellationToken);
-
-        if (nameConflict)
+        if (await _repository.IsNameTakenAsync(dto.Name, dto.Id, cancellationToken))
         {
             _logger.LogWarning("[OrganizationService] Update rejected — name '{Name}' already in use by another organization.", dto.Name);
             throw new InvalidOperationException($"The name '{dto.Name}' is already used by another organization.");
@@ -177,7 +146,7 @@ public class OrganizationService : IOrganizationService
             // 1. Assign CEO role to the new leader
             if (!string.IsNullOrEmpty(newCeoId))
             {
-                await EnsureUserHasRoleAsync(newCeoId, FMC.Shared.Auth.Roles.CEO, cancellationToken);
+                await _identityService.SyncLeadingRoleAsync(newCeoId, FMC.Shared.Auth.Roles.CEO, cancellationToken);
             }
 
             // 2. (Optional) You might want to demote the old CEO to 'User' or 'Manager', 
@@ -185,38 +154,13 @@ public class OrganizationService : IOrganizationService
         }
 
         _repository.Update(org); // stamps UpdatedAt automatically
-        await _context.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Updated organization Id: {Id} and synchronized leadership roles.", org.Id);
         return true;
     }
 
-    /// <summary>
-    /// Ensures a user has a specific role assigned in the Identity system.
-    /// Uses raw SQL/Context approach within the infrastructure layer to avoid circular dependencies with UserManager.
-    /// </summary>
-    private async Task EnsureUserHasRoleAsync(string userId, string roleName, CancellationToken cancellationToken)
-    {
-        var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName, cancellationToken);
-        if (role == null) return;
 
-        var hasRole = await _context.UserRoles.AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id, cancellationToken);
-        if (!hasRole)
-        {
-            // Remove other mutually exclusive leadership roles first (CEO/Maker/Approver) to keep it clean
-            var rolesToRemove = await _context.Roles
-                .Where(r => r.Name == FMC.Shared.Auth.Roles.CEO || r.Name == FMC.Shared.Auth.Roles.Maker || r.Name == FMC.Shared.Auth.Roles.Approver || r.Name == FMC.Shared.Auth.Roles.User)
-                .Select(r => r.Id)
-                .ToListAsync(cancellationToken);
-
-            var existingRoles = _context.UserRoles.Where(ur => ur.UserId == userId && rolesToRemove.Contains(ur.RoleId));
-            _context.UserRoles.RemoveRange(existingRoles);
-
-            // Add the new role
-            await _context.UserRoles.AddAsync(new IdentityUserRole<string> { UserId = userId, RoleId = role.Id }, cancellationToken);
-            _logger.LogInformation("[OrganizationService] Role '{Role}' synchronized for user {UserId}", roleName, userId);
-        }
-    }
 
     /// <inheritdoc />
     public async Task<bool> SoftDeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -229,7 +173,7 @@ public class OrganizationService : IOrganizationService
         }
 
         _repository.SoftDelete(org); // stamps IsDeleted + DeletedAt automatically
-        await _context.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Soft-deleted organization '{Name}' (Id: {Id})", org.Name, org.Id);
         return true;
@@ -250,9 +194,7 @@ public class OrganizationService : IOrganizationService
 
         // 2. Find or create the primary operations account for this tenant
         var tenantId = organizationId.ToString();
-        var account = await _context.Accounts
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(a => a.TenantId == tenantId, cancellationToken);
+        var account = await _repository.GetAccountByTenantIdAsync(tenantId, cancellationToken);
 
         if (account == null)
         {
@@ -261,12 +203,27 @@ public class OrganizationService : IOrganizationService
                 Id = Guid.NewGuid(),
                 Name = "Core Operations Wallet",
                 Balance = 0,
-                TenantId = tenantId
+                TenantId = tenantId,
+                OrganizationId = organizationId
             };
-            await _context.Accounts.AddAsync(account, cancellationToken);
+            await _repository.AddAccountAsync(account, cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
         }
 
-        // 3. Create the transaction record
+        // 3. Operational Ledger Execution
+        if (amount > 0)
+        {
+            await _ledgerService.CreditAsync(account.Id, amount, cancellationToken);
+        }
+        else if (amount < 0)
+        {
+            await _ledgerService.DebitAsync(account.Id, Math.Abs(amount), cancellationToken);
+        }
+
+        // Fetch new balance for notification/alerts
+        var newBalance = await _ledgerService.GetBalanceAsync(account.Id, cancellationToken);
+
+        // 4. Persist Transaction History (System adjustments are auto-completed)
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
@@ -274,79 +231,42 @@ public class OrganizationService : IOrganizationService
             Amount = amount,
             Date = DateTime.UtcNow,
             Category = "System Adjustment",
-            TenantId = tenantId
+            TenantId = tenantId,
+            AccountId = account.Id,
+            Status = "Completed",
+            MakerId = performedBy,
+            OrganizationId = organizationId
         };
-
-        // 4. Update the actual account balance
-        account.Balance += amount;
+        await _repository.AddTransactionAsync(transaction, cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         // 5. Automated Intelligence: Raise alert for negative equity
-        if (account.Balance < 0)
+        if (newBalance < 0)
         {
             await _alertService.RaiseAlertAsync(
                 "Negative Ledger Balance", 
-                $"Tenant '{org.Name}' is operating with negative liquidity ({account.Balance:C}). Immediate settlement or suspension recommended.", 
+                $"Tenant '{org.Name}' is operating with negative liquidity ({newBalance:C}). Immediate settlement or suspension recommended.", 
                 AlertSeverity.Warning, 
                 organizationId.ToString(), 
                 "Organization"
             );
         }
 
-        // 6. Log the Audit Event
-        var actionType = amount >= 0 ? "CREDIT" : "DEBIT";
+        // 6. Audit Trail & Notifications
+        var performedByEmail = (await _identityService.GetUserByIdAsync(performedBy))?.Email;
         await _auditService.RecordFinancialEventAsync(
-            actionType, 
-            organizationId, 
-            org.Name, 
+            amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED", 
+            org.Id, 
+            "N/A", 
             Math.Abs(amount), 
-            label ?? "Ledger Adjustment", 
-            performedBy,
-            null,
-            organizationId.ToString()
-        );
+            label ?? "Administrative Adjustment", 
+            performedBy, 
+            performedByEmail);
 
-        await _context.Transactions.AddAsync(transaction, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        // ── Phase 3: CEO Advisory Notification (SuperAdmin Adjustment) ───────
-        if (amount != 0)
-        {
-            try
-            {
-                string? ceoEmail = null;
-                if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
-                {
-                    ceoEmail = await _context.Users.IgnoreQueryFilters()
-                        .Where(u => u.Id == org.ChiefExecutiveId)
-                        .Select(u => u.Email)
-                        .FirstOrDefaultAsync(cancellationToken);
-                }
-
-                if (!string.IsNullOrEmpty(ceoEmail))
-                {
-                    var isCredit = amount > 0;
-                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-                    
-                    var body = _templateService.GenerateWalletAdjustmentEmail(
-                        org.Name, 
-                        MaskCard(org.AccountNumber), 
-                        amount, 
-                        account.Balance, 
-                        isCredit);
-
-                    var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
-                    _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {actionTitle} — {org.Name}", body, attachments);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[OrganizationService] Failed to send CEO adjustment notification.");
-            }
-        }
+        await _publisher.Publish(new WalletAdjustedEvent(org.Id, amount, newBalance, label ?? "Administrative Adjustment"), cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
-            tenantId, amount, account.Balance);
+            org.Id, amount, newBalance);
 
         return true;
     }
@@ -363,30 +283,25 @@ public class OrganizationService : IOrganizationService
         }
 
         // 2. Identify the target user
-        var user = await _context.Users.OfType<ApplicationUser>()
-            .Include(u => u.OrganizationInfo)
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(u => u.Id == userId.ToString(), cancellationToken);
-
-        if (user == null) return false;
+        var userDto = await _identityService.GetUserByIdAsync(userId.ToString());
+        if (userDto == null) return false;
 
         // 3. Identify the personal wallet account
-        var tenantId = user.Id;
-        var account = await _context.Accounts
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(a => a.TenantId == tenantId, cancellationToken);
+        var tenantId = userDto.Id;
+        var account = await _repository.GetAccountByTenantIdAsync(tenantId, cancellationToken);
 
         if (account == null)
         {
             account = new Account
             {
                 Id = Guid.NewGuid(),
-                Name = $"Wallet: {user.FirstName} {user.LastName}",
+                Name = $"Wallet: {userDto.FirstName} {userDto.LastName}",
                 Balance = 0,
                 TenantId = tenantId,
-                OrganizationId = user.OrganizationId
+                OrganizationId = userDto.OrganizationId
             };
-            await _context.Accounts.AddAsync(account, cancellationToken);
+            await _repository.AddAccountAsync(account, cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
         }
 
         // 4. Create PENDING Transaction (Maker Step)
@@ -402,16 +317,16 @@ public class OrganizationService : IOrganizationService
             AccountId = account.Id,
             Status = "Pending",
             MakerId = _currentUserService.UserId,
-            OrganizationId = user.OrganizationId
+            OrganizationId = userDto.OrganizationId
         };
         
-        await _context.Transactions.AddAsync(transaction, cancellationToken);
+        await _repository.AddTransactionAsync(transaction, cancellationToken);
 
         // 4. Trace the forensic audit event for Initiation
         await _auditService.RecordFinancialEventAsync(
             "INITIATE_" + (amount >= 0 ? "CREDIT" : "DEBIT"), 
-            user.OrganizationId ?? Guid.Empty, 
-            $"{user.FirstName} {user.LastName}", 
+            userDto.OrganizationId ?? Guid.Empty, 
+            userDto.DisplayName, 
             Math.Abs(amount), 
             label ?? "Pending Allotment Initiation", 
             performedBy,
@@ -419,56 +334,12 @@ public class OrganizationService : IOrganizationService
             tenantId
         );
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
         
-        // ── Phase 1: Workflow Notifications (Pending Approval) ────────────────
-        try
+        // ── Phase 1: Workflow Notifications (Handled by OrganizationNotificationHandler) ──
+        if (userDto.OrganizationId.HasValue)
         {
-            var org = user.OrganizationInfo;
-            if (org != null)
-            {
-                var approverEmails = await (from u in _context.Users.OfType<ApplicationUser>()
-                                            where u.OrganizationId == org.Id
-                                            join ur in _context.UserRoles on u.Id equals ur.UserId
-                                            join r in _context.Roles on ur.RoleId equals r.Id
-                                            where r.Name == FMC.Shared.Auth.Roles.Approver
-                                            select u.Email).ToListAsync(cancellationToken);
-
-                string? ceoEmail = null;
-                if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
-                {
-                    ceoEmail = await _context.Users.OfType<ApplicationUser>()
-                        .Where(u => u.Id == org.ChiefExecutiveId)
-                        .Select(u => u.Email)
-                        .FirstOrDefaultAsync(cancellationToken);
-                }
-
-                var recipients = approverEmails.ToHashSet();
-                if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
-
-                if (recipients.Any())
-                {
-                    var makerName = performedBy;
-                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-                    
-                    var body = _templateService.GeneratePendingApprovalEmail(
-                        org.Name, 
-                        makerName, 
-                        $"{user.FirstName} {user.LastName}", 
-                        MaskCard(user.AccountNumber), 
-                        amount);
-
-                    foreach (var email in recipients)
-                    {
-                        _ = _emailService.SendEmailAsync(email, $"FMC Action Required: Pending Approval for {org.Name}", body, attachments);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[OrganizationService] Failed to send workflow notifications for pending tx.");
+            await _publisher.Publish(new TransactionPendingEvent(userDto.OrganizationId.Value, performedBy, userId.ToString(), amount, label ?? "Standard Allotment"), cancellationToken);
         }
         
         _logger.LogInformation("[OrganizationService] Transaction PENDING for {UserId} by Maker {MakerId}. Amount: {Amount}", 
@@ -483,11 +354,8 @@ public class OrganizationService : IOrganizationService
         // 1. Security Check: Only Approver can commit
         if (!_currentUserService.IsApprover) throw new ApplicationException("Access Denied: You do not have the Approver role required for this action.");
 
-        var transaction = await _context.Transactions
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(t => t.Id == transactionId && t.Status == "Pending", cancellationToken);
-
-        if (transaction == null) throw new ApplicationException("Transaction not found or already processed.");
+        var transaction = await _repository.GetTransactionByIdAsync(transactionId, cancellationToken);
+        if (transaction == null || transaction.Status != "Pending") throw new ApplicationException("Transaction not found or already processed.");
 
         // 2. Mutual Exclusion (4-Eyes Principle): Maker cannot be Approver
         if (transaction.MakerId == approverId)
@@ -497,7 +365,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // 3. Organization Isolation: Approver must belong to the same org
-        var approver = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == approverId, cancellationToken);
+        var approver = await _identityService.GetUserByIdAsync(approverId);
         bool txHasOrg = transaction.OrganizationId.HasValue && transaction.OrganizationId != Guid.Empty;
         bool sameOrg = !txHasOrg || (approver != null && approver.OrganizationId == transaction.OrganizationId);
         
@@ -507,113 +375,46 @@ public class OrganizationService : IOrganizationService
             throw new ApplicationException("Organizational Security: You can only approve transactions for your own organization.");
         }
 
-        // 4. Identify Accounts for Transfer
-        var userAccount = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == transaction.AccountId, cancellationToken);
+        // 4. Identify Target Account (Cardholder Account)
+        var userAccount = await _repository.GetAccountByIdAsync(transaction.AccountId);
         if (userAccount == null) throw new ApplicationException("Target cardholder account not found.");
 
-        // Correctly handle the Transfer logic now
-        if (transaction.OrganizationId.HasValue)
-        {
-            var orgTenantId = transaction.OrganizationId.Value.ToString();
-            var orgAccount = await _context.Accounts
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(a => a.TenantId == orgTenantId, cancellationToken);
+        // 5. Identify Source Account (Organization Operations Wallet)
+        if (!transaction.OrganizationId.HasValue) throw new ApplicationException("Transaction Security: Organization context is missing.");
+        
+        var orgTenantId = transaction.OrganizationId.Value.ToString();
+        var orgAccount = await _repository.GetAccountByTenantIdAsync(orgTenantId, cancellationToken);
 
-            if (orgAccount != null)
-            {
-                orgAccount.Balance -= transaction.Amount;
-            }
-        }
+        if (orgAccount == null) throw new ApplicationException("Ledger Error: Organization operations wallet not found.");
 
-        userAccount.Balance += transaction.Amount;
+        // 5. Execute Atomic Transfer
+        await _ledgerService.TransferAsync(orgAccount.Id, userAccount.Id, transaction.Amount, cancellationToken);
+
+        // 6. Update Transaction Status
         transaction.Status = "Approved";
         transaction.ApproverId = approverId;
         transaction.ActionDate = DateTime.UtcNow;
+        await _repository.SaveChangesAsync(cancellationToken);
 
-        // Audit Trail for Final Commitment
+        // 7. Audit Trail for Final Commitment
         await _auditService.RecordFinancialEventAsync(
-            "APPROVED", 
-            transaction.OrganizationId ?? Guid.Empty, 
+            "TRANSACTION_APPROVED", 
+            transaction.OrganizationId.Value, 
             userAccount.Name, 
-            Math.Abs(transaction.Amount), 
-            "Allotment Approved and Settled", 
-            approverId,
-            null,
-            userAccount.TenantId
-        );
+            transaction.Amount, 
+            transaction.Label, 
+            approverId, 
+            approver?.Email, 
+            transaction.TenantId);
 
-        await _context.SaveChangesAsync(cancellationToken);
-        
-        // ── Workflow & Capacity Notifications ─────────────────────────────────
-        try
+        // ── Phase 2: Workflow Completion Notifications (Handled by OrganizationNotificationHandler) ──
+        if (transaction.OrganizationId.HasValue)
         {
-            if (transaction.OrganizationId.HasValue)
-            {
-                var orgId = transaction.OrganizationId.Value;
-                var org = await _repository.GetByIdAsync(orgId, cancellationToken);
-                if (org != null)
-                {
-                    // 1. Resolve Common Data
-                    var orgBalance = await _context.Accounts.IgnoreQueryFilters()
-                        .Where(a => a.TenantId == orgId.ToString())
-                        .SumAsync(a => a.Balance, cancellationToken);
-
-                    var userBalanceSum = await (from u in _context.Users.OfType<ApplicationUser>()
-                                                 where u.OrganizationId == orgId
-                                                 join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                                                 select a.Balance).SumAsync(cancellationToken);
-
-                    var total = orgBalance + userBalanceSum;
-                    var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
-
-                    string? ceoEmail = null;
-                    if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
-                    {
-                        ceoEmail = await _context.Users.IgnoreQueryFilters()
-                            .Where(u => u.Id == org.ChiefExecutiveId)
-                            .Select(u => u.Email)
-                            .FirstOrDefaultAsync(cancellationToken);
-                    }
-
-                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-
-                    // 2. Handle Capacity Threshold Advisory (SuperAdmin requirement)
-                    if (!string.IsNullOrEmpty(ceoEmail) && (usedPct >= 80m || orgBalance <= 100_000m))
-                    {
-                        var alertType = usedPct >= 80m ? $"{usedPct:F0}% Operational Capacity Alert" : "Critical Liquidity Advisory";
-                        var thresholdBody = _templateService.GenerateCapacityThresholdEmail(org.Name, total, userBalanceSum, usedPct, orgBalance);
-                        _ = _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {alertType} — {org.Name}", thresholdBody, attachments);
-                    }
-
-                    // 3. Handle Workflow Approval Notification (Maker & CEO)
-                    var targetUser = await _context.Users.OfType<ApplicationUser>()
-                        .IgnoreQueryFilters()
-                        .FirstOrDefaultAsync(u => u.Id == transaction.TenantId, cancellationToken);
-                    
-                    var makerEmail = await _context.Users.IgnoreQueryFilters().Where(u => u.Id == transaction.MakerId).Select(u => u.Email).FirstOrDefaultAsync(cancellationToken);
-                    var workflowRecipients = new HashSet<string>();
-                    if (!string.IsNullOrEmpty(makerEmail)) workflowRecipients.Add(makerEmail);
-                    if (!string.IsNullOrEmpty(ceoEmail)) workflowRecipients.Add(ceoEmail);
-
-                    if (workflowRecipients.Any())
-                    {
-                        var targetName = targetUser != null ? $"{targetUser.FirstName} {targetUser.LastName}" : userAccount.Name;
-                        var targetCard = targetUser?.AccountNumber ?? "N/A";
-
-                        var approvalBody = _templateService.GenerateTransactionApprovedEmail(org.Name, targetName, MaskCard(targetCard), transaction.Amount);
-                        foreach (var email in workflowRecipients)
-                        {
-                            _ = _emailService.SendEmailAsync(email, $"FMC Notification: Transaction Approved — {org.Name}", approvalBody, attachments);
-                        }
-                    }
-                }
-            }
+            await _publisher.Publish(new TransactionApprovedEvent(transaction.OrganizationId.Value, transaction.Id), cancellationToken);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[OrganizationService] Failed to send notifications during approval workflow.");
-        }
+
+        _logger.LogInformation("[OrganizationService] Transaction {Id} APPROVED by {ApproverId}. Amount settled.", 
+            transactionId, approverId);
 
         return true;
     }
@@ -624,11 +425,8 @@ public class OrganizationService : IOrganizationService
         // 1. Security Check: Only Approver can reject
         if (!_currentUserService.IsApprover) throw new ApplicationException("Access Denied: You do not have the Approver role.");
 
-        var transaction = await _context.Transactions
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(t => t.Id == transactionId && t.Status == "Pending", cancellationToken);
-
-        if (transaction == null) return false;
+        var transaction = await _repository.GetTransactionByIdAsync(transactionId, cancellationToken);
+        if (transaction == null || transaction.Status != "Pending") return false;
 
         transaction.Status = "Rejected";
         transaction.ApproverId = approverId;
@@ -646,7 +444,7 @@ public class OrganizationService : IOrganizationService
             transaction.TenantId
         );
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
         return true;
     }
 
@@ -664,17 +462,13 @@ public class OrganizationService : IOrganizationService
             }
         }
 
-        var transactions = await _context.Transactions
-            .IgnoreQueryFilters()
-            .Where(t => t.OrganizationId == organizationId && t.Status == "Pending")
-            .OrderByDescending(t => t.Date)
-            .ToListAsync(cancellationToken);
+        var transactions = await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken);
 
         var result = new List<FMC.Shared.DTOs.TransactionDto>();
         foreach(var t in transactions)
         {
-            var account = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == t.AccountId, cancellationToken);
-            var makerAttribute = await _context.Users.FindAsync(new object[] { t.MakerId ?? "" }, cancellationToken);
+            var account = await _repository.GetAccountByIdAsync(t.AccountId, cancellationToken);
+            var makerAttribute = !string.IsNullOrEmpty(t.MakerId) ? await _identityService.GetUserByIdAsync(t.MakerId) : null;
             
             // Resolve Subscriber details (User or Org)
             string subscriberName = "N/A";
@@ -683,20 +477,15 @@ public class OrganizationService : IOrganizationService
             if (account != null)
             {
                 subscriberName = account.Name.Replace("Wallet: ", "");
-                // Attempt to resolve User account number
-                var user = await _context.Users.FindAsync(new object[] { account.TenantId ?? "" }, cancellationToken);
+                var user = await _identityService.GetUserByIdAsync(account.TenantId ?? "");
                 if (user != null)
                 {
                     accountNumber = user.AccountNumber;
                 }
                 else if (Guid.TryParse(account.TenantId, out var orgId))
                 {
-                    // Attempt to resolve Organization account number
-                    var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == orgId, cancellationToken);
-                    if (org != null)
-                    {
-                        accountNumber = org.AccountNumber;
-                    }
+                    var org = await _repository.GetByIdAsync(orgId, cancellationToken);
+                    if (org != null) accountNumber = org.AccountNumber;
                 }
             }
 
@@ -711,7 +500,7 @@ public class OrganizationService : IOrganizationService
                 Status = t.Status,
                 Subscriber = subscriberName,
                 AccountNumber = accountNumber,
-                MakerName = makerAttribute != null ? $"{makerAttribute.FirstName} {makerAttribute.LastName}" : "System",
+                MakerName = makerAttribute?.DisplayName ?? "System",
                 MakerId = t.MakerId
             });
         }
@@ -734,20 +523,14 @@ public class OrganizationService : IOrganizationService
         }
 
         var today = DateTime.UtcNow.Date;
-        var transactions = await _context.Transactions
-            .IgnoreQueryFilters()
-            .Where(t => t.OrganizationId == organizationId && t.Date >= today)
-            .OrderByDescending(t => t.Date)
-            .ToListAsync(cancellationToken);
+        var transactions = await _repository.GetTransactionsByDateAsync(organizationId, today, cancellationToken);
 
         var result = new List<FMC.Shared.DTOs.TransactionDto>();
         foreach(var t in transactions)
         {
-            var account = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == t.AccountId, cancellationToken);
-            var makerAttribute = await _context.Users.FindAsync(new object[] { t.MakerId ?? "" }, cancellationToken);
-            var approver = !string.IsNullOrEmpty(t.ApproverId) 
-                ? await _context.Users.FindAsync(new object[] { t.ApproverId }, cancellationToken) 
-                : null;
+            var account = await _repository.GetAccountByIdAsync(t.AccountId, cancellationToken);
+            var makerAttribute = !string.IsNullOrEmpty(t.MakerId) ? await _identityService.GetUserByIdAsync(t.MakerId) : null;
+            var approver = !string.IsNullOrEmpty(t.ApproverId) ? await _identityService.GetUserByIdAsync(t.ApproverId) : null;
             
             // Resolve Subscriber details (User or Org)
             string subscriberName = "N/A";
@@ -756,18 +539,15 @@ public class OrganizationService : IOrganizationService
             if (account != null)
             {
                 subscriberName = account.Name.Replace("Wallet: ", "");
-                var user = await _context.Users.FindAsync(new object[] { account.TenantId ?? "" }, cancellationToken);
+                var user = await _identityService.GetUserByIdAsync(account.TenantId ?? "");
                 if (user != null)
                 {
                     accountNumber = user.AccountNumber;
                 }
                 else if (Guid.TryParse(account.TenantId, out var orgId))
                 {
-                    var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == orgId, cancellationToken);
-                    if (org != null)
-                    {
-                        accountNumber = org.AccountNumber;
-                    }
+                    var org = await _repository.GetByIdAsync(orgId, cancellationToken);
+                    if (org != null) accountNumber = org.AccountNumber;
                 }
             }
 
@@ -782,9 +562,9 @@ public class OrganizationService : IOrganizationService
                 Status = t.Status,
                 Subscriber = subscriberName,
                 AccountNumber = accountNumber,
-                MakerName = makerAttribute != null ? $"{makerAttribute.FirstName} {makerAttribute.LastName}" : "System",
+                MakerName = makerAttribute?.DisplayName ?? "System",
                 MakerId = t.MakerId,
-                ApproverName = approver != null ? $"{approver.FirstName} {approver.LastName}" : null,
+                ApproverName = approver?.DisplayName,
                 ActionDate = t.ActionDate
             });
         }
@@ -798,41 +578,9 @@ public class OrganizationService : IOrganizationService
 
     private async Task<string?> ResolveCeoNameAsync(Organization org, CancellationToken cancellationToken)
     {
-        string? ceoName = null;
-
-        // 1. Primary Strategy: Explicit pointer in the Organization entity
-        if (!string.IsNullOrEmpty(org.ChiefExecutiveId))
-        {
-            var user = await _context.Users.FindAsync(new object[] { org.ChiefExecutiveId }, cancellationToken);
-            if (user is ApplicationUser appUser)
-            {
-                ceoName = $"{appUser.FirstName} {appUser.LastName}";
-            }
-        }
-
-        // 2. Secondary Strategy: Fallback to users with the 'CEO' role
-        if (string.IsNullOrEmpty(ceoName))
-        {
-            ceoName = await (from u in _context.Users.OfType<ApplicationUser>()
-                                 where u.OrganizationId == org.Id
-                                 join ur in _context.UserRoles on u.Id equals ur.UserId
-                                 join r in _context.Roles on ur.RoleId equals r.Id
-                                 where r.Name == FMC.Shared.Auth.Roles.CEO
-                                 select u.FirstName + " " + u.LastName).FirstOrDefaultAsync(cancellationToken);
-        }
-
-        // 3. System Strategy: Fallback to 'SuperAdmin' for the primary system organization if still unassigned
-        if (string.IsNullOrEmpty(ceoName) && org.Name == "Nationlink/Infoserve Inc.")
-        {
-             ceoName = await (from u in _context.Users.OfType<ApplicationUser>()
-                                 where u.OrganizationId == org.Id
-                                 join ur in _context.UserRoles on u.Id equals ur.UserId
-                                 join r in _context.Roles on ur.RoleId equals r.Id
-                                 where r.Name == FMC.Shared.Auth.Roles.SuperAdmin
-                                 select u.FirstName + " " + u.LastName).FirstOrDefaultAsync(cancellationToken);
-        }
-
-        return ceoName?.Trim();
+        if (string.IsNullOrEmpty(org.ChiefExecutiveId)) return null;
+        var user = await _identityService.GetUserByIdAsync(org.ChiefExecutiveId);
+        return user?.DisplayName;
     }
 
     private static OrganizationDto MapToDto(Organization org, int userCount = 0, string? ceoName = null, decimal totalBalance = 0, decimal usage = 0) => new()
@@ -855,10 +603,9 @@ public class OrganizationService : IOrganizationService
     /// <inheritdoc />
     public async Task<bool> CancelTransactionAsync(Guid transactionId, string makerId, CancellationToken cancellationToken = default)
     {
-        var transaction = await _context.Transactions
-            .FirstOrDefaultAsync(t => t.Id == transactionId && t.Status == "Pending", cancellationToken);
+        var transaction = await _repository.GetTransactionByIdAsync(transactionId, cancellationToken);
 
-        if (transaction == null) return false;
+        if (transaction == null || transaction.Status != "Pending") return false;
 
         // Security: Only the original Maker can cancel their own pending request
         if (transaction.MakerId != makerId)
@@ -881,7 +628,7 @@ public class OrganizationService : IOrganizationService
             transaction.TenantId
         );
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
         return true;
     }
     /// <inheritdoc />
@@ -894,27 +641,14 @@ public class OrganizationService : IOrganizationService
             return Enumerable.Empty<FMC.Shared.DTOs.TransactionDto>();
         }
 
-        var query = _context.Transactions.IgnoreQueryFilters()
-            .Where(t => t.OrganizationId == organizationId);
-
-        if (!string.IsNullOrEmpty(status))
-        {
-            query = query.Where(t => t.Status == status);
-        }
-
-        var transactions = await query
-            .OrderByDescending(t => t.Date)
-            .Take(count)
-            .ToListAsync(cancellationToken);
+        var transactions = await _repository.GetOrganizationTransactionsAsync(organizationId, status, count, cancellationToken);
 
         var result = new List<FMC.Shared.DTOs.TransactionDto>();
         foreach (var t in transactions)
         {
-            var account = await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == t.AccountId, cancellationToken);
-            var maker = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.MakerId, cancellationToken);
-            var approver = !string.IsNullOrEmpty(t.ApproverId) 
-                ? await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.ApproverId, cancellationToken) 
-                : null;
+            var account = await _repository.GetAccountByIdAsync(t.AccountId, cancellationToken);
+            var maker = !string.IsNullOrEmpty(t.MakerId) ? await _identityService.GetUserByIdAsync(t.MakerId) : null;
+            var approver = !string.IsNullOrEmpty(t.ApproverId) ? await _identityService.GetUserByIdAsync(t.ApproverId) : null;
 
             string subscriberName = "System Node";
             string? accountNumber = null;
@@ -922,15 +656,18 @@ public class OrganizationService : IOrganizationService
             if (account != null)
             {
                 subscriberName = account.Name.Replace("Wallet: ", "");
-                var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == account.TenantId, cancellationToken);
+                var user = await _identityService.GetUserByIdAsync(account.TenantId ?? "");
                 if (user != null)
                 {
                     accountNumber = user.AccountNumber;
                 }
                 else
                 {
-                    var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id.ToString() == account.TenantId, cancellationToken);
-                    if (org != null) accountNumber = org.AccountNumber;
+                    if (Guid.TryParse(account.TenantId, out var orgId))
+                    {
+                        var org = await _repository.GetByIdAsync(orgId, cancellationToken);
+                        if (org != null) accountNumber = org.AccountNumber;
+                    }
                 }
             }
 
@@ -945,9 +682,9 @@ public class OrganizationService : IOrganizationService
                 Status = string.IsNullOrWhiteSpace(t.Status) ? "Successful" : t.Status,
                 Subscriber = subscriberName,
                 AccountNumber = accountNumber,
-                MakerName = maker != null ? $"{maker.FirstName} {maker.LastName}" : "System",
+                MakerName = maker?.DisplayName ?? "System",
                 MakerId = t.MakerId,
-                ApproverName = approver != null ? $"{approver.FirstName} {approver.LastName}" : null,
+                ApproverName = approver?.DisplayName,
                 ActionDate = t.ActionDate,
                 OrganizationId = t.OrganizationId
             });
@@ -963,29 +700,25 @@ public class OrganizationService : IOrganizationService
 
         if (role == FMC.Shared.Auth.Roles.Approver || role == FMC.Shared.Auth.Roles.CEO)
         {
-            var pCount = await _context.Transactions.CountAsync(t => t.OrganizationId == organizationId && t.Status == "Pending", cancellationToken);
+            var txs = await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken);
+            var pCount = txs.Count();
             if (pCount > 0) alerts.Add(CreateAlert("Pending Validations", $"{pCount} request(s) waiting to be approved.", $"Pending_{pCount}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
         }
 
         if (role == FMC.Shared.Auth.Roles.Maker || role == FMC.Shared.Auth.Roles.CEO)
         {
-            var q = _context.Transactions.Where(t => t.OrganizationId == organizationId && t.Status == "Approved" && t.ActionDate >= since);
+            var txs = await _repository.GetTransactionsByDateAsync(organizationId, since, cancellationToken);
+            var q = txs.Where(t => t.Status == "Approved");
             if (role == FMC.Shared.Auth.Roles.Maker) q = q.Where(t => t.MakerId == userId);
             
-            var aCount = await q.CountAsync(cancellationToken);
+            var aCount = q.Count();
             if (aCount > 0) alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", $"Processed_{aCount}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
         }
 
         if (role == FMC.Shared.Auth.Roles.Maker || role == FMC.Shared.Auth.Roles.CEO || role == FMC.Shared.Auth.Roles.Approver)
         {
-            var orgBalance = await _context.Accounts.IgnoreQueryFilters()
-                .Where(a => a.TenantId == organizationId.ToString())
-                .SumAsync(a => a.Balance, cancellationToken);
-
-            var userBalanceSum = await (from u in _context.Users.OfType<ApplicationUser>()
-                                         where u.OrganizationId == organizationId
-                                         join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                                         select a.Balance).SumAsync(cancellationToken);
+            var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
+            var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
 
             var total = orgBalance + userBalanceSum;
             var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
@@ -1001,12 +734,7 @@ public class OrganizationService : IOrganizationService
         return alerts;
     }
 
-    private string MaskCard(string? card)
-    {
-        if (string.IsNullOrWhiteSpace(card)) return "****************";
-        if (card.Length <= 10) return card; // Not enough length to mask middle
-        return card.Substring(0, 6) + new string('*', card.Length - 10) + card.Substring(card.Length - 4);
-    }
+
 
     FMC.Shared.DTOs.Admin.SystemAlertDto CreateAlert(string title, string msg, string entityId, FMC.Shared.DTOs.Admin.AlertSeverityDto sev) => new()
     {

@@ -131,13 +131,18 @@ builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
+builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISystemAlertService, SystemAlertService>();
 builder.Services.AddHostedService<FMC.Infrastructure.BackgroundServices.HealthMonitorService>();
 
 // MediatR
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(GetRecentTransactionsQuery).Assembly));
+builder.Services.AddMediatR(cfg => {
+    cfg.RegisterServicesFromAssemblies(
+        typeof(GetRecentTransactionsQuery).Assembly,
+        typeof(OrganizationNotificationHandler).Assembly);
+});
 
 var app = builder.Build();
 

@@ -537,4 +537,32 @@ public class IdentityService : IIdentityService
 
         return false;
     }
+
+    public async Task<bool> SyncLeadingRoleAsync(string userId, string roleName, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return false;
+
+        var currentRoles = await _userManager.GetRolesAsync(user);
+        
+        // Roles to potentially remove (exclusive leadership set)
+        var rolesToRemove = new[] { 
+            FMC.Shared.Auth.Roles.CEO, 
+            FMC.Shared.Auth.Roles.Maker, 
+            FMC.Shared.Auth.Roles.Approver, 
+            FMC.Shared.Auth.Roles.User 
+        };
+
+        var intersect = currentRoles.Intersect(rolesToRemove).ToList();
+        if (intersect.Any())
+        {
+            await _userManager.RemoveFromRolesAsync(user, intersect);
+        }
+
+        await EnsureRolesExistAsync(new[] { roleName });
+        var result = await _userManager.AddToRoleAsync(user, roleName);
+        
+        _logger.LogInformation("[IdentityService] Synced leading role '{Role}' for user {UserId}", roleName, userId);
+        return result.Succeeded;
+    }
 }

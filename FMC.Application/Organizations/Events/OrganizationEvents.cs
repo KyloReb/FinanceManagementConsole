@@ -1,0 +1,29 @@
+using MediatR;
+
+namespace FMC.Application.Organizations.Events;
+
+/// <summary>
+/// Event raised when a Maker initiates a new transaction that requires approval.
+/// </summary>
+public record TransactionPendingEvent(
+    Guid OrganizationId, 
+    string MakerName, 
+    string TargetUserId, 
+    decimal Amount, 
+    string Label) : INotification;
+
+/// <summary>
+/// Event raised when an Approver successfully commits a pending transaction.
+/// </summary>
+public record TransactionApprovedEvent(
+    Guid OrganizationId, 
+    Guid TransactionId) : INotification;
+
+/// <summary>
+/// Event raised when the organizational wallet is adjusted by a SuperAdmin.
+/// </summary>
+public record WalletAdjustedEvent(
+    Guid OrganizationId, 
+    decimal Amount, 
+    decimal NewBalance, 
+    string Label) : INotification;

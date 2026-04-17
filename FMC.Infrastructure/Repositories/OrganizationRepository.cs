@@ -48,4 +48,94 @@ public class OrganizationRepository : IOrganizationRepository
         organization.DeletedAt = DateTime.UtcNow;
         _context.Organizations.Update(organization);
     }
+
+    public async Task<bool> IsNameTakenAsync(string name, Guid? excludeId = null, CancellationToken ct = default)
+    {
+        return await _context.Organizations
+            .AnyAsync(o => o.Name.ToLower() == name.ToLower() && (!excludeId.HasValue || o.Id != excludeId), ct);
+    }
+
+    public async Task<int> GetUserCountAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        return await _context.Users.OfType<ApplicationUser>()
+            .CountAsync(u => u.OrganizationId == organizationId, ct);
+    }
+
+    public async Task<decimal> GetTotalUserBalanceAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var orgTenantId = organizationId.ToString();
+        return await (from u in _context.Users.OfType<ApplicationUser>()
+                      where u.OrganizationId == organizationId
+                      join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
+                      where a.TenantId != orgTenantId // Don't include the org's own operational wallet
+                      select a.Balance).SumAsync(ct);
+    }
+
+    public async Task<decimal> GetOrganizationBalanceAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var orgTenantId = organizationId.ToString();
+        return await _context.Accounts
+            .IgnoreQueryFilters()
+            .Where(a => a.TenantId == orgTenantId)
+            .Select(a => a.Balance)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken ct = default)
+    {
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<Transaction?> GetTransactionByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _context.Transactions
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+    }
+
+    public async Task<IEnumerable<Transaction>> GetTransactionsByStatusAsync(Guid organizationId, string status, CancellationToken ct = default)
+    {
+        return await _context.Transactions
+            .IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == organizationId && t.Status == status)
+            .OrderByDescending(t => t.Date)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<Transaction>> GetTransactionsByDateAsync(Guid organizationId, DateTime fromDate, CancellationToken ct = default)
+    {
+        return await _context.Transactions
+            .IgnoreQueryFilters()
+            .Where(t => t.OrganizationId == organizationId && t.Date >= fromDate)
+            .OrderByDescending(t => t.Date)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default)
+    {
+        var query = _context.Transactions.IgnoreQueryFilters().Where(t => t.OrganizationId == organizationId);
+        if (!string.IsNullOrEmpty(status)) query = query.Where(t => t.Status == status);
+        
+        return await query.OrderByDescending(t => t.Date).Take(count).ToListAsync(ct);
+    }
+
+    public async Task AddTransactionAsync(Transaction transaction, CancellationToken ct = default)
+    {
+        await _context.Transactions.AddAsync(transaction, ct);
+    }
+
+    public async Task<Account?> GetAccountByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id, ct);
+    }
+
+    public async Task<Account?> GetAccountByTenantIdAsync(string tenantId, CancellationToken ct = default)
+    {
+        return await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.TenantId == tenantId, ct);
+    }
+
+    public async Task AddAccountAsync(Account account, CancellationToken ct = default)
+    {
+        await _context.Accounts.AddAsync(account, ct);
+    }
 }

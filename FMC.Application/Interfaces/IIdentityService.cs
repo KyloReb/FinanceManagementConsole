@@ -78,4 +78,9 @@ public interface IIdentityService
     /// Compares the provided OTP and updates the password if valid.
     /// </summary>
     Task<bool> CompletePasswordChangeAsync(string userId, VerifyPasswordChangeDto request);
+
+    /// <summary>
+    /// Ensures a user has a specific leadership role while removing conflicting roles (ex: CEO, Maker, Approver).
+    /// </summary>
+    Task<bool> SyncLeadingRoleAsync(string userId, string roleName, CancellationToken ct = default);
 }

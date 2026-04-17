@@ -202,13 +202,18 @@ public class UsersController : ControllerBase
     [HttpGet("workflow-alerts")]
     public async Task<ActionResult<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>> GetWorkflowAlerts()
     {
-        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
-                   ?? User.FindFirst("role")?.Value;
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var orgIdStr = User.FindFirst("OrganizationId")?.Value;
+        var orgIdStr = User.FindFirst("OrganizationId")?.Value 
+                     ?? User.FindFirst("organization")?.Value; // Fallback to name if ID is missing or check for "org_id"
+
+        // For workflow status, we need a primary role. Priority: CEO > Approver > Maker
+        string role = Roles.User;
+        if (User.IsInRole(Roles.CEO)) role = Roles.CEO;
+        else if (User.IsInRole(Roles.Approver)) role = Roles.Approver;
+        else if (User.IsInRole(Roles.Maker)) role = Roles.Maker;
 
         if (string.IsNullOrEmpty(orgIdStr) || !Guid.TryParse(orgIdStr, out var orgId) 
-            || string.IsNullOrEmpty(role) || string.IsNullOrEmpty(userId))
+            || string.IsNullOrEmpty(userId))
             return Ok(new List<FMC.Shared.DTOs.Admin.SystemAlertDto>());
 
         var alerts = await _organizationService.GetWorkflowAlertsAsync(orgId, userId, role, HttpContext.RequestAborted);

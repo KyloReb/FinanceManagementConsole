@@ -30,6 +30,55 @@ public class OrganizationRepository : IOrganizationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<(Organization Org, int UserCount, decimal OrgBalance, decimal UserBalanceSum, string? CeoName)>> GetAllWithStatsAsync(CancellationToken ct = default)
+    {
+        var orgs = await _context.Organizations.OrderBy(o => o.Name).ToListAsync(ct);
+        var orgIds = orgs.Select(o => o.Id).ToList();
+        var orgTenantIds = orgIds.Select(id => id.ToString()).ToList();
+        var ceoIds = orgs.Where(o => !string.IsNullOrEmpty(o.ChiefExecutiveId)).Select(o => o.ChiefExecutiveId).Distinct().ToList();
+
+        // Batch 1: User Counts
+        var userCounts = await _context.Users.OfType<ApplicationUser>()
+            .Where(u => u.OrganizationId != null && orgIds.Contains(u.OrganizationId.Value))
+            .GroupBy(u => u.OrganizationId)
+            .Select(g => new { OrgId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.OrgId!.Value, x => x.Count, ct);
+
+        // Batch 2: Org Wallet Balances
+        var orgBalances = await _context.Accounts
+            .IgnoreQueryFilters()
+            .Where(a => orgTenantIds.Contains(a.TenantId))
+            .Select(a => new { a.TenantId, a.Balance })
+            .ToDictionaryAsync(x => x.TenantId, x => x.Balance, ct);
+
+        // Batch 3: Total User Balances (all wallets for that org minus the org's own wallet)
+        var totalBalances = await (from u in _context.Users.OfType<ApplicationUser>()
+                                   where u.OrganizationId != null && orgIds.Contains(u.OrganizationId.Value)
+                                   join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
+                                   group a by u.OrganizationId into g
+                                   select new { OrgId = g.Key, Total = g.Sum(x => x.Balance) })
+                                   .ToDictionaryAsync(x => x.OrgId!.Value, x => x.Total, ct);
+
+        // Batch 4: CEO Names
+        var ceoNames = await _context.Users.OfType<ApplicationUser>()
+            .Where(u => ceoIds.Contains(u.Id))
+            .Select(u => new { u.Id, FullName = (u.FirstName + " " + u.LastName).Trim() })
+            .ToDictionaryAsync(x => x.Id, x => x.FullName, ct);
+
+        var result = new List<(Organization Org, int UserCount, decimal OrgBalance, decimal UserBalanceSum, string? CeoName)>();
+        foreach (var org in orgs)
+        {
+            var count = userCounts.GetValueOrDefault(org.Id, 0);
+            var orgBal = orgBalances.GetValueOrDefault(org.Id.ToString(), 0);
+            var totalUserBal = totalBalances.GetValueOrDefault(org.Id, 0) - orgBal;
+            var ceoName = !string.IsNullOrEmpty(org.ChiefExecutiveId) ? ceoNames.GetValueOrDefault(org.ChiefExecutiveId) : null;
+
+            result.Add((org, count, orgBal, totalUserBal, ceoName));
+        }
+
+        return result;
+    }
+
     public async Task AddAsync(Organization organization, CancellationToken cancellationToken = default)
     {
         await _context.Organizations.AddAsync(organization, cancellationToken);

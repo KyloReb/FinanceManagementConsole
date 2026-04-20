@@ -19,6 +19,11 @@ public interface IOrganizationRepository
     Task<IEnumerable<Organization>> GetAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Fetches all organizations along with their aggregated business metrics (UserCount, Balances) in a single optimized batch.
+    /// </summary>
+    Task<IEnumerable<(Organization Org, int UserCount, decimal OrgBalance, decimal UserBalanceSum, string? CeoName)>> GetAllWithStatsAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Attaches a newly minted organization entity into the core storage sequence awaiting synchronous transactions.
     /// </summary>
     Task AddAsync(Organization organization, CancellationToken cancellationToken = default);

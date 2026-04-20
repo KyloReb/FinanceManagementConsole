@@ -11,6 +11,7 @@ using FMC.Application.Transactions.Queries;
 using FMC.Infrastructure.Services;
 using FMC.Infrastructure.Caching;
 using FMC.Infrastructure.Repositories;
+using FMC.Infrastructure.Resilience;
 using FMC.Shared.Auth;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
@@ -118,15 +119,27 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Roles.Approver, policy => policy.RequireRole(Roles.Approver));
 });
 
-// Database
+// Database with built-in EF Core transient fault retry (SQL Server)
+// EnableRetryOnFailure automatically retries up to 5 times on known transient SQL errors.
+// This is the first layer of resilience — Polly adds a second layer on top.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null)));
 
 // DI for Layers
 builder.Services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+// Resilience: Register the concrete repository (for the decorator to inject)
+// and then override the interface binding with the resilient decorator.
+// This means every time IOrganizationRepository is requested, the system gets
+// a version that automatically retries on transient database faults.
+builder.Services.AddScoped<OrganizationRepository>();
+builder.Services.AddScoped<IOrganizationRepository, ResilientOrganizationRepository>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();

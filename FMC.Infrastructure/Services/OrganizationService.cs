@@ -50,21 +50,14 @@ public class OrganizationService : IOrganizationService
     /// <inheritdoc />
     public async Task<IEnumerable<OrganizationDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var organizations = await _repository.GetAllAsync(cancellationToken);
-        var result = new List<OrganizationDto>();
-
-        foreach (var org in organizations)
-        {
-            var userCount = await _repository.GetUserCountAsync(org.Id, cancellationToken);
-            var orgBalance = await _repository.GetOrganizationBalanceAsync(org.Id, cancellationToken);
-            var totalUsage = await _repository.GetTotalUserBalanceAsync(org.Id, cancellationToken);
-            
-            string? ceoName = await ResolveCeoNameAsync(org, cancellationToken);
-
-            result.Add(MapToDto(org, userCount, ceoName, orgBalance + totalUsage, totalUsage));
-        }
-
-        return result;
+        var summaries = await _repository.GetAllWithStatsAsync(cancellationToken);
+        
+        return summaries.Select(s => MapToDto(
+            s.Org, 
+            s.UserCount, 
+            s.CeoName, 
+            s.OrgBalance + s.UserBalanceSum, 
+            s.UserBalanceSum));
     }
 
     /// <inheritdoc />

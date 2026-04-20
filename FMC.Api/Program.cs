@@ -12,7 +12,10 @@ using FMC.Infrastructure.Services;
 using FMC.Infrastructure.Caching;
 using FMC.Infrastructure.Repositories;
 using FMC.Infrastructure.Resilience;
+using FMC.Infrastructure.BackgroundJobs;
 using FMC.Shared.Auth;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 
@@ -48,6 +51,35 @@ else
         options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
     });
 }
+
+// ─────────────────────────────────────────────────────────────
+// Hangfire Background Job Infrastructure
+// Uses the same SQL Server DB — zero additional infrastructure cost.
+// Jobs persist across restarts and are retried automatically on failure.
+// ─────────────────────────────────────────────────────────────
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        new SqlServerStorageOptions
+        {
+            CommandBatchMaxTimeout       = TimeSpan.FromMinutes(5),
+            SlidingInvisibilityTimeout   = TimeSpan.FromMinutes(5),
+            QueuePollInterval            = TimeSpan.Zero, // Immediately processes jobs
+            UseRecommendedIsolationLevel = true,
+            DisableGlobalLocks           = true
+        }));
+
+// Register the Hangfire background processing server
+// WorkerCount: 2 workers is ideal for a company server; increase if email volume grows.
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 2;
+    options.ServerName  = "FMC-BackgroundWorker";
+    options.Queues      = new[] { "critical", "default", "low" };
+});
 
 // Authentication Settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
@@ -148,6 +180,12 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISystemAlertService, SystemAlertService>();
+
+// Background Job Services
+// NotificationJobService is the typed job class that Hangfire instantiates in its own DI scope.
+// IBackgroundJobService is the clean abstraction used by the notification handler.
+builder.Services.AddScoped<NotificationJobService>();
+builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 builder.Services.AddHostedService<FMC.Infrastructure.BackgroundServices.HealthMonitorService>();
 
 // MediatR
@@ -249,6 +287,17 @@ app.UseCookiePolicy();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Hangfire Dashboard — accessible at /hangfire
+// Provides real-time visibility into all background jobs: queued, processing, succeeded, failed.
+// IMPORTANT: In production, secure this endpoint with IP filtering or an admin role policy.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    // Allow viewing the dashboard without authentication during development.
+    // In production: replace with a custom IAuthorizationFilter that checks for SuperAdmin role.
+    Authorization = new[] { new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter() }
+});
+
 app.MapControllers();
 
 app.Run();
+

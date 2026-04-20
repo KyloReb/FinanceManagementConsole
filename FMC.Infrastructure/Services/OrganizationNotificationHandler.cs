@@ -1,196 +1,97 @@
 using FMC.Application.Interfaces;
 using FMC.Application.Organizations.Events;
-using FMC.Domain.Entities;
-using FMC.Infrastructure.Data;
-using FMC.Shared.Utils;
+using FMC.Infrastructure.BackgroundJobs;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace FMC.Infrastructure.Services;
 
-public class OrganizationNotificationHandler : 
+/// <summary>
+/// MediatR notification handler responsible for dispatching financial workflow events
+/// to the background job queue. This handler is the bridge between the synchronous
+/// transaction (which the user is waiting on) and the asynchronous notification system.
+///
+/// Architecture Pattern — "Fire and Forget via Queue":
+/// 1. A transaction is committed to the database.
+/// 2. MediatR publishes a domain event (e.g., TransactionPendingEvent).
+/// 3. This handler picks it up and enqueues a Hangfire background job.
+/// 4. The user's request returns immediately — they do NOT wait for emails to send.
+/// 5. Hangfire processes the job asynchronously, retrying up to 10 times on failure.
+///
+/// This pattern ensures:
+/// - User experience: fast, non-blocking API responses.
+/// - Reliability: emails are never "lost" even if the SMTP server is temporarily down.
+/// - Observability: all job executions are visible in the Hangfire Dashboard.
+/// </summary>
+public sealed class OrganizationNotificationHandler :
     INotificationHandler<TransactionPendingEvent>,
     INotificationHandler<TransactionApprovedEvent>,
     INotificationHandler<WalletAdjustedEvent>
 {
-    private readonly ApplicationDbContext _context;
-    private readonly IEmailService _emailService;
-    private readonly IEmailTemplateService _templateService;
+    private readonly IBackgroundJobService _jobService;
     private readonly ILogger<OrganizationNotificationHandler> _logger;
 
     public OrganizationNotificationHandler(
-        ApplicationDbContext context,
-        IEmailService emailService,
-        IEmailTemplateService templateService,
+        IBackgroundJobService jobService,
         ILogger<OrganizationNotificationHandler> logger)
     {
-        _context = context;
-        _emailService = emailService;
-        _templateService = templateService;
+        _jobService = jobService;
         _logger = logger;
     }
 
-    public async Task Handle(TransactionPendingEvent notification, CancellationToken cancellationToken)
+    /// <summary>
+    /// Handles a pending transaction event by enqueuing an approval-request email
+    /// job to all eligible Approvers and the CEO.
+    /// </summary>
+    public Task Handle(TransactionPendingEvent notification, CancellationToken cancellationToken)
     {
-        try
-        {
-            var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
-            var user = await _context.Users.OfType<ApplicationUser>().IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == notification.TargetUserId, cancellationToken);
-            
-            if (org != null && user != null)
-            {
-                var approverEmails = await (from u in _context.Users.OfType<ApplicationUser>()
-                                            where u.OrganizationId == org.Id
-                                            join ur in _context.UserRoles on u.Id equals ur.UserId
-                                            join r in _context.Roles on ur.RoleId equals r.Id
-                                            where r.Name == FMC.Shared.Auth.Roles.Approver
-                                            select u.Email).ToListAsync(cancellationToken);
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing PendingApproval job for Org {OrgId}, Maker: {Maker}, Amount: {Amount}",
+            notification.OrganizationId, notification.MakerName, notification.Amount);
 
-                string? ceoEmail = await GetCeoEmail(org.ChiefExecutiveId, cancellationToken);
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendPendingApprovalNotificationAsync(
+                notification.OrganizationId,
+                notification.TargetUserId,
+                notification.MakerName,
+                notification.Amount));
 
-                var recipients = approverEmails.ToHashSet();
-                if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
-
-                if (recipients.Any())
-                {
-                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-                    
-                    var body = _templateService.GeneratePendingApprovalEmail(
-                        org.Name, 
-                        notification.MakerName, 
-                        $"{user.FirstName} {user.LastName}", 
-                        FinanceUtils.MaskCard(user.AccountNumber), 
-                        notification.Amount);
-
-                    foreach (var email in recipients)
-                    {
-                        await _emailService.SendEmailAsync(email, $"FMC Action Required: Pending Approval for {org.Name}", body, attachments);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to handle TransactionPendingEvent.");
-        }
+        return Task.CompletedTask;
     }
 
-    public async Task Handle(TransactionApprovedEvent notification, CancellationToken cancellationToken)
+    /// <summary>
+    /// Handles a transaction approval event by enqueuing settlement confirmation
+    /// emails to the Maker and CEO.
+    /// </summary>
+    public Task Handle(TransactionApprovedEvent notification, CancellationToken cancellationToken)
     {
-        try
-        {
-            var transaction = await _context.Transactions.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == notification.TransactionId, cancellationToken);
-            var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
-            
-            if (transaction != null && org != null)
-            {
-                var targetUser = await _context.Users.OfType<ApplicationUser>().IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == transaction.TenantId, cancellationToken);
-                var makerEmail = await _context.Users.IgnoreQueryFilters().Where(u => u.Id == transaction.MakerId).Select(u => u.Email).FirstOrDefaultAsync(cancellationToken);
-                var ceoEmail = await GetCeoEmail(org.ChiefExecutiveId, cancellationToken);
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing ApprovalConfirmation job for Transaction {TxId}",
+            notification.TransactionId);
 
-                var recipients = new HashSet<string>();
-                if (!string.IsNullOrEmpty(makerEmail)) recipients.Add(makerEmail);
-                if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendApprovalConfirmationAsync(
+                notification.TransactionId,
+                notification.OrganizationId));
 
-                if (recipients.Any())
-                {
-                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-                    
-                    var targetName = targetUser != null ? $"{targetUser.FirstName} {targetUser.LastName}" : "Subscriber";
-                    var targetCard = targetUser?.AccountNumber ?? "N/A";
-
-                    var body = _templateService.GenerateTransactionApprovedEmail(org.Name, targetName, FinanceUtils.MaskCard(targetCard), transaction.Amount);
-                    
-                    // Also handle capacity alerts here if needed, or in a separate handler
-                    // For Phase 2, we just move the approval email. 
-                    // Let's check capacity separately to keep it clean.
-                    
-                    foreach (var email in recipients)
-                    {
-                        await _emailService.SendEmailAsync(email, $"FMC Notification: Transaction Approved — {org.Name}", body, attachments);
-                    }
-                }
-                
-                // Trigger Capacity Alert if needed (moved from service)
-                await HandleCapacityAlert(org, transaction.Amount, ceoEmail, cancellationToken);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to handle TransactionApprovedEvent.");
-        }
+        return Task.CompletedTask;
     }
 
-    public async Task Handle(WalletAdjustedEvent notification, CancellationToken cancellationToken)
+    /// <summary>
+    /// Handles a wallet adjustment event by enqueuing an advisory email to the CEO.
+    /// </summary>
+    public Task Handle(WalletAdjustedEvent notification, CancellationToken cancellationToken)
     {
-        try
-        {
-            var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == notification.OrganizationId, cancellationToken);
-            if (org != null)
-            {
-                string? ceoEmail = await GetCeoEmail(org.ChiefExecutiveId, cancellationToken);
-                if (!string.IsNullOrEmpty(ceoEmail))
-                {
-                    var isCredit = notification.Amount > 0;
-                    var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-                    var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-                    
-                    var body = _templateService.GenerateWalletAdjustmentEmail(
-                        org.Name, 
-                        FinanceUtils.MaskCard(org.AccountNumber), 
-                        notification.Amount, 
-                        notification.NewBalance, 
-                        isCredit);
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing WalletAdjustment job for Org {OrgId}, Amount: {Amount}",
+            notification.OrganizationId, notification.Amount);
 
-                    var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
-                    await _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {actionTitle} — {org.Name}", body, attachments);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to handle WalletAdjustedEvent.");
-        }
-    }
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendWalletAdjustmentNotificationAsync(
+                notification.OrganizationId,
+                notification.Amount,
+                notification.NewBalance));
 
-    private async Task HandleCapacityAlert(Organization org, decimal lastTxAmount, string? ceoEmail, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(ceoEmail)) return;
-
-        var orgTenantId = org.Id.ToString();
-        var orgBalance = await _context.Accounts.IgnoreQueryFilters()
-            .Where(a => a.TenantId == orgTenantId)
-            .Select(a => a.Balance)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var userBalanceSum = await (from a in _context.Accounts.IgnoreQueryFilters()
-                                          where a.OrganizationId == org.Id && a.TenantId != orgTenantId
-                                          select a.Balance).SumAsync(cancellationToken);
-
-        var total = orgBalance + userBalanceSum;
-        var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
-
-        if (usedPct >= 80m || orgBalance <= 100_000m)
-        {
-            var alertType = usedPct >= 80m ? $"{usedPct:F0}% Operational Capacity Alert" : "Critical Liquidity Advisory";
-            var body = _templateService.GenerateCapacityThresholdEmail(org.Name, total, userBalanceSum, usedPct, orgBalance);
-            
-            var logoBytes = Convert.FromBase64String(FMC.Infrastructure.Authentication.BrandingConstants.NationlinkLogoBase64);
-            var attachments = new Dictionary<string, byte[]> { { "nlklogo", logoBytes } };
-            
-            await _emailService.SendEmailAsync(ceoEmail, $"FMC Advisory: {alertType} — {org.Name}", body, attachments);
-        }
-    }
-
-    private async Task<string?> GetCeoEmail(string? ceoId, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(ceoId)) return null;
-        return await _context.Users.IgnoreQueryFilters()
-            .Where(u => u.Id == ceoId)
-            .Select(u => u.Email)
-            .FirstOrDefaultAsync(cancellationToken);
+        return Task.CompletedTask;
     }
 }

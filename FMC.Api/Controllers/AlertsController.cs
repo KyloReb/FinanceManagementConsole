@@ -24,7 +24,9 @@ public class AlertsController : ControllerBase
     public async Task<ActionResult<List<SystemAlertDto>>> GetActive()
     {
         var alerts = await _alertService.GetActiveAlertsAsync();
-        var dtos = alerts.Select(a => new SystemAlertDto
+        var dtos = alerts
+            .Where(a => !a.Message.Contains("Nationlink/Infoserve Inc."))
+            .Select(a => new SystemAlertDto
         {
             Id = a.Id,
             Title = a.Title,
@@ -38,13 +40,19 @@ public class AlertsController : ControllerBase
 
         // ── Dynamic Organization Capacity Threshold Alerts for SuperAdmin ──
         var orgs = await _orgService.GetAllAsync();
-        foreach (var org in orgs)
+        foreach (var org in orgs.Where(o => o.Name != "Nationlink/Infoserve Inc."))
         {
             var orgBalance = org.TotalBalance - org.Usage;
             var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
 
             if (usedPct >= 80m || orgBalance <= 100_000m)
             {
+                // Deduplication: Skip if a persisted liquidity/capacity alert already exists for this organization
+                bool hasExistingMoneyAlert = dtos.Any(d => d.EntityId == org.Id.ToString() && 
+                    (d.Title.Contains("Liquidity") || d.Title.Contains("Capacity")));
+                
+                if (hasExistingMoneyAlert) continue;
+
                 var msg = usedPct >= 80m ? $"{org.Name} has {usedPct:F1}% of wallet allocated." : $"{org.Name} only has {orgBalance:C} remaining in org wallet.";
                 var sev = usedPct >= 80m ? AlertSeverityDto.Security : AlertSeverityDto.Warning;
                 
@@ -67,7 +75,18 @@ public class AlertsController : ControllerBase
     [HttpGet("count")]
     public async Task<ActionResult<int>> GetCount()
     {
-        return Ok(await _alertService.GetUnresolvedCountAsync());
+        var alerts = await _alertService.GetActiveAlertsAsync();
+        var persistedCount = alerts.Count(a => !a.Message.Contains("Nationlink/Infoserve Inc."));
+        
+        var orgs = await _orgService.GetAllAsync();
+        var dynamicCount = orgs.Where(o => o.Name != "Nationlink/Infoserve Inc.").Count(org => 
+        {
+            var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
+            var orgBalance = org.TotalBalance - org.Usage;
+            return usedPct >= 80m || orgBalance <= 100_000m;
+        });
+
+        return Ok(persistedCount + dynamicCount);
     }
 
     [HttpPost("{id}/resolve")]

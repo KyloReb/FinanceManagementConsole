@@ -270,7 +270,9 @@ public class IdentityService : IIdentityService
                 IsActive = user.IsActive,
                 Balance = balance,
                 Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
-                AccountNumber = user.AccountNumber
+                AccountNumber = user.AccountNumber,
+                LastLoginAt = user.LastLoginAt,
+                CreatedAt = user.CreatedAt
             });
         }
 
@@ -310,7 +312,9 @@ public class IdentityService : IIdentityService
                 IsActive = user.IsActive,
                 Balance = balance,
                 Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
-                AccountNumber = user.AccountNumber
+                AccountNumber = user.AccountNumber,
+                LastLoginAt = user.LastLoginAt,
+                CreatedAt = user.CreatedAt
             });
         }
 
@@ -348,7 +352,9 @@ public class IdentityService : IIdentityService
             IsActive = user.IsActive,
             Balance = balance,
             Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
-            AccountNumber = user.AccountNumber
+            AccountNumber = user.AccountNumber,
+            LastLoginAt = user.LastLoginAt,
+            CreatedAt = user.CreatedAt
         };
     }
 

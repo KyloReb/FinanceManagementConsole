@@ -5,10 +5,10 @@
 @inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthProvider
 
-<MudPaper Elevation="0" Class="fmc-main-surface">
-    <div class="fmc-header-area">
+<MudPaper Elevation="0" Class="fmc-glass-surface mb-6">
+    <div class="fmc-header-area pa-6" style="border-bottom: 1px solid var(--mud-palette-divider);">
         <div class="d-flex align-center">
-            <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning);">
+            <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                 <MudIcon Icon="@Icons.Material.Filled.PendingActions" />
             </div>
             <div>
@@ -34,43 +34,47 @@
         }
         else
         {
-            <MudSimpleTable Hover="true" Bordered="false" Striped="false" Elevation="0" Class="fmc-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>User Account</th>
-                        <th>Maker</th>
-                        <th>Amount</th>
-                        <th style="text-align:right;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var tx in _pendingTransactions)
+            <MudTable Items="@_pendingTransactions" Hover="true" Breakpoint="Breakpoint.None" Elevation="0" Class="fmc-premium-table">
+                <HeaderContent>
+                    <MudTh>DATE</MudTh>
+                    <MudTh>USER ACCOUNT</MudTh>
+                    <MudTh>MAKER</MudTh>
+                    <MudTh Style="text-align: right;">AMOUNT</MudTh>
+                    @if (_canApprove)
                     {
-                        <tr>
-                            <td>@tx.Date.ToString("MMM dd, HH:mm")</td>
-                            <td>
-                                <MudText Typo="Typo.body2" Style="font-weight: 600;">@tx.Label</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Batch Ref: @tx.Id.ToString().Substring(0, 8)</MudText>
-                            </td>
-                            <td>
-                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@tx.MakerName</MudChip>
-                            </td>
-                            <td>
-                                <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(tx.Amount < 0 ? Color.Error : Color.Success)">
-                                    @(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("C")
-                                </MudText>
-                            </td>
-                            <td style="text-align:right;">
-                                <div class="d-flex align-center justify-end gap-2">
-                                    <MudButton StartIcon="@Icons.Material.Filled.Check" Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="@(() => Approve(tx.Id))">Approve</MudButton>
-                                    <MudButton StartIcon="@Icons.Material.Filled.Close" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="@(() => Reject(tx.Id))">Reject</MudButton>
-                                </div>
-                            </td>
-                        </tr>
+                        <MudTh Style="text-align: right;">ACTIONS</MudTh>
                     }
-                </tbody>
-            </MudSimpleTable>
+                </HeaderContent>
+                <RowTemplate Context="tx">
+                    <MudTd DataLabel="Date">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mud-text-secondary" />
+                            <MudText Typo="Typo.body2" Style="font-weight: 600;">@tx.Date.ToString("MMM dd, HH:mm")</MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Account">
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; color: var(--mud-palette-text-primary);">@tx.Label</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="letter-spacing: 0.05em;">REF: @tx.Id.ToString().Substring(0, 8).ToUpper()</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Maker">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Style="font-weight: 700;">@tx.MakerName</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Amount" Style="text-align: right;">
+                        <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(tx.Amount < 0 ? Color.Error : Color.Success)">
+                            @(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("C")
+                        </MudText>
+                    </MudTd>
+                    @if (_canApprove)
+                    {
+                        <MudTd Style="text-align: right;">
+                            <div class="d-flex align-center justify-end gap-2">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="fmc-action-btn" Style="padding: 4px 12px !important; border-radius: 8px !important;" OnClick="@(() => Reject(tx.Id))">Reject</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" Class="fmc-action-btn" Style="color: white !important; padding: 4px 12px !important; border-radius: 8px !important;" OnClick="@(() => Approve(tx.Id))">Approve</MudButton>
+                            </div>
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
         }
     </div>
 </MudPaper>
@@ -80,9 +84,12 @@
     
     private List<TransactionDto> _pendingTransactions = new();
     private bool _loading = true;
+    private bool _canApprove = false;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _canApprove = authState.User.IsInRole(Roles.Approver);
         await LoadDataAsync();
     }
 

@@ -70,7 +70,7 @@ public class OrganizationRepository : IOrganizationRepository
         {
             var count = userCounts.GetValueOrDefault(org.Id, 0);
             var orgBal = orgBalances.GetValueOrDefault(org.Id.ToString(), 0);
-            var totalUserBal = totalBalances.GetValueOrDefault(org.Id, 0) - orgBal;
+            var totalUserBal = totalBalances.GetValueOrDefault(org.Id, 0);
             var ceoName = !string.IsNullOrEmpty(org.ChiefExecutiveId) ? ceoNames.GetValueOrDefault(org.ChiefExecutiveId) : null;
 
             result.Add((org, count, orgBal, totalUserBal, ceoName));

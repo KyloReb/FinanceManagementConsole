@@ -151,7 +151,9 @@
 
     private IEnumerable<UserDto> _filteredUsers {
         get {
-            var query = Users.AsEnumerable();
+            // Enforcement: Only Roles.User are "Cardholders" with wallets. 
+            // All staff (CEO, Maker, Approver) are identity-only and should not appear in this registry.
+            var query = Users.Where(u => u.Role == Roles.User).AsEnumerable();
             
             if (!string.IsNullOrWhiteSpace(_searchString)) {
                 query = query.Where(u => u.DisplayName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) 

@@ -381,6 +381,10 @@
                 var dbAlerts = await OrgService.GetActiveAlertsAsync();
                 foreach (var alert in dbAlerts)
                 {
+                    // Deduplicate by Title + EntityId
+                    if (_notifications.Any(n => n.Title == alert.Title && n.EntityId == alert.EntityId))
+                        continue;
+
                     _notifications.Add(new NotifItem(
                         alert.Id,
                         alert.Title, 
@@ -401,6 +405,10 @@
                 foreach (var alert in wfAlerts)
                 {
                     if (_dismissedNotifications.Contains(alert.EntityId ?? ""))
+                        continue;
+
+                    // Deduplicate by Title + EntityId (prevents overlap with SuperAdmin block)
+                    if (_notifications.Any(n => n.Title == alert.Title && n.EntityId == alert.EntityId))
                         continue;
 
                     var href = alert.EntityId != null && alert.EntityId.StartsWith("Pending") ? "/pending-requests" : "/transactions";

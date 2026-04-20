@@ -98,6 +98,100 @@ public static class ApplicationDbSeeder
             david.IsActive = true;
             await userManager.UpdateAsync(david);
         }
+
+        // 5. Seed 5 Cardholders per Organization
+        var organizations = await db.Organizations.IgnoreQueryFilters().ToListAsync();
+        
+        string[] fNames = {"Emma", "Liam", "Olivia", "Noah", "Ava", "Elijah", "Sophia", "William"};
+        string[] lNames = {"Garcia", "Martinez", "Rodriguez", "Lopez", "Gonzalez", "Perez", "Sanchez", "Ramirez"};
+        int nameIndex = 0;
+
+        foreach (var org in organizations)
+        {
+            for (int i = 1; i <= 5; i++)
+            {
+                var email = $"cardholder{i}@{org.Name.Replace(" ", "").Replace("/", "").ToLower()}.local";
+                var chUser = await userManager.FindByEmailAsync(email);
+                
+                var fn = fNames[nameIndex % fNames.Length];
+                var ln = lNames[nameIndex % lNames.Length];
+
+                if (chUser == null)
+                {
+                    chUser = new ApplicationUser
+                    {
+                        UserName = $"cardholder{i}_{org.Id.ToString().Substring(0, 4)}",
+                        Email = email,
+                        FirstName = fn,
+                        LastName = ln,
+                        EmailConfirmed = true,
+                        IsActive = true,
+                        Organization = org.Name,
+                        OrganizationId = org.Id,
+                        AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
+                    };
+
+                    var createResult = await userManager.CreateAsync(chUser, "Cardholder123!");
+                    if (createResult.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(chUser, Roles.User);
+                        
+                        // Create Wallet for Cardholder
+                        var account = new Account
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = $"Wallet: {fn} {ln}",
+                            Balance = 0,
+                            TenantId = chUser.Id,
+                            OrganizationId = org.Id
+                        };
+                        db.Accounts.Add(account);
+                    }
+                }
+                else
+                {
+                    // Existing user update
+                    if (chUser.FirstName == "Cardholder")
+                    {
+                        chUser.FirstName = fn;
+                        chUser.LastName = ln;
+                        await userManager.UpdateAsync(chUser);
+
+                        var account = await db.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.TenantId == chUser.Id);
+                        if (account != null && account.Name.StartsWith("Wallet: Cardholder"))
+                        {
+                            account.Name = $"Wallet: {fn} {ln}";
+                            db.Accounts.Update(account);
+                        }
+                    }
+                }
+                nameIndex++;
+            }
+        }
+        // 6. Cleanup: Remove legacy Wallets/Accounts for administrative staff (non-cardholders)
+        var staffRoles = new[] { Roles.SuperAdmin, Roles.CEO, Roles.Maker, Roles.Approver };
+        var allStaffUsers = new List<ApplicationUser>();
+        foreach (var roleName in staffRoles)
+        {
+            var members = await userManager.GetUsersInRoleAsync(roleName);
+            allStaffUsers.AddRange(members);
+        }
+
+        var staffUserIds = allStaffUsers.Select(u => u.Id).Distinct().ToList();
+        if (staffUserIds.Any())
+        {
+            // Remove any Account/Wallet record linked to a staff member's ID
+            var accountsToPurge = await db.Accounts.IgnoreQueryFilters()
+                .Where(a => staffUserIds.Contains(a.TenantId))
+                .ToListAsync();
+
+            if (accountsToPurge.Any())
+            {
+                db.Accounts.RemoveRange(accountsToPurge);
+            }
+        }
+
+        await db.SaveChangesAsync();
     }
 }
 

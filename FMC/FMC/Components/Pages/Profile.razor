@@ -75,34 +75,37 @@
 
             <MudItem xs="12" lg="8">
                 <MudGrid Spacing="3">
-                    @* Financial Cards - Side by side on mobile for compactness *@
-                    <MudItem xs="6" lg="6">
-                        <MudPaper Elevation="0" Class="pa-6 fmc-balance-card h-100">
-                            <div class="d-flex align-center justify-space-between w-100">
-                                <MudText Typo="Typo.overline" Style="color: rgba(255,255,255,0.7); font-weight:800; letter-spacing: 1px; font-size:0.65rem;">AVAILABLE BALANCE</MudText>
-                                <MudIconButton Icon="@(_showBalance ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)" 
-                                               Color="Color.Inherit" Size="Size.Small" 
-                                               OnClick="@(() => _showBalance = !_showBalance)" 
-                                               Style="padding:0; opacity: 0.7;" />
-                            </div>
-                            <div class="fmc-balance-container">
-                                @if (_showBalance)
-                                {
-                                    <MudText Typo="Typo.h2" Class="fmc-balance-amount">@(_walletBalance.ToString("C2"))</MudText>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.h2" Class="fmc-balance-amount">₱ ••••••</MudText>
-                                }
-                            </div>
-                            <div class="d-flex align-center mt-2">
-                                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Style="color: rgba(255,255,255,0.5); font-size: 0.8rem;" Class="mr-1" />
-                                <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.6); font-weight:600; font-size:0.6rem;">Secured Ledger</MudText>
-                            </div>
-                        </MudPaper>
-                    </MudItem>
+                    @* Financial Cards - Only show wallet for Cardholders (Roles.User) *@
+                    @if (_user.Role == Roles.User)
+                    {
+                        <MudItem xs="6" lg="6">
+                            <MudPaper Elevation="0" Class="pa-6 fmc-balance-card h-100">
+                                <div class="d-flex align-center justify-space-between w-100">
+                                    <MudText Typo="Typo.overline" Style="color: rgba(255,255,255,0.7); font-weight:800; letter-spacing: 1px; font-size:0.65rem;">AVAILABLE BALANCE</MudText>
+                                    <MudIconButton Icon="@(_showBalance ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)" 
+                                                Color="Color.Inherit" Size="Size.Small" 
+                                                OnClick="@(() => _showBalance = !_showBalance)" 
+                                                Style="padding:0; opacity: 0.7;" />
+                                </div>
+                                <div class="fmc-balance-container">
+                                    @if (_showBalance)
+                                    {
+                                        <MudText Typo="Typo.h2" Class="fmc-balance-amount">@(_walletBalance.ToString("C2"))</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.h2" Class="fmc-balance-amount">₱ ••••••</MudText>
+                                    }
+                                </div>
+                                <div class="d-flex align-center mt-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Style="color: rgba(255,255,255,0.5); font-size: 0.8rem;" Class="mr-1" />
+                                    <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.6); font-weight:600; font-size:0.6rem;">Secured Ledger</MudText>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                    }
 
-                    <MudItem xs="6" lg="6">
+                    <MudItem xs="@(_user.Role == Roles.User ? 6 : 12)" lg="@(_user.Role == Roles.User ? 6 : 12)">
                         <MudPaper Elevation="0" Class="pa-6 d-flex flex-column justify-center fmc-org-card h-100 fmc-hover-card" 
                                   Style="@(_user.OrganizationId.HasValue ? "cursor: pointer;" : "")"
                                   @onclick="@(() => { if(_user.OrganizationId.HasValue) Navigation.NavigateTo($"/admin/organizations/{_user.OrganizationId.Value}"); })">
@@ -197,59 +200,62 @@
                                 </MudGrid>
                             </MudTabPanel>
                             
-                            <MudTabPanel Text="Financial Forensic" Icon="@Icons.Material.Filled.QueryStats">
-                                @if (_loadingHistory)
-                                {
-                                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="rounded" />
-                                }
-                                else if (!_transactions.Any())
-                                {
-                                    <div class="d-flex flex-column align-center justify-center py-16">
-                                        <div class="fmc-empty-icon-container mb-6">
-                                            <MudIcon Icon="@Icons.Material.Filled.HistoryToggleOff" Style="font-size: 3rem; color: var(--mud-palette-primary);" />
+                            @if (_user.Role == Roles.User)
+                            {
+                                <MudTabPanel Text="Financial Forensic" Icon="@Icons.Material.Filled.QueryStats">
+                                    @if (_loadingHistory)
+                                    {
+                                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="rounded" />
+                                    }
+                                    else if (!_transactions.Any())
+                                    {
+                                        <div class="d-flex flex-column align-center justify-center py-16">
+                                            <div class="fmc-empty-icon-container mb-6">
+                                                <MudIcon Icon="@Icons.Material.Filled.HistoryToggleOff" Style="font-size: 3rem; color: var(--mud-palette-primary);" />
+                                            </div>
+                                            <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px;">No Transactions Found</MudText>
+                                            <MudText Typo="Typo.body2" Class="mud-text-secondary text-center px-12 mt-2" Style="max-width: 450px; line-height: 1.6;">
+                                                The digital ledger for this account is currently empty. Any future adjustments or credits will be logged here for forensic auditing.
+                                            </MudText>
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-6" Style="text-transform:none; font-weight:700;">Refresh Ledger</MudButton>
                                         </div>
-                                        <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px;">No Transactions Found</MudText>
-                                        <MudText Typo="Typo.body2" Class="mud-text-secondary text-center px-12 mt-2" Style="max-width: 450px; line-height: 1.6;">
-                                            The digital ledger for this account is currently empty. Any future adjustments or credits will be logged here for forensic auditing.
-                                        </MudText>
-                                        <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-6" Style="text-transform:none; font-weight:700;">Refresh Ledger</MudButton>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="px-8 pt-8 pb-2 d-flex align-center justify-space-between">
-                                        <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px;">Digital Ledger Trace</MudText>
-                                        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Download" Color="Color.Primary" Size="Size.Small" Style="text-transform:none; font-weight:700;">Export History</MudButton>
-                                    </div>
-                                    <MudTable Items="@_transactions" Dense="true" Hover="true" Bordered="false" Striped="false" Elevation="0" Class="fmc-trace-table mb-4">
-                                        <HeaderContent>
-                                            <MudTh Class="fmc-th pl-8">DATE</MudTh>
-                                            <MudTh Class="fmc-th">EVENT LABEL</MudTh>
-                                            <MudTh Class="fmc-th pr-8" Style="text-align:right">ADJUSTMENT</MudTh>
-                                        </HeaderContent>
-                                        <RowTemplate>
-                                            <MudTd DataLabel="Date" Class="pl-8 py-4">@context.Date.ToString("MMM dd, yyyy")</MudTd>
-                                            <MudTd DataLabel="Label">
-                                                <div class="d-flex align-center">
-                                                    <MudIcon Icon="@(context.Amount >= 0 ? Icons.Material.Filled.AddCircleOutline : Icons.Material.Filled.RemoveCircleOutline)" 
-                                                             Size="Size.Small" Class="mr-2" 
-                                                             Color="@(context.Amount >= 0 ? Color.Success : Color.Error)" 
-                                                             Style="opacity: 0.7;" />
-                                                    <MudText Typo="Typo.body2" Style="font-weight:600; color: var(--mud-palette-text-primary);">@context.Label</MudText>
-                                                </div>
-                                            </MudTd>
-                                            <MudTd DataLabel="Amount" Class="pr-8" Style="text-align:right">
-                                                <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight:800; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; font-size:1.1rem; letter-spacing:-0.5px;">
-                                                    @(context.Amount > 0 ? "+" : "")@context.Amount.ToString("N2")
-                                                </MudText>
-                                            </MudTd>
-                                        </RowTemplate>
-                                    </MudTable>
-                                    <div class="d-flex justify-center pb-8">
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="fmc-action-btn" EndIcon="@Icons.Material.Filled.ArrowForward" OnClick="@(() => Navigation.NavigateTo("/transactions"))">Access Full Transaction Logs</MudButton>
-                                    </div>
-                                }
-                            </MudTabPanel>
+                                    }
+                                    else
+                                    {
+                                        <div class="px-8 pt-8 pb-2 d-flex align-center justify-space-between">
+                                            <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px;">Digital Ledger Trace</MudText>
+                                            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Download" Color="Color.Primary" Size="Size.Small" Style="text-transform:none; font-weight:700;">Export History</MudButton>
+                                        </div>
+                                        <MudTable Items="@_transactions" Dense="true" Hover="true" Bordered="false" Striped="false" Elevation="0" Class="fmc-trace-table mb-4">
+                                            <HeaderContent>
+                                                <MudTh Class="fmc-th pl-8">DATE</MudTh>
+                                                <MudTh Class="fmc-th">EVENT LABEL</MudTh>
+                                                <MudTh Class="fmc-th pr-8" Style="text-align:right">ADJUSTMENT</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate Context="tx">
+                                                <MudTd DataLabel="Date" Class="pl-8 py-4">@tx.Date.ToString("MMM dd, yyyy")</MudTd>
+                                                <MudTd DataLabel="Label">
+                                                    <div class="d-flex align-center">
+                                                        <MudIcon Icon="@(tx.Amount >= 0 ? Icons.Material.Filled.AddCircleOutline : Icons.Material.Filled.RemoveCircleOutline)" 
+                                                                Size="Size.Small" Class="mr-2" 
+                                                                Color="@(tx.Amount >= 0 ? Color.Success : Color.Error)" 
+                                                                Style="opacity: 0.7;" />
+                                                        <MudText Typo="Typo.body2" Style="font-weight:600; color: var(--mud-palette-text-primary);">@tx.Label</MudText>
+                                                    </div>
+                                                </MudTd>
+                                                <MudTd DataLabel="Amount" Class="pr-8" Style="text-align:right">
+                                                    <MudText Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight:800; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; font-size:1.1rem; letter-spacing:-0.5px;">
+                                                        @(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("N2")
+                                                    </MudText>
+                                                </MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                        <div class="d-flex justify-center pb-8">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="fmc-action-btn" EndIcon="@Icons.Material.Filled.ArrowForward" OnClick="@(() => Navigation.NavigateTo("/transactions"))">Access Full Transaction Logs</MudButton>
+                                        </div>
+                                    }
+                                </MudTabPanel>
+                            }
                         </MudTabs>
                     </MudItem>
                 </MudGrid>

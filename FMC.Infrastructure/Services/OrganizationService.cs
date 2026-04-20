@@ -279,7 +279,14 @@ public class OrganizationService : IOrganizationService
         var userDto = await _identityService.GetUserByIdAsync(userId.ToString());
         if (userDto == null) return false;
 
-        // 3. Identify the personal wallet account
+        // 3. Structural Isolation: Only 'User' roles (Cardholders) hold wallets
+        if (userDto.Role != FMC.Shared.Auth.Roles.User)
+        {
+            _logger.LogWarning("[OrganizationService] Invalid Target: User {UserId} is a Staff Credential and cannot receive wallet allotments.", userId);
+            return false;
+        }
+
+        // 4. Identify the personal wallet account
         var tenantId = userDto.Id;
         var account = await _repository.GetAccountByTenantIdAsync(tenantId, cancellationToken);
 

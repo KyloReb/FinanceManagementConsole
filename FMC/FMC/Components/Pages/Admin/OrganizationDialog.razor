@@ -14,33 +14,38 @@
                      SliderColor="Color.Primary" TabHeaderClass="fmc-custom-tabs">
                 
                 <MudTabPanel Text="General Settings" Icon="@Icons.Material.Filled.Settings" Style="text-transform:none">
-                    <div class="py-6 px-2">
-                        <MudText Typo="Typo.subtitle2" Class="fmc-section-header mb-6">ORGANIZATION PROFILE</MudText>
-                        <MudGrid Spacing="3">
+                    <div class="py-6 px-4">
+                        <MudText Typo="Typo.subtitle2" Class="fmc-section-header mb-6">INSTITUTIONAL CONFIGURATION</MudText>
+                        <MudGrid Spacing="4">
                             <MudItem xs="12">
                                 <MudTextField @bind-Value="_model.Name" Label="Organization Name" 
-                                              Required="true" RequiredError="Name is required" 
-                                              Variant="Variant.Outlined" FullWidth="true" />
+                                              Required="true" RequiredError="Legal name is required" 
+                                              Variant="Variant.Outlined" FullWidth="true" 
+                                              HelperText="Registered legal entity name as it appears in KYC records." />
                             </MudItem>
                             <MudItem xs="12">
                                 <MudTextField @bind-Value="_model.Description" Label="Business Description" 
-                                              Lines="3" Variant="Variant.Outlined" FullWidth="true" />
+                                              Lines="3" Variant="Variant.Outlined" FullWidth="true" 
+                                              Placeholder="Enter primary business activities or mission..." />
                             </MudItem>
                             <MudItem xs="12">
                                 <MudNumericField @bind-Value="_model.WalletLimit" Label="Assigned Balance (Liquidity Ceiling)" 
                                                  Variant="Variant.Outlined" FullWidth="true" 
-                                                 Format="N0" Adornment="Adornment.Start" 
-                                                 AdornmentText="₱" HelperText="The maximum operational float before depletion alerts trigger." />
+                                                 Format="N2" Adornment="Adornment.Start" 
+                                                 AdornmentText="₱" AdornmentColor="Color.Primary"
+                                                 Class="fmc-mono-input"
+                                                 HelperText="The maximum operational float authorized for this institution before depletion alerts trigger." />
                             </MudItem>
                             @if (!IsCreate)
                             {
-                                <MudItem xs="12" Class="d-flex align-center justify-space-between mt-4 pa-4" 
-                                         Style="background-color: var(--mud-palette-background-grey); border-radius: 12px;">
-                                    <div class="d-flex flex-column">
-                                        <MudText Typo="Typo.body1" Style="font-weight: 700;">Active Entity Status</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Toggle operational accessibility</MudText>
+                                <MudItem xs="12">
+                                    <div class="pa-5 d-flex align-center justify-space-between fmc-status-panel">
+                                        <div class="d-flex flex-column">
+                                            <MudText Typo="Typo.body1" Style="font-weight: 800;">Active Entity Status</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Toggle operational accessibility for all connected accounts.</MudText>
+                                        </div>
+                                        <MudSwitch @bind-Value="_model.IsActive" Color="Color.Success" UnCheckedColor="Color.Error" Size="Size.Large" />
                                     </div>
-                                    <MudSwitch @bind-Value="_model.IsActive" Color="Color.Success" UnCheckedColor="Color.Error" />
                                 </MudItem>
                             }
                         </MudGrid>
@@ -98,10 +103,12 @@
         </MudForm>
 
         <style>
+            @@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
             /* Dynamic Theme Adaptation */
             .fmc-theme-dialog { 
                 background-color: var(--mud-palette-surface) !important; 
-                border-radius: 16px !important; 
+                border-radius: 20px !important; 
             }
             
             .fmc-custom-tabs { 
@@ -110,9 +117,10 @@
             }
             .fmc-custom-tabs .mud-tab { 
                 text-transform: none !important; 
-                font-weight: 600; 
+                font-weight: 700 !important; 
                 color: var(--mud-palette-text-secondary) !important;
-                padding: 14px 28px;
+                padding: 16px 32px;
+                letter-spacing: -0.01em;
             }
             .fmc-custom-tabs .mud-tab.mud-tab-active { 
                 color: var(--mud-palette-primary) !important; 
@@ -121,26 +129,47 @@
             
             .fmc-section-header { 
                 color: var(--mud-palette-primary); 
-                font-weight: 800; 
-                letter-spacing: 0.1em; 
-                font-size: 0.75rem; 
-                padding-left: 4px; border-left: 4px solid var(--mud-palette-primary);
+                font-weight: 900; 
+                letter-spacing: 0.15em; 
+                font-size: 0.7rem; 
+                padding-left: 8px; border-left: 4px solid var(--mud-palette-primary);
+                text-transform: uppercase;
             }
             
-            .fmc-scroll-area { max-height: 400px; overflow-y: auto; padding-right: 4px; }
-            .fmc-scroll-area::-webkit-scrollbar { width: 6px; }
+            .fmc-scroll-area { max-height: 400px; overflow-y: auto; padding-right: 8px; }
+            .fmc-scroll-area::-webkit-scrollbar { width: 5px; }
             .fmc-scroll-area::-webkit-scrollbar-thumb { background: var(--mud-palette-divider); border-radius: 10px; }
             
             .fmc-user-row { 
-                padding: 12px 16px;
+                padding: 14px 18px;
                 border: 1px solid var(--mud-palette-divider);
-                border-radius: 12px;
+                border-radius: 16px;
                 display: flex;
                 align-items: center;
                 background-color: var(--mud-palette-surface);
-                transition: background-color 0.2s;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.02);
             }
-            .fmc-user-row:hover { background-color: var(--mud-palette-background-grey); }
+            .fmc-user-row:hover { 
+                background-color: var(--mud-palette-background-grey); 
+                border-color: var(--mud-palette-primary);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            }
+
+            .fmc-status-panel {
+                background: linear-gradient(to right, var(--mud-palette-background-grey), var(--mud-palette-surface));
+                border: 1px dashed var(--mud-palette-divider);
+                border-radius: 16px;
+            }
+
+            .fmc-mono-input input { 
+                font-family: 'Roboto Mono', 'JetBrains Mono', monospace !important; 
+                font-weight: 700 !important; 
+                font-size: 1.1rem !important;
+                letter-spacing: -0.02em;
+                color: var(--mud-palette-primary) !important;
+            }
         </style>
     </DialogContent>
     <DialogActions>
@@ -191,7 +220,11 @@
             // Load users affiliated with this organization
             try
             {
-                _affiliatedUsers = await OrganizationService.GetUsersAsync(OrganizationToEdit.Id);
+                var allUsers = await OrganizationService.GetUsersAsync(OrganizationToEdit.Id);
+                // Enforcement: Only Management/Operations (Staff) roles are managed here.
+                // Cardholders are restricted to the cardholder registry and cannot have their roles 
+                // toggled from this specific administrative personnel matrix.
+                _affiliatedUsers = allUsers.Where(u => u.Role != Roles.User).ToList();
             }
             catch (Exception ex)
             {

@@ -18,6 +18,8 @@ public class UserDto
     public decimal Balance { get; set; }
     public string Role { get; set; } = string.Empty;
     public string AccountNumber { get; set; } = string.Empty;
+    public DateTime? LastLoginAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class UpdateUserDto

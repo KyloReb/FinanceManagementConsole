@@ -9,7 +9,7 @@
             <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" /></div>
             <div>
                 <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Subscriber Wallet Repository</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">Real-time ledger balances across all tenants</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">@FilteredOrganizations.Count Active Tenants Under Management</MudText>
             </div>
         </div>
         <div class="fmc-control-orchestrator">
@@ -29,18 +29,17 @@
         <MudTable Items="@FilteredOrganizations" Hover="true" Elevation="0" Loading="@Loading" Class="fmc-premium-table" OnRowClick="OrgRowClicked" T="OrganizationDto">
             <HeaderContent>
                 <MudTh>TENANT ORGANIZATION</MudTh>
-                <MudTh Style="width:100px;">STATUS</MudTh>
-                <MudTh>USAGE</MudTh>
-                <MudTh>CURRENT BALANCE</MudTh>
+                <MudTh>DISTRIBUTED USAGE</MudTh>
+                <MudTh>COLLECTION WALLET</MudTh>
                 <MudTh Style="text-align:right;">ACTIONS</MudTh>
             </HeaderContent>
             <RowTemplate Context="orgItem">
                 @{
-                    var usage = orgItem.Usage;
-                    var totalLimit = orgItem.TotalBalance;
-                    var currentBalance = totalLimit - usage;
-                    var hasLimit = totalLimit > 0;
-                    var usagePct = hasLimit ? (double)(usage / totalLimit) * 100.0 : 0;
+                    var rawUsage = orgItem.Usage;
+                    var usage = Math.Max(0, rawUsage); 
+                    var totalCapacity = orgItem.TotalBalance;
+                    var currentBalance = totalCapacity - rawUsage; 
+                    var usagePct = totalCapacity > 0 ? (double)(usage / totalCapacity) * 100.0 : 0;
                 }
                 <MudTd>
                     <div class="d-flex align-center gap-3">
@@ -48,34 +47,32 @@
                             @orgItem.Name?[0]
                         </MudAvatar>
                         <div>
-                            <MudText Style="font-weight:800;">@orgItem.Name</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">CEO: @(orgItem.CeoName ?? "Unassigned")</MudText>
-                        </div>
-                    </div>
-                </MudTd>
-                <MudTd>
-                    <div class="fmc-status-pill @(orgItem.IsActive ? "active" : "suspended") scale-75 transform-origin-left">
-                        <div class="fmc-pulse"></div>
-                        <span>@(orgItem.IsActive ? "ACT" : "OFF")</span>
-                    </div>
-                </MudTd>
-                <MudTd>
-                    <div class="d-flex flex-column" style="min-width: 120px;">
-                        <MudText Style="font-weight:800; font-size: 0.85rem;">@usage.ToString("C0")</MudText>
-                        <div class="d-flex align-center gap-2">
-                            <div class="flex-grow-1" style="height:4px; background:var(--mud-palette-divider); border-radius:2px; overflow:hidden;">
-                                <div style="height:100%; width:@(Math.Min(usagePct, 100).ToString("F2"))%; background:@(usagePct >= 80 ? "var(--mud-palette-error)" : "var(--mud-palette-primary)");"></div>
+                            <div class="d-flex align-center gap-2">
+                                <MudText Style="font-weight:900; letter-spacing:-0.01em;">@orgItem.Name</MudText>
+                                <div class="fmc-status-pill @(orgItem.IsActive ? "active" : "suspended")" style="transform: scale(0.7); transform-origin: left center;">
+                                    <span>@(orgItem.IsActive ? "ACT" : "OFF")</span>
+                                </div>
                             </div>
-                            <MudText Typo="Typo.caption" Style="font-size: 0.65rem; font-weight:800;">@usagePct.ToString("F1")%</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">CEO: @(orgItem.CeoName ?? "Unassigned")</MudText>
                         </div>
                     </div>
                 </MudTd>
                 <MudTd>
-                    <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace; font-size: 1rem;"
-                             Color="@(currentBalance < 0 ? Color.Error : Color.Default)">
-                        @currentBalance.ToString("C")
+                    <div class="d-flex flex-column" style="min-width: 140px;">
+                        <MudText Color="@(usage < 0 ? Color.Error : Color.Info)" Style="font-weight:950; font-family:'Roboto Mono',monospace; font-size: 0.9rem;">₱@usage.ToString("N2")</MudText>
+                        <div class="d-flex align-center gap-2 mt-1">
+                            <div class="flex-grow-1" style="height:6px; background:var(--mud-palette-divider); border-radius:3px; overflow:hidden;">
+                                <div style="height:100%; width:@(Math.Min(Math.Max(0, usagePct), 100).ToString("F2"))%; background:var(--mud-palette-primary); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                            </div>
+                            <MudText Typo="Typo.caption" Style="font-size: 0.7rem; font-weight:900;">@Math.Max(0, usagePct).ToString("F1")%</MudText>
+                        </div>
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <MudText Style="font-weight:950; font-family:'Roboto Mono',monospace; font-size: 1.1rem; color: var(--fmc-accent-premium);">
+                        ₱@currentBalance.ToString("N2")
                     </MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">LIMIT: @totalLimit.ToString("C0")</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800; letter-spacing:0.05em;">CAPACITY: ₱@totalCapacity.ToString("N2")</MudText>
                 </MudTd>
                 <MudTd Style="text-align:right;">
                     <div class="d-flex align-center justify-end gap-2">

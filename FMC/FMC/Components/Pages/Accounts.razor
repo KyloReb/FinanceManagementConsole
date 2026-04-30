@@ -29,7 +29,7 @@
         @if (_isCEOOrAdmin)
         {
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" 
-                       Size="Size.Large" Class="fmc-acc-action-btn">Initiate New Account</MudButton>
+                       Size="Size.Large" Class="fmc-acc-action-btn" OnClick="OpenCreateUserDialog">Initiate New Account</MudButton>
         }
     </div>
 
@@ -66,6 +66,7 @@
                     <MudTh Class="fmc-th"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.DisplayName)">STAFF IDENTITY</MudTableSortLabel></MudTh>
                     <MudTh Class="fmc-th"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.Organization ?? string.Empty)">ORGANIZATION</MudTableSortLabel></MudTh>
                     <MudTh Class="fmc-th"><MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.Role)">SYSTEM ROLE</MudTableSortLabel></MudTh>
+                    <MudTh Class="fmc-th" Style="text-align:right">ACTIONS</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="staff">
                     <MudTd>
@@ -83,6 +84,14 @@
                     </MudTd>
                     <MudTd>
                         <span class="fmc-role-tag @(staff.Role == Roles.SuperAdmin ? "admin" : (staff.Role == Roles.CEO ? "ceo" : (staff.Role == Roles.Maker ? "maker" : "approver")))">@staff.Role</span>
+                    </MudTd>
+                    <MudTd Style="text-align:right" @onclick:stopPropagation="true">
+                        <div class="d-flex justify-end gap-2">
+                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" 
+                                            OnClick="@(() => OpenEditUserDialog(staff))" Class="fmc-action-circle" />
+                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" 
+                                            OnClick="@(() => ConfirmDeleteUser(staff))" Class="fmc-action-circle" />
+                        </div>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -445,6 +454,55 @@
         {
             await LoadUsers();
             StateHasChanged();
+        }
+    }
+
+    private async Task OpenCreateUserDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<FMC.Components.Pages.Admin.UserDialog>("Create New Staff Account", options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadUsers();
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenEditUserDialog(UserDto user)
+    {
+        var parameters = new DialogParameters { ["User"] = user };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<FMC.Components.Pages.Admin.UserDialog>($"Edit Staff: {user.DisplayName}", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadUsers();
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmDeleteUser(UserDto user)
+    {
+        var result = await DialogService.ShowMessageBoxAsync("Confirm Deletion", 
+            $"Are you sure you want to permanently remove {user.DisplayName}? This will revoke all system access for this staff member.", 
+            yesText: "Delete Account", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            var success = await AdminService.DeleteUserAsync(user.Id);
+            if (success)
+            {
+                Snackbar.Add("Staff account successfully decommissioned.", Severity.Success);
+                await LoadUsers();
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add("Failed to remove staff account.", Severity.Error);
+            }
         }
     }
 }

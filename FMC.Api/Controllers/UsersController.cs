@@ -43,10 +43,12 @@ public class UsersController : ControllerBase
                 return Ok(new List<UserDto>());
             }
             
-            return Ok(await _identityService.GetUsersByOrganizationAsync(orgId));
+            var users = await _organizationService.GetUsersByOrganizationAsync(orgId);
+            return Ok(users.ToList());
         }
 
-        return Ok(await _identityService.GetAllUsersAsync());
+        var allUsers = await _organizationService.GetAllUsersAsync();
+        return Ok(allUsers.ToList());
     }
 
     [HttpGet("me")]
@@ -64,7 +66,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<UserDto>> GetById(string id)
     {
-        var user = await _identityService.GetUserByIdAsync(id);
+        var user = await _organizationService.GetUserByIdAsync(id);
         if (user == null) return NotFound();
 
         if (!User.IsInRole(Roles.SuperAdmin))
@@ -83,6 +85,24 @@ public class UsersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserDto request)
     {
+        if (User.IsInRole(Roles.CEO))
+        {
+            var myOrgId = User.FindFirst("OrganizationId")?.Value;
+            var myOrgName = User.FindFirst("organization")?.Value;
+
+            // CEOs can only create users for their own org
+            if (request.Organization != myOrgName)
+            {
+                return Forbid("CEOs can only create users within their own organization.");
+            }
+
+            // CEOs cannot create SuperAdmins
+            if (request.Role == Roles.SuperAdmin)
+            {
+                return BadRequest("CEOs cannot create SuperAdmin accounts.");
+            }
+        }
+
         var result = await _identityService.CreateUserAsync(request);
         if (!result) return BadRequest("Failed to create user.");
         return Ok();
@@ -92,6 +112,33 @@ public class UsersController : ControllerBase
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateUserDto request)
     {
+        var targetUser = await _identityService.GetUserByIdAsync(request.Id);
+        if (targetUser == null) return NotFound();
+
+        if (User.IsInRole(Roles.CEO))
+        {
+            var myOrgId = User.FindFirst("OrganizationId")?.Value;
+            var myOrgName = User.FindFirst("organization")?.Value;
+
+            // CEOs can only update users in their own org
+            if (targetUser.OrganizationId?.ToString() != myOrgId)
+            {
+                return Forbid("CEOs can only manage users within their own organization.");
+            }
+
+            // CEOs cannot change a user to SuperAdmin
+            if (request.Role == Roles.SuperAdmin)
+            {
+                return BadRequest("CEOs cannot assign the SuperAdmin role.");
+            }
+            
+            // Prevent changing the organization
+            if (request.Organization != myOrgName)
+            {
+                return BadRequest("CEOs cannot change a user's organization.");
+            }
+        }
+
         var result = await _identityService.UpdateUserAsync(request);
         if (!result) return BadRequest("Failed to update user.");
         return Ok();
@@ -101,6 +148,18 @@ public class UsersController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
+        var targetUser = await _identityService.GetUserByIdAsync(id);
+        if (targetUser == null) return NotFound();
+
+        if (User.IsInRole(Roles.CEO))
+        {
+            var myOrgId = User.FindFirst("OrganizationId")?.Value;
+            if (targetUser.OrganizationId?.ToString() != myOrgId)
+            {
+                return Forbid("CEOs can only delete users within their own organization.");
+            }
+        }
+
         var result = await _identityService.DeleteUserAsync(id);
         if (!result) return BadRequest("Failed to delete user.");
         return Ok();
@@ -113,7 +172,7 @@ public class UsersController : ControllerBase
         var performedBy = User.Identity?.Name ?? "System";
 
         // Security check for Org isolation (Maker must belong to same org as target)
-        var targetUser = await _identityService.GetUserByIdAsync(id.ToString());
+        var targetUser = await _organizationService.GetUserByIdAsync(id.ToString());
         if (targetUser == null) return NotFound("Target user not found.");
 
         var makerOrgId = User.FindFirst("OrganizationId")?.Value;
@@ -151,8 +210,44 @@ public class UsersController : ControllerBase
         var approverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(approverId)) return Unauthorized();
 
-        var success = await _organizationService.RejectTransactionAsync(transactionId, approverId, request.Reason, HttpContext.RequestAborted);
-        return success ? Ok() : BadRequest("Rejection failed.");
+        try 
+        {
+            var success = await _organizationService.RejectTransactionAsync(transactionId, approverId, request.Reason, HttpContext.RequestAborted);
+            return success ? Ok() : BadRequest("Rejection failed. Transaction may be in an invalid state.");
+        }
+        catch (ApplicationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [Authorize(Roles = Roles.Approver)]
+    [HttpPost("transactions/batch/{batchId:guid}/approve")]
+    public async Task<IActionResult> ApproveBatch(Guid batchId)
+    {
+        var approverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(approverId)) return Unauthorized();
+
+        try
+        {
+            var success = await _organizationService.ApproveBatchAsync(batchId, approverId, HttpContext.RequestAborted);
+            return success ? Ok() : BadRequest("Batch approval failed or batch is empty.");
+        }
+        catch (ApplicationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [Authorize(Roles = Roles.Approver)]
+    [HttpPost("transactions/batch/{batchId:guid}/reject")]
+    public async Task<IActionResult> RejectBatch(Guid batchId, [FromBody] RejectRequest request)
+    {
+        var approverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(approverId)) return Unauthorized();
+
+        var success = await _organizationService.RejectBatchAsync(batchId, approverId, request.Reason, HttpContext.RequestAborted);
+        return success ? Ok() : BadRequest("Batch rejection failed.");
     }
 
     [Authorize(Roles = Roles.Maker)]
@@ -238,7 +333,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id}/transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetTransactions(string id, [FromQuery] int count = 10)
     {
-        var targetUser = await _identityService.GetUserByIdAsync(id);
+        var targetUser = await _organizationService.GetUserByIdAsync(id);
         if (targetUser == null) return NotFound();
 
         // Security check for non-SuperAdmins (CEO, Maker, Approver)

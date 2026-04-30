@@ -18,13 +18,16 @@ namespace FMC.Api.Controllers;
 public class OrganizationsController : ControllerBase
 {
     private readonly FMC.Application.Interfaces.IOrganizationService _organizationService;
+    private readonly MediatR.IMediator _mediator;
     private readonly ILogger<OrganizationsController> _logger;
 
     public OrganizationsController(
         FMC.Application.Interfaces.IOrganizationService organizationService,
+        MediatR.IMediator mediator,
         ILogger<OrganizationsController> logger)
     {
         _organizationService = organizationService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -212,5 +215,26 @@ public class OrganizationsController : ControllerBase
         };
 
         return Ok(metrics);
+    }
+
+    /// <summary>
+    /// Maker Endpoint: Submits a batch of transaction requests parsed from Excel.
+    /// </summary>
+    [HttpPost("{id:guid}/transactions/bulk")]
+    [Authorize(Roles = Roles.Maker + "," + Roles.SuperAdmin)]
+    public async Task<ActionResult<FMC.Shared.DTOs.BulkUploadResultDto>> BulkSubmitTransactions(Guid id, [FromBody] FMC.Shared.DTOs.BulkTransactionRequestDto request, CancellationToken ct)
+    {
+        var makerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
+        var makerName = User.Identity?.Name ?? "Unknown Maker";
+
+        var command = new FMC.Application.Transactions.Commands.SubmitBulkTransactionCommand(
+            id, 
+            makerId, 
+            makerName, 
+            request.IsCredit, 
+            request.Rows);
+
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
     }
 }

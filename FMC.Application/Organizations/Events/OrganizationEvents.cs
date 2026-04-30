@@ -1,4 +1,6 @@
+using FMC.Shared.DTOs;
 using MediatR;
+using System.Collections.Generic;
 
 namespace FMC.Application.Organizations.Events;
 
@@ -27,3 +29,14 @@ public record WalletAdjustedEvent(
     decimal Amount, 
     decimal NewBalance, 
     string Label) : INotification;
+
+/// <summary>
+/// Event raised when a Maker submits a batch of transactions via bulk upload.
+/// </summary>
+public record BulkUploadSubmittedEvent(
+    Guid OrganizationId,
+    string MakerName,
+    int TotalCount,
+    decimal TotalAmount,
+    bool IsCredit,
+    List<BulkTransactionRowDto> SampleRows) : INotification;

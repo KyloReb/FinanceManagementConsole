@@ -49,6 +49,21 @@ public class ResilientOrganizationRepository : IOrganizationRepository
     public Task SaveChangesAsync(CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.SaveChangesAsync(token), ct).AsTask();
 
+    public Task<Cardholder?> GetCardholderByIdAsync(Guid id, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetCardholderByIdAsync(id, token), ct).AsTask();
+
+    public Task<Cardholder?> GetCardholderByAccountNumberAsync(string accountNumber, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetCardholderByAccountNumberAsync(accountNumber, token), ct).AsTask();
+
+    public Task<Cardholder?> GetCardholderByAccountNumberAsync(string accountNumber, Guid organizationId, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetCardholderByAccountNumberAsync(accountNumber, organizationId, token), ct).AsTask();
+
+    public Task<IEnumerable<Cardholder>> GetAllCardholdersAsync(CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetAllCardholdersAsync(token), ct).AsTask();
+
+    public Task<IEnumerable<Cardholder>> GetCardholdersByOrganizationAsync(Guid organizationId, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetCardholdersByOrganizationAsync(organizationId, token), ct).AsTask();
+
     public Task<Transaction?> GetTransactionByIdAsync(Guid id, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.GetTransactionByIdAsync(id, token), ct).AsTask();
 
@@ -64,6 +79,9 @@ public class ResilientOrganizationRepository : IOrganizationRepository
     public Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.GetOrganizationTransactionsAsync(organizationId, status, count, token), ct).AsTask();
 
+    public Task<IEnumerable<Transaction>> GetTransactionsByBatchIdAsync(Guid batchId, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetTransactionsByBatchIdAsync(batchId, token), ct).AsTask();
+
     public Task AddTransactionAsync(Transaction transaction, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.AddTransactionAsync(transaction, token), ct).AsTask();
 
@@ -72,6 +90,9 @@ public class ResilientOrganizationRepository : IOrganizationRepository
 
     public Task<Account?> GetAccountByTenantIdAsync(string tenantId, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.GetAccountByTenantIdAsync(tenantId, token), ct).AsTask();
+
+    public Task<Account?> GetAccountByCardNumberAsync(string cardNumber, Guid organizationId, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetAccountByCardNumberAsync(cardNumber, organizationId, token), ct).AsTask();
 
     public Task AddAccountAsync(Account account, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.AddAccountAsync(account, token), ct).AsTask();

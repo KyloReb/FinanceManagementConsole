@@ -5,6 +5,7 @@
 @inject AdminService AdminService
 @inject OrganizationApiService OrganizationService
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudDialog>
     <TitleContent>
@@ -41,11 +42,20 @@
                 </MudItem>
 
                 <MudItem xs="12">
-                    <MudSelect T="string" @bind-Value="_model.Organization" Label="Organization Affiliation" Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" AnchorOrigin="Origin.BottomCenter">
-                        <MudSelectItem Value="@((string?)null)" Disabled="true">Select Organization</MudSelectItem>
-                        @foreach (var org in _organizations)
+                    <MudSelect T="string" @bind-Value="_model.Organization" Label="Organization Affiliation" 
+                               Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" 
+                               AnchorOrigin="Origin.BottomCenter" Disabled="@_isCEO">
+                        @if (!_isCEO)
                         {
-                            <MudSelectItem Value="@org.Name">@org.Name</MudSelectItem>
+                            <MudSelectItem Value="@((string?)null)" Disabled="true">Select Organization</MudSelectItem>
+                            @foreach (var org in _organizations)
+                            {
+                                <MudSelectItem Value="@org.Name">@org.Name</MudSelectItem>
+                            }
+                        }
+                        else
+                        {
+                            <MudSelectItem Value="@_model.Organization">@_model.Organization</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -64,11 +74,17 @@
                     <MudSelect T="string" Label="System Role" @bind-Value="_selectedRole"
                                Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
                                PopoverClass="fmc-roles-select" offsety="true" Dense="true">
-                        <MudSelectItem Value="@Roles.SuperAdmin">Super Administrator</MudSelectItem>
-                        <MudSelectItem Value="@Roles.CEO">CEO (Primary Subscriber)</MudSelectItem>
+                        @if (!_isCEO)
+                        {
+                            <MudSelectItem Value="@Roles.SuperAdmin">Super Administrator</MudSelectItem>
+                            <MudSelectItem Value="@Roles.CEO">CEO (Primary Subscriber)</MudSelectItem>
+                        }
                         <MudSelectItem Value="@Roles.Maker">Maker</MudSelectItem>
                         <MudSelectItem Value="@Roles.Approver">Approver</MudSelectItem>
-                        <MudSelectItem Value="@Roles.User">Standard User (Principal)</MudSelectItem>
+                        @if (!_isCEO)
+                        {
+                            <MudSelectItem Value="@Roles.User">Standard User (Principal)</MudSelectItem>
+                        }
                     </MudSelect>
                 </MudItem>
 
@@ -114,7 +130,8 @@
     private UserDto _model = new() { IsActive = true };
     private List<OrganizationDto> _organizations = new();
     private string _password = "";
-    private string _selectedRole = Roles.User;
+    private string _selectedRole = Roles.Maker;
+    private bool _isCEO = false;
 
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
@@ -138,9 +155,21 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isCEO = user.IsInRole(Roles.CEO);
+
         try
         {
-            _organizations = await OrganizationService.GetAllAsync();
+            if (!_isCEO)
+            {
+                _organizations = await OrganizationService.GetAllAsync();
+            }
+            else if (User == null)
+            {
+                // For new users created by CEO, pre-fill their organization
+                _model.Organization = user.FindFirst("organization")?.Value;
+            }
         }
         catch (Exception)
         {

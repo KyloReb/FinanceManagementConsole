@@ -63,16 +63,25 @@ public interface IOrganizationRepository
     /// </summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 
+    // --- Cardholder Lookups ---
+    Task<Cardholder?> GetCardholderByIdAsync(Guid id, CancellationToken ct = default);
+    Task<Cardholder?> GetCardholderByAccountNumberAsync(string accountNumber, CancellationToken ct = default);
+    Task<Cardholder?> GetCardholderByAccountNumberAsync(string accountNumber, Guid organizationId, CancellationToken ct = default);
+    Task<IEnumerable<Cardholder>> GetAllCardholdersAsync(CancellationToken ct = default);
+    Task<IEnumerable<Cardholder>> GetCardholdersByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
+
     // --- Extended Transaction Lookups ---
     Task<Transaction?> GetTransactionByIdAsync(Guid id, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetTransactionsByStatusAsync(Guid organizationId, string status, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetTransactionsByDateAsync(Guid organizationId, DateTime fromDate, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetProcessedTransactionsSinceAsync(Guid organizationId, DateTime since, CancellationToken ct = default);
     Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default);
+    Task<IEnumerable<Transaction>> GetTransactionsByBatchIdAsync(Guid batchId, CancellationToken ct = default);
     Task AddTransactionAsync(Transaction transaction, CancellationToken ct = default);
 
     // --- Extended Account Lookups ---
     Task<Account?> GetAccountByIdAsync(Guid id, CancellationToken ct = default);
     Task<Account?> GetAccountByTenantIdAsync(string tenantId, CancellationToken ct = default);
+    Task<Account?> GetAccountByCardNumberAsync(string cardNumber, Guid organizationId, CancellationToken ct = default);
     Task AddAccountAsync(Account account, CancellationToken ct = default);
 }

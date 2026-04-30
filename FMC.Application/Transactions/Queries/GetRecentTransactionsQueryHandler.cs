@@ -43,7 +43,6 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
                 if (user != null)
                 {
                     subscriber = $"{user.FirstName} {user.LastName}";
-                    accountNumber = user.AccountNumber;
                 }
             }
 

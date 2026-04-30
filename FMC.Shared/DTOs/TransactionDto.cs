@@ -17,4 +17,5 @@ public class TransactionDto
     public string? RejectionReason { get; set; }
     public DateTime? ActionDate { get; set; }
     public Guid? OrganizationId { get; set; }
+    public Guid? BatchId { get; set; }
 }

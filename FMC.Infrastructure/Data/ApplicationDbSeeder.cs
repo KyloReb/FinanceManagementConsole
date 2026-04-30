@@ -111,54 +111,50 @@ public static class ApplicationDbSeeder
             for (int i = 1; i <= 5; i++)
             {
                 var email = $"cardholder{i}@{org.Name.Replace(" ", "").Replace("/", "").ToLower()}.local";
-                var chUser = await userManager.FindByEmailAsync(email);
+                var cardholder = await db.Cardholders.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Email == email);
                 
                 var fn = fNames[nameIndex % fNames.Length];
                 var ln = lNames[nameIndex % lNames.Length];
 
-                if (chUser == null)
+                if (cardholder == null)
                 {
-                    chUser = new ApplicationUser
+                    cardholder = new Cardholder
                     {
-                        UserName = $"cardholder{i}_{org.Id.ToString().Substring(0, 4)}",
-                        Email = email,
+                        Id = Guid.NewGuid(),
                         FirstName = fn,
                         LastName = ln,
-                        EmailConfirmed = true,
+                        Email = email,
                         IsActive = true,
-                        Organization = org.Name,
                         OrganizationId = org.Id,
-                        AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
+                        TenantId = org.Id.ToString(),
+                        AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString(),
+                        CreatedAt = DateTime.UtcNow
                     };
 
-                    var createResult = await userManager.CreateAsync(chUser, "Cardholder123!");
-                    if (createResult.Succeeded)
+                    db.Cardholders.Add(cardholder);
+                    
+                    // Create Wallet for Cardholder
+                    var account = new Account
                     {
-                        await userManager.AddToRoleAsync(chUser, Roles.User);
-                        
-                        // Create Wallet for Cardholder
-                        var account = new Account
-                        {
-                            Id = Guid.NewGuid(),
-                            Name = $"Wallet: {fn} {ln}",
-                            Balance = 0,
-                            TenantId = chUser.Id,
-                            OrganizationId = org.Id
-                        };
-                        db.Accounts.Add(account);
-                    }
+                        Id = Guid.NewGuid(),
+                        Name = $"Wallet: {fn} {ln}",
+                        Balance = 0,
+                        TenantId = cardholder.Id.ToString(), // Link to Cardholder ID
+                        OrganizationId = org.Id
+                    };
+                    db.Accounts.Add(account);
                 }
                 else
                 {
-                    // Existing user update
-                    if (chUser.FirstName == "Cardholder")
+                    // Existing cardholder update
+                    if (cardholder.FirstName != fn || cardholder.LastName != ln)
                     {
-                        chUser.FirstName = fn;
-                        chUser.LastName = ln;
-                        await userManager.UpdateAsync(chUser);
+                        cardholder.FirstName = fn;
+                        cardholder.LastName = ln;
+                        db.Cardholders.Update(cardholder);
 
-                        var account = await db.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.TenantId == chUser.Id);
-                        if (account != null && account.Name.StartsWith("Wallet: Cardholder"))
+                        var account = await db.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.TenantId == cardholder.Id.ToString());
+                        if (account != null && account.Name.StartsWith("Wallet:"))
                         {
                             account.Name = $"Wallet: {fn} {ln}";
                             db.Accounts.Update(account);

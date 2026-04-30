@@ -4,16 +4,21 @@
 @using MudBlazor
 @inject OrganizationApiService OrgService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudDialog>
     <TitleContent>
+        <!-- Header Section -->
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Color="Color.Info" />
             <MudText Typo="Typo.h6">Transaction Details</MudText>
         </div>
     </TitleContent>
+    
     <DialogContent>
         <div class="fmc-details-container pa-4">
+            
+            <!-- Summary Header: Amount and Status -->
             <div class="d-flex justify-space-between align-center mb-6">
                 <div>
                     <MudText Typo="Typo.h5" Class="fmc-financial-mono" Color="@(Transaction.Amount < 0 ? Color.Error : Color.Success)">
@@ -28,11 +33,16 @@
 
             <MudDivider Class="my-4" />
 
+            <!-- Detailed Information Grid -->
             <MudGrid Spacing="2">
+                
+                <!-- Subscriber Info -->
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">SUBSCRIBER</MudText>
                     <MudText Typo="Typo.body2" Style="font-weight: 800;">@Transaction.Subscriber</MudText>
                 </MudItem>
+                
+                <!-- Account Number with Toggle Masking -->
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">ACCOUNT NUMBER</MudText>
                     <div class="d-flex align-center gap-1">
@@ -40,14 +50,21 @@
                             @GetMaskedAccount(Transaction.AccountNumber)
                         </MudText>
                         <MudIconButton Icon="@(_showFullAccount ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
-                                       Size="Size.Small" OnClick="@(() => _showFullAccount = !_showFullAccount)" 
-                                       Class="pa-0" Style="opacity: 0.5;" />
+                                       Size="Size.Small" 
+                                       OnClick="ToggleAccountMask" 
+                                       Class="pa-0" 
+                                       Style="opacity: 0.5;" 
+                                       aria-label="Toggle full account number visibility" />
                     </div>
                 </MudItem>
+                
+                <!-- Transaction Description -->
                 <MudItem xs="12">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">DESCRIPTION / LABEL</MudText>
                     <MudText Typo="Typo.body2">@Transaction.Label</MudText>
                 </MudItem>
+                
+                <!-- Maker and Reference Details -->
                 <MudItem xs="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">MAKER / INITIATOR</MudText>
                     <MudText Typo="Typo.body2" Style="font-weight: 700;">@Transaction.MakerName</MudText>
@@ -57,19 +74,25 @@
                     <MudText Typo="Typo.body2" Style="font-size: 0.7rem; font-family: 'Roboto Mono', monospace;">@Transaction.Id.ToString().ToUpper()</MudText>
                 </MudItem>
                 
+                <!-- Approver Details (Hidden while Pending) -->
                 @if (Transaction.Status != "Pending")
                 {
                     <MudItem xs="6">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">RESOLUTION AUTHORITY</MudText>
-                        <MudText Typo="Typo.body2" Style="font-weight: 800; color: var(--mud-palette-info);">@(Transaction.ApproverName ?? "System Auto-Settlement")</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 800; color: var(--mud-palette-info);">
+                            @(Transaction.ApproverName ?? "System Auto-Settlement")
+                        </MudText>
                     </MudItem>
                     <MudItem xs="6">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">COMPLETION TIMESTAMP</MudText>
-                        <MudText Typo="Typo.body2" Style="font-weight: 700;">@(Transaction.ActionDate?.ToString("MMM dd, yyyy HH:mm") ?? "N/A")</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 700;">
+                            @(Transaction.ActionDate?.ToString("MMM dd, yyyy HH:mm") ?? "N/A")
+                        </MudText>
                     </MudItem>
                 }
             </MudGrid>
 
+            <!-- Rejection Feedback Alert -->
             @if (!string.IsNullOrEmpty(Transaction.RejectionReason))
             {
                 <div class="mt-4 pa-4 mud-alert-error" style="border-radius: 12px; border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2);">
@@ -79,17 +102,21 @@
             }
         </div>
     </DialogContent>
+    
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
+        <MudButton OnClick="CloseDialog" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
         <MudSpacer />
+        
+        <!-- Action Buttons Contextual to User Role and Status -->
         @if (Transaction.Status == "Pending")
         {
             @if (IsOwnTransaction)
             {
+                <!-- Makers can cancel their own pending requests -->
                 <MudButton Color="Color.Error" 
                            Variant="Variant.Filled" 
                            StartIcon="@Icons.Material.Filled.DeleteForever" 
-                           OnClick="CancelTransaction"
+                           OnClick="CancelTransactionAsync"
                            Disabled="@_processing"
                            Style="font-weight: 800; text-transform:none; border-radius: 8px;">
                     @(_processing ? "Processing..." : "Cancel Request")
@@ -97,58 +124,129 @@
             }
             else if (_isApprover)
             {
+                <!-- Approvers can deny or authorize the request -->
                 <MudButton Color="Color.Error" 
                            Variant="Variant.Outlined" 
-                           OnClick="@(() => ProcessDecision(false))"
+                           OnClick="@(() => ProcessDecisionAsync(approve: false))"
                            Disabled="@_processing"
                            Style="font-weight: 700; text-transform:none;">Reject</MudButton>
-                <MudButton Color="Color.Success" 
-                           Variant="Variant.Filled" 
-                           OnClick="@(() => ProcessDecision(true))"
+                           
+                <MudButton Variant="Variant.Filled" 
+                           OnClick="@(() => ProcessDecisionAsync(approve: true))"
                            Disabled="@_processing"
-                           Style="font-weight: 900; text-transform:none; border-radius: 8px;">Approve</MudButton>
+                           Style="background-color: #2e7d32; color: #ffffff; font-weight: 900; text-transform:none; border-radius: 8px;">Approve</MudButton>
             }
         }
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public TransactionDto Transaction { get; set; } = default!;
-    [Parameter] public bool IsOwnTransaction { get; set; }
-    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+    #region Parameters & Injections
+
+    /// <summary>
+    /// The dialog instance required for MudBlazor to manage visibility and return results.
+    /// </summary>
+    [CascadingParameter] 
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>
+    /// The transaction payload to display and interact with.
+    /// </summary>
+    [Parameter] 
+    public TransactionDto Transaction { get; set; } = default!;
+
+    /// <summary>
+    /// Indicates whether the currently logged-in user is the original creator of this transaction.
+    /// Used to enforce the 4-eyes policy and permit cancellations.
+    /// </summary>
+    [Parameter] 
+    public bool IsOwnTransaction { get; set; }
+
+    [CascadingParameter] 
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    #endregion
+
+    #region State Variables
 
     private bool _processing;
     private bool _showFullAccount;
     private bool _isApprover;
 
+    #endregion
+
+    #region Lifecycle Methods
+
     protected override async Task OnInitializedAsync()
     {
+        // Resolve user roles once during component initialization
         var authState = await AuthStateTask;
         _isApprover = authState.User.IsInRole(Roles.Approver);
     }
 
+    #endregion
+
+    #region UI Helpers
+
+    /// <summary>
+    /// Toggles the visibility of the full account number for sensitive data handling.
+    /// </summary>
+    private void ToggleAccountMask()
+    {
+        _showFullAccount = !_showFullAccount;
+    }
+
+    /// <summary>
+    /// Masks the account number leaving only the first 6 and last 4 digits visible.
+    /// </summary>
+    /// <param name="account">The full raw account string</param>
+    /// <returns>A masked string</returns>
     private string GetMaskedAccount(string? account)
     {
         if (string.IsNullOrEmpty(account)) return "N/A";
         if (_showFullAccount) return account;
-        if (account.Length <= 10) return account; // Too short to mask 6+4
+        if (account.Length <= 10) return account; // Too short to effectively mask the middle
 
         return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
     }
 
-    private void Cancel() => MudDialog.Cancel();
+    /// <summary>
+    /// Maps a transaction status string to its corresponding MudBlazor theme color.
+    /// </summary>
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Pending"   => Color.Warning,
+        "Approved"  => Color.Success,
+        "Successful"=> Color.Success,
+        "Rejected"  => Color.Error,
+        "Cancelled" => Color.Default,
+        _           => Color.Info
+    };
 
-    private async Task CancelTransaction()
+    #endregion
+
+    #region Action Handlers
+
+    /// <summary>
+    /// Closes the dialog without taking any action.
+    /// </summary>
+    private void CloseDialog() => MudDialog.Cancel();
+
+    /// <summary>
+    /// Allows the Maker to withdraw their pending transaction request.
+    /// </summary>
+    private async Task CancelTransactionAsync()
     {
         try 
         {
             _processing = true;
-            var success = await OrgService.CancelTransactionAsync(Transaction.Id);
+            
+            bool success = await OrgService.CancelTransactionAsync(Transaction.Id);
+            
             if (success)
             {
                 Snackbar.Add("Transaction request cancelled successfully.", Severity.Success);
-                MudDialog.Close(DialogResult.Ok(true));
+                MudDialog.Close(DialogResult.Ok(true)); // Signal parent to refresh data
             }
             else 
             {
@@ -165,7 +263,11 @@
         }
     }
 
-    private async Task ProcessDecision(bool approve)
+    /// <summary>
+    /// Handles the authorization workflow (Approve or Reject) for Approvers.
+    /// </summary>
+    /// <param name="approve">True if authorizing, False if denying</param>
+    private async Task ProcessDecisionAsync(bool approve)
     {
         try
         {
@@ -179,22 +281,41 @@
             }
             else
             {
-                success = await OrgService.RejectTransactionAsync(Transaction.Id, "Rejected via Detail Inspection");
-                if (success) Snackbar.Add("Transaction rejected.", Severity.Warning);
+                // Prompt the Approver for a mandatory/optional denial reason
+                var parameters = new DialogParameters { ["ContentText"] = "Please provide a reason for rejecting this transaction." };
+                var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
+                
+                var dialog = await DialogService.ShowAsync<RejectionDialog>("Reject Transaction", parameters, options);
+                var result = await dialog.Result;
+
+                if (result is not null && !result.Canceled)
+                {
+                    // Proceed with rejection using the provided reason
+                    var reason = result.Data as string ?? "Rejected by approver.";
+                    success = await OrgService.RejectTransactionAsync(Transaction.Id, reason);
+                    if (success) Snackbar.Add("Transaction rejected.", Severity.Warning);
+                }
+                else 
+                {
+                    // The user cancelled the rejection reason dialog, so abort the rejection process entirely
+                    _processing = false;
+                    return;
+                }
             }
 
+            // Close the main detail dialog if the backend operation succeeded
             if (success)
             {
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
-                Snackbar.Add("Action failed. Check permissions or account balance.", Severity.Error);
+                Snackbar.Add("Action failed. Please check permissions or available account balance.", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            Snackbar.Add($"System Error: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -202,12 +323,5 @@
         }
     }
 
-    private Color GetStatusColor(string status) => status switch
-    {
-        "Pending" => Color.Warning,
-        "Approved" => Color.Success,
-        "Rejected" => Color.Error,
-        "Cancelled" => Color.Default,
-        _ => Color.Info
-    };
+    #endregion
 }

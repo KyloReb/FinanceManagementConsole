@@ -1,0 +1,32 @@
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-3 mb-n1" Color="Color.Error"/>
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">@ContentText</MudText>
+        <MudTextField @bind-Value="_reason" Label="Reason for Rejection" 
+                      Variant="Variant.Outlined" Lines="3" AutoFocus="true"
+                      Placeholder="e.g. Incorrect allocation, Duplicate batch, etc." />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="Submit">Confirm Rejection</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string Title { get; set; } = "Reject Request";
+    [Parameter] public string ContentText { get; set; } = "Please provide a reason for rejecting this request.";
+
+    private string _reason = "";
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_reason));
+    private void Cancel() => MudDialog.Cancel();
+}

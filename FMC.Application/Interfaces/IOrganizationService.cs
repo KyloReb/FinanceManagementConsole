@@ -45,6 +45,16 @@ public interface IOrganizationService
     Task<bool> SoftDeleteAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves a unified user profile (Staff or Cardholder) by their unique ID.
+    /// </summary>
+    Task<FMC.Shared.DTOs.User.UserDto?> GetUserByIdAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all users (Staff and Cardholders) across all organizations.
+    /// </summary>
+    Task<IEnumerable<FMC.Shared.DTOs.User.UserDto>> GetAllUsersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves all users affiliated with a specific organization.
     /// </summary>
     Task<IEnumerable<FMC.Shared.DTOs.User.UserDto>> GetUsersByOrganizationAsync(Guid organizationId, CancellationToken cancellationToken = default);
@@ -68,6 +78,16 @@ public interface IOrganizationService
     /// Approver Endpoint: Rejects a pending transaction.
     /// </summary>
     Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Approver Endpoint: Commits an entire batch of pending transactions with a single action.
+    /// </summary>
+    Task<bool> ApproveBatchAsync(Guid batchId, string approverId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Approver Endpoint: Rejects an entire batch of pending transactions.
+    /// </summary>
+    Task<bool> RejectBatchAsync(Guid batchId, string approverId, string reason, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all transactions currently in 'Pending' status for a specific organization.

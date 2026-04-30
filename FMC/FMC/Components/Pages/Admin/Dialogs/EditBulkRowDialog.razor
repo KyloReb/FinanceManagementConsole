@@ -1,0 +1,87 @@
+@using FMC.Shared.DTOs
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-3">
+            <div class="fmc-edit-icon-bg">
+                <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Surface" />
+            </div>
+            <div>
+                <MudText Typo="Typo.h6" Style="font-weight:900;">Edit Allocation</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Refine details for row #@Row.RowNumber</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="pa-4 d-flex flex-column gap-4">
+            @* Validation Alert at the top *@
+            @if (Row.ValidationError != null)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="rounded-lg mb-2">
+                    <MudText Typo="Typo.caption" Style="font-weight:800;">VALIDATION ERROR: @Row.ValidationError</MudText>
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Success" Variant="Variant.Text" Dense="true" Class="rounded-lg mb-2" Icon="@Icons.Material.Filled.CheckCircle">
+                    <MudText Typo="Typo.caption" Style="font-weight:800;">DATA INTEGRITY VERIFIED</MudText>
+                </MudAlert>
+            }
+
+            <MudGrid>
+                @* Subscriber Name *@
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Row.Subscriber" Label="SUBSCRIBER NAME" 
+                                  Variant="Variant.Outlined" Margin="Margin.Normal"
+                                  HelperText="Full name of cardholder"
+                                  Required="true" />
+                </MudItem>
+
+                @* Card Number *@
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Row.CardNumber" Label="CARD IDENTITY" 
+                                  Variant="Variant.Outlined" Margin="Margin.Normal"
+                                  HelperText="16-digit card identity"
+                                  Required="true" />
+                </MudItem>
+
+                @* Amount *@
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="Row.Amount" Label="ALLOCATION AMOUNT (PHP)" 
+                                     Variant="Variant.Outlined" Margin="Margin.Normal"
+                                     Format="N2" HideSpinButtons="true"
+                                     HelperText="Precision amount in Peso"
+                                     Required="true" />
+                </MudItem>
+            </MudGrid>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Class="px-6 rounded-lg font-bold">Discard</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Variant="Variant.Filled" Class="px-8 rounded-lg font-bold">Save Changes</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .fmc-edit-icon-bg { width: 44px; height: 44px; border-radius: 12px; background: var(--mud-palette-primary); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(var(--mud-palette-primary-rgb), 0.2); }
+</style>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public BulkTransactionRowDto Row { get; set; } = default!;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(Row.Subscriber) || string.IsNullOrWhiteSpace(Row.CardNumber))
+        {
+            Snackbar.Add("Subscriber and Card Number are required.", Severity.Error);
+            return;
+        }
+
+        // We could re-validate here if we wanted, but the manager can handle it too.
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}

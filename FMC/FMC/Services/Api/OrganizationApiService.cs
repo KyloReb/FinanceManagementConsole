@@ -165,8 +165,43 @@ public class OrganizationApiService
     public async Task<bool> RejectTransactionAsync(Guid transactionId, string reason)
     {
         var response = await _httpClient.PostAsJsonAsync($"api/users/transactions/{transactionId}/reject", new { Reason = reason });
-        if (response.IsSuccessStatusCode) NotifyDataChanged();
-        return response.IsSuccessStatusCode;
+        if (!response.IsSuccessStatusCode)
+        {
+            var msg = await response.Content.ReadAsStringAsync();
+            throw new Exception(!string.IsNullOrEmpty(msg) ? msg : "Rejection failed.");
+        }
+        NotifyDataChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Approver Endpoint: Commits an entire batch of pending transactions.
+    /// </summary>
+    public async Task<bool> ApproveBatchAsync(Guid batchId)
+    {
+        var response = await _httpClient.PostAsync($"api/users/transactions/batch/{batchId}/approve", null);
+        if (!response.IsSuccessStatusCode)
+        {
+            var msg = await response.Content.ReadAsStringAsync();
+            throw new Exception(!string.IsNullOrEmpty(msg) ? msg : "Batch approval failed.");
+        }
+        NotifyDataChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Approver Endpoint: Rejects an entire batch of pending transactions.
+    /// </summary>
+    public async Task<bool> RejectBatchAsync(Guid batchId, string reason)
+    {
+        var response = await _httpClient.PostAsJsonAsync($"api/users/transactions/batch/{batchId}/reject", new { Reason = reason });
+        if (!response.IsSuccessStatusCode)
+        {
+            var msg = await response.Content.ReadAsStringAsync();
+            throw new Exception(!string.IsNullOrEmpty(msg) ? msg : "Batch rejection failed.");
+        }
+        NotifyDataChanged();
+        return true;
     }
 
     /// <summary>
@@ -198,5 +233,32 @@ public class OrganizationApiService
         var response = await _httpClient.DeleteAsync($"api/users/transactions/{transactionId}/cancel");
         if (response.IsSuccessStatusCode) NotifyDataChanged();
         return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<FMC.Shared.DTOs.BulkTransactionRowDto>> ParseExcelCardholderFileAsync(Guid orgId, Stream fileStream)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(fileStream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        content.Add(streamContent, "file", "upload.xlsx");
+
+        var response = await _httpClient.PostAsync($"api/excel/parse-cardholders/{orgId}", content);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<FMC.Shared.DTOs.BulkTransactionRowDto>>() ?? new();
+    }
+
+    public async Task<FMC.Shared.DTOs.BulkUploadResultDto> SubmitBulkTransactionAsync(Guid orgId, bool isCredit, List<FMC.Shared.DTOs.BulkTransactionRowDto> rows)
+    {
+        var payload = new FMC.Shared.DTOs.BulkTransactionRequestDto { IsCredit = isCredit, Rows = rows };
+        var response = await _httpClient.PostAsJsonAsync($"api/organizations/{orgId}/transactions/bulk", payload);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<FMC.Shared.DTOs.BulkUploadResultDto>() ?? new();
+    }
+
+    public async Task<List<FMC.Shared.DTOs.BulkTransactionRowDto>> ValidateRowsAsync(Guid orgId, List<FMC.Shared.DTOs.BulkTransactionRowDto> rows)
+    {
+        var response = await _httpClient.PostAsJsonAsync($"api/excel/validate-rows/{orgId}", rows);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<FMC.Shared.DTOs.BulkTransactionRowDto>>() ?? new();
     }
 }

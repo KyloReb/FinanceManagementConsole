@@ -25,4 +25,10 @@ public interface IEmailTemplateService
     /// Generates the HTML advisory for organizations reaching capacity or low liquidity thresholds.
     /// </summary>
     string GenerateCapacityThresholdEmail(string orgName, decimal total, decimal dispersed, decimal pct, decimal remaining);
+
+    /// <summary>
+    /// Generates the HTML body for a bulk upload submission notification.
+    /// Includes an optional sample of transactions for preview.
+    /// </summary>
+    string GenerateBulkUploadNotificationEmail(string orgName, string makerName, int totalCount, decimal totalAmount, bool isCredit, List<FMC.Shared.DTOs.BulkTransactionRowDto>? sampleRows = null);
 }

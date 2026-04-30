@@ -2,6 +2,7 @@
 @using FMC.Shared.DTOs
 @using FMC.Shared.DTOs.User
 @using FMC.Shared.DTOs.Organization
+@using FMC.Components.Pages.Admin
 @using FMC.Components.Pages.Admin.Dialogs
 @using FMC.Services.Api
 @inject OrganizationApiService OrgService
@@ -15,10 +16,17 @@
                 <MudText Typo="Typo.h4" Style="font-weight: 900; letter-spacing: -0.02em;">Organization Operations</MudText>
                 <MudText Typo="Typo.subtitle2" Class="mud-text-secondary" Style="font-weight: 700;">@_roleDisplay AUTHENTICATED · @Organization.Name.ToUpper()</MudText>
             </div>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History" Href="/audit-logs" 
-                       Style="border-radius: 12px; height: 48px; font-weight: 800; text-transform:none;">
-                Activity Log
-            </MudButton>
+            @if (_isMaker)
+            {
+                <div class="d-flex gap-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenUserSelection(true))"
+                               Class="fmc-enterprise-btn">New Credit</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Surface" StartIcon="@Icons.Material.Filled.Remove" OnClick="@(() => OpenUserSelection(false))"
+                               Class="fmc-enterprise-btn secondary">New Debit</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.FileUpload" OnClick="OpenBulkUpload"
+                               Class="fmc-enterprise-btn info">Bulk Upload</MudButton>
+                </div>
+            }
         </div>
     </MudItem>
 
@@ -250,6 +258,22 @@
     }
     .fmc-op-card:hover { transform: translateY(-2px); border-color: var(--mud-palette-primary); box-shadow: var(--mud-elevation-2); }
 
+    .fmc-enterprise-btn {
+        border-radius: 12px !important;
+        height: 44px !important;
+        padding: 0 20px !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        font-size: 0.85rem !important;
+        box-shadow: none !important;
+        border: 1px solid transparent !important;
+    }
+    .fmc-enterprise-btn:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
+    .fmc-enterprise-btn.secondary { background-color: var(--mud-palette-surface) !important; border-color: var(--mud-palette-divider) !important; color: var(--mud-palette-text-primary) !important; }
+    .fmc-enterprise-btn.info { background-color: var(--mud-palette-info) !important; }
+    .fmc-enterprise-btn.ghost { border-color: var(--mud-palette-divider) !important; color: var(--mud-palette-text-secondary) !important; }
+
     @@media (max-width: 960px) {
         .fmc-scroll-list { max-height: 480px; }
         .fmc-main-surface { border-radius: 20px; }
@@ -266,6 +290,7 @@
     private List<TransactionDto> _todayTransactions = new();
     private bool _loadingData;
     private bool _isApprover;
+    private bool _isMaker;
     private string? _currentUserId;
     private string _roleDisplay = "Operations";
 
@@ -276,6 +301,7 @@
         var authState = await AuthStateTask;
         var user = authState.User;
         _isApprover = user.IsInRole(Roles.Approver);
+        _isMaker = user.IsInRole(Roles.Maker);
         _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         
         if (user.IsInRole(Roles.Maker)) _roleDisplay = "MAKER";
@@ -355,6 +381,41 @@
         };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<PendingDetailDialog>("Transaction Context", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadDashboardData();
+            await OnActionCompleted.InvokeAsync();
+        }
+    }
+
+    private async Task OpenUserSelection(bool isCredit)
+    {
+        var parameters = new DialogParameters { ["OrgId"] = Organization.Id };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserSelectionDialog>("Identity Resolution", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is UserDto selectedUser)
+        {
+            var adjustParams = new DialogParameters { ["User"] = selectedUser, ["IsCredit"] = isCredit };
+            var adjustDialog = await DialogService.ShowAsync<UserBalanceDialog>("Initiate Settlement", adjustParams, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+            var adjustResult = await adjustDialog.Result;
+            
+            if (adjustResult is not null && !adjustResult.Canceled)
+            {
+                await LoadDashboardData();
+                await OnActionCompleted.InvokeAsync();
+            }
+        }
+    }
+
+    private async Task OpenBulkUpload()
+    {
+        var parameters = new DialogParameters { ["OrgId"] = Organization.Id };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<BulkUploadDialog>("Bulk Cardholder Upload", parameters, options);
         var result = await dialog.Result;
 
         if (result is not null && !result.Canceled)

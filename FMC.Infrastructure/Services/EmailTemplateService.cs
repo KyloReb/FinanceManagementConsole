@@ -211,4 +211,69 @@ public class EmailTemplateService : IEmailTemplateService
 
         return GetContainer(content);
     }
+
+    public string GenerateBulkUploadNotificationEmail(string orgName, string makerName, int totalCount, decimal totalAmount, bool isCredit, List<FMC.Shared.DTOs.BulkTransactionRowDto>? sampleRows = null)
+    {
+        var actionType = isCredit ? "Credit" : "Debit";
+        
+        var tableRows = "";
+        if (sampleRows != null && sampleRows.Any())
+        {
+            foreach (var row in sampleRows)
+            {
+                tableRows += $@"
+                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                        <td style=""padding:8px 0;color:#2d3436;font-size:13px;"">{row.Subscriber}</td>
+                        <td style=""padding:8px 0;color:#636e72;font-size:13px;text-align:center;"">{FinanceUtils.MaskCard(row.CardNumber)}</td>
+                        <td style=""padding:8px 0;font-weight:700;color:#2d3436;text-align:right;font-size:13px;"">{row.Amount:C}</td>
+                    </tr>";
+            }
+        }
+
+        var sampleTable = string.IsNullOrEmpty(tableRows) ? "" : $@"
+            <h4 style=""margin:24px 0 10px 0;color:#2d3436;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:0.6;"">Batch Preview (First {sampleRows?.Count})</h4>
+            <table style=""width:100%;border-collapse:collapse;"">
+                <thead>
+                    <tr style=""border-bottom: 2px solid #e1e5ea;"">
+                        <th style=""text-align:left;padding:8px 0;font-size:11px;color:#636e72;"">CARDHOLDER</th>
+                        <th style=""text-align:center;padding:8px 0;font-size:11px;color:#636e72;"">CARD NUMBER</th>
+                        <th style=""text-align:right;padding:8px 0;font-size:11px;color:#636e72;"">AMOUNT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {tableRows}
+                </tbody>
+            </table>";
+
+        var content = $@"
+            <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Bulk Batch Submitted</h2>
+            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                A new bulk <strong>{actionType}</strong> batch has been submitted by <strong>{makerName}</strong> for <strong>{orgName}</strong> and is awaiting validation.
+            </p>
+            
+            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
+                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Batch Summary</h4>
+                <table style=""width:100%;border-collapse:collapse;"">
+                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Total Transactions</td>
+                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{totalCount} items</td>
+                    </tr>
+                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
+                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Operation Type</td>
+                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{actionType}</td>
+                    </tr>
+                    <tr>
+                        <td style=""padding:16px 0 0 0;color:#2d3436;font-size:15px;font-weight:700;"">Total Batch Value</td>
+                        <td style=""padding:16px 0 0 0;font-weight:900;color:#4834d4;text-align:right;font-size:22px;"">{totalAmount:C}</td>
+                    </tr>
+                </table>
+                {sampleTable}
+            </div>
+
+            <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
+                Please log in to the Intelligence Oversight panel of your Finance Management Console to review and authorize this batch settlement.
+            </p>";
+
+        return GetContainer(content);
+    }
 }

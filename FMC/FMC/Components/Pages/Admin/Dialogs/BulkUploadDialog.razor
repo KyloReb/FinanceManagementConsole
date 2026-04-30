@@ -1,0 +1,540 @@
+@using FMC.Shared.DTOs
+@using FMC.Services.Api
+@using Microsoft.Extensions.Configuration
+@using MudBlazor
+@inject OrganizationApiService OrgService
+@inject BulkUploadStateService StateService
+@inject ISnackbar Snackbar
+@inject IConfiguration Config
+@inject NavigationManager Navigation
+
+@*
+    Bulk Upload Dialog
+    -------------------
+    This dialog facilitates the initial phase of the bulk upload workflow.
+    It handles Excel file parsing, identity validation, and basic previewing.
+*@
+
+<MudDialog Class="fmc-premium-dialog compact">
+    <TitleContent>
+        <div class="fmc-dialog-header">
+            <div class="fmc-icon-wrapper">
+                <MudIcon Icon="@Icons.Material.Filled.AutoFixHigh" Class="fmc-header-icon" />
+            </div>
+            <div class="ml-3">
+                <MudText Typo="Typo.h6" Class="fmc-title">Bulk Upload</MudText>
+                <MudText Typo="Typo.caption" Class="fmc-subtitle">Batch processing portal</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="fmc-dialog-body">
+            @if (_step == 1)
+            {
+                <div class="fmc-step-container animate__animated animate__fadeIn">
+                    <div class="fmc-upload-card">
+                        @if (_isLoading)
+                        {
+                            <div class="fmc-loader-overlay-compact glass">
+                                <div class="fmc-loader-content">
+                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Thickness="5" />
+                                    <MudText Typo="Typo.subtitle2" Class="mt-4 fmc-loader-text">Analyzing Ledger Data...</MudText>
+                                    <MudText Typo="Typo.caption" Class="fmc-loader-subtext">Validating cardholder identities</MudText>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="fmc-upload-art-mini">
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Class="fmc-cloud-icon-mini" />
+                        </div>
+                        
+                        <MudText Typo="Typo.subtitle1" Class="fmc-upload-title mt-2">Prepare Your Data</MudText>
+                        <MudText Typo="Typo.caption" Class="fmc-upload-desc px-4">
+                            Select Excel (.xlsx) | Max 100 rows
+                        </MudText>
+                        
+                        <div class="fmc-action-row mt-4">
+                            <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="HandleFileUpload">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled" 
+                                               Class="fmc-btn-primary-compact"
+                                               StartIcon="@Icons.Material.Filled.FileOpen">
+                                        Browse Spreadsheet
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                        </div>
+
+                        <div class="mt-4 fmc-template-link">
+                            <MudLink Href="@GetTemplateUrl()" Target="_blank" Underline="Underline.None">
+                                <div class="d-flex align-center justify-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.FileDownload" Size="Size.Small" Class="mr-1" />
+                                    <span>Download Template</span>
+                                </div>
+                            </MudLink>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_step == 2)
+            {
+                <div class="fmc-step-container animate__animated animate__slideInRight">
+                    <div class="d-flex align-center justify-space-between mb-4 fmc-preview-header-refined">
+                        <div class="fmc-status-pill-group">
+                            <div class="fmc-status-pill valid">
+                                <span class="count">@_rows.Count(r => r.ValidationError == null)</span>
+                                <span class="label">VALID</span>
+                            </div>
+                            @if (_rows.Any(r => r.ValidationError != null))
+                            {
+                                <div class="fmc-status-pill fail">
+                                    <span class="count">@_rows.Count(r => r.ValidationError != null)</span>
+                                    <span class="label">FAIL</span>
+                                </div>
+                            }
+                        </div>
+                        
+                        <div class="d-flex align-center gap-2">
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.OpenInNew" 
+                                       OnClick="OpenFullManager"
+                                       Class="fmc-btn-ghost-sm-icon">
+                                Manage Full Page
+                            </MudButton>
+                            
+                            <MudToggleGroup T="bool" @bind-Value="_isCredit" Color="Color.Primary" Class="fmc-compact-toggle-mini">
+                                <MudToggleItem Value="true" Text="Credit" />
+                                <MudToggleItem Value="false" Text="Debit" />
+                            </MudToggleGroup>
+                        </div>
+                    </div>
+
+                    <div class="fmc-table-wrapper-compact">
+                        <MudTable Items="_rows.Take(20)" Dense="true" Hover="true" FixedHeader="true" Height="220px" Elevation="0" Class="fmc-custom-table">
+                            <HeaderContent>
+                                <MudTh>#</MudTh>
+                                <MudTh>SUBSCRIBER</MudTh>
+                                <MudTh>CARD</MudTh>
+                                <MudTh>AMOUNT</MudTh>
+                                <MudTh>STATUS</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="row">
+                                <MudTd>@row.RowNumber</MudTd>
+                                <MudTd><b class="fmc-text-sm" style="white-space: nowrap;">@row.Subscriber</b></MudTd>
+                                <MudTd><code class="fmc-card-code-mini" style="white-space: nowrap;">@MaskCard(row.CardNumber)</code></MudTd>
+                                <MudTd>
+                                    <span class="fmc-amount-sm fmc-financial-mono @(_isCredit ? "credit" : "debit")" style="white-space: nowrap;">
+                                        @(_isCredit ? "+" : "-")₱@row.Amount.ToString("N2")
+                                    </span>
+                                </MudTd>
+                                <MudTd>
+                                    @if (row.ValidationError != null)
+                                    {
+                                        <MudTooltip Text="@row.ValidationError">
+                                            <div class="fmc-badge-mini error">ERR</div>
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <div class="fmc-badge-mini success">OK</div>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+
+                        @if (_rows.Count > 20)
+                        {
+                            <div class="fmc-view-all-container">
+                                <MudButton Variant="Variant.Text" Color="Color.Primary" 
+                                           OnClick="OpenFullManager" 
+                                           StartIcon="@Icons.Material.Filled.OpenInNew"
+                                           Class="fmc-view-all-btn">
+                                    View All @_rows.Count Rows in Full Manager
+                                </MudButton>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (_step == 3)
+            {
+                <div class="fmc-step-container fmc-success-state animate__animated animate__zoomIn">
+                    <div class="fmc-success-art-mini">
+                        @if (_result?.Failed > 0)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+                        }
+                    </div>
+                    <MudText Typo="Typo.h6" Class="fmc-success-title mt-n4">Batch Processed</MudText>
+                    
+                    <div class="fmc-result-grid-mini mb-4">
+                        <div class="fmc-result-card-mini success">
+                            <span class="val fmc-financial-mono">@_result?.Submitted</span>
+                            <span class="lbl">SUBMITTED</span>
+                        </div>
+                        <div class="fmc-result-card-mini error">
+                            <span class="val fmc-financial-mono">@_result?.Failed</span>
+                            <span class="lbl">FAILED</span>
+                        </div>
+                    </div>
+
+                    @* RESULT LOGS *@
+                    <div class="fmc-result-logs">
+                        <MudText Typo="Typo.caption" Class="fmc-log-title">TRANSACTION LEDGER LOGS</MudText>
+                        <div class="fmc-log-container mt-1">
+                            @if (_result?.Rows != null)
+                            {
+                                @foreach (var row in _result.Rows)
+                                {
+                                    <div class="fmc-log-entry @(row.ValidationError == null ? "success" : "error")">
+                                        <div class="d-flex justify-space-between w-100">
+                                            <span class="fmc-log-sub">#@row.RowNumber @row.Subscriber</span>
+                                            <span class="fmc-log-status">@(row.ValidationError ?? "SUCCESSFULLY QUEUED")</span>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="fmc-dialog-actions-compact">
+            @if (_step == 1)
+            {
+                <MudButton OnClick="Cancel" Variant="Variant.Text" Class="fmc-btn-ghost-sm">Cancel</MudButton>
+            }
+            @if (_step == 2)
+            {
+                <MudButton OnClick="@(() => _step = 1)" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="fmc-btn-ghost-sm">Back</MudButton>
+                <MudSpacer />
+                <MudButton OnClick="SubmitBatch" Variant="Variant.Filled" 
+                           Disabled="@(!_rows.Any(r => r.ValidationError == null) || _isLoading)" 
+                           Class="fmc-btn-action-sm">
+                    @if (_isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Submit Batch
+                </MudButton>
+            }
+            @if (_step == 3)
+            {
+                <MudSpacer />
+                <MudButton OnClick="Done" Variant="Variant.Filled" Class="fmc-btn-action-sm">Done</MudButton>
+            }
+        </div>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    /* Unified Theme Integration */
+    .fmc-premium-dialog.compact { 
+        background-color: var(--mud-palette-surface) !important; 
+        border-radius: 16px !important; 
+        max-width: 520px !important;
+        width: 100% !important;
+        border: 1px solid var(--mud-palette-divider) !important;
+        box-shadow: var(--mud-elevation-20) !important;
+        color: var(--mud-palette-text-primary) !important;
+    }
+
+    /* Remove unnecessary scrollbars on the dialog content */
+    .fmc-premium-dialog .mud-dialog-content {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 0 !important;
+        max-height: 80vh;
+    }
+
+    .fmc-dialog-header { 
+        padding: 16px 20px; 
+        display: flex; 
+        align-items: center; 
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+    
+    .fmc-icon-wrapper { 
+        width: 36px; 
+        height: 36px; 
+        background: rgba(var(--mud-palette-primary-rgb), 0.1); 
+        border-radius: 10px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+    }
+    
+    .fmc-header-icon { color: var(--mud-palette-primary); font-size: 20px !important; }
+    .fmc-title { font-weight: 800; color: var(--mud-palette-text-primary); font-size: 1.1rem !important; margin: 0; }
+    .fmc-subtitle { font-size: 0.75rem !important; color: var(--mud-palette-text-secondary); margin: 0; }
+
+    .fmc-dialog-body { 
+        padding: 16px 20px; 
+        display: flex; 
+        flex-direction: column; 
+        background: transparent; 
+    }
+    
+    .fmc-step-container { width: 100%; position: relative; }
+    
+    .fmc-upload-card { 
+        width: 100%;
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center;
+        border: 2px dashed var(--mud-palette-divider); 
+        border-radius: 16px; 
+        padding: 40px 20px; 
+        transition: all 0.2s;
+        position: relative;
+        min-height: 250px;
+    }
+    .fmc-upload-card:hover { 
+        border-color: var(--mud-palette-primary); 
+        background: rgba(var(--mud-palette-primary-rgb), 0.02); 
+    }
+    
+    .fmc-upload-art-mini { 
+        width: 50px; 
+        height: 50px; 
+        background: rgba(var(--mud-palette-primary-rgb), 0.05); 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        margin-bottom: 12px; 
+    }
+    .fmc-cloud-icon-mini { color: var(--mud-palette-primary); font-size: 28px !important; }
+    .fmc-upload-title { font-weight: 800; color: var(--mud-palette-text-primary); margin-bottom: 4px; }
+    .fmc-upload-desc { color: var(--mud-palette-text-secondary); text-align: center; font-size: 0.8rem; }
+
+    .fmc-btn-primary-compact { 
+        background-color: var(--mud-palette-primary) !important; 
+        color: var(--mud-palette-primary-text) !important; 
+        font-weight: 800 !important;
+        border-radius: 10px !important; 
+        padding: 10px 24px !important; 
+        text-transform: none !important;
+    }
+    
+    .fmc-template-link a { 
+        color: var(--mud-palette-primary) !important; 
+        font-weight: 700; 
+        font-size: 0.8rem; 
+        text-decoration: none !important; 
+    }
+    .fmc-template-link a:hover { text-decoration: underline !important; }
+
+    .fmc-amount-sm { font-family: 'Roboto Mono', monospace !important; font-weight: 900; font-size: 0.9rem; }
+    .fmc-amount-sm.credit { color: var(--mud-palette-success); }
+    .fmc-amount-sm.debit { color: var(--mud-palette-error); }
+
+    .fmc-card-code-mini { 
+        font-family: 'Roboto Mono', monospace !important; 
+        color: var(--mud-palette-primary); 
+        background: rgba(var(--mud-palette-primary-rgb), 0.05); 
+        padding: 2px 6px; 
+        border-radius: 4px; 
+        font-size: 0.75rem;
+    }
+
+    /* Refined Step 2 Header */
+    .fmc-preview-header-refined { border-bottom: 1px solid var(--mud-palette-divider); padding-bottom: 16px; }
+    .fmc-status-pill-group { display: flex; gap: 8px; }
+    .fmc-status-pill { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-weight: 800; font-size: 0.75rem; }
+    .fmc-status-pill.valid { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
+    .fmc-status-pill.fail { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+    .fmc-status-pill .count { font-size: 0.9rem; font-weight: 900; }
+    
+    .fmc-btn-ghost-sm-icon { font-size: 0.75rem !important; font-weight: 800 !important; text-transform: none !important; color: var(--mud-palette-text-secondary) !important; padding: 4px 8px !important; }
+    .fmc-btn-ghost-sm-icon:hover { color: var(--mud-palette-primary) !important; background: rgba(var(--mud-palette-primary-rgb), 0.05) !important; }
+
+    .fmc-dialog-actions-compact { 
+        padding: 16px 24px; 
+        display: flex; 
+        align-items: center; 
+        background: transparent;
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+    
+    .fmc-btn-action-sm { 
+        background-color: var(--mud-palette-success) !important; 
+        color: var(--mud-palette-success-text) !important; 
+        font-weight: 800 !important;
+        border-radius: 10px !important; 
+        height: 40px !important; 
+        padding: 0 24px !important; 
+        text-transform: none !important;
+    }
+    
+    .fmc-btn-ghost-sm { 
+        color: var(--mud-palette-text-secondary) !important; 
+        font-weight: 700 !important; 
+        text-transform: none !important; 
+        background: transparent !important;
+    }
+
+    /* Success State */
+    .fmc-success-state { align-items: center; justify-content: center; text-align: center; padding: 10px 0; }
+    .fmc-success-art-mini { margin-bottom: 12px; }
+    .fmc-success-title { font-weight: 900; color: var(--mud-palette-text-primary); margin-bottom: 20px; }
+    
+    .fmc-result-grid-mini { display: flex; gap: 16px; justify-content: center; width: 100%; }
+    .fmc-result-card-mini { flex: 1; max-width: 140px; padding: 12px; border-radius: 16px; background: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); display: flex; flex-direction: column; align-items: center; }
+    .fmc-result-card-mini .val { font-size: 1.5rem; font-weight: 900; }
+    .fmc-result-card-mini.success .val { color: var(--mud-palette-success); }
+    .fmc-result-card-mini.error .val { color: var(--mud-palette-error); }
+    .fmc-result-card-mini .lbl { font-size: 0.6rem; font-weight: 800; color: var(--mud-palette-text-secondary); margin-top: 4px; }
+
+    .fmc-result-logs { margin-top: 20px; text-align: left; }
+    .fmc-log-title { font-weight: 900; opacity: 0.6; letter-spacing: 1px; font-size: 0.6rem; }
+    .fmc-log-container { background: var(--mud-palette-background-grey); border-radius: 12px; border: 1px solid var(--mud-palette-divider); min-height: 100px; max-height: 180px; overflow-y: auto; padding: 8px; }
+    .fmc-log-entry { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; font-size: 0.7rem; font-weight: 700; border-left: 3px solid transparent; }
+    .fmc-log-entry.success { background: rgba(var(--mud-palette-success-rgb), 0.05); border-left-color: var(--mud-palette-success); color: var(--mud-palette-success); }
+    .fmc-log-entry.error { background: rgba(var(--mud-palette-error-rgb), 0.05); border-left-color: var(--mud-palette-error); color: var(--mud-palette-error); }
+    .fmc-log-entry .fmc-log-status { font-weight: 800; }
+
+    .fmc-loader-overlay-compact { 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        right: 0; 
+        bottom: 0; 
+        background: rgba(var(--mud-palette-surface-rgb), 0.7);
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        border-radius: 16px; 
+        z-index: 100;
+    }
+    .fmc-loader-overlay-compact.glass {
+        backdrop-filter: blur(4px);
+    }
+    .fmc-loader-content { text-align: center; }
+    .fmc-loader-text { font-weight: 900; letter-spacing: -0.5px; }
+    .fmc-loader-subtext { opacity: 0.6; font-weight: 700; }
+
+    .fmc-view-all-container { 
+        padding: 12px; 
+        text-align: center; 
+        background: rgba(var(--mud-palette-background-grey-rgb), 0.5); 
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-view-all-btn { font-weight: 800; text-transform: none; letter-spacing: 0; }
+</style>
+
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public Guid OrgId { get; set; }
+
+    private int _step = 1;
+    private bool _isLoading;
+    private bool _isCredit = true;
+    private List<BulkTransactionRowDto> _rows = new();
+    private BulkUploadResultDto? _result;
+
+    private string GetTemplateUrl()
+    {
+        var baseUrl = Config["ApiSettings:BaseUrl"]?.TrimEnd('/');
+        return $"{baseUrl}/api/excel/download-template";
+    }
+
+    /// <summary>
+    /// Utility to mask 16-digit card numbers for security while maintaining auditability.
+    /// Shows first 6 and last 4 digits.
+    /// </summary>
+    private string MaskCard(string? card)
+    {
+        if (string.IsNullOrEmpty(card)) return "N/A";
+        if (card.Length < 10) return card;
+        return $"{card[..6]}••••{card[^4..]}";
+    }
+
+    /// <summary>
+    /// Orchestrates the initial file ingestion and analysis.
+    /// Converts the browser file to a stream and invokes the parsing service.
+    /// </summary>
+    private async Task HandleFileUpload(IBrowserFile file)
+    {
+        if (file == null) return;
+        
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+            
+            _rows = await OrgService.ParseExcelCardholderFileAsync(OrgId, ms);
+            await Task.Delay(1200); // Enhanced visual duration
+            _step = 2;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Analysis Failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Transitions the user from the quick-view dialog to the comprehensive 
+    /// full-page Batch Allocation Manager, persisting the current session state.
+    /// </summary>
+    private async Task OpenFullManager()
+    {
+        // Populate state service before navigation
+        StateService.OrgId = OrgId;
+        StateService.IsCredit = _isCredit;
+        StateService.PendingRows = _rows.ToList();
+        
+        // Fetch Org Name for the manager header
+        var org = await OrgService.GetByIdAsync(OrgId);
+        StateService.OrganizationName = org?.Name;
+
+        MudDialog.Close();
+        Navigation.NavigateTo("/admin/bulk-upload-manager");
+    }
+
+    /// <summary>
+    /// Submits the valid portion of the current batch directly from the dialog.
+    /// Transitions to the results view upon completion.
+    /// </summary>
+    private async Task SubmitBatch()
+    {
+        _isLoading = true;
+        try
+        {
+            var validRows = _rows.Where(r => r.ValidationError == null).ToList();
+            _result = await OrgService.SubmitBulkTransactionAsync(OrgId, _isCredit, validRows);
+            _step = 3;
+            OrgService.NotifyDataChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Submission Failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void Done() => MudDialog.Close(DialogResult.Ok(true));
+    private void Cancel() => MudDialog.Cancel();
+}

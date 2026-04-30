@@ -26,6 +26,7 @@ namespace FMC.Infrastructure.Services;
 public sealed class OrganizationNotificationHandler :
     INotificationHandler<TransactionPendingEvent>,
     INotificationHandler<TransactionApprovedEvent>,
+    INotificationHandler<BulkUploadSubmittedEvent>,
     INotificationHandler<WalletAdjustedEvent>
 {
     private readonly IBackgroundJobService _jobService;
@@ -55,6 +56,27 @@ public sealed class OrganizationNotificationHandler :
                 notification.TargetUserId,
                 notification.MakerName,
                 notification.Amount));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Handles a bulk upload submission event by enqueuing a batch-summary email job.
+    /// </summary>
+    public Task Handle(BulkUploadSubmittedEvent notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing BulkUpload job for Org {OrgId}, Maker: {Maker}, Count: {Count}",
+            notification.OrganizationId, notification.MakerName, notification.TotalCount);
+
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendBulkUploadNotificationAsync(
+                notification.OrganizationId,
+                notification.MakerName,
+                notification.TotalCount,
+                notification.TotalAmount,
+                notification.IsCredit,
+                notification.SampleRows));
 
         return Task.CompletedTask;
     }

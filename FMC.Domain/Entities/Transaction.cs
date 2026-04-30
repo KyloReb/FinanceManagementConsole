@@ -68,4 +68,9 @@ public class Transaction : BaseEntity
     /// The organization context for this transaction.
     /// </summary>
     public Guid? OrganizationId { get; set; }
+
+    /// <summary>
+    /// Link to a bulk upload batch, allowing grouped approvals.
+    /// </summary>
+    public Guid? BatchId { get; set; }
 }

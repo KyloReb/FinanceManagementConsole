@@ -270,7 +270,6 @@ public class IdentityService : IIdentityService
                 IsActive = user.IsActive,
                 Balance = balance,
                 Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
-                AccountNumber = user.AccountNumber,
                 LastLoginAt = user.LastLoginAt,
                 CreatedAt = user.CreatedAt
             });
@@ -312,7 +311,6 @@ public class IdentityService : IIdentityService
                 IsActive = user.IsActive,
                 Balance = balance,
                 Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
-                AccountNumber = user.AccountNumber,
                 LastLoginAt = user.LastLoginAt,
                 CreatedAt = user.CreatedAt
             });
@@ -352,11 +350,11 @@ public class IdentityService : IIdentityService
             IsActive = user.IsActive,
             Balance = balance,
             Role = roles.FirstOrDefault() ?? FMC.Shared.Auth.Roles.User,
-            AccountNumber = user.AccountNumber,
             LastLoginAt = user.LastLoginAt,
             CreatedAt = user.CreatedAt
         };
     }
+
 
     public async Task<bool> CreateUserAsync(CreateUserDto request)
     {
@@ -371,8 +369,7 @@ public class IdentityService : IIdentityService
             Organization = request.Organization,
             OrganizationId = org?.Id,
             IsActive = true,
-            EmailConfirmed = true,
-            AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
+            EmailConfirmed = true
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -387,6 +384,8 @@ public class IdentityService : IIdentityService
         {
             await _userManager.AddToRoleAsync(user, FMC.Shared.Auth.Roles.User);
         }
+
+        // Cardholder synchronization removed (Users are not cardholders).
 
         return true;
     }
@@ -421,6 +420,8 @@ public class IdentityService : IIdentityService
         {
             await _userManager.AddToRoleAsync(user, FMC.Shared.Auth.Roles.User);
         }
+
+        // Cardholder synchronization removed.
 
         // Update Password if provided
         if (!string.IsNullOrEmpty(request.Password))

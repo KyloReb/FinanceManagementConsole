@@ -61,4 +61,13 @@ public class SystemAlertService : ISystemAlertService
     {
         return await _context.SystemAlerts.CountAsync(a => !a.IsResolved);
     }
+    
+    public async Task CleanupOldAlertsAsync(int retentionDays)
+    {
+        var cutoffDate = DateTime.UtcNow.AddDays(-retentionDays);
+        
+        await _context.SystemAlerts
+            .Where(a => a.IsResolved && a.ResolvedAt < cutoffDate)
+            .ExecuteDeleteAsync();
+    }
 }

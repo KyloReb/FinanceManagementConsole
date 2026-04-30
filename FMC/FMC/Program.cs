@@ -81,6 +81,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 builder.Services.AddScoped<ApiFinanceService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<OrganizationApiService>();
+builder.Services.AddScoped<BulkUploadStateService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<SecurityStateService>();

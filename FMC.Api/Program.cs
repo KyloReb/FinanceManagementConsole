@@ -180,6 +180,7 @@ builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISystemAlertService, SystemAlertService>();
+builder.Services.AddScoped<IExcelParserService, FMC.Infrastructure.Services.ExcelParserService>();
 
 // Background Job Services
 // NotificationJobService is the typed job class that Hangfire instantiates in its own DI scope.
@@ -268,10 +269,14 @@ using (var scope = app.Services.CreateScope())
     {
         await ApplicationDbSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider);
         logger.LogInformation("Database seeding completed successfully.");
+        
+        // 5. Data Integrity: Align Legacy Cardholder Account IDs
+        // This is a critical one-time repair after the Cardholder table separation.
+        await FMC.Infrastructure.Scripts.DataRepair.AlignLegacyIds(db);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred while seeding the database roles and admin.");
+        logger.LogError(ex, "An error occurred while seeding or repairing the database.");
     }
 }
 
@@ -298,6 +303,21 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
+
+// ─────────────────────────────────────────────────────────────
+// Recurrent Background Jobs (Hangfire)
+// ─────────────────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
+    // Daily cleanup of resolved system alerts older than 90 days.
+    // This ensures the database remains lean while preserving recent history.
+    recurringJobManager.AddOrUpdate<NotificationJobService>(
+        "system-alerts-cleanup",
+        job => job.CleanupOldSystemAlertsJobAsync(),
+        Cron.Daily);
+}
 
 app.Run();
 

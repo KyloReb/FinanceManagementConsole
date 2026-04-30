@@ -17,6 +17,7 @@
         <div class="d-flex gap-3">
              <MudDateRangePicker Label="Reporting Period" @bind-DateRange="_dateRange" 
                                  Variant="Variant.Outlined" Margin="Margin.Dense" 
+                                 DisplayMonths="1"
                                  Class="fmc-report-picker d-none d-sm-flex" />
              <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" 
                         OnClick="SimulateRefresh" Class="fmc-report-gen-btn">

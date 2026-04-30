@@ -38,11 +38,11 @@ public class OrganizationRepository : IOrganizationRepository
         var ceoIds = orgs.Where(o => !string.IsNullOrEmpty(o.ChiefExecutiveId)).Select(o => o.ChiefExecutiveId).Distinct().ToList();
 
         // Batch 1: User Counts
-        var userCounts = await _context.Users.OfType<ApplicationUser>()
-            .Where(u => u.OrganizationId != null && orgIds.Contains(u.OrganizationId.Value))
-            .GroupBy(u => u.OrganizationId)
+        var userCounts = await _context.Cardholders
+            .Where(c => orgIds.Contains(c.OrganizationId))
+            .GroupBy(c => c.OrganizationId)
             .Select(g => new { OrgId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.OrgId!.Value, x => x.Count, ct);
+            .ToDictionaryAsync(x => x.OrgId, x => x.Count, ct);
 
         // Batch 2: Org Wallet Balances
         var orgBalances = await _context.Accounts
@@ -52,12 +52,12 @@ public class OrganizationRepository : IOrganizationRepository
             .ToDictionaryAsync(x => x.TenantId, x => x.Balance, ct);
 
         // Batch 3: Total User Balances (all wallets for that org minus the org's own wallet)
-        var totalBalances = await (from u in _context.Users.OfType<ApplicationUser>()
-                                   where u.OrganizationId != null && orgIds.Contains(u.OrganizationId.Value)
-                                   join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                                   group a by u.OrganizationId into g
+        var totalBalances = await (from c in _context.Cardholders
+                                   where orgIds.Contains(c.OrganizationId)
+                                   join a in _context.Accounts.IgnoreQueryFilters() on c.Id.ToString() equals a.TenantId
+                                   group a by c.OrganizationId into g
                                    select new { OrgId = g.Key, Total = g.Sum(x => x.Balance) })
-                                   .ToDictionaryAsync(x => x.OrgId!.Value, x => x.Total, ct);
+                                   .ToDictionaryAsync(x => x.OrgId, x => x.Total, ct);
 
         // Batch 4: CEO Names
         var ceoNames = await _context.Users.OfType<ApplicationUser>()
@@ -106,17 +106,17 @@ public class OrganizationRepository : IOrganizationRepository
 
     public async Task<int> GetUserCountAsync(Guid organizationId, CancellationToken ct = default)
     {
-        return await _context.Users.OfType<ApplicationUser>()
-            .CountAsync(u => u.OrganizationId == organizationId, ct);
+        return await _context.Cardholders
+            .CountAsync(c => c.OrganizationId == organizationId, ct);
     }
 
     public async Task<decimal> GetTotalUserBalanceAsync(Guid organizationId, CancellationToken ct = default)
     {
         var orgTenantId = organizationId.ToString();
-        return await (from u in _context.Users.OfType<ApplicationUser>()
-                      where u.OrganizationId == organizationId
-                      join a in _context.Accounts.IgnoreQueryFilters() on u.Id equals a.TenantId
-                      where a.TenantId != orgTenantId // Don't include the org's own operational wallet
+        return await (from c in _context.Cardholders
+                      where c.OrganizationId == organizationId
+                      join a in _context.Accounts.IgnoreQueryFilters() on c.Id.ToString() equals a.TenantId
+                      where a.TenantId != orgTenantId
                       select a.Balance).SumAsync(ct);
     }
 
@@ -133,6 +133,37 @@ public class OrganizationRepository : IOrganizationRepository
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<Cardholder?> GetCardholderByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _context.Cardholders.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id, ct);
+    }
+
+    public async Task<Cardholder?> GetCardholderByAccountNumberAsync(string accountNumber, CancellationToken ct = default)
+    {
+        return await _context.Cardholders.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.AccountNumber == accountNumber, ct);
+    }
+
+    public async Task<Cardholder?> GetCardholderByAccountNumberAsync(string accountNumber, Guid organizationId, CancellationToken ct = default)
+    {
+        return await _context.Cardholders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.AccountNumber == accountNumber && c.OrganizationId == organizationId, ct);
+    }
+
+    public async Task<IEnumerable<Cardholder>> GetAllCardholdersAsync(CancellationToken ct = default)
+    {
+        return await _context.Cardholders.Include(c => c.Organization).ToListAsync(ct);
+    }
+
+    public async Task<IEnumerable<Cardholder>> GetCardholdersByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        return await _context.Cardholders
+            .Include(c => c.Organization)
+            .Where(c => c.OrganizationId == organizationId)
+            .OrderBy(c => c.LastName)
+            .ThenBy(c => c.FirstName)
+            .ToListAsync(ct);
     }
 
     public async Task<Transaction?> GetTransactionByIdAsync(Guid id, CancellationToken ct = default)
@@ -178,6 +209,14 @@ public class OrganizationRepository : IOrganizationRepository
         return await query.OrderByDescending(t => t.Date).Take(count).ToListAsync(ct);
     }
 
+    public async Task<IEnumerable<Transaction>> GetTransactionsByBatchIdAsync(Guid batchId, CancellationToken ct = default)
+    {
+        return await _context.Transactions
+            .IgnoreQueryFilters()
+            .Where(t => t.BatchId == batchId)
+            .ToListAsync(ct);
+    }
+
     public async Task AddTransactionAsync(Transaction transaction, CancellationToken ct = default)
     {
         await _context.Transactions.AddAsync(transaction, ct);
@@ -191,6 +230,25 @@ public class OrganizationRepository : IOrganizationRepository
     public async Task<Account?> GetAccountByTenantIdAsync(string tenantId, CancellationToken ct = default)
     {
         return await _context.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.TenantId == tenantId, ct);
+    }
+
+    public async Task<Account?> GetAccountByCardNumberAsync(string cardNumber, Guid organizationId, CancellationToken ct = default)
+    {
+        var cardholder = await _context.Cardholders.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.AccountNumber == cardNumber && c.OrganizationId == organizationId, ct);
+
+        if (cardholder == null) return null;
+
+        // Try primary account link (Cardholder ID)
+        var account = await GetAccountByTenantIdAsync(cardholder.Id.ToString(), ct);
+        
+        // Fallback: Try legacy account link (IdentityUserId) if it's a migrated user
+        if (account == null && !string.IsNullOrEmpty(cardholder.IdentityUserId))
+        {
+            account = await GetAccountByTenantIdAsync(cardholder.IdentityUserId, ct);
+        }
+
+        return account;
     }
 
     public async Task AddAccountAsync(Account account, CancellationToken ct = default)

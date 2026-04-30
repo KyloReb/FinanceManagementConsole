@@ -24,17 +24,20 @@ public sealed class NotificationJobService
     private readonly ApplicationDbContext _context;
     private readonly IEmailService _emailService;
     private readonly IEmailTemplateService _templateService;
+    private readonly ISystemAlertService _alertService;
     private readonly ILogger<NotificationJobService> _logger;
 
     public NotificationJobService(
         ApplicationDbContext context,
         IEmailService emailService,
         IEmailTemplateService templateService,
+        ISystemAlertService alertService,
         ILogger<NotificationJobService> logger)
     {
         _context = context;
         _emailService = emailService;
         _templateService = templateService;
+        _alertService = alertService;
         _logger = logger;
     }
 
@@ -63,12 +66,12 @@ public sealed class NotificationJobService
             var org = await _context.Organizations.IgnoreQueryFilters()
                 .FirstOrDefaultAsync(o => o.Id == organizationId);
 
-            var user = await _context.Users.OfType<ApplicationUser>().IgnoreQueryFilters()
-                .FirstOrDefaultAsync(u => u.Id == targetUserId);
+            var cardholder = await _context.Cardholders.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id.ToString() == targetUserId);
 
-            if (org == null || user == null)
+            if (org == null || cardholder == null)
             {
-                _logger.LogWarning("[BackgroundJob] PendingApproval aborted — Org or User not found.");
+                _logger.LogWarning("[BackgroundJob] PendingApproval aborted — Org or Cardholder not found.");
                 return;
             }
 
@@ -95,8 +98,8 @@ public sealed class NotificationJobService
             var body = _templateService.GeneratePendingApprovalEmail(
                 org.Name,
                 makerName,
-                $"{user.FirstName} {user.LastName}",
-                FinanceUtils.MaskCard(user.AccountNumber),
+                $"{cardholder.FirstName} {cardholder.LastName}",
+                FinanceUtils.MaskCard(cardholder.AccountNumber),
                 amount);
 
             var attachments = BuildAttachments();
@@ -118,6 +121,75 @@ public sealed class NotificationJobService
             throw; // Re-throw so Hangfire registers the failure and retries automatically
         }
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Job: Bulk Upload Submitted — notify Approvers and CEO
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sends a batch-summary email to all eligible Approvers and the CEO when a
+    /// Maker submits a bulk transaction file.
+    /// </summary>
+    public async Task SendBulkUploadNotificationAsync(
+        Guid organizationId,
+        string makerName,
+        int totalCount,
+        decimal totalAmount,
+        bool isCredit,
+        List<FMC.Shared.DTOs.BulkTransactionRowDto>? sampleRows = null)
+    {
+        try
+        {
+            _logger.LogInformation("[BackgroundJob] Sending BulkUpload notification for Org {OrgId}", organizationId);
+
+            var org = await _context.Organizations.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Id == organizationId);
+
+            if (org == null) return;
+
+            var approverEmails = await (from u in _context.Users.OfType<ApplicationUser>()
+                                        where u.OrganizationId == org.Id
+                                        join ur in _context.UserRoles on u.Id equals ur.UserId
+                                        join r in _context.Roles on ur.RoleId equals r.Id
+                                        where r.Name == FMC.Shared.Auth.Roles.Approver
+                                        select u.Email)
+                                        .ToListAsync();
+
+            var ceoEmail = await ResolveCeoEmailAsync(org.ChiefExecutiveId);
+
+            var recipients = approverEmails.Where(e => !string.IsNullOrEmpty(e)).ToHashSet();
+            if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
+
+            if (!recipients.Any()) return;
+
+            var body = _templateService.GenerateBulkUploadNotificationEmail(
+                org.Name,
+                makerName,
+                totalCount,
+                totalAmount,
+                isCredit,
+                sampleRows);
+
+            var attachments = BuildAttachments();
+
+            foreach (var email in recipients)
+            {
+                await _emailService.SendEmailAsync(
+                    email!,
+                    $"FMC Action Required: Bulk Batch Settlement — {org.Name}",
+                    body,
+                    attachments);
+            }
+
+            _logger.LogInformation("[BackgroundJob] BulkUpload notification sent to {Count} recipients.", recipients.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BackgroundJob] Failed to send BulkUpload notification for Org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
 
     // ─────────────────────────────────────────────────────────
     // Job 2: Transaction Approved — notify Maker and CEO
@@ -148,8 +220,8 @@ public sealed class NotificationJobService
                 return;
             }
 
-            var targetUser = await _context.Users.OfType<ApplicationUser>().IgnoreQueryFilters()
-                .FirstOrDefaultAsync(u => u.Id == transaction.TenantId);
+            var cardholder = await _context.Cardholders.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id.ToString() == transaction.TenantId);
 
             var makerEmail = await _context.Users.IgnoreQueryFilters()
                 .Where(u => u.Id == transaction.MakerId)
@@ -164,8 +236,8 @@ public sealed class NotificationJobService
 
             if (recipients.Any())
             {
-                var targetName = targetUser != null ? $"{targetUser.FirstName} {targetUser.LastName}" : "Subscriber";
-                var targetCard = FinanceUtils.MaskCard(targetUser?.AccountNumber ?? "N/A");
+                var targetName = cardholder != null ? $"{cardholder.FirstName} {cardholder.LastName}" : "Subscriber";
+                var targetCard = FinanceUtils.MaskCard(cardholder?.AccountNumber ?? "N/A");
 
                 var body = _templateService.GenerateTransactionApprovedEmail(org.Name, targetName, targetCard, transaction.Amount);
                 var attachments = BuildAttachments();
@@ -241,6 +313,32 @@ public sealed class NotificationJobService
         catch (Exception ex)
         {
             _logger.LogError(ex, "[BackgroundJob] Failed to send WalletAdjustment notification for Org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Job 4: Data Retention — cleanup old resolved alerts
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Periodic cleanup job that removes resolved system alerts older than the
+    /// specified retention period (default 90 days).
+    /// </summary>
+    public async Task CleanupOldSystemAlertsJobAsync()
+    {
+        try
+        {
+            const int RetentionDays = 90;
+            _logger.LogInformation("[BackgroundJob] Starting SystemAlerts cleanup (Retention: {Days} days)", RetentionDays);
+            
+            await _alertService.CleanupOldAlertsAsync(RetentionDays);
+            
+            _logger.LogInformation("[BackgroundJob] SystemAlerts cleanup completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BackgroundJob] Failed to execute SystemAlerts cleanup job.");
             throw;
         }
     }

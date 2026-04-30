@@ -53,10 +53,4 @@ public class ApplicationUser : IdentityUser
     /// Navigation property mapping the User to their respective Organization details.
     /// </summary>
     public virtual Organization? OrganizationInfo { get; set; }
-
-    /// <summary>
-    /// The unique 16-digit card/account number for this user, starting with 63641.
-    /// </summary>
-    [System.ComponentModel.DataAnnotations.StringLength(16)]
-    public string AccountNumber { get; set; } = string.Empty;
 }

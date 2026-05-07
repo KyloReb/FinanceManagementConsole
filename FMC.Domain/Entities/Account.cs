@@ -24,4 +24,10 @@ public class Account : BaseEntity
     /// The organization that owns or manages this account.
     /// </summary>
     public Guid? OrganizationId { get; set; }
+
+    /// <summary>
+    /// Byte array used for optimistic concurrency control.
+    /// </summary>
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

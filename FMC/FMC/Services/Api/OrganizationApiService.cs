@@ -88,9 +88,15 @@ public class OrganizationApiService
     /// <summary>
     /// CEO Endpoint: Adjusts the balance of an individual user within the CEO's organization.
     /// </summary>
-    public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label)
+    public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string? idempotencyKey = null, Guid? parentTransactionId = null, bool isSettlement = false)
     {
-        var response = await _httpClient.PostAsJsonAsync($"api/users/{userId}/adjust-balance", new { Amount = amount, Label = label });
+        var response = await _httpClient.PostAsJsonAsync($"api/users/{userId}/adjust-balance", new { 
+            Amount = amount, 
+            Label = label,
+            IdempotencyKey = idempotencyKey,
+            ParentTransactionId = parentTransactionId,
+            IsSettlement = isSettlement
+        });
         if (response.IsSuccessStatusCode) NotifyDataChanged();
         return response.IsSuccessStatusCode;
     }
@@ -247,9 +253,8 @@ public class OrganizationApiService
         return await response.Content.ReadFromJsonAsync<List<FMC.Shared.DTOs.BulkTransactionRowDto>>() ?? new();
     }
 
-    public async Task<FMC.Shared.DTOs.BulkUploadResultDto> SubmitBulkTransactionAsync(Guid orgId, bool isCredit, List<FMC.Shared.DTOs.BulkTransactionRowDto> rows)
+    public async Task<FMC.Shared.DTOs.BulkUploadResultDto> SubmitBulkTransactionAsync(Guid orgId, FMC.Shared.DTOs.BulkTransactionRequestDto payload)
     {
-        var payload = new FMC.Shared.DTOs.BulkTransactionRequestDto { IsCredit = isCredit, Rows = rows };
         var response = await _httpClient.PostAsJsonAsync($"api/organizations/{orgId}/transactions/bulk", payload);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<FMC.Shared.DTOs.BulkUploadResultDto>() ?? new();
@@ -260,5 +265,14 @@ public class OrganizationApiService
         var response = await _httpClient.PostAsJsonAsync($"api/excel/validate-rows/{orgId}", rows);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<FMC.Shared.DTOs.BulkTransactionRowDto>>() ?? new();
+    }
+
+    /// <summary>
+    /// SuperAdmin Endpoint: Synchronizes the organization's wallet limit with its current actual balance.
+    /// </summary>
+    public async Task<bool> SyncLimitAsync(Guid id)
+    {
+        var response = await _httpClient.PostAsync($"api/organizations/{id}/sync-limit", null);
+        return response.IsSuccessStatusCode;
     }
 }

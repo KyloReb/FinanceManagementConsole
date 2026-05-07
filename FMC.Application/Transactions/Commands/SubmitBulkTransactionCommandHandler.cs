@@ -11,15 +11,18 @@ public class SubmitBulkTransactionCommandHandler : IRequestHandler<SubmitBulkTra
 {
     private readonly IOrganizationRepository _repository;
     private readonly IPublisher _publisher;
+    private readonly IAuditService _auditService;
     private readonly ILogger<SubmitBulkTransactionCommandHandler> _logger;
 
     public SubmitBulkTransactionCommandHandler(
         IOrganizationRepository repository, 
         IPublisher publisher,
+        IAuditService auditService,
         ILogger<SubmitBulkTransactionCommandHandler> logger)
     {
         _repository = repository;
         _publisher = publisher;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -32,6 +35,16 @@ public class SubmitBulkTransactionCommandHandler : IRequestHandler<SubmitBulkTra
 
         var batchId = Guid.NewGuid();
         var timestamp = DateTime.UtcNow;
+
+        // 0. Idempotency Check: Prevent duplicate batch processing
+        if (!string.IsNullOrEmpty(request.BatchIdempotencyKey))
+        {
+            if (await _repository.ExistsTransactionWithIdempotencyKeyAsync(request.BatchIdempotencyKey, cancellationToken))
+            {
+                _logger.LogWarning("Bulk Transaction: Duplicate Batch detected. Key: {Key}", request.BatchIdempotencyKey);
+                return new BulkUploadResultDto { TotalRows = request.Rows.Count, Submitted = 0, Failed = 0, Rows = new() };
+            }
+        }
 
         foreach (var row in request.Rows)
         {
@@ -63,8 +76,15 @@ public class SubmitBulkTransactionCommandHandler : IRequestHandler<SubmitBulkTra
                     AccountId = account.Id,
                     Status = "Pending",
                     MakerId = request.MakerId,
-                    OrganizationId = request.OrganizationId
+                    OrganizationId = request.OrganizationId,
+                    IdempotencyKey = string.IsNullOrEmpty(request.BatchIdempotencyKey) ? null : $"{request.BatchIdempotencyKey}:{row.RowNumber}"
                 };
+
+                // Tag the first row with the actual BatchIdempotencyKey to block future duplicate batches
+                if (submitted == 0 && !string.IsNullOrEmpty(request.BatchIdempotencyKey))
+                {
+                    transaction.IdempotencyKey = request.BatchIdempotencyKey;
+                }
 
                 await _repository.AddTransactionAsync(transaction, cancellationToken);
                 
@@ -97,6 +117,17 @@ public class SubmitBulkTransactionCommandHandler : IRequestHandler<SubmitBulkTra
                 totalAmount,
                 request.IsCredit,
                 sampleRows), cancellationToken);
+                
+            // 6. Record consolidated audit trail for batch initiation
+            await _auditService.RecordFinancialEventAsync(
+                "BATCH_SUBMITTED", 
+                request.OrganizationId, 
+                $"{submitted} Cardholders (Bulk)", 
+                totalAmount, 
+                $"Bulk {(request.IsCredit ? "Credit" : "Debit")} Allotment Initiation", 
+                request.MakerId, 
+                request.MakerName, 
+                request.OrganizationId.ToString());
         }
 
         return new BulkUploadResultDto

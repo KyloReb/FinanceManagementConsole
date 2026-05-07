@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using FMC.Shared.DTOs.User;
+using FMC.Shared.DTOs;
 using System;
 using System.Collections.Generic;
 
@@ -356,7 +357,7 @@ public class IdentityService : IIdentityService
     }
 
 
-    public async Task<bool> CreateUserAsync(CreateUserDto request)
+    public async Task<FMCResult> CreateUserAsync(CreateUserDto request)
     {
         var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Name == request.Organization && !o.IsDeleted);
 
@@ -373,27 +374,36 @@ public class IdentityService : IIdentityService
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded) return false;
+        if (!result.Succeeded) 
+        {
+            return FMCResult.Failure(result.Errors.Select(e => e.Description));
+        }
 
         if (!string.IsNullOrEmpty(request.Role))
         {
             await EnsureRolesExistAsync(new[] { request.Role });
             await _userManager.AddToRoleAsync(user, request.Role);
+
+            // Link as CEO if role matches
+            if (request.Role == FMC.Shared.Auth.Roles.CEO && org != null)
+            {
+                org.ChiefExecutiveId = user.Id;
+                _context.Organizations.Update(org);
+                await _context.SaveChangesAsync();
+            }
         }
         else
         {
             await _userManager.AddToRoleAsync(user, FMC.Shared.Auth.Roles.User);
         }
 
-        // Cardholder synchronization removed (Users are not cardholders).
-
-        return true;
+        return FMCResult.Success();
     }
 
-    public async Task<bool> UpdateUserAsync(UpdateUserDto request)
+    public async Task<FMCResult> UpdateUserAsync(UpdateUserDto request)
     {
         var user = await _userManager.FindByIdAsync(request.Id);
-        if (user == null) return false;
+        if (user == null) return FMCResult.Failure("User not found.");
 
         var org = await _context.Organizations.FirstOrDefaultAsync(o => o.Name == request.Organization && !o.IsDeleted);
 
@@ -405,7 +415,10 @@ public class IdentityService : IIdentityService
         user.IsActive = request.IsActive;
 
         var result = await _userManager.UpdateAsync(user);
-        if (!result.Succeeded) return false;
+        if (!result.Succeeded) 
+        {
+            return FMCResult.Failure(result.Errors.Select(e => e.Description));
+        }
 
         // Sync Roles (Single Role Only)
         var currentRoles = await _userManager.GetRolesAsync(user);
@@ -415,22 +428,32 @@ public class IdentityService : IIdentityService
         {
             await EnsureRolesExistAsync(new[] { request.Role });
             await _userManager.AddToRoleAsync(user, request.Role);
+
+            // Update Organization CEO link if role is CEO
+            if (request.Role == FMC.Shared.Auth.Roles.CEO && org != null)
+            {
+                org.ChiefExecutiveId = user.Id;
+                _context.Organizations.Update(org);
+                await _context.SaveChangesAsync();
+            }
         }
         else
         {
             await _userManager.AddToRoleAsync(user, FMC.Shared.Auth.Roles.User);
         }
 
-        // Cardholder synchronization removed.
-
         // Update Password if provided
         if (!string.IsNullOrEmpty(request.Password))
         {
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            await _userManager.ResetPasswordAsync(user, token, request.Password);
+            var pwdResult = await _userManager.ResetPasswordAsync(user, token, request.Password);
+            if (!pwdResult.Succeeded)
+            {
+                return FMCResult.Failure(pwdResult.Errors.Select(e => e.Description));
+            }
         }
 
-        return true;
+        return FMCResult.Success();
     }
 
     private async Task EnsureRolesExistAsync(IEnumerable<string> roles)

@@ -56,9 +56,21 @@
     <div class="fmc-audit-filter-panel pa-4 mb-6">
         <MudGrid Spacing="2" Class="align-center">
             <MudItem xs="12" md="4">
-                <MudDateRangePicker Label="Date Boundary" @bind-DateRange="_dateRange" 
-                                   PlaceholderStart="Start" PlaceholderEnd="End"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-input-field" />
+                <div class="fmc-compact-range-wrapper">
+                    <div class="fmc-range-section">
+                        <span class="fmc-range-label">START</span>
+                        <input type="date" value="@_dateRange.Start?.ToString("yyyy-MM-dd")" 
+                               @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) _dateRange = new DateRange(d, _dateRange.End); })"
+                               class="fmc-native-picker" />
+                    </div>
+                    <div class="fmc-range-divider"></div>
+                    <div class="fmc-range-section">
+                        <span class="fmc-range-label">END</span>
+                        <input type="date" value="@_dateRange.End?.ToString("yyyy-MM-dd")" 
+                               @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) _dateRange = new DateRange(_dateRange.Start, d); })"
+                               class="fmc-native-picker" />
+                    </div>
+                </div>
             </MudItem>
             <MudItem xs="6" md="2">
                 <MudSelect T="string" Label="Category" @bind-Value="_query.Category" 
@@ -239,6 +251,25 @@
     /* Filter Panel */
     .fmc-audit-filter-panel { background: var(--mud-palette-background-grey); border-radius: 16px; border: 1px solid var(--mud-palette-divider); }
     .fmc-input-field .mud-input-outlined { border-radius: 12px; background: var(--mud-palette-surface); }
+    
+    /* Native Compact Range Picker */
+    .fmc-compact-range-wrapper {
+        display: flex; align-items: center; background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider); border-radius: 12px;
+        height: 42px; padding: 0 12px; gap: 8px;
+    }
+    .fmc-range-section { display: flex; flex-direction: column; flex: 1; }
+    .fmc-range-label { font-size: 0.5rem; font-weight: 900; opacity: 0.5; letter-spacing: 0.1em; line-height: 1; margin-bottom: 2px; }
+    .fmc-native-picker {
+        background: transparent; border: none; color: var(--mud-palette-text-primary);
+        font-size: 0.75rem; font-weight: 700; outline: none; width: 100%;
+        color-scheme: dark; /* Ensures the native icon and picker match dark mode */
+    }
+    .fmc-range-divider { width: 1px; height: 24px; background: var(--mud-palette-divider); margin: 0 4px; }
+    
+    .fmc-compact-popover .mud-picker-toolbar { display: none !important; }
+    .fmc-compact-popover .mud-picker-content { padding: 0 !important; }
+    .fmc-compact-popover .mud-day { width: 32px !important; height: 32px !important; font-size: 0.75rem !important; }
 
     /* Data Presentation */
     .fmc-audit-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
@@ -260,7 +291,8 @@
         content: ''; position: absolute; width:100%; height:100%; background: inherit; 
         border-radius: 50%; opacity: 0.4; animation: pulse-ring 2s infinite ease-in-out; 
     }
-    @@keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(2.5); opacity: 0; } }
+    /* Pulse Ring handled in app.css */
+
 
     @@media (max-width: 600px) {
         .fmc-audit-hero-text { font-size: 1.5rem !important; }

@@ -57,6 +57,24 @@ public class SystemAlertService : ISystemAlertService
         }
     }
 
+    public async Task ResolveAlertAsync(string title, string entityId)
+    {
+        var alerts = await _context.SystemAlerts
+            .Where(a => !a.IsResolved && a.Title == title && a.EntityId == entityId)
+            .ToListAsync();
+
+        if (alerts.Any())
+        {
+            foreach (var alert in alerts)
+            {
+                alert.IsResolved = true;
+                alert.ResolvedBy = "System (Auto-Resolve)";
+                alert.ResolvedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+        }
+    }
+
     public async Task<int> GetUnresolvedCountAsync()
     {
         return await _context.SystemAlerts.CountAsync(a => !a.IsResolved);

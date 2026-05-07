@@ -1,5 +1,6 @@
 using FMC.Shared.DTOs.Auth;
 using FMC.Shared.DTOs.User;
+using FMC.Shared.DTOs;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -57,7 +58,7 @@ public interface IIdentityService
     /// <summary>
     /// Updates the specified user's profile and roles.
     /// </summary>
-    Task<bool> UpdateUserAsync(UpdateUserDto request);
+    Task<FMCResult> UpdateUserAsync(UpdateUserDto request);
 
     /// <summary>
     /// Deletes a user from the system permanently.
@@ -67,7 +68,7 @@ public interface IIdentityService
     /// <summary>
     /// Creates a new user with the specified credentials and roles.
     /// </summary>
-    Task<bool> CreateUserAsync(CreateUserDto request);
+    Task<FMCResult> CreateUserAsync(CreateUserDto request);
     
     /// <summary>
     /// Validates current password and sends an OTP to initiate a change.

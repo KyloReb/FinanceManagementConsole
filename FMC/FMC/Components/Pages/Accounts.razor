@@ -87,9 +87,10 @@
                     </MudTd>
                     <MudTd Style="text-align:right" @onclick:stopPropagation="true">
                         <div class="d-flex justify-end gap-2">
-                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" 
+                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" 
                                             OnClick="@(() => OpenEditUserDialog(staff))" Class="fmc-action-circle" />
-                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" 
+                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
+                                            Disabled="@(staff.Role == Roles.SuperAdmin)"
                                             OnClick="@(() => ConfirmDeleteUser(staff))" Class="fmc-action-circle" />
                         </div>
                     </MudTd>
@@ -486,6 +487,15 @@
 
     private async Task ConfirmDeleteUser(UserDto user)
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var currentUserEmail = authState.User.Identity?.Name;
+        
+        if (string.Equals(user.Email, currentUserEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("Security Violation: You cannot delete your own account.", Severity.Error);
+            return;
+        }
+
         var result = await DialogService.ShowMessageBoxAsync("Confirm Deletion", 
             $"Are you sure you want to permanently remove {user.DisplayName}? This will revoke all system access for this staff member.", 
             yesText: "Delete Account", cancelText: "Cancel");

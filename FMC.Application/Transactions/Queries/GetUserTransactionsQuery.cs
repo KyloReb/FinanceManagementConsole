@@ -31,7 +31,11 @@ public class GetUserTransactionsQueryHandler : IRequestHandler<GetUserTransactio
                 Amount = t.Amount,
                 Label = t.Label,
                 AccountId = t.AccountId,
-                Category = t.Category
+                Category = t.Category,
+                Status = t.Status,
+                MakerId = t.MakerId,
+                OrganizationId = t.OrganizationId,
+                BatchId = t.BatchId
             })
             .ToListAsync(cancellationToken);
     }

@@ -97,6 +97,9 @@ public class ResilientOrganizationRepository : IOrganizationRepository
     public Task AddAccountAsync(Account account, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.AddAccountAsync(account, token), ct).AsTask();
 
+    public Task<bool> ExistsTransactionWithIdempotencyKeyAsync(string key, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.ExistsTransactionWithIdempotencyKeyAsync(key, token), ct).AsTask();
+
     // Passthrough methods (no DB call, state mutation only)
     public void Update(Organization organization) => _inner.Update(organization);
     public void SoftDelete(Organization organization) => _inner.SoftDelete(organization);

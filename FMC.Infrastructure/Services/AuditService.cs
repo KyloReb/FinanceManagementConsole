@@ -83,15 +83,46 @@ public class AuditService : IAuditService
             }
         }
 
+        string tenantId = "SYSTEM";
+        string? performedBy = null;
+        string? entityName = null;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var user = await _userManager.Users.Include(u => u.OrganizationInfo)
+                .FirstOrDefaultAsync(u => u.Id == userId || u.UserName == userId);
+            
+            if (user != null)
+            {
+                performedBy = user.UserName;
+                if (user.OrganizationInfo != null)
+                {
+                    tenantId = user.OrganizationInfo.Id.ToString();
+                    entityName = user.OrganizationInfo.Name;
+                }
+                else
+                {
+                    entityName = user.Organization ?? "System";
+                }
+            }
+            else 
+            {
+                 performedBy = userId;
+                 tenantId = userId;
+            }
+        }
+
         var log = new AuditLog
         {
             UserId = userId,
-            TenantId = userId ?? "SYSTEM", 
+            TenantId = tenantId,
             Action = action,
             IpAddress = ipAddress,
             Device = resolvedDevice,
             Details = details,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PerformedBy = performedBy,
+            EntityName = entityName
         };
 
         _context.AuditLogs.Add(log);
@@ -167,12 +198,14 @@ public class AuditService : IAuditService
     {
         IQueryable<AuditLog> query = _context.AuditLogs.IgnoreQueryFilters().OrderByDescending(a => a.CreatedAt);
 
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            query = query.Where(a => a.TenantId == tenantId);
+        }
+        
         if (category == "financial")
         {
-            if (!string.IsNullOrEmpty(tenantId))
-                query = query.Where(a => a.TenantId == tenantId);
-            else
-                query = query.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
+            query = query.Where(a => a.Amount != null || a.TenantId == "FINANCIAL");
         }
 
         var logs = await query.Take(count).ToListAsync();
@@ -195,10 +228,13 @@ public class AuditService : IAuditService
     {
         var dbQuery = _context.AuditLogs.IgnoreQueryFilters().AsQueryable();
 
+        if (!string.IsNullOrEmpty(queryDto.TenantId))
+            dbQuery = dbQuery.Where(a => a.TenantId == queryDto.TenantId);
+            
         if (queryDto.Category == "financial")
-            dbQuery = dbQuery.Where(a => a.TenantId == "FINANCIAL" || a.Action == "CREDIT" || a.Action == "DEBIT");
+            dbQuery = dbQuery.Where(a => a.Amount != null || a.TenantId == "FINANCIAL");
         else if (queryDto.Category == "auth")
-            dbQuery = dbQuery.Where(a => a.TenantId != "FINANCIAL" && a.Action != "CREDIT" && a.Action != "DEBIT");
+            dbQuery = dbQuery.Where(a => a.Amount == null && a.TenantId != "FINANCIAL");
 
         if (!string.IsNullOrEmpty(queryDto.Action))
             dbQuery = dbQuery.Where(a => a.Action.Contains(queryDto.Action));

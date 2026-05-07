@@ -6,6 +6,7 @@ public class AuditLogQueryDto
     public string? Category { get; set; } // "auth" | "financial" | null for all
     public string? PerformedBy { get; set; }
     public string? EntityName { get; set; }
+    public string? TenantId { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
     public int Page { get; set; } = 1;

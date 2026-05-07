@@ -28,16 +28,22 @@ public class AdminService
         return await _httpClient.GetFromJsonAsync<List<TransactionDto>>($"api/users/{id}/transactions?count={count}") ?? new();
     }
 
-    public async Task<bool> CreateUserAsync(CreateUserDto request)
+    public async Task<(bool Succeeded, string? Error)> CreateUserAsync(CreateUserDto request)
     {
         var response = await _httpClient.PostAsJsonAsync("api/users", request);
-        return response.IsSuccessStatusCode;
+        if (response.IsSuccessStatusCode) return (true, null);
+        
+        var error = await response.Content.ReadAsStringAsync();
+        return (false, string.IsNullOrWhiteSpace(error) ? "Failed to create user." : error);
     }
 
-    public async Task<bool> UpdateUserAsync(UpdateUserDto request)
+    public async Task<(bool Succeeded, string? Error)> UpdateUserAsync(UpdateUserDto request)
     {
         var response = await _httpClient.PutAsJsonAsync("api/users", request);
-        return response.IsSuccessStatusCode;
+        if (response.IsSuccessStatusCode) return (true, null);
+
+        var error = await response.Content.ReadAsStringAsync();
+        return (false, string.IsNullOrWhiteSpace(error) ? "Failed to update user." : error);
     }
 
     public async Task<bool> DeleteUserAsync(string id)

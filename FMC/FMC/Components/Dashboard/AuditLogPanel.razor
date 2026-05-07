@@ -1,0 +1,113 @@
+@using FMC.Shared.DTOs.Admin
+@inject OrganizationApiService OrgService
+
+<div class="fmc-audit-surface">
+    <div class="fmc-audit-header">
+        <div class="d-flex align-center justify-space-between w-100">
+            <div class="fmc-audit-title">
+                <div class="fmc-audit-icon mr-3"><MudIcon Icon="@Icons.Material.Filled.EventNote" Color="Color.Info" Size="Size.Small" /></div>
+                <div class="fmc-audit-title-text">
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 950; letter-spacing: -0.01em; line-height: 1.1;">System Activity Log</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; line-height: 1.1;">Global audit feed</MudText>
+                </div>
+            </div>
+            <MudTooltip Text="Export & View All">
+                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/admin/audit" />
+            </MudTooltip>
+        </div>
+    </div>
+    <div class="fmc-audit-section-label">
+        <MudText Typo="Typo.caption" Style="font-weight:900; opacity: 0.6; letter-spacing: 0.05em;">LATEST ACTIVITY</MudText>
+    </div>
+
+    <div class="fmc-audit-scroll-area">
+        @if (Loading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" StrokeWidth="4" />
+            </div>
+        }
+        else if (!Logs.Any())
+        {
+            <div class="pa-12 d-flex flex-column align-center mud-text-secondary">
+                <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Large" Style="opacity:0.3;" />
+                <MudText Class="mt-2">No activity history found.</MudText>
+            </div>
+        }
+        else
+        {
+            <div class="fmc-audit-list">
+                @foreach (var log in Logs.Take(10))
+                {
+                    var act = log.Action?.ToUpper() ?? "UNKNOWN";
+                    var isCredit = act == "CREDIT";
+                    var isDebit = act == "DEBIT";
+                    var clr = isCredit ? "credit" : isDebit ? "debit" : act.Contains("LOGIN") ? "info" : "warning";
+                    
+                    var localTime = log.CreatedAt.ToLocalTime();
+                    <div class="fmc-audit-item @clr">
+                        <div class="fmc-audit-indicator"></div>
+                        <div class="fmc-audit-body-content">
+                            <div class="d-flex justify-space-between align-center mb-1">
+                                <span class="fmc-audit-amt @clr">
+                                    @(log.Amount > 0 ? (isCredit ? "+" : isDebit ? "-" : "") + log.Amount?.ToString("N2") : "SYSTEM")
+                                </span>
+                                <span class="fmc-audit-badge @clr">@act</span>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="fmc-audit-entity-compact">@log.EntityName</MudText>
+                            <div class="d-flex justify-space-between mt-1" style="opacity: 0.6;">
+                                <span style="font-size: 0.65rem; font-weight: 700;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Style="font-size: 0.6rem; margin-right: 2px; vertical-align: middle;" />
+                                    @(string.IsNullOrWhiteSpace(log.PerformedBy) ? "System" : log.PerformedBy)
+                                </span>
+                                <span style="font-size: 0.65rem; font-weight: 700;">@localTime.ToString("MMM dd HH:mm")</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="fmc-audit-footer">
+                <MudButton Variant="Variant.Text" 
+                           Color="Color.Primary" 
+                           FullWidth="true" 
+                           Style="text-transform:none; font-weight:800; padding: 12px 0;"
+                           Href="/admin/audit">
+                    View Full Audit Trail
+                </MudButton>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .fmc-audit-surface { background: var(--mud-palette-surface); border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+    .fmc-audit-header { padding: 20px 24px; border-bottom: 1px solid var(--mud-palette-divider); background: rgba(var(--mud-palette-primary-rgb), 0.02); }
+    .fmc-audit-title { display: flex; align-items: center; }
+    .fmc-audit-icon { width: 32px; height: 32px; background: rgba(var(--mud-palette-info-rgb), 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .fmc-audit-section-label { padding: 12px 24px; background: var(--mud-palette-background-grey); border-bottom: 1px solid var(--mud-palette-divider); }
+    .fmc-audit-scroll-area { flex: 1; overflow-y: auto; }
+    .fmc-audit-list { padding: 0; }
+    .fmc-audit-item { padding: 16px 24px; border-bottom: 1px solid var(--mud-palette-divider); display: flex; gap: 16px; transition: background 0.2s; position: relative; }
+    .fmc-audit-item:hover { background: rgba(var(--mud-palette-primary-rgb), 0.02); }
+    .fmc-audit-indicator { width: 4px; border-radius: 2px; position: absolute; left: 0; top: 12px; bottom: 12px; }
+    .fmc-audit-item.credit .fmc-audit-indicator { background: var(--mud-palette-success); }
+    .fmc-audit-item.debit .fmc-audit-indicator { background: var(--mud-palette-error); }
+    .fmc-audit-item.info .fmc-audit-indicator { background: var(--mud-palette-info); }
+    .fmc-audit-item.warning .fmc-audit-indicator { background: var(--mud-palette-warning); }
+    .fmc-audit-body-content { flex: 1; }
+    .fmc-audit-amt { font-family: 'JetBrains Mono', monospace; font-weight: 900; font-size: 0.9rem; }
+    .fmc-audit-amt.credit { color: var(--mud-palette-success); }
+    .fmc-audit-amt.debit { color: var(--mud-palette-error); }
+    .fmc-audit-badge { font-size: 0.55rem; font-weight: 900; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+    .fmc-audit-badge.credit { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
+    .fmc-audit-badge.debit { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+    .fmc-audit-badge.info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
+    .fmc-audit-badge.warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .fmc-audit-entity-compact { font-weight: 800; color: var(--mud-palette-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .fmc-audit-footer { border-top: 1px solid var(--mud-palette-divider); margin-top: auto; }
+</style>
+
+@code {
+    [Parameter] public List<AuditLogDto> Logs { get; set; } = new();
+    [Parameter] public bool Loading { get; set; }
+}

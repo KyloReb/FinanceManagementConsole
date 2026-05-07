@@ -30,7 +30,7 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
             string? accountNumber = null;
             string? makerName = "System";
 
-            // Resolve Subscriber by TenantId (can be UserId or OrgId)
+            // Resolve Subscriber by TenantId (can be UserId, OrgId, or CardholderId)
             var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id.ToString() == t.TenantId, cancellationToken);
             if (org != null)
             {
@@ -43,6 +43,15 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
                 if (user != null)
                 {
                     subscriber = $"{user.FirstName} {user.LastName}";
+                }
+                else
+                {
+                    var cardholder = await _context.Cardholders.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id.ToString() == t.TenantId, cancellationToken);
+                    if (cardholder != null)
+                    {
+                        subscriber = $"{cardholder.FirstName} {cardholder.LastName}";
+                        accountNumber = cardholder.AccountNumber;
+                    }
                 }
             }
 

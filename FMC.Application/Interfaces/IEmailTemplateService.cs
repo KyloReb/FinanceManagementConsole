@@ -31,4 +31,9 @@ public interface IEmailTemplateService
     /// Includes an optional sample of transactions for preview.
     /// </summary>
     string GenerateBulkUploadNotificationEmail(string orgName, string makerName, int totalCount, decimal totalAmount, bool isCredit, List<FMC.Shared.DTOs.BulkTransactionRowDto>? sampleRows = null);
+
+    /// <summary>
+    /// Generates the HTML body for a unified batch approval/rejection notification.
+    /// </summary>
+    string GenerateBatchNotificationEmail(string orgName, string batchAction, IEnumerable<FMC.Shared.DTOs.TransactionDto> transactions, bool hasAttachments);
 }

@@ -63,7 +63,9 @@
                             </MudTooltip>
                         </div>
                     </div>
-                    <div class="d-flex align-center gap-3" style="z-index: 2;">
+                    <div class="d-flex align-center flex-wrap gap-2" style="z-index: 2;">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sync" 
+                                   OnClick="HandleSyncLimitAsync" Class="fmc-action-btn">SYNC LIMIT</MudButton>
                         <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.RemoveCircleOutline" 
                                    OnClick="@(() => OpenOrgBalanceDialog(false))" Class="fmc-action-btn">DEBIT</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AddCircleOutline" 
@@ -90,23 +92,30 @@
                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">CURRENT BALANCE</MudText>
                         <MudText Typo="Typo.h6" Class="fmc-money">@disposableBalance.ToString("C")</MudText>
                     </div>
-                </div>
-
-                @* UTILIZATION BAR *@
+                          @* UTILIZATION BAR *@
                 <div class="fmc-full-util-wrap mt-2">
                     <div class="fmc-full-util-bar">
                         <div class="fmc-full-util-fill @(usagePct >= 95 ? "critical" : usagePct >= 80 ? "warning" : "normal")" 
-                             style="width: @(Math.Min(usagePct, 100).ToString("F0"))%;"></div>
+                              style="width: @(Math.Min(usagePct, 100).ToString("F0"))%;"></div>
                     </div>
                 </div>
-            </div>
+            </div>          </div>
 
             <div class="fmc-watermark-icon">
                 <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
             </div>
        </MudPaper>;
 
-       <div class="fmc-profile-header mb-8 d-flex align-center justify-space-between flex-wrap gap-4">
+        <MudMessageBox @ref="_mbox" Title="Capacity Synchronization" CancelText="Cancel">
+            <MessageContent>
+                Are you sure you want to align the Wallet Limit with the current actual balance for this organization? This action updates the institutional liquidity ceiling.
+            </MessageContent>
+            <YesButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Class="px-6" Style="text-transform:none; font-weight:800; border-radius:10px;">Confirm Sync</MudButton>
+            </YesButton>
+        </MudMessageBox>
+
+        <div class="fmc-profile-header mb-8 d-flex align-center justify-space-between flex-wrap gap-4">
             <div class="d-flex align-center">
                 <MudTooltip Text="Return to Dashboard">
                     <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Class="mr-4" OnClick="@(() => Navigation.NavigateTo("/"))" />
@@ -124,6 +133,13 @@
                     </div>
                     <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1" Style="letter-spacing: 0.05em; text-transform: uppercase;">SUBSCRIBER PROFILE • @_org.Id.ToString().Split('-')[0]</MudText>
                 </div>
+            </div>
+            <div class="d-flex align-center gap-2">
+                @if (_isSuperAdmin)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" 
+                               OnClick="OpenEditDialog" Style="border-radius:10px; font-weight:800; text-transform:none;">Modify Entity</MudButton>
+                }
             </div>
        </div>
 
@@ -177,7 +193,7 @@
                         @foreach (var user in _staff.Take(10))
                         {
                             <div class="d-flex align-start gap-3 mb-4 cursor-pointer fmc-sidebar-user-item" @onclick="@(() => Navigation.NavigateTo($"/profile/{user.Id}"))">
-                                <MudAvatar Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 800; font-size: 0.7rem; width:28px; height:28px;">@user.DisplayName?[0]</MudAvatar>
+                                <MudAvatar Color="@GetRoleColor(user.Role)" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 800; font-size: 0.7rem; width:28px; height:28px;">@user.DisplayName?[0]</MudAvatar>
                                 <div style="min-width: 0;">
                                     <div class="d-flex align-center flex-wrap gap-1">
                                         <MudText Typo="Typo.body2" Style="font-weight: 800; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@user.DisplayName</MudText>
@@ -219,8 +235,6 @@
                     </div>
                 }
 
-@* Main Area moved up, Leadership team table removed from here as it's now in the sidebar *@
-
                 @if (_org.Name != "Nationlink/Infoserve Inc.")
                 {
                     <MudPaper Elevation="0" Class="fmc-glass-surface pa-6">
@@ -228,7 +242,10 @@
                             <MudTable Items="@_cardholders" Filter="new Func<UserDto,bool>(FilterFunc)" Hover="true" Breakpoint="Breakpoint.None" Elevation="0" Class="fmc-premium-table">
                                 <ToolBarContent>
                                     <div class="d-flex flex-column">
-                                        <MudText Typo="Typo.h6" Style="font-weight: 800;" Class="mb-0">Registered Cardholders</MudText>
+                                        <div class="d-flex align-center gap-2">
+                                            <MudText Typo="Typo.h6" Style="font-weight: 800;" Class="mb-0">Registered Cardholders</MudText>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text" Style="font-weight: 950; font-size: 0.65rem; border: 1px solid var(--mud-palette-divider);">@_cardholders.Count ROWS</MudChip>
+                                        </div>
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">@_cardholders.Count Identifiable Units Found</MudText>
                                     </div>
                                     <MudSpacer />
@@ -259,6 +276,9 @@
                                 <NoRecordsContent>
                                     <MudText Typo="Typo.body2" Class="mud-text-secondary pa-4">No cardholders found.</MudText>
                                 </NoRecordsContent>
+                                <PagerContent>
+                                    <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" RowsPerPageString="Rows per page:" />
+                                </PagerContent>
                             </MudTable>
                         </div>
 
@@ -387,11 +407,12 @@
     [Parameter] public Guid Id { get; set; }
 
     private bool _loading = true;
-    private bool _isBalanceVisible = true;
+    private MudMessageBox _mbox { get; set; } = default!;
     private OrganizationDto? _org;
     private List<UserDto> _staff = new();
     private List<UserDto> _cardholders = new();
 
+    private bool _isBalanceVisible = true;
     private string _searchString = "";
     private bool FilterFunc(UserDto user)
     {
@@ -411,12 +432,14 @@
 
     private bool _isMaker;
     private bool _isApprover;
+    private bool _isSuperAdmin;
 
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthProvider.GetAuthenticationStateAsync();
+        _isSuperAdmin = state.User.IsInRole(Roles.SuperAdmin);
         _isMaker = state.User.IsInRole(Roles.Maker);
-        _isApprover = state.User.IsInRole(Roles.Approver) || state.User.IsInRole(Roles.CEO) || state.User.IsInRole(Roles.SuperAdmin);
+        _isApprover = state.User.IsInRole(Roles.Approver) || state.User.IsInRole(Roles.CEO) || _isSuperAdmin;
         await LoadProfileDataAsync();
     }
 
@@ -478,6 +501,46 @@
         if (result is not null && !result.Canceled)
         {
             await LoadProfileDataAsync();
+        }
+    }
+
+    private async Task OpenEditDialog()
+    {
+        if (_org == null) return;
+        
+        var parameters = new DialogParameters<OrganizationDialog>
+        {
+            { x => x.OrganizationToEdit, _org }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<OrganizationDialog>("Modify Organization", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadProfileDataAsync();
+        }
+    }
+
+    private async Task HandleSyncLimitAsync()
+    {
+        var result = await _mbox.ShowAsync();
+        if (result == true)
+        {
+            try 
+            {
+                var success = await OrganizationService.SyncLimitAsync(Id);
+                if (success)
+                {
+                    Snackbar.Add("Wallet Limit successfully synchronized.", Severity.Info);
+                    await LoadProfileDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Sync Failed: {ex.Message}", Severity.Error);
+            }
         }
     }
 

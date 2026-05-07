@@ -52,22 +52,22 @@
         </div>
 
         <!-- Tab Content Area -->
-        <div class="fmc-tab-content pa-4">
+        <div class="fmc-tab-content">
             @if (_activeIndex == 0)
             {
-                @RenderTable(_allTransactions, "Global")
+                @RenderTable(_allGroups, "Global")
             }
             else if (_activeIndex == 1)
             {
-                @RenderPendingTable()
+                @RenderTable(_pendingGroups, "Pending")
             }
             else if (_activeIndex == 2)
             {
-                @RenderTable(_approvedTransactions, "Authorized")
+                @RenderTable(_approvedGroups, "Authorized")
             }
             else if (_activeIndex == 3)
             {
-                @RenderTable(_rejectedTransactions, "Denied")
+                @RenderTable(_rejectedGroups, "Denied")
             }
         </div>
     </div>
@@ -79,7 +79,7 @@
     /// <summary>
     /// Renders the standard transaction table used for All, Authorized, and Denied tabs.
     /// </summary>
-    private RenderFragment RenderTable(List<TransactionDto> items, string status) => __builder => 
+    private RenderFragment RenderTable(List<TransactionGroup> groups, string status) => __builder => 
     {
         if (_loading)
         {
@@ -87,7 +87,7 @@
                 <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
             </div>
         }
-        else if (!items.Any())
+        else if (!groups.Any())
         {
             <!-- Empty State Display -->
             <MudPaper Class="pa-16 d-flex flex-column align-center justify-center text-center fmc-empty-state" Elevation="0">
@@ -102,9 +102,10 @@
         else
         {
             <!-- Data Table -->
-            <MudTable Items="@items" Hover="true" Elevation="0" Class="fmc-premium-table" Striped="false" 
-                      Filter="new Func<TransactionDto,bool>(FilterFunc)"
-                      OnRowClick="@((TableRowClickEventArgs<TransactionDto> e) => OpenDetailAsync(e.Item!))" RowClass="cursor-pointer">
+            <MudTable Items="@groups" Hover="true" Elevation="0" Class="fmc-premium-table" Striped="false" 
+                      Filter="new Func<TransactionGroup,bool>(GroupFilterFunc)"
+                      OnRowClick="@(async (TableRowClickEventArgs<TransactionGroup> e) => { if(e.Item != null && !e.Item.BatchId.HasValue) await OpenDetailAsync(e.Item.Transactions.First()); })" 
+                      RowClassFunc="@((group, idx) => group != null && !group.BatchId.HasValue ? "cursor-pointer" : "")">
                 
                 <!-- Table Toolbar: Title, Exports, Filters -->
                 <ToolBarContent>
@@ -127,24 +128,21 @@
                             </div>
                         }
 
-                        <!-- Date Range Picker -->
-                        <div class="fmc-date-filter-container" style="position: relative;">
-                            <MudOverlay Visible="@_datePickerOpen" OnClick="@(() => _datePickerOpen = false)" ZIndex="9998" AutoClose="true" />
-                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.CalendarMonth" 
-                                       EndIcon="@Icons.Material.Filled.ArrowDropDown" OnClick="@(() => _datePickerOpen = !_datePickerOpen)"
-                                       Style="border-radius: 12px; min-width: 240px; height: 40px; font-weight: 800; text-transform: none; color: var(--mud-palette-text-primary); border-color: var(--mud-palette-divider); position: relative; z-index: 10000;">
-                                @(_filterDateRange?.Start?.ToString("MMM dd") ?? "Start") — @(_filterDateRange?.End?.ToString("MMM dd") ?? "End")
-                            </MudButton>
-                            
-                            <MudPopover Open="@_datePickerOpen" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" 
-                                        Class="fmc-datepicker-popover" Fixed="true" Style="z-index: 9999;">
-                                <div class="pa-2" style="background-color: #121212; width: 330px; overflow: hidden;">
-                                     <MudDateRangePicker DateRange="_filterDateRange" PickerVariant="PickerVariant.Static" 
-                                                         Elevation="0" Color="Color.Primary" Rounded="true" 
-                                                         Style="width: 100%;"
-                                                         DateRangeChanged="@(async dr => { _filterDateRange = dr; _datePickerOpen = false; StateHasChanged(); })" />
-                                </div>
-                            </MudPopover>
+                        <!-- Native Date Range Selector -->
+                        <div class="fmc-compact-range-wrapper">
+                            <div class="fmc-range-section">
+                                <span class="fmc-range-label">START</span>
+                                <input type="date" value="@(_filterDateRange?.Start?.ToString("yyyy-MM-dd"))" 
+                                       @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) _filterDateRange = new DateRange(d, _filterDateRange?.End); StateHasChanged(); })"
+                                       class="fmc-native-picker" />
+                            </div>
+                            <div class="fmc-range-divider"></div>
+                            <div class="fmc-range-section">
+                                <span class="fmc-range-label">END</span>
+                                <input type="date" value="@(_filterDateRange?.End?.ToString("yyyy-MM-dd"))" 
+                                       @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) _filterDateRange = new DateRange(_filterDateRange?.Start, d); StateHasChanged(); })"
+                                       class="fmc-native-picker" />
+                            </div>
                         </div>
                                        
                         <!-- Global Search Filter -->
@@ -156,24 +154,24 @@
                 
                 <!-- Table Headers -->
                 <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.Date))">TIMESTAMP</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.Subscriber))">IDENTIFIER</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.AccountNumber ?? string.Empty))">CARD NUMBER</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.Date))">TIMESTAMP</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.Label ?? string.Empty))">RECIPIENT & CARD</MudTableSortLabel></MudTh>
+                    
                     
                     @if (status == "Pending")
                     {
-                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.MakerName ?? string.Empty))">INITIATOR</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.MakerName ?? string.Empty))">INITIATOR</MudTableSortLabel></MudTh>
                     }
                     else if (status == "Global")
                     {
-                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.Status))">STATUS</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.Status))">STATUS</MudTableSortLabel></MudTh>
                     }
                     else
                     {
-                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.ApproverName ?? string.Empty))">SETTLED BY</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.ApproverName ?? string.Empty))">SETTLED BY</MudTableSortLabel></MudTh>
                     }
                     
-                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionDto, object>(x => x.Amount))">SETTLEMENT</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.TotalAmount))">SETTLEMENT</MudTableSortLabel></MudTh>
                     <MudTh>ACTION</MudTh>
                 </HeaderContent>
                 
@@ -181,123 +179,16 @@
                 <RowTemplate>
                     <MudTd DataLabel="Timestamp">
                          <div class="d-flex flex-column">
-                             <MudText Style="font-weight: 800; font-size: 0.85rem;">@context.Date.ToString("MMM dd")</MudText>
-                             <MudText Typo="Typo.caption" Style="opacity: 0.5;">@context.Date.ToString("HH:mm:ss")</MudText>
+                             <MudText Style="font-weight: 800; font-size: 0.85rem;">@context.Date.ToLocalTime().ToString("MMM dd")</MudText>
+                             <MudText Typo="Typo.caption" Style="opacity: 0.5;">@context.Date.ToLocalTime().ToString("HH:mm:ss")</MudText>
                          </div>
                     </MudTd>
-                    <MudTd DataLabel="Identifier">
-                        <MudText Style="font-weight: 900; color: var(--mud-palette-primary); letter-spacing: -0.01em;">@context.Subscriber</MudText>
-                        <MudText Typo="Typo.caption" Style="opacity: 0.5; display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@context.Label</MudText>
-                    </MudTd>
-                    <MudTd DataLabel="Card Number">
-                        <code class="fmc-card-mono">@GetMaskedAccount(context.AccountNumber)</code>
-                    </MudTd>
-                    <MudTd DataLabel="Authority">
-                        <div class="d-flex align-center">
-                            @if (status == "Global")
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled" Style="font-weight: 900; font-size: 0.6rem;">@context.Status.ToUpper()</MudChip>
-                            }
-                            else
-                            {
-                                <MudAvatar Size="Size.Small" Color="Color.Surface" Class="mr-2" Style="width: 24px; height: 24px; font-size: 0.6rem; border:1px solid var(--mud-palette-divider);">
-                                    @((context.ApproverName ?? context.MakerName ?? "S")[0])
-                                </MudAvatar>
-                                <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8;">@(context.Status == "Pending" ? context.MakerName : context.ApproverName ?? "System")</MudText>
-                            }
-                        </div>
-                    </MudTd>
-                    <MudTd DataLabel="Settlement">
-                        <MudText Color="@(context.Amount < 0 ? Color.Error : Color.Success)" Class="fmc-financial-mono" Style="font-weight: 950; font-size: 1.05rem; letter-spacing: -0.02em;">
-                            @context.Amount.ToString("C")
-                        </MudText>
-                    </MudTd>
-                    <MudTd DataLabel="Action" @onclick:stopPropagation="true">
-                        @if (context.Status == "Pending")
-                        {
-                            @if (_isApprover && context.MakerId != _currentUserId)
-                            {
-                                <div class="d-flex gap-2">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" OnClick="@(() => HandleApprovalAsync(context, approve: true))" Size="Size.Small" Variant="Variant.Filled" Style="border-radius: 8px;" aria-label="Approve" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="@(() => HandleApprovalAsync(context, approve: false))" Size="Size.Small" Variant="Variant.Outlined" Style="border-radius: 8px;" aria-label="Reject" />
-                                </div>
-                            }
-                            else
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Style="font-weight: 950; font-size: 0.65rem; border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.3);">AWAITING</MudChip>
-                            }
-                        }
-                        else
-                        {
-                             <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Text" Style="font-weight: 950; font-size: 0.65rem;">
-                                 @context.Status.ToUpper()
-                             </MudChip>
-                        }
-                    </MudTd>
-                </RowTemplate>
-                
-                <PagerContent>
-                    <MudTablePager PageSizeOptions="new int[]{10, 20, 50, 100}" />
-                </PagerContent>
-            </MudTable>
-        }
-    };
-
-    /// <summary>
-    /// Renders the specialized Action Required table, which natively supports Batch Grouping for bulk approvals.
-    /// </summary>
-    private RenderFragment RenderPendingTable() => __builder => 
-    {
-        if (_loading)
-        {
-            <div class="d-flex justify-center pa-12">
-                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-            </div>
-        }
-        else if (!_pendingGroups.Any())
-        {
-            <MudPaper Class="pa-16 d-flex flex-column align-center justify-center text-center fmc-empty-state" Elevation="0">
-                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Style="font-size: 6rem; opacity: 0.05;" />
-                <MudText Typo="Typo.h5" Class="mt-6" Style="font-weight: 900; opacity: 0.4;">Queue is Empty</MudText>
-                <MudText Typo="Typo.body1" Class="mud-text-secondary" Style="max-width:300px;">There are no records requiring immediate authorization.</MudText>
-            </MudPaper>
-        }
-        else
-        {
-            <MudTable Items="@_pendingGroups" Hover="true" Elevation="0" Class="fmc-premium-table" 
-                      OnRowClick="@((TableRowClickEventArgs<TransactionGroup> e) => { if(e.Item != null && !e.Item.BatchId.HasValue && e.Item.Transactions.Any()) OpenDetailAsync(e.Item.Transactions.First()); })" 
-                      RowClassFunc="@((group, idx) => group != null && !group.BatchId.HasValue ? "cursor-pointer" : "")">
-                
-                <ToolBarContent>
-                    <MudText Typo="Typo.h6" Style="font-weight: 900; font-size: 0.95rem; letter-spacing: 0.05em; opacity:0.8;">PENDING AUTHORIZATIONS</MudText>
-                    <MudSpacer />
-                    <MudTextField @bind-Value="_searchString" Placeholder="Filter pending..." 
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" 
-                                  Class="mt-0" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 300px; border-radius: 12px; font-weight: 700;"></MudTextField>
-                </ToolBarContent>
-                
-                <HeaderContent>
-                    <MudTh><MudTableSortLabel SortBy="new Func<TransactionGroup, object>(x => x.Date)">TIMESTAMP</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<TransactionGroup, object>(x => x.Label ?? string.Empty)">IDENTIFIER / BATCH</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<TransactionGroup, object>(x => x.MakerName ?? string.Empty)">SOURCE / MAKER</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel SortBy="new Func<TransactionGroup, object>(x => x.TotalAmount)">TOTAL SETTLEMENT</MudTableSortLabel></MudTh>
-                    <MudTh>ACTIONS</MudTh>
-                </HeaderContent>
-                
-                <RowTemplate>
-                    <MudTd DataLabel="Timestamp">
-                         <div class="d-flex flex-column">
-                             <MudText Style="font-weight: 800; font-size: 0.85rem;">@context.Date.ToString("MMM dd")</MudText>
-                             <MudText Typo="Typo.caption" Style="opacity: 0.5;">@context.Date.ToString("HH:mm")</MudText>
-                         </div>
-                    </MudTd>
-                    <MudTd DataLabel="Identifier">
+                    <MudTd DataLabel="Recipient">
                         @if (context.BatchId.HasValue)
                         {
-                            <!-- Batch Group Display -->
                             <div class="d-flex align-center">
                                 <MudIconButton Icon="@(context.ShowDetails ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
-                                               OnClick="@(() => context.ShowDetails = !context.ShowDetails)" Size="Size.Small" Class="mr-2" aria-label="Toggle batch details" />
+                                               OnClick="@(() => context.ShowDetails = !context.ShowDetails)" Size="Size.Small" Class="mr-2" />
                                 <div>
                                     <div class="d-flex align-center gap-2">
                                         <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled" Style="font-weight: 800; font-size: 0.6rem;">BATCH</MudChip>
@@ -309,37 +200,45 @@
                         }
                         else
                         {
-                            <!-- Single Transaction Display -->
-                            <MudText Style="font-weight: 900; color: var(--mud-palette-primary); letter-spacing: -0.01em;">@context.Transactions.First().Subscriber</MudText>
-                            <MudText Typo="Typo.caption" Style="opacity: 0.5;">@context.Transactions.First().Label</MudText>
+                            <div>
+                                <MudText Style="font-weight: 900; color: var(--mud-palette-primary); letter-spacing: -0.01em;">@context.Transactions.First().Subscriber</MudText>
+                                <div class="d-flex align-center gap-2">
+                                    <code class="fmc-card-mono" style="font-size: 0.7rem; padding: 2px 6px;">@GetMaskedAccount(context.Transactions.First().AccountNumber)</code>
+                                    <MudText Typo="Typo.caption" Style="opacity: 0.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@context.Transactions.First().Label</MudText>
+                                </div>
+                            </div>
                         }
                     </MudTd>
-                    <MudTd DataLabel="Maker">
-                        <div class="d-flex align-center">
-                            <MudAvatar Size="Size.Small" Color="Color.Surface" Class="mr-2" Style="width: 24px; height: 24px; font-size: 0.6rem; border:1px solid var(--mud-palette-divider);">
-                                @((context.MakerName ?? "S")[0])
-                            </MudAvatar>
-                            <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8;">@context.MakerName</MudText>
-                        </div>
+                    <MudTd DataLabel="Authority">
+                        @if (status == "Global")
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled" Style="font-weight: 900; font-size: 0.6rem;">@context.Status.ToUpper()</MudChip>
+                        }
+                        else
+                        {
+                            <div class="d-flex align-center">
+                                <MudAvatar Size="Size.Small" Color="Color.Surface" Class="mr-2" Style="width: 24px; height: 24px; font-size: 0.6rem; border:1px solid var(--mud-palette-divider);">
+                                    @((status == "Pending" ? context.MakerName ?? "S" : context.ApproverName ?? "S")[0])
+                                </MudAvatar>
+                                <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8;">@(status == "Pending" ? context.MakerName : context.ApproverName)</MudText>
+                            </div>
+                        }
                     </MudTd>
+                    
                     <MudTd DataLabel="Settlement">
                         <MudText Color="@(context.TotalAmount < 0 ? Color.Error : Color.Success)" Class="fmc-financial-mono" Style="font-weight: 950; font-size: 1.05rem; letter-spacing: -0.02em;">
                             @context.TotalAmount.ToString("C")
                         </MudText>
                     </MudTd>
                     <MudTd DataLabel="Action" @onclick:stopPropagation="true">
-                        @if (_isApprover && context.Transactions.Any(t => t.MakerId != _currentUserId))
+                        @if (status == "Pending" && _isApprover && context.Transactions.Any(t => t.MakerId != _currentUserId))
                         {
                             <div class="d-flex gap-2">
-                                <MudButton Variant="Variant.Filled" Size="Size.Small" 
-                                           StartIcon="@Icons.Material.Filled.Check"
-                                           OnClick="@(() => HandleGroupApprovalAsync(context, approve: true))" 
+                                <MudButton Variant="Variant.Filled" Size="Size.Small" StartIcon="@Icons.Material.Filled.Check" OnClick="@(() => HandleGroupApprovalAsync(context, approve: true))" 
                                            Style="background-color: #2e7d32; color: #ffffff; border-radius: 8px; font-weight: 800; text-transform: none; opacity: 0.9;">
                                     @(context.BatchId.HasValue ? "Approve Batch" : "Approve")
                                 </MudButton>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" 
-                                           StartIcon="@Icons.Material.Filled.Close"
-                                           OnClick="@(() => HandleGroupApprovalAsync(context, approve: false))" 
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" StartIcon="@Icons.Material.Filled.Close" OnClick="@(() => HandleGroupApprovalAsync(context, approve: false))" 
                                            Style="border-radius: 8px; font-weight: 800; text-transform: none;">
                                     @(context.BatchId.HasValue ? "Reject Batch" : "Reject")
                                 </MudButton>
@@ -347,17 +246,16 @@
                         }
                         else
                         {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Style="font-weight: 950; font-size: 0.65rem; border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.3);">AWAITING</MudChip>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Text" Style="font-weight: 950; font-size: 0.65rem; border: 1px solid rgba(var(--mud-palette-divider-rgb), 0.3);">@context.Status.ToUpper()</MudChip>
                         }
                     </MudTd>
                 </RowTemplate>
-                
+
                 <ChildRowContent>
-                    <!-- Expandable Batch Details -->
                     @if (context.ShowDetails && context.BatchId.HasValue)
                     {
                         <MudTr>
-                            <td colspan="5" class="pa-0">
+                            <td colspan="6" class="pa-0">
                                 <div class="pa-4" style="background: rgba(var(--mud-palette-primary-rgb), 0.02); border-bottom: 1px solid var(--mud-palette-divider);">
                                     <MudTable Items="@context.Transactions" Dense="true" Hover="true" Elevation="0" Context="tx">
                                         <HeaderContent>
@@ -373,19 +271,16 @@
                                                 <MudText Typo="Typo.body2" Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight: 800;">@tx.Amount.ToString("C")</MudText>
                                             </MudTd>
                                             <MudTd Style="text-align: right;">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" OnClick="@(() => OpenDetailAsync(tx))" aria-label="View transaction detail" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Info" Size="Size.Small" OnClick="@(() => OpenDetailAsync(tx))" />
                                             </MudTd>
                                         </RowTemplate>
-                                        <PagerContent>
-                                            <MudTablePager PageSizeOptions="new int[]{10, 20, 50}" />
-                                        </PagerContent>
                                     </MudTable>
                                 </div>
                             </td>
                         </MudTr>
                     }
                 </ChildRowContent>
-                
+
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" />
                 </PagerContent>
@@ -405,37 +300,49 @@
     .fmc-tab-btn:hover { background: rgba(255,255,255,0.02); color: var(--mud-palette-text-primary); }
     .fmc-tab-btn.active { color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.06); position: relative; }
     .fmc-tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: var(--mud-palette-primary); }
-    .fmc-tab-content { min-height: 400px; }
+    .fmc-tab-content { min-height: auto; }
     
-    .fmc-datepicker-popover .mud-picker-static-header { display: none !important; }
-    .fmc-datepicker-popover .mud-picker-header { background-color: #1a1a1c !important; color: var(--mud-palette-primary) !important; }
-    .fmc-datepicker-popover .mud-picker-header-label { color: var(--mud-palette-primary) !important; font-weight: 900 !important; }
-    .fmc-datepicker-popover .mud-picker-calendar-header { color: white !important; }
-    .fmc-datepicker-popover .mud-day { color: #ccc !important; }
+    /* Native Compact Range Picker */
+    .fmc-compact-range-wrapper {
+        display: flex; align-items: center; background: var(--mud-palette-background-grey);
+        border: 1px solid var(--mud-palette-divider); border-radius: 12px;
+        height: 44px; padding: 0 16px; gap: 12px; min-width: 280px;
+        transition: border-color 0.2s;
+    }
+    .fmc-compact-range-wrapper:hover { border-color: var(--mud-palette-primary); }
+    .fmc-range-section { display: flex; flex-direction: column; flex: 1; }
+    .fmc-range-label { font-size: 0.55rem; font-weight: 900; color: var(--mud-palette-text-secondary); opacity: 0.8; letter-spacing: 0.1em; line-height: 1; margin-bottom: 3px; }
+    .fmc-native-picker {
+        background: transparent; border: none; color: var(--mud-palette-text-primary);
+        font-size: 0.8rem; font-weight: 700; outline: none; width: 100%;
+        cursor: pointer;
+    }
+    .fmc-range-divider { width: 1px; height: 24px; background: var(--mud-palette-divider); margin: 0 4px; }
+    
     .fmc-premium-table { padding-bottom: 8px; }
     .fmc-premium-table .mud-table-head { background-color: transparent; }
     .fmc-premium-table .mud-th { font-weight: 950 !important; color: var(--mud-palette-text-secondary); font-size: 0.65rem !important; letter-spacing: 0.12em; text-transform: uppercase; padding: 22px 24px !important; border-bottom: 2px solid var(--mud-palette-divider); }
-    .fmc-premium-table .mud-td { padding: 18px 24px !important; border-bottom: 1px solid rgba(var(--mud-palette-divider-rgb), 0.2); }
+    .fmc-premium-table .mud-td { padding: 16px 24px !important; border-bottom: 1px solid var(--mud-palette-divider); }
+    .fmc-financial-mono { font-family: 'Roboto Mono', monospace; }
     .fmc-card-mono { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; background: rgba(var(--mud-palette-background-grey-rgb), 0.6); padding: 5px 10px; border-radius: 8px; opacity: 0.9; border: 1px solid var(--mud-palette-divider); color: var(--mud-palette-primary); }
     .fmc-empty-state { border: none; background: transparent !important; }
-    
-    .fmc-datepicker-popover { background-color: #121212 !important; border: 1px solid #333 !important; border-radius: 16px !important; box-shadow: 0 15px 50px rgba(0,0,0,0.8) !important; overflow: hidden !important; z-index: 9999 !important; }
-    .fmc-date-activator { border: 1px solid var(--mud-palette-divider); border-radius: 12px; min-width: 240px; height: 40px; background: rgba(255,255,255,0.02); transition: all 0.2s; }
-    .fmc-date-activator:hover { border-color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.04); }
-    
-    .mud-picker-static-header { background-color: #1a1a1c !important; }
-    .mud-picker-calendar-header { padding: 12px !important; color: white !important; }
-    .mud-day { font-weight: 700 !important; border-radius: 10px !important; color: #ddd !important; }
-    .mud-day.mud-selected { background-color: var(--mud-palette-primary) !important; color: white !important; font-weight: 900 !important; }
     
     .fmc-enterprise-btn { border-radius: 12px !important; height: 44px !important; padding: 0 20px !important; font-weight: 800 !important; text-transform: none !important; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important; font-size: 0.85rem !important; box-shadow: none !important; border: 1px solid transparent !important; }
     .fmc-enterprise-btn:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
     .fmc-enterprise-btn.secondary { background-color: var(--mud-palette-surface) !important; border-color: var(--mud-palette-divider) !important; color: var(--mud-palette-text-primary) !important; }
-    .fmc-enterprise-btn.info { background-color: var(--mud-palette-info) !important; }
-    .fmc-enterprise-btn.ghost { border-color: var(--mud-palette-divider) !important; color: var(--mud-palette-text-secondary) !important; }
+    .fmc-enterprise-btn.info { background-color: rgba(var(--mud-palette-info-rgb), 0.1) !important; color: var(--mud-palette-info) !important; border-color: rgba(var(--mud-palette-info-rgb), 0.2) !important; }
 
     .cursor-pointer { cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
     .cursor-pointer:hover { background-color: rgba(var(--mud-palette-primary-rgb), 0.04) !important; transform: scale(1.002); }
+    
+    /* Fix calendar picker visibility and theme integration */
+    ::-webkit-calendar-picker-indicator { 
+        cursor: pointer; 
+        filter: var(--fmc-calendar-filter);
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    ::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 </style>
 
 @code {
@@ -455,17 +362,16 @@
 
     // Data Collections
     private List<TransactionDto> _allTransactions = new();
-    private List<TransactionDto> _pendingTransactions = new();
-    private List<TransactionDto> _approvedTransactions = new();
-    private List<TransactionDto> _rejectedTransactions = new();
+    private List<TransactionGroup> _allGroups = new();
     private List<TransactionGroup> _pendingGroups = new();
+    private List<TransactionGroup> _approvedGroups = new();
+    private List<TransactionGroup> _rejectedGroups = new();
 
     // UI State
     private bool _loading = true;
     private int _activeIndex = 0;
     private string _searchString = "";
     private DateRange? _filterDateRange;
-    private bool _datePickerOpen;
 
     #endregion
 
@@ -501,7 +407,7 @@
 
     /// <summary>
     /// Fetches the latest transaction history from the backend and segregates it into the appropriate tab queues.
-    /// Also groups pending requests into 'TransactionGroups' for bulk-approval compatibility.
+    /// Also groups transactions into 'TransactionGroups' for consolidated display.
     /// </summary>
     private async Task LoadQueueDataAsync()
     {
@@ -511,21 +417,10 @@
             var allHistory = await OrgService.GetOrganizationTransactionsAsync(_orgId, count: 2000); 
             _allTransactions = allHistory.ToList();
             
-            // Queue filtering
-            _pendingTransactions = _allTransactions.Where(t => t.Status == "Pending").ToList();
-            _approvedTransactions = _allTransactions.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList();
-            _rejectedTransactions = _allTransactions.Where(t => t.Status == "Rejected").ToList();
-
-            // Group pending requests by BatchId, leaving standalone transactions as groups of 1.
-            _pendingGroups = _pendingTransactions
-                .GroupBy(t => t.BatchId)
-                .Select(g => new TransactionGroup 
-                { 
-                    BatchId = g.Key, 
-                    Transactions = g.ToList() 
-                })
-                .OrderByDescending(g => g.Date)
-                .ToList();
+            _allGroups = GroupTransactions(_allTransactions);
+            _pendingGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Pending").ToList());
+            _approvedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList());
+            _rejectedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Rejected").ToList());
         }
         catch (Exception ex)
         {
@@ -535,6 +430,14 @@
         {
             _loading = false;
         }
+    }
+
+    private List<TransactionGroup> GroupTransactions(List<TransactionDto> txs)
+    {
+        return txs.GroupBy(t => t.BatchId)
+                  .Select(g => new TransactionGroup { BatchId = g.Key, Transactions = g.ToList() })
+                  .OrderByDescending(g => g.Date)
+                  .ToList();
     }
 
     #endregion
@@ -547,15 +450,11 @@
     private string GetActiveTabClass(int idx) => _activeIndex == idx ? "active" : string.Empty;
     
     /// <summary>
-    /// Switches the active view tab. Triggers a data refresh if necessary to ensure data is fresh.
+    /// Switches the active view tab.
     /// </summary>
     private async Task SetTabAsync(int idx)
     {
         _activeIndex = idx;
-        if (idx > 0 && !_approvedTransactions.Any() && !_rejectedTransactions.Any())
-        {
-            await LoadQueueDataAsync();
-        }
     }
 
     /// <summary>
@@ -580,27 +479,42 @@
     }
 
     /// <summary>
-    /// Filters the main transaction list based on the search string and date range constraints.
+    /// Filters the transaction groups based on the search string and date range constraints.
     /// </summary>
-    private bool FilterFunc(TransactionDto tx)
+    private bool GroupFilterFunc(TransactionGroup group)
     {
         // Check date bounds
         if (_filterDateRange?.Start.HasValue == true && _filterDateRange?.End.HasValue == true)
         {
-            if (tx.Date.Date < _filterDateRange.Start.Value.Date || tx.Date.Date > _filterDateRange.End.Value.Date) 
+            if (group.Date.Date < _filterDateRange.Start.Value.Date || group.Date.Date > _filterDateRange.End.Value.Date)
                 return false;
         }
 
         if (string.IsNullOrWhiteSpace(_searchString)) return true;
         
-        // String comparisons
-        if (tx.Subscriber.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if ((tx.AccountNumber ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if (tx.Amount.ToString().Contains(_searchString)) return true;
-        if ((tx.Label ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if ((tx.ApproverName ?? "").Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        
-        return false;
+        return group.Transactions.Any(tx => 
+            (tx.Subscriber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (tx.AccountNumber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (tx.Label?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (tx.MakerName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (tx.ApproverName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+        );
+    }
+
+    /// <summary>
+    /// Individual record filter for report generation.
+    /// </summary>
+    private bool FilterFunc(TransactionDto tx)
+    {
+        if (_filterDateRange?.Start.HasValue == true && _filterDateRange?.End.HasValue == true)
+        {
+            if (tx.Date.Date < _filterDateRange.Start.Value.Date || tx.Date.Date > _filterDateRange.End.Value.Date)
+                return false;
+        }
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return (tx.Subscriber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (tx.AccountNumber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               (tx.Label?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     #endregion
@@ -674,9 +588,26 @@
     /// </summary>
     private async Task HandleApprovalAsync(TransactionDto tx, bool approve)
     {
+        if (approve)
+        {
+            // Step-up Security Verification: Require password for authorization
+            var secOpts = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, BackdropClick = false };
+            var secDialog = await DialogService.ShowAsync<SecurityVerificationDialog>("Security Verification", new DialogParameters(), secOpts);
+            var secResult = await secDialog.Result;
+            if (secResult is null || secResult.Canceled) return;
+        }
+        else
+        {
+            bool? result = await DialogService.ShowMessageBoxAsync(
+                "Confirm Rejection", 
+                "Are you sure you want to reject this transaction?", 
+                yesText: "Yes, Reject", cancelText: "No, Cancel");
+            if (result != true) return;
+        }
+
         try
         {
-            bool success = approve 
+            var success = approve 
                 ? await OrgService.ApproveTransactionAsync(tx.Id)
                 : await OrgService.RejectTransactionAsync(tx.Id, "Rejected by Authorized Personnel");
 
@@ -697,6 +628,15 @@
     /// </summary>
     private async Task HandleGroupApprovalAsync(TransactionGroup group, bool approve)
     {
+        // Security gate: require password re-verification for all approval actions
+        if (approve)
+        {
+            var secOpts = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, BackdropClick = false };
+            var secDialog = await DialogService.ShowAsync<SecurityVerificationDialog>("Security Verification", new DialogParameters(), secOpts);
+            var secResult = await secDialog.Result;
+            if (secResult is null || secResult.Canceled) return;
+        }
+
         try
         {
             if (group.BatchId.HasValue)
@@ -708,6 +648,14 @@
                 }
                 else
                 {
+                    // Confirmation Prompt for Batch Rejection
+                    bool? confirm = await DialogService.ShowMessageBoxAsync(
+                        "Confirm Batch Rejection", 
+                        $"Are you sure you want to reject this entire batch of {group.Transactions.Count} requests?", 
+                        yesText: "Yes, Reject All", cancelText: "No, Cancel");
+                    
+                    if (confirm != true) return;
+
                     // Require rejection reasoning for entire batches
                     var parameters = new DialogParameters { ["ContentText"] = "Enter rejection reason for this entire batch." };
                     var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
@@ -783,7 +731,10 @@
         public decimal TotalAmount => Transactions.Sum(t => t.Amount);
         public string? Label => Transactions.FirstOrDefault()?.Label;
         public string? MakerName => Transactions.FirstOrDefault()?.MakerName;
+        public string? ApproverName => Transactions.FirstOrDefault()?.ApproverName;
+        public string Status => Transactions.All(t => t.Status == Transactions.First().Status) ? Transactions.First().Status : "Mixed";
         public DateTime Date => Transactions.FirstOrDefault()?.Date ?? DateTime.UtcNow;
+        public string? AccountNumber => BatchId.HasValue ? null : Transactions.FirstOrDefault()?.AccountNumber;
         
         /// <summary>
         /// Used by the UI to toggle the accordion visibility of child transactions.

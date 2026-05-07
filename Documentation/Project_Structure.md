@@ -59,6 +59,12 @@ The system is organized into the following specialized domains. Click an area to
     *   Transaction State diagrams
     *   Ledger adjustment lifecycle
 
+*   💎 **[Ledger Integrity & Hardening](ledger_integrity_hardening.md)**
+    *   Optimistic Concurrency Control (OCC)
+    *   End-to-End Idempotency Guards
+    *   Atomic Database Transactions
+    *   Nightly Ledger Reconciliation
+
 *   ⚡ **[Background Job System (Hangfire)](background_job_architecture.md)**
     *   Async email and alert queues
     *   Job retry logic and dashboarding

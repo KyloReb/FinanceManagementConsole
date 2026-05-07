@@ -25,8 +25,10 @@
     </div>
 
     @* ── DESKTOP TABLE ── *@
-    <div class="fmc-desktop-table">
-        <MudTable Items="@FilteredOrganizations" Hover="true" Elevation="0" Loading="@Loading" Class="fmc-premium-table" OnRowClick="OrgRowClicked" T="OrganizationDto">
+    <div class="fmc-desktop-table" style="width: 100%;">
+        <MudTable Items="@FilteredOrganizations" Hover="true" Elevation="0" Loading="@Loading" 
+                  Class="fmc-premium-table" OnRowClick="OrgRowClicked" T="OrganizationDto"
+                  Style="table-layout: auto;">
             <HeaderContent>
                 <MudTh>TENANT ORGANIZATION</MudTh>
                 <MudTh>DISTRIBUTED USAGE</MudTh>
@@ -42,37 +44,39 @@
                     var usagePct = totalCapacity > 0 ? (double)(usage / totalCapacity) * 100.0 : 0;
                 }
                 <MudTd>
-                    <div class="d-flex align-center gap-3">
-                        <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium" Style="background-color:var(--mud-palette-background-grey); font-weight:800;">
+                    <div class="d-flex align-center gap-2">
+                        <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Style="background-color:var(--mud-palette-background-grey); font-weight:800; width:28px; height:28px;">
                             @orgItem.Name?[0]
                         </MudAvatar>
-                        <div>
-                            <div class="d-flex align-center gap-2">
-                                <MudText Style="font-weight:900; letter-spacing:-0.01em;">@orgItem.Name</MudText>
-                                <div class="fmc-status-pill @(orgItem.IsActive ? "active" : "suspended")" style="transform: scale(0.7); transform-origin: left center;">
+                        <div style="min-width:0; overflow:hidden;">
+                            <div class="d-flex align-center gap-1">
+                                <MudText Style="font-weight:900; letter-spacing:-0.01em; font-size:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@orgItem.Name</MudText>
+                                <div class="fmc-status-pill @(orgItem.IsActive ? "active" : "suspended")" style="transform: scale(0.6); transform-origin: left center;">
                                     <span>@(orgItem.IsActive ? "ACT" : "OFF")</span>
                                 </div>
                             </div>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">CEO: @(orgItem.CeoName ?? "Unassigned")</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700; font-size:0.65rem;">CEO: @(orgItem.CeoName ?? "Unassigned")</MudText>
                         </div>
                     </div>
                 </MudTd>
                 <MudTd>
-                    <div class="d-flex flex-column" style="min-width: 140px;">
-                        <MudText Color="@(usage < 0 ? Color.Error : Color.Info)" Style="font-weight:950; font-family:'Roboto Mono',monospace; font-size: 0.9rem;">₱@usage.ToString("N2")</MudText>
+                    <div class="d-flex flex-column" style="min-width: 120px;">
+                        <MudText Color="@(usage < 0 ? Color.Error : Color.Info)" Style="font-weight:950; font-family:'Roboto Mono',monospace; font-size: 0.8rem;">₱@usage.ToString("N2")</MudText>
                         <div class="d-flex align-center gap-2 mt-1">
                             <div class="flex-grow-1" style="height:6px; background:var(--mud-palette-divider); border-radius:3px; overflow:hidden;">
                                 <div style="height:100%; width:@(Math.Min(Math.Max(0, usagePct), 100).ToString("F2"))%; background:var(--mud-palette-primary); transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
                             </div>
-                            <MudText Typo="Typo.caption" Style="font-size: 0.7rem; font-weight:900;">@Math.Max(0, usagePct).ToString("F1")%</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 0.65rem; font-weight:900;">@Math.Max(0, usagePct).ToString("F1")%</MudText>
                         </div>
                     </div>
                 </MudTd>
                 <MudTd>
-                    <MudText Style="font-weight:950; font-family:'Roboto Mono',monospace; font-size: 1.1rem; color: var(--fmc-accent-premium);">
-                        ₱@currentBalance.ToString("N2")
-                    </MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800; letter-spacing:0.05em;">CAPACITY: ₱@totalCapacity.ToString("N2")</MudText>
+                    <div class="d-flex flex-column" style="min-width: 120px;">
+                        <MudText Style="font-weight:950; font-family:'Roboto Mono',monospace; font-size: 0.9rem; color: var(--fmc-accent-premium); letter-spacing:-0.02em;">
+                            ₱@currentBalance.ToString("N2")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800; letter-spacing:0.05em; font-size: 0.65rem;">LIMIT: ₱@totalCapacity.ToString("N2")</MudText>
+                    </div>
                 </MudTd>
                 <MudTd Style="text-align:right;">
                     <div class="d-flex align-center justify-end gap-2">
@@ -212,3 +216,22 @@
         }
     }
 }
+
+<style>
+    .fmc-premium-table .mud-table-cell { 
+        padding: 12px 16px !important; 
+    }
+    
+    @@media (max-width: 1400px) {
+        .fmc-premium-table .mud-text-body1, .fmc-premium-table .mud-text-body2 { font-size: 0.75rem !important; }
+        .fmc-premium-table .mud-button-root { padding: 4px !important; min-width: 32px !important; }
+        .fmc-premium-table .mud-icon-root { font-size: 1.1rem !important; }
+        .fmc-status-pill { padding: 2px 6px !important; font-size: 0.55rem !important; }
+    }
+
+    @@media (max-width: 1100px) {
+        .fmc-premium-table .mud-text-body1, .fmc-premium-table .mud-text-body2 { font-size: 0.7rem !important; }
+        .fmc-premium-table .mud-td { padding: 8px 4px !important; }
+        .fmc-premium-table .mud-th { padding: 12px 4px !important; font-size: 0.55rem !important; }
+    }
+</style>

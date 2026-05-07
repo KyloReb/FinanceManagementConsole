@@ -127,7 +127,11 @@ public static class ApplicationDbSeeder
                         IsActive = true,
                         OrganizationId = org.Id,
                         TenantId = org.Id.ToString(),
+                        
+                        // --- SEED GENERATION ---
+                        // Comment out this line or replace with existing data if needed
                         AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString(),
+                        
                         CreatedAt = DateTime.UtcNow
                     };
 

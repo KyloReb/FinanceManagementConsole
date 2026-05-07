@@ -97,3 +97,43 @@ h1:focus {
         opacity: 0.6;
     }
 }
+
+@keyframes pulse-ring {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
+}
+
+@keyframes critical-pulse {
+    0% {
+        box-shadow: 0 0 10px rgba(255, 0, 0, 0.15);
+    }
+
+    50% {
+        box-shadow: 0 0 22px rgba(255, 0, 0, 0.35);
+    }
+
+    100% {
+        box-shadow: 0 0 10px rgba(255, 0, 0, 0.15);
+    }
+}
+
+@keyframes gauge-glow {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}

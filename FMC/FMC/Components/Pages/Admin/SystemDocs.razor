@@ -139,6 +139,10 @@
         border-radius: 12px;
         padding: 8px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+        overflow: hidden !important; /* Prevents double scrollbars when the internal list scrolls */
+    }
+    .nav-select-popover .mud-list-item {
+        white-space: normal !important; /* Prevents horizontal scrollbars for long titles */
     }
     
     .doc-nav-list { display: flex; flex-direction: column; gap: 8px; }

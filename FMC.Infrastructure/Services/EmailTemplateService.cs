@@ -163,9 +163,9 @@ public class EmailTemplateService : IEmailTemplateService
         {
             tableRows += $@"
                 <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                    <td style=""padding:8px 0;color:#2d3436;font-size:13px;"">{item.Subscriber}</td>
-                    <td style=""padding:8px 0;color:#636e72;font-size:13px;text-align:center;"">{FinanceUtils.MaskCard(item.AccountNumber ?? "")}</td>
-                    <td style=""padding:8px 0;font-weight:700;color:#2d3436;text-align:right;font-size:13px;"">{item.Amount:C}</td>
+                    <td style=""padding:8px 4px;color:#2d3436;font-size:13px;word-break:break-word;"">{item.Subscriber}</td>
+                    <td style=""padding:8px 4px;color:#636e72;font-size:13px;text-align:center;white-space:nowrap;"">{FinanceUtils.MaskCard(item.AccountNumber ?? "")}</td>
+                    <td style=""padding:8px 4px;font-weight:700;color:#2d3436;text-align:right;font-size:13px;white-space:nowrap;"">{item.Amount:C}</td>
                 </tr>";
         }
 
@@ -184,28 +184,30 @@ public class EmailTemplateService : IEmailTemplateService
             <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
                 <table style=""width:100%;border-collapse:collapse;margin-bottom:16px;"">
                     <tr>
-                        <td style=""color:#636e72;font-size:14px;"">Total Transactions</td>
-                        <td style=""font-weight:700;color:#2d3436;text-align:right;"">{count}</td>
+                        <td style=""width:50%;color:#636e72;font-size:14px;padding-right:8px;white-space:nowrap;"">Total Transactions</td>
+                        <td style=""width:50%;font-weight:700;color:#2d3436;text-align:right;white-space:nowrap;"">{count}</td>
                     </tr>
                     <tr>
-                        <td style=""color:#636e72;font-size:14px;"">Total Batch Value</td>
-                        <td style=""font-weight:900;color:#4834d4;text-align:right;font-size:18px;"">{totalAmount:C}</td>
+                        <td style=""width:50%;color:#636e72;font-size:14px;padding-right:8px;white-space:nowrap;"">Total Batch Value</td>
+                        <td style=""width:50%;font-weight:900;color:#4834d4;text-align:right;font-size:18px;white-space:nowrap;"">{totalAmount:C}</td>
                     </tr>
                 </table>
 
                 <h4 style=""margin:20px 0 10px 0;color:#2d3436;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:0.6;"">Preview (First {previewItems.Count})</h4>
-                <table style=""width:100%;border-collapse:collapse;"">
+                <div style=""overflow-x:auto;max-width:100%;"">
+                <table style=""width:100%;min-width:300px;border-collapse:collapse;"">
                     <thead>
                         <tr style=""border-bottom: 2px solid #e1e5ea;"">
-                            <th style=""text-align:left;padding:8px 0;font-size:11px;color:#636e72;"">CARDHOLDER</th>
-                            <th style=""text-align:center;padding:8px 0;font-size:11px;color:#636e72;"">CARD NUMBER</th>
-                            <th style=""text-align:right;padding:8px 0;font-size:11px;color:#636e72;"">AMOUNT</th>
+                            <th style=""text-align:left;padding:8px 4px;font-size:11px;color:#636e72;"">CARDHOLDER</th>
+                            <th style=""text-align:center;padding:8px 4px;font-size:11px;color:#636e72;"">CARD NUMBER</th>
+                            <th style=""text-align:right;padding:8px 4px;font-size:11px;color:#636e72;"">AMOUNT</th>
                         </tr>
                     </thead>
                     <tbody>
                         {tableRows}
                     </tbody>
                 </table>
+                </div>
                 {attachmentNotice}
             </div>";
 
@@ -223,27 +225,29 @@ public class EmailTemplateService : IEmailTemplateService
             {
                 tableRows += $@"
                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                        <td style=""padding:8px 0;color:#2d3436;font-size:13px;"">{row.Subscriber}</td>
-                        <td style=""padding:8px 0;color:#636e72;font-size:13px;text-align:center;"">{FinanceUtils.MaskCard(row.CardNumber)}</td>
-                        <td style=""padding:8px 0;font-weight:700;color:#2d3436;text-align:right;font-size:13px;"">{row.Amount:C}</td>
+                        <td style=""padding:8px 4px;color:#2d3436;font-size:13px;word-break:break-word;"">{row.Subscriber}</td>
+                        <td style=""padding:8px 4px;color:#636e72;font-size:13px;text-align:center;white-space:nowrap;"">{FinanceUtils.MaskCard(row.CardNumber)}</td>
+                        <td style=""padding:8px 4px;font-weight:700;color:#2d3436;text-align:right;font-size:13px;white-space:nowrap;"">{row.Amount:C}</td>
                     </tr>";
             }
         }
 
         var sampleTable = string.IsNullOrEmpty(tableRows) ? "" : $@"
             <h4 style=""margin:24px 0 10px 0;color:#2d3436;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:0.6;"">Batch Preview (First {sampleRows?.Count})</h4>
-            <table style=""width:100%;border-collapse:collapse;"">
+            <div style=""overflow-x:auto;max-width:100%;"">
+            <table style=""width:100%;min-width:300px;border-collapse:collapse;"">
                 <thead>
                     <tr style=""border-bottom: 2px solid #e1e5ea;"">
-                        <th style=""text-align:left;padding:8px 0;font-size:11px;color:#636e72;"">CARDHOLDER</th>
-                        <th style=""text-align:center;padding:8px 0;font-size:11px;color:#636e72;"">CARD NUMBER</th>
-                        <th style=""text-align:right;padding:8px 0;font-size:11px;color:#636e72;"">AMOUNT</th>
+                        <th style=""text-align:left;padding:8px 4px;font-size:11px;color:#636e72;"">CARDHOLDER</th>
+                        <th style=""text-align:center;padding:8px 4px;font-size:11px;color:#636e72;"">CARD NUMBER</th>
+                        <th style=""text-align:right;padding:8px 4px;font-size:11px;color:#636e72;"">AMOUNT</th>
                     </tr>
                 </thead>
                 <tbody>
                     {tableRows}
                 </tbody>
-            </table>";
+            </table>
+            </div>";
 
         var content = $@"
             <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Bulk Batch Submitted</h2>
@@ -255,16 +259,16 @@ public class EmailTemplateService : IEmailTemplateService
                 <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Batch Summary</h4>
                 <table style=""width:100%;border-collapse:collapse;"">
                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Total Transactions</td>
-                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{totalCount} items</td>
+                        <td style=""width:50%;padding:12px 4px 12px 0;color:#636e72;font-size:14px;white-space:nowrap;"">Total Transactions</td>
+                        <td style=""width:50%;padding:12px 0 12px 4px;font-weight:700;color:#2d3436;text-align:right;white-space:nowrap;"">{totalCount} items</td>
                     </tr>
                     <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                        <td style=""padding:12px 0;color:#636e72;font-size:14px;"">Operation Type</td>
-                        <td style=""padding:12px 0;font-weight:700;color:#2d3436;text-align:right;"">{actionType}</td>
+                        <td style=""width:50%;padding:12px 4px 12px 0;color:#636e72;font-size:14px;white-space:nowrap;"">Operation Type</td>
+                        <td style=""width:50%;padding:12px 0 12px 4px;font-weight:700;color:#2d3436;text-align:right;white-space:nowrap;"">{actionType}</td>
                     </tr>
                     <tr>
-                        <td style=""padding:16px 0 0 0;color:#2d3436;font-size:15px;font-weight:700;"">Total Batch Value</td>
-                        <td style=""padding:16px 0 0 0;font-weight:900;color:#4834d4;text-align:right;font-size:22px;"">{totalAmount:C}</td>
+                        <td style=""width:50%;padding:16px 4px 0 0;color:#2d3436;font-size:15px;font-weight:700;white-space:nowrap;"">Total Batch Value</td>
+                        <td style=""width:50%;padding:16px 0 0 4px;font-weight:900;color:#4834d4;text-align:right;font-size:22px;white-space:nowrap;"">{totalAmount:C}</td>
                     </tr>
                 </table>
                 {sampleTable}

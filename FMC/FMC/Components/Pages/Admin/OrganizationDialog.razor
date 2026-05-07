@@ -39,6 +39,20 @@
                             @if (!IsCreate)
                             {
                                 <MudItem xs="12">
+                                    <MudSelect T="string" @bind-Value="_model.ChiefExecutiveId" Label="Designated Chief Executive (CEO)" 
+                                               Variant="Variant.Outlined" FullWidth="true" AnchorOrigin="Origin.BottomCenter"
+                                               HelperText="Designate the primary leadership authority for this institution.">
+                                        <MudSelectItem T="string" Value="@(null)">-- Unassigned --</MudSelectItem>
+                                        @foreach (var user in _affiliatedUsers.Where(u => u.Role == Roles.CEO))
+                                        {
+                                            <MudSelectItem T="string" Value="@user.Id">@user.DisplayName (@user.Email)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            }
+                            @if (!IsCreate)
+                            {
+                                <MudItem xs="12">
                                     <div class="pa-5 d-flex align-center justify-space-between fmc-status-panel">
                                         <div class="d-flex flex-column">
                                             <MudText Typo="Typo.body1" Style="font-weight: 800;">Active Entity Status</MudText>
@@ -254,8 +268,8 @@
                 IsActive = user.IsActive
             };
 
-            var success = await AdminService.UpdateUserAsync(updateDto);
-            if (success)
+            var result = await AdminService.UpdateUserAsync(updateDto);
+            if (result.Succeeded)
             {
                 user.Role = newRole; // Update UI locally
                 
@@ -274,7 +288,7 @@
             }
             else
             {
-                Snackbar.Add($"Failed to update role for {user.DisplayName}.", Severity.Error);
+                Snackbar.Add(result.Error ?? $"Failed to update role for {user.DisplayName}.", Severity.Error);
             }
         }
         catch (Exception ex)

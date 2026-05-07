@@ -104,7 +104,7 @@ public class UsersController : ControllerBase
         }
 
         var result = await _identityService.CreateUserAsync(request);
-        if (!result) return BadRequest("Failed to create user.");
+        if (!result.Succeeded) return BadRequest(string.Join(", ", result.Errors));
         return Ok();
     }
 
@@ -140,7 +140,7 @@ public class UsersController : ControllerBase
         }
 
         var result = await _identityService.UpdateUserAsync(request);
-        if (!result) return BadRequest("Failed to update user.");
+        if (!result.Succeeded) return BadRequest(string.Join(", ", result.Errors));
         return Ok();
     }
 
@@ -181,7 +181,7 @@ public class UsersController : ControllerBase
             return Forbid();
         }
 
-        var success = await _organizationService.AdjustUserBalanceAsync(id, request.Amount, request.Label, performedBy, HttpContext.RequestAborted);
+        var success = await _organizationService.AdjustUserBalanceAsync(id, request.Amount, request.Label, performedBy, null, null, false, HttpContext.RequestAborted);
         return success ? Ok() : BadRequest("Failed to initiate adjustment request. Ensure you have the Maker role.");
     }
 
@@ -194,7 +194,7 @@ public class UsersController : ControllerBase
 
         try 
         {
-            var success = await _organizationService.ApproveTransactionAsync(transactionId, approverId, HttpContext.RequestAborted);
+            var success = await _organizationService.ApproveTransactionAsync(transactionId, approverId, true, false, HttpContext.RequestAborted);
             return success ? Ok() : BadRequest("Approval failed. Transaction may be in an invalid state.");
         }
         catch (ApplicationException ex)
@@ -212,7 +212,7 @@ public class UsersController : ControllerBase
 
         try 
         {
-            var success = await _organizationService.RejectTransactionAsync(transactionId, approverId, request.Reason, HttpContext.RequestAborted);
+            var success = await _organizationService.RejectTransactionAsync(transactionId, approverId, request.Reason, false, HttpContext.RequestAborted);
             return success ? Ok() : BadRequest("Rejection failed. Transaction may be in an invalid state.");
         }
         catch (ApplicationException ex)
@@ -290,26 +290,36 @@ public class UsersController : ControllerBase
         return Ok(transactions.ToList());
     }
 
-    /// <summary>
-    /// Fetches high-priority operation alerts for specific user roles (CEO, Maker, Approver).
-    /// </summary>
-    [Authorize(Roles = Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+    [Authorize(Roles = Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdmin)]
     [HttpGet("workflow-alerts")]
     public async Task<ActionResult<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>> GetWorkflowAlerts()
     {
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var orgIdStr = User.FindFirst("OrganizationId")?.Value 
-                     ?? User.FindFirst("organization")?.Value; // Fallback to name if ID is missing or check for "org_id"
+        // 1. Resolve User ID (Guid string) with multiple claim fallbacks
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value
+                    ?? User.Identity?.Name; // Final fallback to Name
 
-        // For workflow status, we need a primary role. Priority: CEO > Approver > Maker
+        // 2. Resolve Organization ID with cross-claim validation
+        var orgIdStr = User.FindFirst("OrganizationId")?.Value 
+                     ?? User.FindFirst("organizationId")?.Value
+                     ?? User.FindFirst("org_id")?.Value;
+
+        // 3. Determine Primary Role for workflow context
         string role = Roles.User;
-        if (User.IsInRole(Roles.CEO)) role = Roles.CEO;
+        if (User.IsInRole(Roles.SuperAdmin)) role = Roles.SuperAdmin;
+        else if (User.IsInRole(Roles.CEO)) role = Roles.CEO;
         else if (User.IsInRole(Roles.Approver)) role = Roles.Approver;
         else if (User.IsInRole(Roles.Maker)) role = Roles.Maker;
 
-        if (string.IsNullOrEmpty(orgIdStr) || !Guid.TryParse(orgIdStr, out var orgId) 
-            || string.IsNullOrEmpty(userId))
-            return Ok(new List<FMC.Shared.DTOs.Admin.SystemAlertDto>());
+        Guid orgId = Guid.Empty;
+        if (!string.IsNullOrEmpty(orgIdStr) && Guid.TryParse(orgIdStr, out var parsedId))
+        {
+            orgId = parsedId;
+        }
+
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        _logger.LogInformation("[Workflow-Alert-API] Polling alerts for User={User}, Org={Org}, Role={Role}", userId, orgId, role);
 
         var alerts = await _organizationService.GetWorkflowAlertsAsync(orgId, userId, role, HttpContext.RequestAborted);
         return Ok(alerts.ToList());

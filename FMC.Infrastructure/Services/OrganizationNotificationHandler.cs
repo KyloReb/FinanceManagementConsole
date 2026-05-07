@@ -26,6 +26,7 @@ namespace FMC.Infrastructure.Services;
 public sealed class OrganizationNotificationHandler :
     INotificationHandler<TransactionPendingEvent>,
     INotificationHandler<TransactionApprovedEvent>,
+    INotificationHandler<BatchApprovedEvent>,
     INotificationHandler<BulkUploadSubmittedEvent>,
     INotificationHandler<WalletAdjustedEvent>
 {
@@ -94,6 +95,23 @@ public sealed class OrganizationNotificationHandler :
         _jobService.Enqueue<NotificationJobService>(job =>
             job.SendApprovalConfirmationAsync(
                 notification.TransactionId,
+                notification.OrganizationId));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Handles a batch approval event by enqueuing a consolidated settlement confirmation.
+    /// </summary>
+    public Task Handle(BatchApprovedEvent notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing BatchApprovalConfirmation job for Batch {BatchId}",
+            notification.BatchId);
+
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendBatchApprovalConfirmationAsync(
+                notification.BatchId,
                 notification.OrganizationId));
 
         return Task.CompletedTask;

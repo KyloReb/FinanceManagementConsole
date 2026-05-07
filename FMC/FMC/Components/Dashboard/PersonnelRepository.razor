@@ -6,7 +6,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject OrganizationApiService OrgService
 
-<MudPaper Elevation="0" Class="fmc-main-surface">
+<MudPaper Elevation="0" Class="fmc-main-surface h-100">
     <div class="fmc-header-area d-flex flex-wrap gap-4 align-center justify-space-between" style="padding: 24px 32px;">
         <div class="d-flex align-center flex-grow-1" style="min-width: 280px;">
             <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.CreditCard" Color="Color.Primary" /></div>
@@ -65,7 +65,7 @@
                 <MudTd>
                     <MudText Class="fmc-financial-mono" Style="font-size: 0.85rem;"
                              Color="@(userItem.Balance < 0 ? Color.Error : Color.Info)">
-                        @userItem.Balance.ToString("C")
+                        @userItem.Balance.ToString("C0")
                     </MudText>
                 </MudTd>
                 <MudTd Style="text-align:right;">
@@ -127,7 +127,7 @@
                         </div>
                         <div class="d-flex align-center gap-1">
                              <MudText Class="fmc-financial-mono" Style="font-size: 0.8rem;" Color="@(user.Balance < 0 ? Color.Error : Color.Info)">
-                                 @user.Balance.ToString("C")
+                                 @user.Balance.ToString("C0")
                              </MudText>
                              @if (_isMaker)
                              {

@@ -276,11 +276,34 @@
             
             if (approve)
             {
+                // Step-up Security Verification: Require password for all approvals
+                var secOpts = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, BackdropClick = false };
+                var secDialog = await DialogService.ShowAsync<SecurityVerificationDialog>("Security Verification", new DialogParameters(), secOpts);
+                var secResult = await secDialog.Result;
+                
+                if (secResult is null || secResult.Canceled)
+                {
+                    _processing = false;
+                    return;
+                }
+
                 success = await OrgService.ApproveTransactionAsync(Transaction.Id);
                 if (success) Snackbar.Add("Transaction approved successfully.", Severity.Success);
             }
             else
             {
+                // Confirmation Prompt for Rejection
+                bool? confirm = await DialogService.ShowMessageBoxAsync(
+                    "Confirm Rejection", 
+                    "Are you sure you want to reject this request?", 
+                    yesText: "Yes, Reject", cancelText: "No, Cancel");
+                
+                if (confirm != true)
+                {
+                    _processing = false;
+                    return;
+                }
+
                 // Prompt the Approver for a mandatory/optional denial reason
                 var parameters = new DialogParameters { ["ContentText"] = "Please provide a reason for rejecting this transaction." };
                 var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };

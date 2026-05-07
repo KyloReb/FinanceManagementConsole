@@ -107,7 +107,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<Budget>().HasQueryFilter(b => _currentUserService.IsSuperAdmin || b.TenantId == _currentUserService.TenantId);
         builder.Entity<AuditLog>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId);
         builder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
-        builder.Entity<Cardholder>().HasQueryFilter(c => _currentUserService.IsSuperAdmin || c.TenantId == _currentUserService.TenantId || (c.OrganizationId != null && c.OrganizationId == _currentUserService.OrganizationId));
+        builder.Entity<Cardholder>().HasQueryFilter(c => _currentUserService.IsSuperAdmin || c.TenantId == _currentUserService.TenantId || c.OrganizationId == _currentUserService.OrganizationId);
 
         builder.Entity<UserOtpVerification>()
             .HasIndex(o => o.UserId);
@@ -120,6 +120,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasIndex(t => t.Date);
         builder.Entity<Transaction>()
             .HasIndex(t => t.Status);
+        builder.Entity<Transaction>()
+            .HasIndex(t => t.IdempotencyKey)
+            .IsUnique();
 
         builder.Entity<AuditLog>()
             .HasIndex(a => a.UserId);

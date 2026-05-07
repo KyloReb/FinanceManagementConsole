@@ -35,9 +35,9 @@
                     <div class="fmc-upload-card">
                         @if (_isLoading)
                         {
-                            <div class="fmc-loader-overlay-compact glass">
+                            <div class="fmc-loader-overlay-compact glass" style="z-index: 30;">
                                 <div class="fmc-loader-content">
-                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Thickness="5" />
+                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" StrokeWidth="5" />
                                     <MudText Typo="Typo.subtitle2" Class="mt-4 fmc-loader-text">Analyzing Ledger Data...</MudText>
                                     <MudText Typo="Typo.caption" Class="fmc-loader-subtext">Validating cardholder identities</MudText>
                                 </div>
@@ -50,22 +50,25 @@
                         
                         <MudText Typo="Typo.subtitle1" Class="fmc-upload-title mt-2">Prepare Your Data</MudText>
                         <MudText Typo="Typo.caption" Class="fmc-upload-desc px-4">
-                            Select Excel (.xlsx) | Max 100 rows
+                            Select Excel (.xlsx) | Max 10,000 rows
                         </MudText>
                         
                         <div class="fmc-action-row mt-4">
-                            <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="HandleFileUpload">
-                                <ActivatorContent>
-                                    <MudButton Variant="Variant.Filled" 
-                                               Class="fmc-btn-primary-compact"
-                                               StartIcon="@Icons.Material.Filled.FileOpen">
-                                        Browse Spreadsheet
-                                    </MudButton>
-                                </ActivatorContent>
-                            </MudFileUpload>
+                            <MudButton HtmlTag="label"
+                                       Variant="Variant.Filled" 
+                                       Color="Color.Primary"
+                                       Class="fmc-btn-primary-compact"
+                                       StartIcon="@Icons.Material.Filled.FileOpen"
+                                       for="fmc-bulk-file-input">
+                                Drag & Drop or Browse
+                            </MudButton>
+                            <InputFile id="fmc-bulk-file-input" 
+                                       OnChange="@(async (InputFileChangeEventArgs e) => await HandleFileUpload(e.File))" 
+                                       accept=".xlsx"
+                                       style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; z-index: 10;" />
                         </div>
 
-                        <div class="mt-4 fmc-template-link">
+                        <div class="mt-4 fmc-template-link" style="position: relative; z-index: 20;">
                             <MudLink Href="@GetTemplateUrl()" Target="_blank" Underline="Underline.None">
                                 <div class="d-flex align-center justify-center">
                                     <MudIcon Icon="@Icons.Material.Filled.FileDownload" Size="Size.Small" Class="mr-1" />
@@ -521,7 +524,18 @@
         try
         {
             var validRows = _rows.Where(r => r.ValidationError == null).ToList();
-            _result = await OrgService.SubmitBulkTransactionAsync(OrgId, _isCredit, validRows);
+            
+            // Generate unique batch idempotency key
+            string batchKey = $"BATCH-{OrgId}-{DateTime.UtcNow.Ticks}";
+            
+            var payload = new BulkTransactionRequestDto 
+            { 
+                IsCredit = _isCredit, 
+                Rows = validRows,
+                BatchIdempotencyKey = batchKey
+            };
+            
+            _result = await OrgService.SubmitBulkTransactionAsync(OrgId, payload);
             _step = 3;
             OrgService.NotifyDataChanged();
         }

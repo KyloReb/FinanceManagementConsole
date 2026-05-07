@@ -175,11 +175,14 @@ public class OrganizationRepository : IOrganizationRepository
 
     public async Task<IEnumerable<Transaction>> GetTransactionsByStatusAsync(Guid organizationId, string status, CancellationToken ct = default)
     {
-        return await _context.Transactions
-            .IgnoreQueryFilters()
-            .Where(t => t.OrganizationId == organizationId && t.Status == status)
-            .OrderByDescending(t => t.Date)
-            .ToListAsync(ct);
+        var query = _context.Transactions.IgnoreQueryFilters().Where(t => t.Status == status);
+        
+        if (organizationId != Guid.Empty)
+        {
+            query = query.Where(t => t.OrganizationId == organizationId);
+        }
+
+        return await query.OrderByDescending(t => t.Date).ToListAsync(ct);
     }
 
     public async Task<IEnumerable<Transaction>> GetTransactionsByDateAsync(Guid organizationId, DateTime fromDate, CancellationToken ct = default)
@@ -254,5 +257,10 @@ public class OrganizationRepository : IOrganizationRepository
     public async Task AddAccountAsync(Account account, CancellationToken ct = default)
     {
         await _context.Accounts.AddAsync(account, ct);
+    }
+
+    public async Task<bool> ExistsTransactionWithIdempotencyKeyAsync(string key, CancellationToken ct = default)
+    {
+        return await _context.Transactions.AnyAsync(t => t.IdempotencyKey == key, ct);
     }
 }

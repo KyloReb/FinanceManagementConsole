@@ -76,8 +76,8 @@
                                 {
                                     @foreach (var notif in FilteredNotifications)
                                     {
-                                        var isActivity = notif.EntityId != null && (notif.EntityId.StartsWith("Pending") || notif.EntityId.StartsWith("Processed"));
-                                        var isThreshold = notif.Title.Contains("Threshold") || notif.Title.Contains("Capacity") || notif.Title.Contains("Liquidity");
+                                        var isActivity = notif.EntityId != null && (notif.EntityId.StartsWith("Pending") || notif.EntityId.StartsWith("Processed") || notif.EntityId.StartsWith("Status"));
+                                        var isThreshold = notif.Title.Contains("Threshold") || notif.Title.Contains("Capacity") || notif.Title.Contains("Liquidity") || notif.Title.Contains("Payroll");
                                         var actionText = isActivity ? "Resolve ↗" : "Review ↗";
                                         var itemType = isActivity ? "Activity" : isThreshold ? "Oversight" : "System";
 
@@ -135,7 +135,7 @@
                             </div>
                             <div class="py-2" style="background-color: var(--mud-palette-surface);">
                                 <MudMenuItem Icon="@Icons.Material.Filled.Person" OnClick="@(() => NavigationManager.NavigateTo("/profile"))">Edit Profile</MudMenuItem>
-                                <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => NavigationManager.NavigateTo("/settings"))">Account Settings</MudMenuItem>
+                                <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => NavigationManager.NavigateTo("/settings"))">Settings</MudMenuItem>
                                 
                                 <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin" Context="adminContext">
                                     <Authorized>
@@ -173,6 +173,9 @@
 </MudLayout>
 
 <style>
+    :root { --fmc-calendar-filter: none; }
+    .dark { --fmc-calendar-filter: invert(1); }
+    
     .brand-link:hover { opacity: 0.8; }
     .user-menu-trigger:hover {
         background-color: var(--mud-palette-action-default-hover);
@@ -300,9 +303,9 @@
 
     private IEnumerable<NotifItem> FilteredNotifications => _selectedTab switch
     {
-        "Activity" => _notifications.Where(n => n.EntityId != null && (n.EntityId.StartsWith("Pending") || n.EntityId.StartsWith("Processed"))),
-        "Thresholds" => _notifications.Where(n => n.Title.Contains("Capacity") || n.Title.Contains("Liquidity") || n.Title.Contains("Threshold")),
-        "System" => _notifications.Where(n => n.Id > 0 && !n.Title.Contains("Capacity") && !n.Title.Contains("Liquidity") && !n.Title.Contains("Threshold")),
+        "Activity" => _notifications.Where(n => n.EntityId != null && (n.EntityId.StartsWith("Pending") || n.EntityId.StartsWith("Processed") || n.EntityId.StartsWith("Status"))),
+        "Thresholds" => _notifications.Where(n => n.Title.Contains("Capacity") || n.Title.Contains("Liquidity") || n.Title.Contains("Threshold") || n.Title.Contains("Payroll")),
+        "System" => _notifications.Where(n => n.Id > 0 && !n.Title.Contains("Capacity") && !n.Title.Contains("Liquidity") && !n.Title.Contains("Threshold") && !n.Title.Contains("Payroll")),
         _ => _notifications
     };
 
@@ -358,76 +361,135 @@
                 if (!string.IsNullOrEmpty(dictStr))
                 {
                     _dismissedNotifications = System.Text.Json.JsonSerializer.Deserialize<HashSet<string>>(dictStr) ?? new();
-                    await LoadAlerts();
-                    StateHasChanged();
                 }
+
+                // Pending_* and Threshold_* are action-required alerts — strip them from the
+                // dismissed set every session so the bell count always reflects unresolved items.
+                var actionRequiredPrefixes = new[] { "Pending_", "Threshold_" };
+                var toRestore = _dismissedNotifications
+                    .Where(id => actionRequiredPrefixes.Any(prefix => id.StartsWith(prefix)))
+                    .ToList();
+
+                bool restoredAny = false;
+                foreach (var id in toRestore)
+                {
+                    _dismissedNotifications.Remove(id);
+                    restoredAny = true;
+                }
+
+                if (restoredAny)
+                {
+                    // Persist the cleaned dismissed set back to localStorage
+                    try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_dismissed", System.Text.Json.JsonSerializer.Serialize(_dismissedNotifications)); } catch { }
+                }
+
+                // Reload alerts with the correct dismissed set and update badge
+                await LoadAlerts();
+                StateHasChanged();
             }
             catch { }
         }
     }
 
+
+    private bool _isUpdatingAlerts;
     private async Task LoadAlerts()
     {
+        if (_isUpdatingAlerts) return;
         try
         {
+            _isUpdatingAlerts = true;
             _notifications.Clear();
+            var seenKeys = new HashSet<string>(); // Enterprise-level deduplication (OrgId_Type)
             
             var authState = await AuthService.GetAuthenticationStateAsync();
             var user = authState.User;
 
             // 1. Fetch System Alerts (SuperAdmin only)
-            if (user.IsInRole(Roles.SuperAdmin))
+            try
             {
-                var dbAlerts = await OrgService.GetActiveAlertsAsync();
-                foreach (var alert in dbAlerts)
+                if (user.IsInRole(Roles.SuperAdmin))
                 {
-                    // Deduplicate by Title + EntityId
-                    if (_notifications.Any(n => n.Title == alert.Title && n.EntityId == alert.EntityId))
-                        continue;
+                    var dbAlerts = await OrgService.GetActiveAlertsAsync();
+                    foreach (var alert in dbAlerts)
+                    {
+                        // Clean Nationlink from DB alerts too if they somehow slipped in
+                        if (alert.Message.Contains("Nationlink", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    _notifications.Add(new NotifItem(
-                        alert.Id,
-                        alert.Title, 
-                        alert.Message, 
-                        alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
-                        alert.Severity.ToString().ToLower(),
-                        1,
-                        alert.EntityId,
-                        alert.CreatedAt
-                    ));
+                        var businessKey = $"{alert.EntityId}_{alert.Title}";
+                        if (seenKeys.Contains(businessKey)) continue;
+
+                        _notifications.Add(new NotifItem(
+                            alert.Id,
+                            alert.Title, 
+                            alert.Message, 
+                            alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
+                            alert.Severity.ToString().ToLower(),
+                            1,
+                            alert.EntityId,
+                            alert.CreatedAt
+                        ));
+                        seenKeys.Add(businessKey);
+                    }
                 }
             }
-
-            // 2. Fetch Workflow Alerts (CEO, Maker, Approver)
-            if (user.IsInRole(Roles.CEO) || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver))
+            catch (Exception ex)
             {
-                var wfAlerts = await OrgService.GetWorkflowAlertsAsync();
-                foreach (var alert in wfAlerts)
+                Console.WriteLine($"[MainLayout] System Alerts Load Error: {ex.Message}");
+            }
+
+            // 2. Fetch Workflow Alerts (CEO, Maker, Approver, SuperAdmin)
+            try
+            {
+                if (user.IsInRole(Roles.CEO) || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdmin))
                 {
-                    if (_dismissedNotifications.Contains(alert.EntityId ?? ""))
-                        continue;
+                    var wfAlerts = await OrgService.GetWorkflowAlertsAsync();
+                    foreach (var alert in wfAlerts)
+                    {
+                        if (_dismissedNotifications.Contains(alert.EntityId ?? ""))
+                            continue;
 
-                    // Deduplicate by Title + EntityId (prevents overlap with SuperAdmin block)
-                    if (_notifications.Any(n => n.Title == alert.Title && n.EntityId == alert.EntityId))
-                        continue;
+                        var businessKey = $"{alert.EntityId}_{alert.Title}";
+                        if (seenKeys.Contains(businessKey)) continue;
 
-                    var href = alert.EntityId != null && alert.EntityId.StartsWith("Pending") ? "/pending-requests" : "/transactions";
-                    _notifications.Add(new NotifItem(
-                        0, // Synthetic ID for transient workflow alerts
-                        alert.Title,
-                        alert.Message,
-                        href,
-                        alert.Severity.ToString().ToLower(),
-                        1,
-                        alert.EntityId,
-                        DateTime.UtcNow
-                    ));
+                        // ── Enterprise Routing ──
+                        var href = "/transactions";
+                        if (alert.EntityId != null)
+                        {
+                            if (alert.EntityId.StartsWith("Pending")) href = "/pending-requests";
+                            else if (alert.EntityId.StartsWith("Threshold_"))
+                            {
+                                var parts = alert.EntityId.Split('_');
+                                if (parts.Length > 1) href = $"/admin/organizations/{parts[1]}";
+                            }
+                        }
+
+                        _notifications.Add(new NotifItem(
+                            0, // Synthetic ID for transient workflow alerts
+                            alert.Title,
+                            alert.Message,
+                            href,
+                            alert.Severity.ToString().ToLower(),
+                            1,
+                            alert.EntityId,
+                            DateTime.UtcNow
+                        ));
+                        seenKeys.Add(businessKey);
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainLayout] Workflow Alerts Load Error: {ex.Message}");
+            }
+
+            // 3. Computed alerts are now deprecated in favor of server-side truth from GetActiveAlerts and GetWorkflowAlerts
+            // This prevents the "Triple Notification" issue where the same threshold was flagged by the DB, the Workflow API, and local logic.
 
             _alertCount = _notifications.Count;
         }
         catch { /* Fallback for pre-rendering or auth latency */ }
+        finally { _isUpdatingAlerts = false; }
     }
 
     private async Task LogoutAsync()

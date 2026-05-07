@@ -232,9 +232,27 @@ public class OrganizationsController : ControllerBase
             makerId, 
             makerName, 
             request.IsCredit, 
-            request.Rows);
+            request.Rows,
+            request.BatchIdempotencyKey);
 
         var result = await _mediator.Send(command, ct);
         return Ok(result);
+    }
+    
+    /// <summary>
+    /// SuperAdmin Endpoint: Synchronizes the Organization's Wallet Limit to match its current total liquidity.
+    /// This effectively "resets" the capacity to the current balance.
+    /// </summary>
+    /// <param name="id">The unique identifier of the organization.</param>
+    /// <response code="200">Limit successfully synchronized.</response>
+    /// <response code="404">Organization not found.</response>
+    [Authorize(Roles = Roles.SuperAdmin)]
+    [HttpPost("{id:guid}/sync-limit")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SyncLimit(Guid id, CancellationToken cancellationToken)
+    {
+        var success = await _organizationService.SyncOrganizationLimitAsync(id, cancellationToken);
+        return success ? Ok() : NotFound();
     }
 }

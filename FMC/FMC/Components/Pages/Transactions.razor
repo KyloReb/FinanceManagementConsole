@@ -40,9 +40,12 @@
         font-weight: 850; font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;
     }
     .fmc-status-badge.successful { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
+    .fmc-status-badge.approved { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
     .fmc-status-badge.pending { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
     .fmc-status-badge.error { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
     .fmc-status-badge.failed { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
+    .fmc-status-badge.rejected { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
+    .fmc-status-badge.mixed { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); border: 1px solid rgba(var(--mud-palette-info-rgb), 0.2); }
     
     /* FIN typography */
     .fmc-money { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums !important; letter-spacing: -0.05em !important; font-weight: 950 !important; }
@@ -64,38 +67,7 @@
                 <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">Comprehensive forensic history of institutional liquidity movements.</MudText>
             </div>
         </div>
-        <div class="d-flex gap-3">
-             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" 
-                        OnClick="OpenAddDialog" Class="fmc-premium-btn" Style="border-radius:12px; font-weight:800;">
-                 Initiate Log
-             </MudButton>
-        </div>
     </div>
-
-    @* FISCAL TELEMETRY CARDS *@
-    <MudGrid Spacing="4" Class="mb-8">
-        <MudItem xs="12" sm="4">
-            <div class="fmc-glass-card success">
-                <MudText Typo="Typo.overline" Class="fmc-card-label">TOTAL CAPITAL INFLOW</MudText>
-                <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-money mt-1">@(_transactions.Where(x => x.Amount > 0).Sum(x => x.Amount).ToString("C2"))</MudText>
-                <div class="fmc-card-icon-bg success"><MudIcon Icon="@Icons.Material.Filled.ArrowCircleUp" /></div>
-            </div>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <div class="fmc-glass-card error">
-                <MudText Typo="Typo.overline" Class="fmc-card-label">TOTAL CAPITAL OUTFLOW</MudText>
-                <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-money mt-1">@(_transactions.Where(x => x.Amount < 0).Sum(x => x.Amount).ToString("C2"))</MudText>
-                <div class="fmc-card-icon-bg error"><MudIcon Icon="@Icons.Material.Filled.ArrowCircleDown" /></div>
-            </div>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <div class="fmc-glass-card info">
-                <MudText Typo="Typo.overline" Class="fmc-card-label">SETTLEMENT VOLUME</MudText>
-                <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-money mt-1">@(_transactions.Count)</MudText>
-                <div class="fmc-card-icon-bg info"><MudIcon Icon="@Icons.Material.Filled.History" /></div>
-            </div>
-        </MudItem>
-    </MudGrid>
 
     @* HIGH-FIDELITY LEDGER TABLE *@
     <MudPaper Elevation="0" Class="fmc-main-surface">
@@ -134,8 +106,8 @@
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Date)">TIMESTAMP</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Subscriber)">SUBSCRIBER</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Category)">CATEGORY</MudTableSortLabel></MudTh>
-                <MudTh Style="text-align:right;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Amount)">AMOUNT</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align:center;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Status)">STATUS</MudTableSortLabel></MudTh>
+                <MudTh Style="text-align:right;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Amount)">AMOUNT</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align:right;">ACTION</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -159,12 +131,6 @@
                         @context!.Category.ToUpper()
                     </MudChip>
                 </MudTd>
-                <MudTd Style="text-align:right">
-                    <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)" 
-                             Class="fmc-money" Style="font-size: 1.1rem;">
-                        @(context!.Amount > 0 ? "+" : "")@context!.Amount.ToString("C2")
-                    </MudText>
-                </MudTd>
                 <MudTd>
                     <div class="d-flex justify-center">
                         <div class="fmc-status-badge @(context!.Status.ToLower())">
@@ -172,6 +138,12 @@
                             <span>@context.Status.ToUpper()</span>
                         </div>
                     </div>
+                </MudTd>
+                <MudTd Style="text-align:right">
+                    <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)" 
+                             Class="fmc-money" Style="font-size: 1.1rem;">
+                        @(context!.Amount > 0 ? "+" : "")@context!.Amount.ToString("C2")
+                    </MudText>
                 </MudTd>
                 <MudTd Style="text-align:right">
                     <MudIconButton Icon="@Icons.Material.Filled.History" Color="Color.Default" Size="Size.Small" />
@@ -208,7 +180,44 @@
         try
         {
             _loading = true;
-            _transactions = await FinanceService.GetRecentTransactionsAsync(100);
+            var raw = await FinanceService.GetRecentTransactionsAsync(200);
+            
+            // ── AGGREGATION LOGIC ──
+            // If BatchId exists and has multiple items, group them as a single "Bulk" entry
+            var processed = new List<TransactionDto>();
+            var batches = raw.Where(t => t.BatchId.HasValue && t.BatchId != Guid.Empty)
+                            .GroupBy(t => t.BatchId!.Value);
+            
+            var individuals = raw.Where(t => !t.BatchId.HasValue || t.BatchId == Guid.Empty);
+            
+            foreach (var batch in batches)
+            {
+                if (batch.Count() > 1)
+                {
+                    var rep = batch.First();
+                    processed.Add(new TransactionDto
+                    {
+                        Id = Guid.Empty, // Synthetic ID for UI
+                        BatchId = rep.BatchId,
+                        Date = batch.Max(x => x.Date),
+                        Amount = batch.Sum(x => x.Amount),
+                        Category = "BULK ALLOTMENT",
+                        Subscriber = $"Multiple Subscribers ({batch.Count()} items)",
+                        Label = rep.Label,
+                        Status = batch.All(b => b.Status == "Approved") ? "Approved" : 
+                                 batch.All(b => b.Status == "Rejected") ? "Rejected" : "Mixed",
+                        OrganizationId = rep.OrganizationId,
+                        AccountNumber = "BATCH_SUMMARY"
+                    });
+                }
+                else
+                {
+                    processed.Add(batch.First());
+                }
+            }
+            
+            processed.AddRange(individuals);
+            _transactions = processed.OrderByDescending(t => t.Date).ToList();
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -286,7 +295,8 @@
 
     private string GetMaskedAccount(string? acc)
     {
-        if (string.IsNullOrEmpty(acc) || acc.Length < 10) return acc ?? "N/A";
+        if (string.IsNullOrEmpty(acc) || acc == "BATCH_SUMMARY") return acc == "BATCH_SUMMARY" ? "BATCH SUMMARY" : "N/A";
+        if (acc.Length < 10) return acc;
         return $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}";
     }
 

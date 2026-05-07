@@ -8,5 +8,6 @@ public record SubmitBulkTransactionCommand(
     string MakerId,
     string MakerName,
     bool IsCredit,
-    List<BulkTransactionRowDto> Rows
+    List<BulkTransactionRowDto> Rows,
+    string? BatchIdempotencyKey = null
 ) : IRequest<BulkUploadResultDto>;

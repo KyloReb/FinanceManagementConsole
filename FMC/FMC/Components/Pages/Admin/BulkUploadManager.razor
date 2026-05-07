@@ -60,7 +60,7 @@
 
     <MudGrid>
         @* SIDEBAR: Metrics and Bulk Action tools *@
-        <MudItem xs="12" md="4" lg="3">
+        <MudItem xs="12" md="4" lg="3" Style="align-self: flex-start;">
             <div class="fmc-manager-stats-sidebar">
                 
                 @* Total Batch Value Card *@
@@ -71,24 +71,64 @@
                     </MudText>
                 </div>
 
-                @* Validation Status Summary Card *@
-                <div class="fmc-stat-card mt-4">
-                    <div class="d-flex justify-space-between align-center">
-                        <MudText Typo="Typo.caption" Class="fmc-stat-label">VALIDATION STATUS</MudText>
-                        <MudChip T="string" Size="Size.Small" Color="@(StateService.PendingRows.All(r => r.ValidationError == null) ? Color.Success : Color.Warning)" Class="ma-0">
-                            @(StateService.PendingRows.Count(r => r.ValidationError == null))/@StateService.PendingRows.Count
-                        </MudChip>
+                @* ── CARDHOLDER DIRECTORY ── *@
+                <div class="fmc-stat-card mt-4" style="height: fit-content;">
+                    <MudText Typo="Typo.caption" Class="fmc-stat-label">CARDHOLDER DIRECTORY</MudText>
+                    <MudTextField @bind-Value="_dirSearch" Placeholder="Search name/card..." 
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                  IconSize="Size.Small" Class="mt-2 mb-2" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    
+                    <div class="fmc-dir-list-wrapper">
+                        <MudTable Items="PagedCardholders" Dense="true" Hover="true" Elevation="0" 
+                                  Breakpoint="Breakpoint.None" Outlined="false" Square="true" 
+                                  Class="fmc-table-transparent">
+                            <RowTemplate Context="ch">
+                                <div class="fmc-dir-item" draggable="true" 
+                                     @ondragstart="@(() => HandleDragStart(ch))"
+                                     @onclick="@(() => AddToBatch(ch))">
+                                    <div class="d-flex align-center gap-2" style="overflow:hidden">
+                                        <MudAvatar Color="Color.Info" Size="Size.Small" Style="font-size:0.7rem; font-weight:900; flex-shrink:0;">
+                                            @(ch.FirstName?[0])@(ch.LastName?[0])
+                                        </MudAvatar>
+                                        <div style="overflow:hidden">
+                                            <MudText Typo="Typo.caption" Style="font-weight:800;" Class="d-block truncate">@ch.DisplayName</MudText>
+                                            <MudText Typo="Typo.caption" Style="font-size:0.6rem; opacity:0.6;" Class="d-block">@MaskCard(ch.AccountNumber)</MudText>
+                                        </div>
+                                    </div>
+                                    <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary" />
+                                </div>
+                            </RowTemplate>
+                        </MudTable>
+
+                        @* ── CUSTOM VERTICAL PAGER ── *@
+                        @if (TotalCardholders > 0)
+                        {
+                            <div class="fmc-custom-pager mt-2">
+                                <div class="d-flex align-center justify-space-between px-2 mb-2">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudText Typo="Typo.caption" Style="font-size:0.6rem; font-weight:800; opacity:0.6;">ROWS:</MudText>
+                                        <select value="@_rowsPerPage" @onchange="OnRowsPerPageChanged" class="fmc-mini-select">
+                                            <option value="5">5</option>
+                                            <option value="10">10</option>
+                                            <option value="20">20</option>
+                                        </select>
+                                    </div>
+                                    <MudText Typo="Typo.caption" Style="font-size:0.65rem; font-weight:900;">
+                                        @(_currentPage * _rowsPerPage + 1)-@(Math.Min((_currentPage + 1) * _rowsPerPage, TotalCardholders)) of @TotalCardholders
+                                    </MudText>
+                                </div>
+                                <div class="fmc-pager-actions">
+                                    <button class="fmc-pager-btn" @onclick="PrevPage" disabled="@(_currentPage == 0)">
+                                        <MudIcon Icon="@Icons.Material.Filled.NavigateBefore" Size="Size.Small" />
+                                    </button>
+                                    <button class="fmc-pager-btn" @onclick="NextPage" disabled="@((_currentPage + 1) * _rowsPerPage >= TotalCardholders)">
+                                        <MudIcon Icon="@Icons.Material.Filled.NavigateNext" Size="Size.Small" />
+                                    </button>
+                                </div>
+                            </div>
+                        }
                     </div>
-                    <div class="mt-4 d-flex flex-column gap-2">
-                        <div class="d-flex justify-space-between">
-                            <MudText Typo="Typo.caption">Valid Rows</MudText>
-                            <MudText Typo="Typo.caption" Style="font-weight:800; color: var(--mud-palette-success);">@StateService.PendingRows.Count(r => r.ValidationError == null)</MudText>
-                        </div>
-                        <div class="d-flex justify-space-between">
-                            <MudText Typo="Typo.caption">Error Rows</MudText>
-                            <MudText Typo="Typo.caption" Style="font-weight:800; color: var(--mud-palette-error);">@StateService.PendingRows.Count(r => r.ValidationError != null)</MudText>
-                        </div>
-                    </div>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2 d-block" Style="font-size:0.6rem; font-style:italic;">Drag and drop or click to add cardholder</MudText>
                 </div>
 
             </div>
@@ -96,21 +136,47 @@
 
         @* CONTENT AREA: Searchable/Sortable Transaction Ledger *@
         <MudItem xs="12" md="8" lg="9">
-            @* Global Batch Validation Alert *@
-            @if (StateService.PendingRows.Any(r => r.ValidationError != null))
+            @* ── CONSOLIDATED VALIDATION STATUS (Compact) ── *@
+            @if (StateService.PendingRows.Any())
             {
-                <MudAlert Severity="Severity.Warning" Class="mb-4 rounded-xl fmc-error-alert animate__animated animate__shakeX">
-                    <b>BATCH ACTION REQUIRED:</b> You have @StateService.PendingRows.Count(r => r.ValidationError != null) rows with identity or formatting errors. Correct them or remove them before committing.
-                </MudAlert>
-            }
-            else if (StateService.PendingRows.Any())
-            {
-                <MudAlert Severity="Severity.Success" Class="mb-4 rounded-xl fmc-success-alert animate__animated animate__fadeIn">
-                    <b>BATCH READY:</b> All @StateService.PendingRows.Count identities have been verified. You can now commit this batch to the ledger.
-                </MudAlert>
+                <div class="fmc-validation-top-alert mb-4 @(StateService.PendingRows.All(r => r.ValidationError == null) ? "success" : "warning") animate__animated animate__fadeIn">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-4">
+                        <div class="d-flex align-center gap-3">
+                            <MudIcon Icon="@(StateService.PendingRows.All(r => r.ValidationError == null) ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Warning)" Size="Size.Medium" />
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Style="font-weight:900; letter-spacing:1px; line-height:1.2;">
+                                    @(StateService.PendingRows.All(r => r.ValidationError == null) ? "BATCH READY" : "ACTION REQUIRED")
+                                </MudText>
+                                <MudText Typo="Typo.caption" Style="opacity:0.8; font-weight:700;">
+                                    @if (StateService.PendingRows.Any(r => r.ValidationError != null))
+                                    {
+                                        <span>@StateService.PendingRows.Count(r => r.ValidationError != null) rows with identity errors detected.</span>
+                                    }
+                                    else
+                                    {
+                                        <span>All cardholder identities have been successfully verified.</span>
+                                    }
+                                </MudText>
+                            </div>
+                        </div>
+                        <div class="d-flex align-center gap-6">
+                            <div class="text-right">
+                                <MudText Typo="Typo.h5" Class="fmc-financial-mono" Style="font-weight:950; line-height:1;">
+                                    @(StateService.PendingRows.Count(r => r.ValidationError == null))/@StateService.PendingRows.Count
+                                </MudText>
+                                <MudText Typo="Typo.caption" Style="opacity:0.6; font-size:0.6rem; font-weight:800; text-transform:uppercase;">VERIFIED</MudText>
+                            </div>
+                            <div class="fmc-alert-divider"></div>
+                            <div class="d-flex flex-column" style="opacity: 0.6;">
+                                 <MudText Typo="Typo.caption" Style="font-size:0.6rem; font-weight:800;">VALID: @StateService.PendingRows.Count(r => r.ValidationError == null)</MudText>
+                                 <MudText Typo="Typo.caption" Style="font-size:0.6rem; font-weight:800;">ERRORS: @StateService.PendingRows.Count(r => r.ValidationError != null)</MudText>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             }
 
-            <div class="fmc-manager-surface">
+            <div class="fmc-manager-surface" ondragover="event.preventDefault();" @ondrop="HandleDrop">
                 
                 @* Table Search Filtering *@
                 <div class="pa-4 border-b">
@@ -220,20 +286,163 @@
 
     .fmc-error-alert { background: rgba(255, 152, 0, 0.15) !important; color: #ffb74d !important; box-shadow: 0 8px 20px rgba(0,0,0,0.2) !important; border: 1px solid rgba(255, 152, 0, 0.3) !important; font-weight: 700; }
     .fmc-success-alert { background: rgba(76, 175, 80, 0.15) !important; color: #81c784 !important; box-shadow: 0 8px 20px rgba(0,0,0,0.2) !important; border: 1px solid rgba(76, 175, 80, 0.3) !important; font-weight: 700; }
+
+    /* Compact Top Alert Variant */
+    .fmc-validation-top-alert { 
+        padding: 12px 20px; border-radius: 16px; transition: all 0.3s ease; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid transparent;
+    }
+    .fmc-validation-top-alert.warning { background: rgba(255, 152, 0, 0.12) !important; color: #ffb74d !important; border-color: rgba(255, 152, 0, 0.25) !important; }
+    .fmc-validation-top-alert.success { background: rgba(76, 175, 80, 0.12) !important; color: #81c784 !important; border-color: rgba(76, 175, 80, 0.25) !important; }
+    .fmc-alert-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.1); align-self: center; }
+
+    /* Directory Styles */
+    .fmc-dir-list-wrapper { display: flex; flex-direction: column; }
+    .fmc-table-transparent .mud-table-container { overflow: hidden !important; }
+    
+    /* Custom Pager Styles */
+    .fmc-custom-pager { border-top: 1px solid var(--mud-palette-divider); padding-top: 12px; width: 100%; }
+    .fmc-mini-select { 
+        background: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); 
+        color: var(--mud-palette-text-primary); font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; outline: none;
+        cursor: pointer; transition: all 0.2s;
+    }
+    .fmc-mini-select:hover { border-color: var(--mud-palette-primary); }
+    .fmc-mini-select option { background-color: var(--mud-palette-surface); color: var(--mud-palette-text-primary); padding: 4px; }
+    
+    .fmc-pager-actions { display: flex; justify-content: center; gap: 24px; padding: 4px 0; }
+    .fmc-pager-btn { 
+        background: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); 
+        color: var(--mud-palette-text-primary); padding: 4px 12px; border-radius: 6px; 
+        cursor: pointer; transition: all 0.2s;
+    }
+    .fmc-pager-btn:hover:not(:disabled) { background: var(--mud-palette-primary); color: white; border-color: var(--mud-palette-primary); }
+    .fmc-pager-btn:disabled { opacity: 0.2; cursor: default; }
+    
+    .fmc-dir-item { 
+        padding: 8px 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; 
+        background: var(--mud-palette-background-grey); cursor: grab; transition: all 0.2s;
+        border: 1px solid transparent; width: 100%; margin-bottom: 4px;
+    }
+    .fmc-dir-item:active { cursor: grabbing; }
+    .fmc-dir-item:hover { background: var(--mud-palette-surface); border-color: var(--mud-palette-primary); transform: translateX(4px); }
+    .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
 </style>
 
 @code {
+    private string _searchString = "";
+    private string _dirSearch = "";
+    private List<FMC.Shared.DTOs.User.UserDto>? _allCardholders;
+    
+    // Custom Pagination State
     private bool _isLoading;
     private bool _isRevalidating;
-    private string _searchString = "";
+    private int _currentPage = 0;
+    private int _rowsPerPage = 5;
+    private int TotalCardholders => _allCardholders?.Count(FilterDir) ?? 0;
+    private IEnumerable<FMC.Shared.DTOs.User.UserDto> PagedCardholders => 
+        _allCardholders?.Where(FilterDir).Skip(_currentPage * _rowsPerPage).Take(_rowsPerPage) ?? Enumerable.Empty<FMC.Shared.DTOs.User.UserDto>();
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         // Safety check: ensure batch state exists before allowing access to the manager
         if (StateService.PendingRows == null || !StateService.PendingRows.Any())
         {
             Navigation.NavigateTo("/accounts");
             return;
+        }
+
+        await LoadCardholders();
+    }
+
+    private async Task LoadCardholders()
+    {
+        try
+        {
+            var users = await OrgService.GetUsersAsync(StateService.OrgId);
+            // Filter to only include true cardholders (Roles.User) and exclude administrative website users
+            _allCardholders = users.Where(u => u.Role == FMC.Shared.Auth.Roles.User).ToList();
+        }
+        catch { }
+    }
+
+    private void OnRowsPerPageChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var rows))
+        {
+            _rowsPerPage = rows;
+            _currentPage = 0; // Reset to first page
+            StateHasChanged();
+        }
+    }
+
+    private void NextPage()
+    {
+        if ((_currentPage + 1) * _rowsPerPage < TotalCardholders)
+        {
+            _currentPage++;
+        }
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 0)
+        {
+            _currentPage--;
+        }
+    }
+
+    private bool FilterDir(FMC.Shared.DTOs.User.UserDto user)
+    {
+        if (string.IsNullOrWhiteSpace(_dirSearch)) return true;
+        if (user.DisplayName.Contains(_dirSearch, StringComparison.OrdinalIgnoreCase)) return true;
+        if ((user.AccountNumber ?? "").Contains(_dirSearch, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private async Task AddToBatch(FMC.Shared.DTOs.User.UserDto user)
+    {
+        if (user == null) return;
+
+        // Create a temporary row for the dialog
+        var nextRow = StateService.PendingRows.Count > 0 ? StateService.PendingRows.Max(r => r.RowNumber) + 1 : 1;
+        var tempRow = new BulkTransactionRowDto
+        {
+            RowNumber = nextRow,
+            Subscriber = user.DisplayName,
+            CardNumber = user.AccountNumber ?? "",
+            Amount = 1500, // Default starting value
+            ValidationError = null
+        };
+
+        // Show the Edit dialog to let user set the amount BEFORE adding
+        var parameters = new DialogParameters<Dialogs.EditBulkRowDialog> { { x => x.Row, tempRow } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        
+        var dialog = await DialogService.ShowAsync<Dialogs.EditBulkRowDialog>("Allocation Amount", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            // Only add if they confirmed the amount
+            StateService.PendingRows.Add(tempRow);
+            Snackbar.Add($"Added {user.DisplayName} to batch.", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private FMC.Shared.DTOs.User.UserDto? _draggedUser;
+    private void HandleDragStart(FMC.Shared.DTOs.User.UserDto user)
+    {
+        _draggedUser = user;
+    }
+
+    private async Task HandleDrop()
+    {
+        if (_draggedUser != null)
+        {
+            await AddToBatch(_draggedUser);
+            _draggedUser = null;
         }
     }
 
@@ -333,7 +542,18 @@
         try
         {
             var validRows = StateService.PendingRows.Where(r => r.ValidationError == null).ToList();
-            var result = await OrgService.SubmitBulkTransactionAsync(StateService.OrgId, StateService.IsCredit, validRows);
+            
+            // Generate unique batch idempotency key
+            string batchKey = $"BATCH-MGR-{StateService.OrgId}-{DateTime.UtcNow.Ticks}";
+            
+            var payload = new BulkTransactionRequestDto 
+            { 
+                IsCredit = StateService.IsCredit, 
+                Rows = validRows,
+                BatchIdempotencyKey = batchKey
+            };
+            
+            var result = await OrgService.SubmitBulkTransactionAsync(StateService.OrgId, payload);
             
             Snackbar.Add($"Batch submitted successfully: {result.Submitted} queued, {result.Failed} failed.", 
                          result.Failed > 0 ? Severity.Warning : Severity.Success);

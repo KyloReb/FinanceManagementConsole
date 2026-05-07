@@ -1,7 +1,10 @@
 @using FMC.Shared.DTOs.Organization
+@using FMC.Shared.DTOs.Admin
 @using FMC.Shared.Auth
 @inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject OrganizationApiService OrgService
+@implements IDisposable
 
 <style>
     .fmc-alert-surface { 
@@ -18,21 +21,43 @@
         width: 36px; height: 36px; background: rgba(var(--mud-palette-warning-rgb), 0.1); 
         border-radius: 10px; display: flex; align-items: center; justify-content: center;
     }
-    .fmc-alert-list-hub { display: flex; flex-direction: column; }
+    .fmc-alert-grid { 
+        display: grid; 
+        grid-template-columns: 1fr; 
+    }
+    @@media (min-width: 900px) {
+        .fmc-alert-grid { 
+            grid-template-columns: 1fr 1fr; 
+        }
+        .fmc-alert-grid.fmc-single-col {
+            grid-template-columns: 1fr;
+        }
+        .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-right: 1px solid var(--mud-palette-divider); }
+    }
+    .fmc-alert-list-hub { display: flex; flex-direction: column; height: 100%; }
+    .fmc-alert-section-header {
+        background: rgba(var(--mud-palette-background-grey-rgb), 0.5);
+        border-bottom: 1px solid var(--mud-palette-divider);
+        padding: 8px 24px;
+    }
     .fmc-alert-row-hub { 
         padding: 16px 24px; display: flex; align-items: center; gap: 16px;
         border-bottom: 1px solid var(--mud-palette-divider); transition: background 0.2s;
-        position: relative;
+        position: relative; min-height: 110px; flex-wrap: wrap;
     }
-    .fmc-alert-row-hub:last-child { border-bottom: none; }
     .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
+    
+    @@media (max-width: 600px) {
+        .fmc-alert-row-hub { flex-direction: column; align-items: flex-start; gap: 12px; }
+        .fmc-alert-actions-hub { align-self: flex-end; width: 100%; justify-content: flex-end; }
+    }
     
     .fmc-alert-indicator-hub { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
     .fmc-alert-indicator-hub.critical { background: var(--mud-palette-error); }
     .fmc-alert-indicator-hub.warning { background: var(--mud-palette-warning); }
     .fmc-alert-indicator-hub.info { background: var(--mud-palette-info); }
 
-    .fmc-alert-content-hub { flex: 1; min-width: 0; }
+    .fmc-alert-content-hub { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
     .fmc-alert-entity-title { font-weight: 850; font-size: 0.9rem; }
     .fmc-alert-tag-hub { 
         font-size: 0.6rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; 
@@ -51,19 +76,84 @@
         <div class="fmc-alert-header-area">
             <div class="d-flex align-center gap-3">
                 <div class="fmc-alert-hub-icon">
-                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Warning" Size="Size.Small" />
+                    <MudIcon Icon="@Icons.Material.Filled.Shield" Color="Color.Warning" Size="Size.Small" />
                 </div>
                 <div>
                     <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">Intelligence Oversight</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@TotalAlerts operational anomaly detected</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@TotalAlerts operational @(TotalAlerts == 1 ? "alert" : "alerts") detected across workflow &amp; financial domains</MudText>
                 </div>
             </div>
             <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _dismissed = true)" />
         </div>
 
-        <div class="fmc-alert-list-hub">
+        @{
+            bool hasWorkflowAlerts = WorkflowAlertCount > 0;
+            bool hasFinancialAlerts = ZeroBalanceTenants.Any() || LowBalanceTenants.Any() || HighUtilizationTenants.Any() || SuspendedTenants.Any() || NoCeoTenants.Any() || (!_isSuperAdmin && Organizations.Any());
+            bool isSingleColumn = (hasWorkflowAlerts && !hasFinancialAlerts) || (!hasWorkflowAlerts && hasFinancialAlerts);
+            string gridClass = isSingleColumn ? "fmc-alert-grid fmc-single-col" : "fmc-alert-grid";
+        }
+        <div class="@gridClass">
 
-            @* ── CRITICAL: Zero / Negative Balance ── *@
+            @if (hasWorkflowAlerts)
+            {
+                @* ── COLUMN 1: WORKFLOW ── *@
+                <div class="fmc-alert-column-left">
+                    <div class="fmc-alert-section-header">
+                        <MudText Typo="Typo.overline" Style="font-weight: 900; letter-spacing: 0.08em; font-size: 0.65rem;" Class="mud-text-secondary">OPERATIONAL WORKFLOW</MudText>
+                    </div>
+                    <div class="fmc-alert-list-hub">
+                        @* Pending Validations (CEO/Maker/Approver) *@
+            @foreach (var alert in _workflowAlerts.Where(a => !_workflowDismissed.Contains(a.EntityId ?? "")))
+            {
+                var isPending = alert.EntityId != null && alert.EntityId.StartsWith("Pending");
+                var isThreshold = alert.EntityId != null && alert.EntityId.StartsWith("Threshold");
+                var isSystem = alert.Severity == AlertSeverityDto.Security || (!isPending && !isThreshold);
+                
+                var wCssClass = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "critical" :
+                               alert.Severity == AlertSeverityDto.Warning ? "warning" : "info";
+                var wTagColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "fmc-tag-critical" :
+                               alert.Severity == AlertSeverityDto.Warning ? "fmc-tag-warning" : "fmc-tag-info";
+                var wBtnColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? Color.Error :
+                               alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
+                
+                var badgeLabel = isPending ? "ACTION REQUIRED" : isThreshold ? "CAPACITY ALERT" : (alert.Severity == AlertSeverityDto.Security ? "SECURITY" : "SYSTEM");
+                var href = isPending ? "/pending-requests" : isThreshold ? "/transactions" : "/admin/audit";
+                var entityId = alert.EntityId ?? "";
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub @wCssClass"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub @wTagColor">@badgeLabel</span>
+                            <MudText Typo="Typo.body2" Class="fmc-alert-entity-title">@alert.Title</MudText>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@alert.Message</MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        <MudButton Variant="Variant.Outlined" Color="@wBtnColor" Size="Size.Small"
+                                   Href="@href"
+                                   Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">View</MudButton>
+                        @if (!_isSuperAdmin)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                           OnClick="@(() => DismissWorkflowAlert(entityId))" />
+                        }
+                    </div>
+                </div>
+            }
+                    </div>
+                </div>
+            }
+
+            @if (hasFinancialAlerts)
+            {
+                @* ── COLUMN 2: FINANCIAL ── *@
+                <div class="fmc-alert-column-right">
+                    <div class="fmc-alert-section-header">
+                        <MudText Typo="Typo.overline" Style="font-weight: 900; letter-spacing: 0.08em; font-size: 0.65rem;" Class="mud-text-secondary">FINANCIAL HEALTH &amp; ANOMALIES</MudText>
+                    </div>
+                    <div class="fmc-alert-list-hub">
+
+                        @* ── CRITICAL: Zero / Negative Balance ── *@
             @if (ZeroBalanceTenants.Any())
             {
                 <div class="fmc-alert-row-hub">
@@ -112,7 +202,7 @@
                             }
                         </div>
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                            @LowBalanceTenants.Count subscriber @(LowBalanceTenants.Count == 1 ? "wallet has" : "wallets have") fallen below the ₱100,000 safety threshold.
+                            @LowBalanceTenants.Count organization @(LowBalanceTenants.Count == 1 ? "wallet has" : "wallets have") fallen below the ₱100,000 safety threshold.
                         </MudText>
                     </div>
                     <div class="fmc-alert-actions-hub">
@@ -124,6 +214,51 @@
                             <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
                                        Href="@($"/admin/organizations/{LowBalanceTenants.First().Id}")"
                                        Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Review</MudButton>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ── INFO/WARNING: Payroll Settlement Status (CEO ONLY) ── *@
+            @if (!_isSuperAdmin && Organizations.Any())
+            {
+                var org = Organizations.First();
+                var isHealthy = GetOrgBalance(org) >= 250_000m;
+                <div class="fmc-alert-row-hub">
+                    <div class="fmc-alert-indicator-hub @(isHealthy ? "info" : "warning")"></div>
+                    <div class="fmc-alert-content-hub">
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="fmc-alert-tag-hub @(isHealthy ? "fmc-tag-info" : "fmc-tag-warning")">
+                                @(isHealthy ? "READY FOR SETTLEMENT" : "FUNDING REQUIRED")
+                            </span>
+                            <span class="fmc-alert-entity-title">Payroll Settlement Status</span>
+                            <span class="fmc-alert-tag-hub" style="background:var(--mud-palette-background-grey); color:var(--mud-palette-text-secondary); margin-left:auto;">
+                                CYCLE: @DateTime.Now.ToString("MMM yyyy")
+                            </span>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @if (isHealthy)
+                            {
+                                <span>Your corporate float of <b class="fmc-money">@GetOrgBalance(org).ToString("C0")</b> is sufficient for upcoming payroll operations.</span>
+                            }
+                            else
+                            {
+                                <span>Corporate float is below safety threshold (<b class="fmc-money">@GetOrgBalance(org).ToString("C0")</b>). Settlement may be delayed.</span>
+                            }
+                        </MudText>
+                    </div>
+                    <div class="fmc-alert-actions-hub">
+                        @if (!isHealthy)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                       Href="/transactions"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">Top-up Float</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                       Href="/transactions"
+                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">View Schedule</MudButton>
                         }
                     </div>
                 </div>
@@ -209,6 +344,9 @@
                     </div>
                 </div>
             }
+                    </div>
+                </div>
+            }
         </div>
     </div>
 }
@@ -220,11 +358,60 @@
 
     private bool _dismissed;
     private bool _isSuperAdmin;
+    private List<SystemAlertDto> _workflowAlerts = new();
+    private HashSet<string> _workflowDismissed = new();
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         _isSuperAdmin = authState.User.IsInRole(Roles.SuperAdmin);
+        OrgService.OnDataChanged += HandleDataChanged;
+        await LoadWorkflowAlerts();
+    }
+
+    private async void HandleDataChanged()
+    {
+        await LoadWorkflowAlerts();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadWorkflowAlerts()
+    {
+        _workflowAlerts.Clear();
+
+        try 
+        { 
+            var workflowAlerts = await OrgService.GetWorkflowAlertsAsync(); 
+            _workflowAlerts.AddRange(workflowAlerts);
+        } 
+        catch { }
+
+        if (_isSuperAdmin)
+        {
+            try 
+            {
+                var sysAlerts = await OrgService.GetActiveAlertsAsync();
+                foreach (var sa in sysAlerts)
+                {
+                    if (!_workflowAlerts.Any(wa => wa.EntityId == sa.EntityId && wa.Title == sa.Title))
+                    {
+                        _workflowAlerts.Add(sa);
+                    }
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void DismissWorkflowAlert(string entityId)
+    {
+        _workflowDismissed.Add(entityId);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        OrgService.OnDataChanged -= HandleDataChanged;
     }
 
     private const decimal CriticalBalanceThreshold = 100_000m;
@@ -239,8 +426,9 @@
     private List<OrganizationDto> SuspendedTenants          => Organizations.Where(o => !o.IsActive).ToList();
     private List<OrganizationDto> NoCeoTenants              => Organizations.Where(o => string.IsNullOrWhiteSpace(o.CeoName)).ToList();
 
-    private bool HasAlerts  => ZeroBalanceTenants.Any() || LowBalanceTenants.Any() || HighUtilizationTenants.Any() || SuspendedTenants.Any() || NoCeoTenants.Any();
-    private int  TotalAlerts => ZeroBalanceTenants.Count + LowBalanceTenants.Count + HighUtilizationTenants.Count + SuspendedTenants.Count + NoCeoTenants.Count;
+    private int WorkflowAlertCount => _workflowAlerts.Count(a => !_workflowDismissed.Contains(a.EntityId ?? ""));
+    private bool HasAlerts  => ZeroBalanceTenants.Any() || LowBalanceTenants.Any() || HighUtilizationTenants.Any() || SuspendedTenants.Any() || NoCeoTenants.Any() || (!_isSuperAdmin && Organizations.Any()) || WorkflowAlertCount > 0;
+    private int  TotalAlerts => ZeroBalanceTenants.Count + LowBalanceTenants.Count + HighUtilizationTenants.Count + SuspendedTenants.Count + NoCeoTenants.Count + (!_isSuperAdmin && Organizations.Any() ? 1 : 0) + WorkflowAlertCount;
 
     private async Task OpenAdjustmentDialog(OrganizationDto org, bool isCredit)
     {

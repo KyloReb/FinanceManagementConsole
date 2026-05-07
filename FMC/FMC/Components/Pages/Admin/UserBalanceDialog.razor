@@ -4,25 +4,25 @@
 @using Microsoft.AspNetCore.Components.Authorization
 
 <MudDialog Class="fmc-balance-dialog">
-    <TitleContent>
-        <div class="d-flex align-center px-2 pt-2">
-            <MudIcon Icon="@(IsCredit ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.PersonRemove)" 
-                     Color="@(IsCredit ? Color.Success : Color.Error)" Class="mr-3" />
-            <MudText Typo="Typo.h6" Style="font-weight: 800;">@(IsCredit ? "Credit Subscriber Wallet" : "Debit Subscriber Wallet")</MudText>
-        </div>
-    </TitleContent>
     <DialogContent>
-        <div class="pa-4">
-            @* SUBSCRIBER IDENTITY SECTION *@
-            <div class="fmc-subscriber-header mb-8">
+        <div class="pa-6">
+            @* DYNAMIC HEADER *@
+            <div class="d-flex align-center justify-space-between mb-8">
                 <div class="d-flex align-center">
-                    <MudAvatar Color="@(IsCredit ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Large" Class="mr-4" Style="font-weight: 800;">
-                        @User.FirstName?[0]@User.LastName?[0]
-                    </MudAvatar>
-                    <div>
-                        <MudText Typo="Typo.h5" Style="font-weight: 900; line-height: 1.1;">@User.DisplayName</MudText>
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">SUBSCRIBER ID: @User.IdGuid.ToString().ToUpper()</MudText>
+                    <div class="fmc-icon-box @(_isCredit ? "credit" : "debit") mr-4">
+                        <MudIcon Icon="@(_isCredit ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.PersonRemove)" 
+                                 Color="Color.Inherit" Size="Size.Medium" />
                     </div>
+                    <div>
+                        <MudText Typo="Typo.h5" Style="font-weight: 900; line-height: 1.1; letter-spacing: -0.02em;">
+                            @(_isCredit ? "Credit" : "Debit") Personal Wallet
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@(User.DisplayName)</MudText>
+                    </div>
+                </div>
+                <div class="fmc-custom-toggle">
+                    <button type="button" class="fmc-toggle-btn @(_isCredit ? "active" : "")" @onclick="@(() => OnToggleChanged(true))">CREDIT</button>
+                    <button type="button" class="fmc-toggle-btn @(!_isCredit ? "active debit" : "")" @onclick="@(() => OnToggleChanged(false))">DEBIT</button>
                 </div>
             </div>
 
@@ -35,7 +35,7 @@
                                      Variant="Variant.Outlined" 
                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Payments"
                                      Format="N2" HideSpinButtons="true" Min="0.01m"
-                                     Placeholder="0.00" Class="fmc-dashboard-amount-field user"
+                                     Placeholder="0.00" Class="fmc-dashboard-amount-field"
                                      Validation="@(new Func<decimal?, string?>(ValidateAmount))" />
                 </MudItem>
                 
@@ -44,6 +44,22 @@
                                   Placeholder="Specify the reason for this personal ledger update..."
                                   Variant="Variant.Outlined" Lines="2" />
                 </MudItem>
+
+                @if (!_isCredit)
+                {
+                    <MudItem xs="12">
+                        <div class="fmc-settlement-card @(_isSettlement ? "active" : "")">
+                            <div class="d-flex align-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Gavel" Class="mr-3" Color="@(_isSettlement ? Color.Warning : Color.Default)" />
+                                <div class="flex-grow-1">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">Settlement Recovery Mode</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Allow negative balance for final employee settlements.</MudText>
+                                </div>
+                                <MudSwitch T="bool" @bind-Value="_isSettlement" Color="Color.Warning" />
+                            </div>
+                        </div>
+                    </MudItem>
+                }
             </MudGrid>
 
             @* BALANCE IMPACT ANALYSIS *@
@@ -55,7 +71,7 @@
                 <div class="d-flex justify-space-between align-center">
                     <MudText Typo="Typo.body1" Style="font-weight: 800;">Resulting Balance:</MudText>
                     <MudText Typo="Typo.h5" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;" 
-                             Color="@((CalculateNewBalance() ?? 0) < 0 ? Color.Error : Color.Info)">
+                             Color="@((CalculateNewBalance() ?? 0) < 0 ? Color.Error : Color.Success)">
                         @((CalculateNewBalance() ?? 0).ToString("C"))
                     </MudText>
                 </div>
@@ -63,10 +79,10 @@
         </div>
     </DialogContent>
     <DialogActions>
-        <div class="px-8 pb-8 d-flex w-100 gap-3">
-            <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 700;">Cancel</MudButton>
+        <div class="px-6 pb-6 d-flex w-100 gap-3">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 700;">Discard</MudButton>
             <MudSpacer />
-            <MudButton Color="@(IsCredit ? Color.Success : Color.Error)" 
+            <MudButton Color="@(_isCredit ? Color.Success : Color.Error)" 
                        Variant="Variant.Filled" 
                        Disabled="@(!IsFormValid())" 
                        OnClick="HandleSubmitClick"
@@ -78,7 +94,7 @@
                 }
                 else
                 {
-                    <span>Confirm @(IsCredit ? "Credit" : "Debit") Selection</span>
+                    <span>Confirm @(_isCredit ? "Credit" : "Debit") Selection</span>
                 }
             </MudButton>
         </div>
@@ -86,14 +102,61 @@
 </MudDialog>
 
 <style>
-    .fmc-balance-dialog { border-radius: 20px !important; overflow: hidden; background-color: var(--mud-palette-surface) !important; max-width: 480px !important; }
+    .fmc-balance-dialog { border-radius: 28px !important; overflow: hidden; background-color: var(--mud-palette-surface) !important; max-width: 520px !important; }
     
-    .fmc-subscriber-header { padding: 12px; background: var(--mud-palette-background-grey); border-radius: 16px; border: 1px solid var(--mud-palette-divider); }
-    
-    .fmc-dashboard-amount-field .mud-input-root { font-size: 2rem !important; font-weight: 900 !important; color: var(--mud-palette-text-primary) !important; }
-    .fmc-dashboard-amount-field.user .mud-input-root { color: var(--mud-palette-info) !important; }
+    .fmc-icon-box { 
+        width: 54px; height: 54px; border-radius: 18px; 
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fmc-icon-box.credit { 
+        background-color: rgba(var(--mud-palette-success-rgb), 0.12); 
+        color: var(--mud-palette-success); 
+    }
+    .fmc-icon-box.debit { 
+        background-color: rgba(var(--mud-palette-error-rgb), 0.12); 
+        color: var(--mud-palette-error); 
+    }
 
-    .fmc-impact-summary { background: var(--mud-palette-background-grey); border-radius: 16px; padding: 20px; border: 1px solid var(--mud-palette-divider); }
+    .fmc-custom-toggle { 
+        background: var(--mud-palette-background-grey);
+        padding: 4px; border-radius: 12px; display: flex; gap: 4px; 
+        border: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-toggle-btn {
+        padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em;
+        transition: all 0.2s ease; border: none; background: transparent; 
+        color: var(--mud-palette-text-secondary); cursor: pointer;
+        min-width: 80px; text-align: center;
+    }
+    .fmc-toggle-btn.active { 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        font-weight: 900;
+    }
+    .fmc-toggle-btn.active:not(.debit) { 
+        background: rgba(var(--mud-palette-success-rgb), 0.18); 
+        color: var(--mud-palette-success); 
+        border: 1px solid rgba(var(--mud-palette-success-rgb), 0.35);
+    }
+    .fmc-toggle-btn.active.debit { 
+        background: rgba(var(--mud-palette-error-rgb), 0.18); 
+        color: var(--mud-palette-error); 
+        border: 1px solid rgba(var(--mud-palette-error-rgb), 0.35);
+    }
+
+    .fmc-dashboard-amount-field .mud-input-root { font-size: 2.5rem !important; font-weight: 900 !important; color: var(--mud-palette-text-primary) !important; letter-spacing: -0.03em; }
+
+    .fmc-impact-summary { 
+        background: var(--mud-palette-background-grey); 
+        border-radius: 20px; padding: 24px; 
+        border: 1px solid var(--mud-palette-divider); 
+    }
+    
+    .fmc-settlement-card { 
+        padding: 16px; border-radius: 16px; border: 1px dashed var(--mud-palette-divider); background: var(--mud-palette-surface);
+        transition: all 0.3s ease;
+    }
+    .fmc-settlement-card.active { border-color: var(--mud-palette-warning); background: rgba(var(--mud-palette-warning-rgb), 0.08); }
 </style>
 
 @code {
@@ -108,6 +171,20 @@
     private decimal? _amount;
     private string _label = "";
     private bool _isProcessing;
+    private bool _isCredit;
+    private bool _isSettlement;
+
+    protected override void OnInitialized()
+    {
+        _isCredit = IsCredit;
+    }
+
+    private void OnToggleChanged(bool value)
+    {
+        _isCredit = value;
+        if (_isCredit) _isSettlement = false;
+        StateHasChanged();
+    }
 
     private string? ValidateAmount(decimal? value)
     {
@@ -115,7 +192,6 @@
         return null;
     }
 
-    private bool IsFormValid() => (_amount ?? 0) > 0 && !_isProcessing;
 
     private void OnAmountChanged(decimal? value)
     {
@@ -126,7 +202,21 @@
     private decimal? CalculateNewBalance()
     {
         if (_amount == null) return User.Balance;
-        return IsCredit ? User.Balance + _amount : User.Balance - _amount;
+        return _isCredit ? User.Balance + _amount : User.Balance - _amount;
+    }
+
+    private bool IsFormValid()
+    {
+        if (_amount == null || _amount <= 0) return false;
+        if (_isProcessing) return false;
+
+        // If not in settlement mode, prevent resulting negative balance for debits
+        if (!_isCredit && !_isSettlement)
+        {
+            if ((User.Balance - _amount) < 0) return false;
+        }
+
+        return true;
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -150,8 +240,12 @@
         try
         {
             _isProcessing = true;
-            decimal adjustment = IsCredit ? (_amount ?? 0) : -(_amount ?? 0);
-            var success = await OrgService.AdjustUserBalanceAsync(User.IdGuid, adjustment, _label);
+            decimal adjustment = _isCredit ? (_amount ?? 0) : -(_amount ?? 0);
+            
+            // Generate idempotency key to prevent double-clicks/retries from creating multiple requests
+            string idempotencyKey = $"ADJ-{User.IdGuid}-{DateTime.UtcNow.Ticks}";
+            
+            var success = await OrgService.AdjustUserBalanceAsync(User.IdGuid, adjustment, _label, idempotencyKey, null, _isSettlement);
             
             if (success)
             {

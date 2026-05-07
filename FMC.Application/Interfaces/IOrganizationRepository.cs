@@ -84,4 +84,5 @@ public interface IOrganizationRepository
     Task<Account?> GetAccountByTenantIdAsync(string tenantId, CancellationToken ct = default);
     Task<Account?> GetAccountByCardNumberAsync(string cardNumber, Guid organizationId, CancellationToken ct = default);
     Task AddAccountAsync(Account account, CancellationToken ct = default);
+    Task<bool> ExistsTransactionWithIdempotencyKeyAsync(string key, CancellationToken ct = default);
 }

@@ -47,6 +47,18 @@ public class AuditController : ControllerBase
     [HttpPost("search")]
     public async Task<ActionResult<AuditLogSearchResultDto>> SearchLogs([FromBody] AuditLogQueryDto query)
     {
+        if (!User.IsInRole(Roles.SuperAdmin))
+        {
+            var userOrgClaim = User.FindFirst("OrganizationId")?.Value;
+            if (!string.IsNullOrEmpty(userOrgClaim))
+            {
+                query.TenantId = userOrgClaim;
+            }
+            else
+            {
+                return Forbid();
+            }
+        }
         return Ok(await _auditService.SearchLogsAsync(query));
     }
 }

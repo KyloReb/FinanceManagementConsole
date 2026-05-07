@@ -310,11 +310,11 @@ public class OrganizationService : IOrganizationService
         // 3. Operational Ledger Execution
         if (amount > 0)
         {
-            await _ledgerService.CreditAsync(account.Id, amount, cancellationToken);
+            await _ledgerService.CreditAsync(account.Id, amount, cancellationToken: cancellationToken);
         }
         else if (amount < 0)
         {
-            await _ledgerService.DebitAsync(account.Id, Math.Abs(amount), cancellationToken);
+            await _ledgerService.DebitAsync(account.Id, Math.Abs(amount), cancellationToken: cancellationToken);
         }
 
         // Fetch new balance for notification/alerts
@@ -369,7 +369,7 @@ public class OrganizationService : IOrganizationService
     }
 
     /// <inheritdoc />
-    public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default)
+    public async Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, string? idempotencyKey = null, Guid? parentTransactionId = null, bool isSettlement = false, CancellationToken cancellationToken = default)
     {
         // 1. Security Check: Only Maker can initiate. SuperAdmins focus on Org-level funding.
         if (!_currentUserService.IsMaker || _currentUserService.IsSuperAdmin)
@@ -453,7 +453,7 @@ public class OrganizationService : IOrganizationService
             label ?? "Pending Allotment Initiation", 
             performedBy,
             null,
-            tenantId
+            orgId?.ToString()
         );
 
         await _repository.SaveChangesAsync(cancellationToken);
@@ -471,7 +471,7 @@ public class OrganizationService : IOrganizationService
     }
 
     /// <inheritdoc />
-    public async Task<bool> ApproveTransactionAsync(Guid transactionId, string approverId, CancellationToken cancellationToken = default)
+    public async Task<bool> ApproveTransactionAsync(Guid transactionId, string approverId, bool publishEvent = true, bool skipAuditLog = false, CancellationToken cancellationToken = default)
     {
         // 1. Security Check: Only Approver can commit
         if (!_currentUserService.IsApprover) throw new ApplicationException("Access Denied: You do not have the Approver role required for this action.");
@@ -510,7 +510,7 @@ public class OrganizationService : IOrganizationService
         if (orgAccount == null) throw new ApplicationException("Ledger Error: Organization operations wallet not found.");
 
         // 5. Execute Atomic Transfer
-        await _ledgerService.TransferAsync(orgAccount.Id, userAccount.Id, transaction.Amount, cancellationToken);
+        await _ledgerService.TransferAsync(orgAccount.Id, userAccount.Id, transaction.Amount, cancellationToken: cancellationToken);
 
         // 6. Update Transaction Status
         transaction.Status = "Approved";
@@ -519,15 +519,18 @@ public class OrganizationService : IOrganizationService
         await _repository.SaveChangesAsync(cancellationToken);
 
         // 7. Audit Trail for Final Commitment
-        await _auditService.RecordFinancialEventAsync(
-            "TRANSACTION_APPROVED", 
-            transaction.OrganizationId.Value, 
-            userAccount.Name, 
-            transaction.Amount, 
-            transaction.Label, 
-            approverId, 
-            approver?.Email, 
-            transaction.TenantId);
+        if (!skipAuditLog)
+        {
+            await _auditService.RecordFinancialEventAsync(
+                "TRANSACTION_APPROVED", 
+                transaction.OrganizationId.Value, 
+                userAccount.Name, 
+                transaction.Amount, 
+                transaction.Label, 
+                approverId, 
+                approver?.Email, 
+                transaction.OrganizationId.Value.ToString());
+        }
 
         // ── Phase 2: Workflow Completion Notifications (Handled by OrganizationNotificationHandler) ──
         if (transaction.OrganizationId.HasValue)
@@ -542,7 +545,7 @@ public class OrganizationService : IOrganizationService
     }
 
     /// <inheritdoc />
-    public async Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, CancellationToken cancellationToken = default)
+    public async Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, bool skipAuditLog = false, CancellationToken cancellationToken = default)
     {
         // 1. Security Check: Only Approver can reject
         if (!_currentUserService.IsApprover) throw new ApplicationException("Access Denied: You do not have the Approver role.");
@@ -555,16 +558,19 @@ public class OrganizationService : IOrganizationService
         transaction.ActionDate = DateTime.UtcNow;
         transaction.RejectionReason = reason;
 
-        await _auditService.RecordFinancialEventAsync(
-            "REJECTED", 
-            transaction.OrganizationId ?? Guid.Empty, 
-            "N/A", 
-            Math.Abs(transaction.Amount), 
-            $"Transaction Rejected: {reason}", 
-            approverId,
-            null,
-            transaction.TenantId
-        );
+        if (!skipAuditLog)
+        {
+            await _auditService.RecordFinancialEventAsync(
+                "REJECTED", 
+                transaction.OrganizationId ?? Guid.Empty, 
+                "N/A", 
+                Math.Abs(transaction.Amount), 
+                $"Transaction Rejected: {reason}", 
+                approverId,
+                null,
+                transaction.OrganizationId?.ToString()
+            );
+        }
 
         await _repository.SaveChangesAsync(cancellationToken);
         return true;
@@ -757,7 +763,7 @@ public class OrganizationService : IOrganizationService
             "Transaction Cancelled by Maker", 
             makerId,
             null,
-            transaction.TenantId
+            transaction.OrganizationId?.ToString()
         );
 
         await _repository.SaveChangesAsync(cancellationToken);
@@ -837,59 +843,123 @@ public class OrganizationService : IOrganizationService
             bool isCeo = role.Equals(FMC.Shared.Auth.Roles.CEO, StringComparison.OrdinalIgnoreCase);
             bool isApprover = role.Equals(FMC.Shared.Auth.Roles.Approver, StringComparison.OrdinalIgnoreCase);
             bool isMaker = role.Equals(FMC.Shared.Auth.Roles.Maker, StringComparison.OrdinalIgnoreCase);
+            bool isSuperAdmin = role.Equals(FMC.Shared.Auth.Roles.SuperAdmin, StringComparison.OrdinalIgnoreCase);
 
-            if (isApprover || isCeo)
+            _logger.LogInformation("[Workflow-Alert-Trace] Initiating alert scan. User: {User}, InitialOrg: {Org}, Role: {Role}", userId, organizationId, role);
+
+            // Fallback: If organizationId is empty, try to resolve it from the user's record
+            if (organizationId == Guid.Empty && !isSuperAdmin)
             {
-                var txs = await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken);
-                var pCount = txs.Count();
-                if (pCount > 0) 
+                // Try searching by userId as ID first, then as name if needed
+                var appUser = await _identityService.GetUserByIdAsync(userId);
+                
+                if (appUser == null)
                 {
-                    var lastPendingDate = txs.Max(t => t.Date).Ticks;
-                    alerts.Add(CreateAlert("Pending Validations", $"{pCount} request(s) waiting to be approved.", $"Pending_{organizationId}_{lastPendingDate}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
+                    // If GetUserByIdAsync failed, the ID might be a username
+                    var allUsers = await _identityService.GetAllUsersAsync();
+                    appUser = allUsers.FirstOrDefault(u => u.UserName == userId || u.Email == userId);
+                }
+
+                if (appUser?.OrganizationId != null)
+                {
+                    organizationId = appUser.OrganizationId.Value;
+                    _logger.LogInformation("[Workflow-Alert-Trace] Resolved OrgId {OrgId} from user profile for {User}", organizationId, userId);
                 }
             }
 
-            if (isMaker || isCeo)
+            // 1. Pending Validations (For Makers, Approvers, CEOs, and SuperAdmins)
+            if (isMaker || isApprover || isCeo || isSuperAdmin)
+            {
+                var txs = (await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken)).ToList();
+
+                if (txs.Any()) 
+                {
+                    var batches = txs.Where(t => t.BatchId.HasValue && t.BatchId != Guid.Empty).GroupBy(t => t.BatchId!.Value).ToList();
+                    var individuals = txs.Where(t => !t.BatchId.HasValue || t.BatchId == Guid.Empty).ToList();
+
+                    foreach (var batch in batches)
+                    {
+                        alerts.Add(CreateAlert(
+                            "Bulk Batch Pending", 
+                            $"A bulk allotment batch with {batch.Count()} item(s) requires your validation.", 
+                            $"Pending_Batch_{batch.Key}", 
+                            FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
+                    }
+
+                    if (individuals.Any())
+                    {
+                        alerts.Add(CreateAlert("Pending Validations", $"{individuals.Count()} individual request(s) waiting.", $"Pending_Indiv_{organizationId}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
+                    }
+                }
+            }
+
+            if (isMaker || isCeo || isSuperAdmin)
             {
                 var processed = await _repository.GetProcessedTransactionsSinceAsync(organizationId, since, cancellationToken);
-                var q = processed.Where(t => t.Status == "Approved");
-                
-                if (isMaker && !isCeo) q = q.Where(t => t.MakerId == userId);
-                
-                var aCount = q.Count();
-                if (aCount > 0) 
+                var approved = processed.Where(t => t.Status == "Approved");
+                if (isMaker && !isSuperAdmin && !isCeo) approved = approved.Where(t => t.MakerId == userId);
+
+                if (approved.Any()) 
                 {
-                    var lastActionDate = q.Max(t => t.ActionDate ?? DateTime.MinValue).Ticks;
-                    alerts.Add(CreateAlert("Approved Requests", $"{aCount} request(s) recently approved.", $"Processed_{organizationId}_{lastActionDate}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
+                    alerts.Add(CreateAlert("Recent Approvals", $"{approved.Count()} requests settled.", $"Processed_{organizationId}", FMC.Shared.DTOs.Admin.AlertSeverityDto.Information));
                 }
             }
 
-            if (isMaker || isCeo || isApprover)
+            if (organizationId != Guid.Empty && (isMaker || isCeo || isApprover || isSuperAdmin))
             {
-                var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
-                var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
-
-                var total = orgBalance + userBalanceSum;
-                var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
-
-                if (usedPct >= 80m || orgBalance <= 100_000m)
+                // Security: Don't show capacity alerts for the system owner (Nationlink)
+                var org = await _repository.GetByIdAsync(organizationId, cancellationToken);
+                if (org != null && org.Name?.Contains("Nationlink", StringComparison.OrdinalIgnoreCase) == false)
                 {
-                    var msg = usedPct >= 80m ? $"{usedPct:F1}% of wallet allocated." : $"Only {orgBalance:C} remaining in org wallet.";
-                    var sev = usedPct >= 80m ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Security : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning;
-                    alerts.Add(CreateAlert("Capacity Threshold", msg, $"Threshold_{organizationId}_{(int)usedPct}", sev));
+                    var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
+                    var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
+
+                    var total = orgBalance + userBalanceSum;
+                    var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
+
+                    if (orgBalance <= 100_000m || usedPct >= 80m)
+                    {
+                        var msg = orgBalance <= 100_000m 
+                            ? $"{org.Name} only has {orgBalance:C} remaining in org wallet." 
+                            : $"{org.Name} has {usedPct:F1}% of wallet allocated.";
+                            
+                        var sev = (orgBalance <= 50_000m || usedPct >= 95m) ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Security : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning;
+                        alerts.Add(CreateAlert("Capacity Threshold", msg, organizationId.ToString(), sev));
+                    }
+
+                    // 4. Payroll Settlement Status (Specific to Makers, CEOs, and Approvers)
+                    if (isMaker || isCeo || isApprover || isSuperAdmin)
+                    {
+                        var payrollThreshold = 250_000m;
+                        var isHealthy = orgBalance >= payrollThreshold;
+                        var msg = isHealthy 
+                            ? $"Your corporate float of {orgBalance:C0} is sufficient for upcoming payroll operations."
+                            : $"Corporate float is below safety threshold ({orgBalance:C0}). Settlement may be delayed.";
+                        
+                        alerts.Add(CreateAlert(
+                            "Payroll Settlement Status", 
+                            msg, 
+                            $"Payroll_{organizationId}", 
+                            isHealthy ? FMC.Shared.DTOs.Admin.AlertSeverityDto.Information : FMC.Shared.DTOs.Admin.AlertSeverityDto.Warning));
+                    }
+
+                    // 5. Organization Suspension Alert
+                    if (!org.IsActive)
+                    {
+                        alerts.Add(CreateAlert(
+                            "Organization Suspended", 
+                            $"{org.Name} is currently in-active. Financial operations are restricted.", 
+                            $"Status_{organizationId}", 
+                            FMC.Shared.DTOs.Admin.AlertSeverityDto.Critical));
+                    }
                 }
             }
 
             return alerts;
         }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("[OrganizationService] Workflow alert generation canceled by request abort.");
-            return Enumerable.Empty<FMC.Shared.DTOs.Admin.SystemAlertDto>();
-        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[OrganizationService] Failed to generate workflow alerts for Org {OrgId}", organizationId);
+            _logger.LogError(ex, "[OrganizationService] Failed to generate workflow alerts for User {User}, Org {OrgId}", userId, organizationId);
             return Enumerable.Empty<FMC.Shared.DTOs.Admin.SystemAlertDto>();
         }
     }
@@ -909,11 +979,28 @@ public class OrganizationService : IOrganizationService
 
         if (!pendingTransactions.Any()) return false;
 
+        decimal totalAmount = 0;
+        var orgId = pendingTransactions.First().OrganizationId ?? Guid.Empty;
+        var tenantId = pendingTransactions.First().TenantId;
+        var label = pendingTransactions.First().Label ?? "Bulk Batch Approval";
+
         foreach (var tx in pendingTransactions)
         {
+            totalAmount += tx.Amount;
             // Reuse the existing single-transaction approval logic to ensure all security checks (4-eyes, org-isolation) are honored
-            await ApproveTransactionAsync(tx.Id, approverId, cancellationToken);
+            await ApproveTransactionAsync(tx.Id, approverId, true, skipAuditLog: true, cancellationToken);
         }
+
+        var approver = await _identityService.GetUserByIdAsync(approverId);
+        await _auditService.RecordFinancialEventAsync(
+            "BATCH_APPROVED", 
+            orgId, 
+            $"{pendingTransactions.Count} Cardholders (Bulk)", 
+            Math.Abs(totalAmount), 
+            label, 
+            approverId, 
+            approver?.Email, 
+            orgId.ToString());
 
         return true;
     }
@@ -926,11 +1013,51 @@ public class OrganizationService : IOrganizationService
 
         if (!pendingTransactions.Any()) return false;
 
+        decimal totalAmount = 0;
+        var orgId = pendingTransactions.First().OrganizationId ?? Guid.Empty;
+        var tenantId = pendingTransactions.First().TenantId;
+
         foreach (var tx in pendingTransactions)
         {
-            await RejectTransactionAsync(tx.Id, approverId, reason, cancellationToken);
+            totalAmount += tx.Amount;
+            await RejectTransactionAsync(tx.Id, approverId, reason, skipAuditLog: true, cancellationToken);
         }
 
+        await _auditService.RecordFinancialEventAsync(
+            "BATCH_REJECTED", 
+            orgId, 
+            $"{pendingTransactions.Count} Cardholders (Bulk)", 
+            Math.Abs(totalAmount), 
+            $"Batch Rejected: {reason}", 
+            approverId, 
+            null, 
+            orgId.ToString());
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SyncOrganizationLimitAsync(Guid organizationId, CancellationToken cancellationToken = default)
+    {
+        var org = await _repository.GetByIdAsync(organizationId, cancellationToken);
+        if (org == null) return false;
+
+        // Calculate total liquidity: Org Wallet Balance + Sum of all User Balances
+        var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
+        var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
+        
+        var totalLiquidity = orgBalance + userBalanceSum;
+
+        org.WalletLimit = totalLiquidity;
+        org.UpdatedAt = DateTime.UtcNow;
+
+        _repository.Update(org);
+        await _repository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("[OrganizationService] Synchronized Wallet Limit for Org {OrgName} to {NewLimit:C}", org.Name, totalLiquidity);
+        
+        await _auditService.RecordFinancialEventAsync("SYNC_LIMIT", organizationId, "N/A", totalLiquidity, "Capacity Reset", "System", null, organizationId.ToString());
+        
         return true;
     }
 }

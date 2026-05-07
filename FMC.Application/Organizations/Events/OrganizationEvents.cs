@@ -40,3 +40,11 @@ public record BulkUploadSubmittedEvent(
     decimal TotalAmount,
     bool IsCredit,
     List<BulkTransactionRowDto> SampleRows) : INotification;
+
+/// <summary>
+/// Event raised when an Approver commits an entire batch of transactions.
+/// </summary>
+public record BatchApprovedEvent(
+    Guid OrganizationId,
+    Guid BatchId,
+    string ApproverId) : INotification;

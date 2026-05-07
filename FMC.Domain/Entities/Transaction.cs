@@ -45,6 +45,17 @@ public class Transaction : BaseEntity
     public string Status { get; set; } = "Pending";
 
     /// <summary>
+    /// Unique key provided by the client to prevent duplicate processing of the same request.
+    /// </summary>
+    [StringLength(100)]
+    public string? IdempotencyKey { get; set; }
+
+    /// <summary>
+    /// Link to the original transaction if this is a reversal or correction.
+    /// </summary>
+    public Guid? ParentTransactionId { get; set; }
+
+    /// <summary>
     /// The ID of the user who initiated this transaction (The Maker).
     /// </summary>
     public string? MakerId { get; set; }

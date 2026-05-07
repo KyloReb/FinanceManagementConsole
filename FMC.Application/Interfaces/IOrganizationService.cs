@@ -67,17 +67,17 @@ public interface IOrganizationService
     /// <summary>
     /// CEO/Admin Endpoint: Initiates a balance adjustment for an individual user's personal wallet (Maker Step).
     /// </summary>
-    Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
+    Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, string? idempotencyKey = null, Guid? parentTransactionId = null, bool isSettlement = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Approver Endpoint: Commits a pending transaction to the ledger and updates balances.
     /// </summary>
-    Task<bool> ApproveTransactionAsync(Guid transactionId, string approverId, CancellationToken cancellationToken = default);
+    Task<bool> ApproveTransactionAsync(Guid transactionId, string approverId, bool publishEvent = true, bool skipAuditLog = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Approver Endpoint: Rejects a pending transaction.
     /// </summary>
-    Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, CancellationToken cancellationToken = default);
+    Task<bool> RejectTransactionAsync(Guid transactionId, string approverId, string reason, bool skipAuditLog = false, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Approver Endpoint: Commits an entire batch of pending transactions with a single action.
@@ -112,4 +112,10 @@ public interface IOrganizationService
     /// Fetches high-priority operation alerts for specific user roles (CEO, Maker, Approver).
     /// </summary>
     Task<IEnumerable<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync(Guid organizationId, string userId, string role, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// SuperAdmin Endpoint: Synchronizes the Organization's Wallet Limit to match its current total liquidity.
+    /// This effectively "resets" the capacity to the current balance.
+    /// </summary>
+    Task<bool> SyncOrganizationLimitAsync(Guid organizationId, CancellationToken cancellationToken = default);
 }

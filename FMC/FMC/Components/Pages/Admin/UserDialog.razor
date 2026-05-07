@@ -26,25 +26,26 @@
                                   Variant="Variant.Outlined" Required="true" RequiredError="Last name is required" />
                 </MudItem>
                 
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Email" Label="Email Address" 
+                                  Variant="Variant.Outlined" Required="true" RequiredError="Email is required" 
+                                  InputType="InputType.Email" 
+                                  TextChanged="OnEmailChanged" />
+                </MudItem>
+
                 @if (User == null)
                 {
                     <MudItem xs="12">
-                        <MudTextField @bind-Value="_model.UserName" Label="User Name" 
+                        <MudTextField @bind-Value="_model.UserName" Label="System Login Identifier (Username)" 
                                       Variant="Variant.Outlined" Required="true" RequiredError="User name is required" 
-                                      HelperText="System login identifier" />
+                                      HelperText="Used for system authentication" />
                     </MudItem>
                 }
 
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="_model.Email" Label="Email Address" 
-                                  Variant="Variant.Outlined" Required="true" RequiredError="Email is required" 
-                                  InputType="InputType.Email" />
-                </MudItem>
-
-                <MudItem xs="12">
                     <MudSelect T="string" @bind-Value="_model.Organization" Label="Organization Affiliation" 
                                Variant="Variant.Outlined" Required="true" RequiredError="Organization is required" 
-                               AnchorOrigin="Origin.BottomCenter" Disabled="@_isCEO">
+                               AnchorOrigin="Origin.BottomCenter" Disabled="@(_isCEO || (User != null && User.Role == Roles.SuperAdmin))">
                         @if (!_isCEO)
                         {
                             <MudSelectItem Value="@((string?)null)" Disabled="true">Select Organization</MudSelectItem>
@@ -65,14 +66,16 @@
                                   Variant="Variant.Outlined" 
                                   InputType="@_passwordInput" 
                                   Required="@(User == null)" 
+                                  Disabled="@(User != null && User.Role == Roles.SuperAdmin)"
                                   RequiredError="Password is required"
                                   Adornment="Adornment.End" AdornmentIcon="@_passwordIcon" OnAdornmentClick="TogglePasswordVisibility"
-                                  HelperText="@(User != null ? "Leave blank to keep current password" : "Minimum 6 characters")" />
+                                  HelperText="@(User != null && User.Role == Roles.SuperAdmin ? "Password changes disabled for SuperAdmin accounts" : User != null ? "Leave blank to keep current password" : "Minimum 6 characters")" />
                 </MudItem>
 
                 <MudItem xs="12">
                     <MudSelect T="string" Label="System Role" @bind-Value="_selectedRole"
                                Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
+                               Disabled="@(User != null && User.Role == Roles.SuperAdmin)"
                                PopoverClass="fmc-roles-select" offsety="true" Dense="true">
                         @if (!_isCEO)
                         {
@@ -97,7 +100,8 @@
                 </style>
                 
                 <MudItem xs="12">
-                    <MudSwitch @bind-Value="_model.IsActive" Label="Account Active" Color="Color.Success" />
+                    <MudSwitch @bind-Value="_model.IsActive" Label="Account Active" Color="Color.Success" 
+                               Disabled="@(User != null && User.Role == Roles.SuperAdmin)" />
                 </MudItem>
             </MudGrid>
         </MudForm>
@@ -204,7 +208,7 @@
         try
         {
             _model.Role = _selectedRole;
-            bool result;
+            (bool Succeeded, string? Error) result;
 
             if (User == null)
             {
@@ -236,14 +240,14 @@
                 result = await AdminService.UpdateUserAsync(updateDto);
             }
 
-            if (result)
+            if (result.Succeeded)
             {
                 Snackbar.Add(User == null ? "User created successfully" : "User updated successfully", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
-                Snackbar.Add("Failed to process request. Check if username/email already exists.", Severity.Error);
+                Snackbar.Add(result.Error ?? "Failed to process request.", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -254,5 +258,14 @@
         {
             _isLoading = false;
         }
+    }
+
+    private void OnEmailChanged(string value)
+    {
+        if (User == null && (string.IsNullOrWhiteSpace(_model.UserName) || _model.UserName == _model.Email))
+        {
+            _model.UserName = value;
+        }
+        _model.Email = value;
     }
 }

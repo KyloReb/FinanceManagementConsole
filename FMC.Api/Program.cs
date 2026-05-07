@@ -181,6 +181,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISystemAlertService, SystemAlertService>();
 builder.Services.AddScoped<IExcelParserService, FMC.Infrastructure.Services.ExcelParserService>();
+builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
 
 // Background Job Services
 // NotificationJobService is the typed job class that Hangfire instantiates in its own DI scope.
@@ -317,6 +318,13 @@ using (var scope = app.Services.CreateScope())
         "system-alerts-cleanup",
         job => job.CleanupOldSystemAlertsJobAsync(),
         Cron.Daily);
+
+    // Nightly Ledger Integrity Check (Reconciliation)
+    // Runs at 2:00 AM every day to ensure balance consistency across all accounts.
+    recurringJobManager.AddOrUpdate<IReconciliationService>(
+        "ledger-reconciliation",
+        svc => svc.ReconcileAllAccountsAsync(default),
+        Cron.Daily(2, 0));
 }
 
 app.Run();

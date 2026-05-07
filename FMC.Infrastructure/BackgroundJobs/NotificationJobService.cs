@@ -265,6 +265,90 @@ public sealed class NotificationJobService
     }
 
     // ─────────────────────────────────────────────────────────
+    // Job: Batch Approved — notify Maker and CEO with summary
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sends a consolidated settlement confirmation email to the Maker and CEO after an
+    /// entire batch of transactions is approved. This prevents email flooding for bulk uploads.
+    /// </summary>
+    public async Task SendBatchApprovalConfirmationAsync(Guid batchId, Guid organizationId)
+    {
+        try
+        {
+            _logger.LogInformation("[BackgroundJob] Sending BatchApprovalConfirmation for Batch {BatchId}", batchId);
+
+            var transactionsWithCardholders = await (from t in _context.Transactions.IgnoreQueryFilters()
+                                                     where t.BatchId == batchId
+                                                     join c in _context.Cardholders.IgnoreQueryFilters() on t.TenantId equals c.Id.ToString() into cardholders
+                                                     from ch in cardholders.DefaultIfEmpty()
+                                                     select new {
+                                                         Transaction = t,
+                                                         Cardholder = ch
+                                                     }).ToListAsync();
+
+            var org = await _context.Organizations.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(o => o.Id == organizationId);
+
+            if (!transactionsWithCardholders.Any() || org == null)
+            {
+                _logger.LogWarning("[BackgroundJob] BatchApprovalConfirmation aborted — Batch or Org not found.");
+                return;
+            }
+
+            var transactionDtos = transactionsWithCardholders.Select(x => new FMC.Shared.DTOs.TransactionDto {
+                Id = x.Transaction.Id,
+                Amount = x.Transaction.Amount,
+                Status = x.Transaction.Status,
+                Date = x.Transaction.Date,
+                Subscriber = x.Cardholder != null ? $"{x.Cardholder.FirstName} {x.Cardholder.LastName}" : "Subscriber",
+                AccountNumber = x.Cardholder?.AccountNumber ?? "N/A"
+            }).ToList();
+
+            var ceoEmail = await ResolveCeoEmailAsync(org.ChiefExecutiveId);
+            var makerId = transactionsWithCardholders.First().Transaction.MakerId;
+            var makerEmail = await _context.Users.IgnoreQueryFilters()
+                .Where(u => u.Id == makerId)
+                .Select(u => u.Email)
+                .FirstOrDefaultAsync();
+
+            var recipients = new HashSet<string>();
+            if (!string.IsNullOrEmpty(makerEmail)) recipients.Add(makerEmail);
+            if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
+
+            if (recipients.Any())
+            {
+                var body = _templateService.GenerateBatchNotificationEmail(
+                    org.Name, 
+                    "Approved", 
+                    transactionDtos, 
+                    transactionsWithCardholders.Count > 20);
+                    
+                var attachments = BuildAttachments();
+
+                foreach (var email in recipients)
+                {
+                    await _emailService.SendEmailAsync(
+                        email,
+                        $"FMC Notification: Batch Approved — {org.Name}",
+                        body,
+                        attachments);
+                }
+
+                _logger.LogInformation("[BackgroundJob] BatchApprovalConfirmation sent to {Count} recipients.", recipients.Count);
+            }
+
+            // Chained responsibility: check capacity AFTER approval emails are sent
+            await SendCapacityAlertIfNeededAsync(org, ceoEmail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BackgroundJob] Failed to send BatchApprovalConfirmation for Batch {BatchId}", batchId);
+            throw;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
     // Job 3: Wallet Adjusted — notify CEO of org-level credits/debits
     // ─────────────────────────────────────────────────────────
 

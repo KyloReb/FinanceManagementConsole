@@ -40,7 +40,7 @@ public class AlertsController : ControllerBase
 
         // ── Dynamic Organization Capacity Threshold Alerts for SuperAdmin ──
         var orgs = await _orgService.GetAllAsync();
-        foreach (var org in orgs.Where(o => o.Name != "Nationlink/Infoserve Inc."))
+        foreach (var org in orgs.Where(o => o.Name != null && !o.Name.Contains("Nationlink", StringComparison.OrdinalIgnoreCase)))
         {
             var orgBalance = org.TotalBalance - org.Usage;
             var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
@@ -79,7 +79,7 @@ public class AlertsController : ControllerBase
         var persistedCount = alerts.Count(a => !a.Message.Contains("Nationlink/Infoserve Inc."));
         
         var orgs = await _orgService.GetAllAsync();
-        var dynamicCount = orgs.Where(o => o.Name != "Nationlink/Infoserve Inc.").Count(org => 
+        var dynamicCount = orgs.Where(o => o.Name != null && !o.Name.Contains("Nationlink", StringComparison.OrdinalIgnoreCase)).Count(org => 
         {
             var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
             var orgBalance = org.TotalBalance - org.Usage;

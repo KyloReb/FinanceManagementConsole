@@ -23,7 +23,11 @@
     .fmc-alert-row-hub { 
         padding: 16px 24px; display: flex; align-items: center; gap: 16px;
         border-bottom: 1px solid var(--mud-palette-divider); transition: background 0.2s;
-        position: relative;
+        position: relative; flex-wrap: wrap;
+    }
+    @@media (max-width: 600px) {
+        .fmc-alert-row-hub { flex-direction: column; align-items: flex-start; gap: 12px; }
+        .fmc-alert-actions-hub { align-self: flex-end; width: 100%; justify-content: flex-end; }
     }
     .fmc-alert-row-hub:last-child { border-bottom: none; }
     .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
@@ -46,7 +50,7 @@
     .fmc-alert-actions-hub { display: flex; align-items: center; gap: 8px; }
 </style>
 
-@if (!_panelDismissed && AnyVisible && !Loading)
+@if (!_panelDismissed && AnyVisible)
 {
     <div class="fmc-alert-surface">
         <div class="fmc-alert-header-area">
@@ -55,63 +59,70 @@
                     <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" Size="Size.Small" />
                 </div>
                 <div>
-                    <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">Intelligence Oversight</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@_alerts.Count operational required @(_alerts.Count == 1 ? "action" : "actions") detected</MudText>
+                    <div class="d-flex align-center gap-1">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">Intelligence Oversight</MudText>
+                        <MudIconButton Icon="@(_isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
+                                       Size="Size.Small" OnClick="@(() => _isExpanded = !_isExpanded)" 
+                                       Style="padding: 2px;" />
+                    </div>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@VisibleAlertsCount operational required @(VisibleAlertsCount == 1 ? "action" : "actions") detected</MudText>
                 </div>
             </div>
             <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => DismissPanel())" />
         </div>
 
-        <div class="fmc-alert-list-hub">
-            @foreach (var alert in _alerts.Where(a => !_dismissed.Contains(a.EntityId ?? "")))
-            {
-                var cssClass = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "critical" :
-                               alert.Severity == AlertSeverityDto.Warning ? "warning" : "info";
-                
-                var tagColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "fmc-tag-critical" :
-                               alert.Severity == AlertSeverityDto.Warning ? "fmc-tag-warning" : "fmc-tag-info";
+        <MudCollapse Expanded="_isExpanded">
+            <div class="fmc-alert-list-hub">
+                @foreach (var alert in _alerts.Where(a => !_dismissed.Contains(a.EntityId ?? "")))
+                {
+                    var cssClass = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "critical" :
+                                   alert.Severity == AlertSeverityDto.Warning ? "warning" : "info";
+                    
+                    var tagColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? "fmc-tag-critical" :
+                                   alert.Severity == AlertSeverityDto.Warning ? "fmc-tag-warning" : "fmc-tag-info";
 
-                var btnColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? Color.Error :
-                               alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
-                
-                var href = alert.EntityId != null && alert.EntityId.StartsWith("Pending") ? "/pending-requests" : "/transactions";
-                var entityId = alert.EntityId ?? "";
-                // CEO: read-only visibility — cannot resolve, that's the Approver's job
-                bool isPending = alert.EntityId != null && alert.EntityId.StartsWith("Pending");
-                bool isThreshold = alert.EntityId != null && alert.EntityId.StartsWith("Threshold");
-                var actionText = IsCeo ? "View" : (isPending ? "Resolve" : "Acknowledge");
-                var actionVariant = IsCeo ? Variant.Outlined : Variant.Filled;
-                var badgeLabel = isPending ? "ACTION REQUIRED" :
-                                 isThreshold ? "CAPACITY ALERT" : "COMPLETED";
+                    var btnColor = alert.Severity is AlertSeverityDto.Critical or AlertSeverityDto.Security ? Color.Error :
+                                   alert.Severity == AlertSeverityDto.Warning ? Color.Warning : Color.Info;
+                    
+                    var href = alert.EntityId != null && alert.EntityId.StartsWith("Pending") ? "/pending-requests" : "/transactions";
+                    var entityId = alert.EntityId ?? "";
+                    // CEO: read-only visibility — cannot resolve, that's the Approver's job
+                    bool isPending = alert.EntityId != null && alert.EntityId.StartsWith("Pending");
+                    bool isThreshold = alert.EntityId != null && alert.EntityId.StartsWith("Threshold");
+                    var actionText = IsCeo ? "View" : (isPending ? "Resolve" : "Acknowledge");
+                    var actionVariant = IsCeo ? Variant.Outlined : Variant.Filled;
+                    var badgeLabel = isPending ? "ACTION REQUIRED" :
+                                     isThreshold ? "CAPACITY ALERT" : "COMPLETED";
 
-                <div class="fmc-alert-row-hub">
-                    <div class="fmc-alert-indicator-hub @cssClass"></div>
-                    <div class="fmc-alert-content-hub">
-                        <div class="d-flex align-center mb-1">
-                            <span class="fmc-alert-tag-hub @tagColor">@badgeLabel</span>
-                            <MudText Typo="Typo.body2" Class="fmc-alert-entity-title">@alert.Title</MudText>
+                    <div class="fmc-alert-row-hub">
+                        <div class="fmc-alert-indicator-hub @cssClass"></div>
+                        <div class="fmc-alert-content-hub">
+                            <div class="d-flex align-center mb-1">
+                                <span class="fmc-alert-tag-hub @tagColor">@badgeLabel</span>
+                                <MudText Typo="Typo.body2" Class="fmc-alert-entity-title">@alert.Title</MudText>
+                            </div>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                @alert.Message
+                            </MudText>
                         </div>
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                            @alert.Message
-                        </MudText>
+                        <div class="fmc-alert-actions-hub">
+                            @if (IsCeo)
+                            {
+                                <MudButton Variant="Variant.Outlined" Color="@btnColor" Size="Size.Small"
+                                           Href="@href"
+                                           Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">View</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="@btnColor" Size="Size.Small"
+                                           OnClick="@(() => DismissAlert(entityId))"
+                                           Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">@actionText</MudButton>
+                            }
+                        </div>
                     </div>
-                    <div class="fmc-alert-actions-hub">
-                        @if (IsCeo)
-                        {
-                            <MudButton Variant="Variant.Outlined" Color="@btnColor" Size="Size.Small"
-                                       Href="@href"
-                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">View</MudButton>
-                        }
-                        else
-                        {
-                            <MudButton Variant="Variant.Filled" Color="@btnColor" Size="Size.Small"
-                                       OnClick="@(() => DismissAlert(entityId))"
-                                       Style="border-radius:8px; text-transform:none; font-weight:800; height:32px;">@actionText</MudButton>
-                        }
-                    </div>
-                </div>
-            }
-        </div>
+                }
+            </div>
+        </MudCollapse>
     </div>
 }
 
@@ -120,10 +131,12 @@
     [Parameter] public bool IsCeo { get; set; }
     
     private bool _panelDismissed;
+    private bool _isExpanded = true;
     private HashSet<string> _dismissed = new();
     private List<SystemAlertDto> _alerts = new();
 
     private bool AnyVisible => _alerts.Any(a => !_dismissed.Contains(a.EntityId ?? ""));
+    private int VisibleAlertsCount => _alerts.Count(a => !_dismissed.Contains(a.EntityId ?? ""));
 
     private async Task DismissAlert(string entityId)
     {
@@ -161,11 +174,43 @@
                 {
                     _dismissed = System.Text.Json.JsonSerializer.Deserialize<HashSet<string>>(dictStr) ?? new();
                 }
+
+                // CRITICAL: Pending_* and Threshold_* alerts are action-required.
+                // They must NEVER be permanently suppressed — remove them from the
+                // dismissed set on every new session so the Approver always sees them
+                // until they are actually resolved (approved/rejected).
+                var actionRequiredPrefixes = new[] { "Pending_", "Threshold_" };
+                var toRestore = _dismissed
+                    .Where(id => actionRequiredPrefixes.Any(prefix => id.StartsWith(prefix)))
+                    .ToList();
+
+                bool restoredAny = false;
+                foreach (var id in toRestore)
+                {
+                    _dismissed.Remove(id);
+                    restoredAny = true;
+                }
+
+                if (restoredAny)
+                {
+                    // Persist the cleaned dismissed set (only informational alerts remain)
+                    try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_dismissed", System.Text.Json.JsonSerializer.Serialize(_dismissed)); } catch { }
+                }
+
+                // Restore panel-dismissed state, but always override it if there are active alerts
                 var panelClosedStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "fmc_wf_panel_dismissed");
                 if (!string.IsNullOrEmpty(panelClosedStr) && bool.TryParse(panelClosedStr, out bool closed))
                 {
                     _panelDismissed = closed;
                 }
+
+                // If alerts exist that are not individually dismissed, always show the panel
+                if (_alerts.Any(a => !_dismissed.Contains(a.EntityId ?? "")))
+                {
+                    _panelDismissed = false;
+                    try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_panel_dismissed", "false"); } catch { }
+                }
+
                 StateHasChanged();
             }
             catch { }
@@ -190,6 +235,14 @@
         {
             var data = await OrgService.GetWorkflowAlertsAsync();
             _alerts = data.ToList();
+
+            // If the panel was dismissed but new undismissed alerts have arrived,
+            // resurface it so the Approver is never silently blocked.
+            if (_panelDismissed && _alerts.Any(a => !_dismissed.Contains(a.EntityId ?? "")))
+            {
+                _panelDismissed = false;
+                try { await JSRuntime.InvokeVoidAsync("localStorage.setItem", "fmc_wf_panel_dismissed", "false"); } catch { }
+            }
         }
         catch { }
     }

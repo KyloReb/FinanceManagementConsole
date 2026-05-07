@@ -35,16 +35,23 @@ public class HealthMonitorService : BackgroundService
 
                     foreach (var org in orgs)
                     {
+                        var remainingBalance = org.TotalBalance - org.Usage;
+
                         // Business Rule: Active tenants must have positive liquidity
-                        if (org.TotalBalance <= 0 && org.IsActive)
+                        if (remainingBalance <= 0 && org.IsActive)
                         {
                             await alertService.RaiseAlertAsync(
                                 "Critical Liquidity Threshold", 
-                                $"Tenant '{org.Name}' has depleted its wallet ({org.TotalBalance:C}). Background health check auto-flagged.", 
+                                $"Tenant '{org.Name}' has depleted its wallet ({remainingBalance:C}). Background health check auto-flagged.", 
                                 AlertSeverity.Critical, 
                                 org.Id.ToString(), 
                                 "Organization"
                             );
+                        }
+                        else
+                        {
+                            // Auto-resolve if balance is restored
+                            await alertService.ResolveAlertAsync("Critical Liquidity Threshold", org.Id.ToString());
                         }
 
                         // Business Rule: Tenants should have a designated CEO
@@ -52,11 +59,16 @@ public class HealthMonitorService : BackgroundService
                         {
                             await alertService.RaiseAlertAsync(
                                 "Governance Violation", 
-                                $"Active tenant '{org.Name}' is missing a designated Chief Executive (CEO).", 
+                                $"Organization '{org.Name}' has no designated Chief Executive (CEO).", 
                                 AlertSeverity.Warning, 
                                 org.Id.ToString(), 
                                 "Organization"
                             );
+                        }
+                        else if (!string.IsNullOrEmpty(org.CeoName))
+                        {
+                            // Auto-resolve if CEO is assigned
+                            await alertService.ResolveAlertAsync("Governance Violation", org.Id.ToString());
                         }
                     }
                 }

@@ -109,6 +109,11 @@ public interface IOrganizationService
     Task<bool> CancelTransactionAsync(Guid transactionId, string makerId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Maker Endpoint: Cancels an entire pending batch that was initiated by the current user.
+    /// </summary>
+    Task<bool> CancelBatchAsync(Guid batchId, string makerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Fetches high-priority operation alerts for specific user roles (CEO, Maker, Approver).
     /// </summary>
     Task<IEnumerable<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync(Guid organizationId, string userId, string role, CancellationToken cancellationToken = default);

@@ -1,0 +1,480 @@
+/* MakerDashboard Premium Styles */
+.fmc-maker-root { width: 100%; }
+
+/* KPI Glass Cards */
+.fmc-glass-card {
+    position: relative;
+    padding: 24px;
+    border-radius: 20px;
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-divider);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+}
+
+.fmc-light-mode .fmc-glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.fmc-dark-mode .fmc-glass-card {
+    background: rgba(var(--mud-palette-surface-rgb), 0.6);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.fmc-glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.fmc-card-label {
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+}
+
+.fmc-financial-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 950;
+    letter-spacing: -0.02em;
+}
+
+.fmc-card-icon-bg {
+    position: absolute;
+    right: -15px;
+    bottom: -15px;
+    font-size: 5rem !important;
+    opacity: 0.05;
+    transform: rotate(-10deg);
+}
+
+.fmc-card-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    opacity: 0.3;
+}
+
+.fmc-card-progress.primary { background: var(--mud-palette-primary); }
+.fmc-card-progress.success { background: var(--mud-palette-success); }
+.fmc-card-progress.info { background: var(--mud-palette-info); }
+.fmc-card-progress.warning { background: var(--mud-palette-warning); }
+
+/* Main Surface Panels - Slate 100 Institutional */
+.fmc-light-mode .fmc-main-surface { 
+    background-color: #f1f5f9 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+}
+
+.fmc-dark-mode .fmc-main-surface { 
+    background-color: var(--mud-palette-surface) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.fmc-main-surface {
+    border-radius: 24px;
+    height: 100% !important; /* Adapt to flex-stretch parent */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    transform: translateZ(0); /* Hardware acceleration to force border-radius clipping */
+    -webkit-mask-image: -webkit-radial-gradient(white, black); /* Forces webkit to clip scrollbars */
+}
+
+.fmc-header-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pending Queue Layout */
+/* Consolidated styles moved to bottom */
+
+.fmc-op-card { 
+    padding: 20px;
+    border-radius: 12px;
+    background: var(--mud-palette-surface); 
+    border: 1px solid var(--mud-palette-divider);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+}
+
+.fmc-light-mode .fmc-op-card {
+    background: rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
+.fmc-op-card.status-approved { border-left: 4px solid var(--mud-palette-success) !important; }
+.fmc-op-card.status-rejected { border-left: 4px solid var(--mud-palette-error) !important; }
+.fmc-op-card.status-pending { border-left: 4px solid var(--mud-palette-warning) !important; }
+.fmc-op-card.status-batch { border-left: 4px solid var(--mud-palette-info) !important; }
+
+.fmc-op-card:hover {
+    transform: scale(1.01);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* CUSTOM HIGH-FIDELITY TABS */
+.fmc-custom-tabs-header {
+    display: flex;
+    gap: 0px; /* Buttons will touch each other */
+    border-bottom: 1px solid var(--mud-palette-divider);
+    background: rgba(var(--mud-palette-primary-rgb), 0.02);
+    height: 48px;
+    flex: 0 0 48px;
+    width: 100%;
+}
+
+.fmc-tab-btn {
+    flex: 1;
+    height: 100%;
+    padding: 0 20px;
+    font-size: 0.72rem;
+    font-weight: 900;
+    color: var(--mud-palette-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    box-sizing: border-box;
+}
+
+.fmc-tab-btn:hover {
+    background: rgba(var(--mud-palette-primary-rgb), 0.04);
+    color: var(--mud-palette-primary);
+}
+
+.fmc-tab-btn.active {
+    color: var(--mud-palette-primary);
+    border-bottom-color: var(--mud-palette-primary);
+    background: rgba(var(--mud-palette-primary-rgb), 0.06);
+}
+
+.fmc-tab-content-root {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    border-bottom-left-radius: 24px !important;
+    border-bottom-right-radius: 24px !important;
+}
+
+.fmc-scroll-list {
+    flex: 1 !important;
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 16px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    text-align: left !important;
+    border-bottom-left-radius: 24px !important;
+    border-bottom-right-radius: 24px !important;
+}
+
+.fmc-scroll-list::-webkit-scrollbar { width: 6px; }
+.fmc-scroll-list::-webkit-scrollbar-thumb { background: var(--mud-palette-divider); border-radius: 3px; }
+.fmc-scroll-list::-webkit-scrollbar-thumb:hover { background: var(--mud-palette-text-secondary); }
+
+/* Enterprise Buttons - High-Fidelity Premium Overhaul */
+::deep .fmc-enterprise-btn {
+    border-radius: 12px !important;
+    height: 42px !important;
+    padding: 0 24px !important;
+    font-weight: 900 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    border: none !important;
+    color: white !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+::deep .fmc-enterprise-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    filter: contrast(1.1) brightness(1.1);
+}
+
+::deep .fmc-enterprise-btn:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+/* Credit Button: Radiant Azure Gradient */
+::deep .fmc-enterprise-btn.credit {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39) !important;
+}
+
+::deep .fmc-enterprise-btn.credit:hover {
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+}
+
+/* Debit Button: Premium Crimson Rose Gradient */
+::deep .fmc-enterprise-btn.debit {
+    background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(225, 29, 72, 0.35) !important;
+}
+
+::deep .fmc-enterprise-btn.debit:hover {
+    box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5) !important;
+}
+
+/* Bulk Button: Institutional Emerald Teal Gradient */
+::deep .fmc-enterprise-btn.bulk {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.35) !important;
+}
+
+::deep .fmc-enterprise-btn.bulk:hover {
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.5) !important;
+}
+
+/* Dark Mode Adjustments */
+.fmc-dark-mode ::deep .fmc-enterprise-btn {
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.fmc-dark-mode ::deep .fmc-enterprise-btn.credit {
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.25) !important;
+}
+
+.fmc-dark-mode ::deep .fmc-enterprise-btn.debit {
+    background: linear-gradient(135deg, #334155 0%, #0f172a 100%) !important;
+}
+
+.fmc-panel-container {
+    height: 820px !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    min-height: 0;
+}
+
+/* Global Override for Audit Log component to ensure parity */
+::deep .fmc-audit-surface {
+    height: 100% !important; /* Fill the constrained container height */
+    overflow: hidden !important;
+    transform: translateZ(0);
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+}
+
+.fmc-pending-paper {
+    height: 100% !important; /* Fill the constrained container height */
+}
+
+.fmc-operational-row {
+    height: auto !important; 
+}
+
+/* Flex Alignment Utilities */
+.fmc-flex-col-stretch { display: flex; flex-direction: column; }
+.fmc-flex-1 { flex: 1; }
+.fmc-overflow-hidden { overflow: hidden; }
+
+/* Specific Panel Overrides */
+.fmc-pending-paper { 
+    display: flex; 
+    flex-direction: column; 
+    flex: 1; 
+    overflow: hidden; 
+}
+
+.fmc-warning-icon-bg {
+    width: 44px;
+    height: 44px;
+    background: rgba(var(--mud-palette-warning-rgb), 0.1);
+}
+
+/* ── Premium Action Buttons (Batch: text + icon) ── */
+.fmc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+}
+
+.fmc-action-btn svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+}
+
+.fmc-action-btn.approve {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(22, 163, 74, 0.35);
+}
+
+.fmc-action-btn.approve:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(22, 163, 74, 0.45);
+}
+
+.fmc-action-btn.reject {
+    background: transparent;
+    color: #ef4444;
+    border: 1.5px solid rgba(239, 68, 68, 0.4);
+    box-shadow: none;
+}
+
+.fmc-action-btn.reject:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: #ef4444;
+    transform: translateY(-2px);
+}
+
+/* Full-width stretch for batch card buttons */
+.fmc-btn-full {
+    flex: 1;
+    justify-content: center;
+}
+
+/* ── Premium Icon-Only Action Buttons (Individual TX) ── */
+.fmc-icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.fmc-icon-action svg {
+    width: 13px;
+    height: 13px;
+}
+
+.fmc-icon-action.approve {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+}
+
+.fmc-icon-action.approve:hover {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
+    transform: scale(1.1);
+}
+
+.fmc-icon-action.reject {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+}
+
+.fmc-icon-action.reject:hover {
+    background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+    transform: scale(1.1);
+}
+
+/* ── Status Pills ── */
+.fmc-status-pill {
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+    padding: 3px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+}
+
+.fmc-status-pill.awaiting {
+    background: rgba(var(--mud-palette-warning-rgb), 0.12);
+    color: var(--mud-palette-warning);
+}
+
+.fmc-status-pill.pending {
+    background: rgba(var(--mud-palette-warning-rgb), 0.12);
+    color: var(--mud-palette-warning);
+}
+
+@@media (max-width: 960px) {
+    .fmc-operational-row {
+        height: auto !important;
+        flex-direction: column;
+    }
+    .fmc-panel-container {
+        height: auto !important;
+        max-height: 500px !important;
+    }
+    .fmc-scroll-list { 
+        max-height: 400px; 
+    }
+}
+
+/* ── Premium Skeleton Shimmer Loader ── */
+@@keyframes fmc-shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+
+.fmc-skeleton-list {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fmc-skeleton-card {
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 12px;
+    padding: 18px 20px;
+}
+
+.fmc-skel {
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        var(--mud-palette-divider) 25%,
+        rgba(var(--mud-palette-primary-rgb), 0.06) 50%,
+        var(--mud-palette-divider) 75%
+    );
+    background-size: 600px 100%;
+    animation: fmc-shimmer 1.6s ease-in-out infinite;
+}
+
+.fmc-skel-line  { height: 14px; }
+.fmc-skel-sm    { height: 10px; }
+.fmc-skel-btn   { height: 30px; flex: 1; border-radius: 8px; }
+.fmc-skel-chip  { height: 20px; width: 64px; border-radius: 20px; flex-shrink: 0; }

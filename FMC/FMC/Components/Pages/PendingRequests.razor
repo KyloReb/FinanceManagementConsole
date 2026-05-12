@@ -9,8 +9,10 @@
 @inject IReportService ReportGen
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject ThemeService ThemeService
 @attribute [Authorize(Roles = "SuperAdmin,CEO,Maker,Approver")]
 
+<div class="fmc-ops-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-12">
     <!-- Header Section -->
     <div class="d-flex align-center justify-space-between mb-8">
@@ -72,6 +74,7 @@
         </div>
     </div>
 </MudContainer>
+</div>
 
 @code {
     #region Render Fragments (UI Components)
@@ -293,14 +296,28 @@
 <style>
     /* Styling Definitions */
     :root { --fmc-font-premium: 'Inter', -apple-system, sans-serif; }
-    .fmc-integrated-ledger { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; background-color: var(--mud-palette-surface); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    /* Main Integrated Ledger Surfaces - Adaptive */
+    .fmc-light-mode .fmc-integrated-ledger { 
+        background-color: #f1f5f9 !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .fmc-dark-mode .fmc-integrated-ledger { 
+        background-color: var(--mud-palette-surface) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .fmc-integrated-ledger { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; background-color: var(--mud-palette-surface); }
+    
     .fmc-custom-tab-bar { display: flex; width: 100%; background: rgba(var(--mud-palette-primary-rgb), 0.04); height: 64px; border-bottom: 2px solid var(--mud-palette-divider); }
     .fmc-tab-btn { flex: 1; border: none; background: transparent; color: var(--mud-palette-text-secondary); font-weight: 900; font-size: 0.75rem; letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; border-right: 1px solid rgba(var(--mud-palette-divider-rgb), 0.1); outline: none; }
     .fmc-tab-btn:last-child { border-right: none; }
-    .fmc-tab-btn:hover { background: rgba(255,255,255,0.02); color: var(--mud-palette-text-primary); }
+    .fmc-tab-btn:hover { background: rgba(var(--mud-palette-primary-rgb), 0.02); color: var(--mud-palette-text-primary); }
     .fmc-tab-btn.active { color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.06); position: relative; }
     .fmc-tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: var(--mud-palette-primary); }
-    .fmc-tab-content { min-height: auto; }
+    .fmc-tab-content { min-height: auto; background: transparent !important; }
     
     /* Native Compact Range Picker */
     .fmc-compact-range-wrapper {
@@ -319,10 +336,13 @@
     }
     .fmc-range-divider { width: 1px; height: 24px; background: var(--mud-palette-divider); margin: 0 4px; }
     
-    .fmc-premium-table { padding-bottom: 8px; }
-    .fmc-premium-table .mud-table-head { background-color: transparent; }
-    .fmc-premium-table .mud-th { font-weight: 950 !important; color: var(--mud-palette-text-secondary); font-size: 0.65rem !important; letter-spacing: 0.12em; text-transform: uppercase; padding: 22px 24px !important; border-bottom: 2px solid var(--mud-palette-divider); }
-    .fmc-premium-table .mud-td { padding: 16px 24px !important; border-bottom: 1px solid var(--mud-palette-divider); }
+    .fmc-premium-table { padding-bottom: 8px; background: transparent !important; }
+    .fmc-premium-table .mud-table-head { background-color: transparent !important; }
+    .fmc-premium-table .mud-th { font-weight: 950 !important; color: var(--mud-palette-text-secondary); font-size: 0.65rem !important; letter-spacing: 0.12em; text-transform: uppercase; padding: 22px 24px !important; border-bottom: 2px solid var(--mud-palette-divider); background: transparent !important; }
+    .fmc-premium-table .mud-td { padding: 16px 24px !important; border-bottom: 1px solid var(--mud-palette-divider); background: transparent !important; }
+    
+    .fmc-light-mode .fmc-premium-table .mud-table-row { background-color: white !important; }
+    .fmc-dark-mode .fmc-premium-table .mud-table-row { background-color: var(--mud-palette-surface) !important; }
     .fmc-financial-mono { font-family: 'Roboto Mono', monospace; }
     .fmc-card-mono { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; background: rgba(var(--mud-palette-background-grey-rgb), 0.6); padding: 5px 10px; border-radius: 8px; opacity: 0.9; border: 1px solid var(--mud-palette-divider); color: var(--mud-palette-primary); }
     .fmc-empty-state { border: none; background: transparent !important; }

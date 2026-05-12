@@ -1,0 +1,145 @@
+
+/* EXECUTIVE THEME TOKENS */
+.fmc-header-accent { width: 6px; height: 54px; background: linear-gradient(to bottom, var(--mud-palette-primary), var(--mud-palette-info)); border-radius: 4px; }
+.fmc-hero-text { font-weight: 950; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); margin-bottom: -4px; }
+.fmc-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.7; font-weight: 500; }
+
+/* ── Root & Page Backgrounds ── */
+.fmc-ledger-root { min-height: 100vh; transition: background-color 0.3s ease; }
+
+/* ── Main Ledger Surfaces ── */
+.fmc-main-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; transition: all 0.3s ease; }
+
+.fmc-light-mode .fmc-main-surface { 
+    background-color: #f8fafc !important; 
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+}
+
+.fmc-dark-mode .fmc-main-surface { 
+    background-color: var(--mud-palette-surface) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ── Header Construction ── */
+.fmc-header-area { 
+    padding: 16px 24px; 
+    border-bottom: 1px solid var(--mud-palette-divider); 
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fmc-identity-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.fmc-identity-search {
+    flex: 1;
+    max-width: 450px;
+}
+
+.fmc-orchestration-row {
+    display: flex;
+    width: 100%;
+    gap: 12px;
+}
+
+.fmc-header-icon { 
+    width: 42px; height: 42px; 
+    background: rgba(var(--mud-palette-primary-rgb), 0.1); 
+    border-radius: 12px; display: flex; align-items: center; justify-content: center; 
+}
+
+/* ── Temporal Filter (Now Fluid) ── */
+.fmc-temporal-filter {
+    display: flex;
+    align-items: center;
+    background: rgba(var(--mud-palette-primary-rgb), 0.04);
+    border-radius: 10px;
+    padding: 4px;
+    border: 1px solid var(--mud-palette-divider);
+    flex: 1; /* Consumes equal space */
+}
+
+.fmc-date-group { display: flex; gap: 2px; background: rgba(0,0,0,0.06); padding: 2px; border-radius: 7px; }
+.fmc-dark-mode .fmc-date-group { background: rgba(255,255,255,0.06); }
+
+.fmc-date-btn {
+    padding: 4px 12px; border-radius: 5px; font-size: 0.6rem; font-weight: 950;
+    letter-spacing: 0.08em; color: var(--mud-palette-text-secondary);
+    transition: all 0.2s ease; border: none; background: transparent;
+}
+.fmc-date-btn.active { background: var(--mud-palette-primary); color: white; box-shadow: 0 2px 8px rgba(var(--mud-palette-primary-rgb), 0.3); }
+
+.fmc-date-input-box { display: flex; flex-direction: column; padding: 0 10px; }
+.fmc-date-label { font-size: 0.5rem; font-weight: 950; opacity: 0.6; letter-spacing: 0.1em; margin-bottom: -1px; }
+.fmc-raw-date { background: transparent; border: none; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 800; color: var(--mud-palette-text-primary); outline: none; cursor: pointer; }
+.fmc-date-sep { width: 1px; height: 20px; background: var(--mud-palette-divider); opacity: 0.5; }
+
+/* ── Premium Action Toolbar (Consumes equal space) ── */
+.fmc-action-toolbar {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+}
+
+.fmc-premium-action {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid var(--mud-palette-divider);
+    background: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+    font-size: 0.65rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.fmc-premium-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.fmc-premium-action.excel:hover { border-color: var(--mud-palette-success); color: var(--mud-palette-success); background: rgba(var(--mud-palette-success-rgb), 0.04); }
+.fmc-premium-action.pdf:hover { border-color: var(--mud-palette-error); color: var(--mud-palette-error); background: rgba(var(--mud-palette-error-rgb), 0.04); }
+
+/* ── Table & Forensic Typography ── */
+.fmc-premium-table .mud-th { 
+    font-weight: 950; color: var(--mud-palette-text-secondary); 
+    font-size: 0.6rem; letter-spacing: 0.1em; padding: 12px 20px; 
+    text-transform: uppercase; border-bottom: 2px solid rgba(0, 0, 0, 0.1); 
+    background: transparent !important; 
+}
+.fmc-premium-table .mud-td { padding: 10px 20px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); background: transparent !important; }
+
+.fmc-light-mode .fmc-premium-table .mud-table-row { background-color: white !important; }
+.fmc-dark-mode .fmc-premium-table .mud-table-row { background-color: var(--mud-palette-surface) !important; }
+
+.fmc-money { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums !important; letter-spacing: -0.05em !important; font-weight: 950 !important; }
+
+/* ── Status Pills ── */
+.fmc-status-badge {
+    display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 8px;
+    font-weight: 900; font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.fmc-status-badge.successful, .fmc-status-badge.approved { background: rgba(var(--mud-palette-success-rgb), 0.12); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
+.fmc-status-badge.pending { background: rgba(var(--mud-palette-warning-rgb), 0.12); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
+.fmc-status-badge.error, .fmc-status-badge.failed, .fmc-status-badge.rejected { background: rgba(var(--mud-palette-error-rgb), 0.12); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+    .fmc-identity-row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .fmc-identity-search { max-width: none; }
+    .fmc-orchestration-row { flex-direction: column; }
+    .fmc-action-toolbar { margin-left: 0 !important; }
+    .fmc-premium-action { padding: 12px; }
+}

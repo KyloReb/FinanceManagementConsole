@@ -6,12 +6,16 @@
 
 <style>
     .fmc-alert-surface { 
-        border-radius: 20px; border: 1px solid var(--mud-palette-divider); 
-        background: var(--mud-palette-surface); overflow: hidden;
+        border-radius: 20px; border: 1px solid rgba(0, 0, 0, 0.08); 
+        background: #f1f5f9; overflow: hidden;
         box-shadow: 0 4px 25px rgba(0,0,0,0.03); margin-bottom: 24px;
     }
+    .dark .fmc-alert-surface, :host-context(.dark) .fmc-alert-surface {
+        background: var(--mud-palette-surface);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
     .fmc-alert-header-area { 
-        padding: 16px 24px; background: var(--mud-palette-background-grey); 
+        padding: 16px 24px; background: transparent; 
         border-bottom: 1px solid var(--mud-palette-divider);
         display: flex; align-items: center; justify-content: space-between;
     }
@@ -60,7 +64,7 @@
                 </div>
                 <div>
                     <div class="d-flex align-center gap-1">
-                        <MudText Typo="Typo.subtitle1" Style="font-weight: 900; letter-spacing: -0.02em;">Intelligence Oversight</MudText>
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 500; letter-spacing: -0.01em;">Intelligence Oversight</MudText>
                         <MudIconButton Icon="@(_isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" 
                                        Size="Size.Small" OnClick="@(() => _isExpanded = !_isExpanded)" 
                                        Style="padding: 2px;" />

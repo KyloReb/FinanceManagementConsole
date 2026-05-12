@@ -3,60 +3,8 @@
 @using FMC.Components.Pages.Admin.Dialogs
 @attribute [Authorize]
 
-<style>
-    /* EXECUTIVE THEME TOKENS */
-    .fmc-header-accent { width: 6px; height: 54px; background: linear-gradient(to bottom, var(--mud-palette-primary), var(--mud-palette-info)); border-radius: 4px; }
-    .fmc-hero-text { font-weight: 950; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); margin-bottom: -4px; }
-    .fmc-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.7; font-weight: 500; }
-    
-    /* FISCAL TELEMETRY GLASS CARDS */
-    .fmc-glass-card {
-        padding: 24px; border-radius: 20px; background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider); position: relative; overflow: hidden;
-        transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-    }
-    .fmc-glass-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-    .fmc-glass-card.success { border-top: 4px solid var(--mud-palette-success); }
-    .fmc-glass-card.error { border-top: 4px solid var(--mud-palette-error); }
-    .fmc-glass-card.info { border-top: 4px solid var(--mud-palette-info); }
-    
-    .fmc-card-label { letter-spacing: 0.12em; opacity: 0.5; font-weight: 950; font-size: 0.65rem; }
-    .fmc-card-icon-bg { position: absolute; right: -12px; bottom: -12px; opacity: 0.05; font-size: 5rem !important; transform: rotate(-10deg); }
-
-    /* REPOSITORY SURFACE */
-    .fmc-main-surface { border-radius: 24px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 4px 25px rgba(0,0,0,0.02); }
-    .fmc-header-area { padding: 24px 32px; background: var(--mud-palette-background-grey); border-bottom: 1px solid var(--mud-palette-divider); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-    .fmc-header-icon { width: 42px; height: 42px; background: rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
-
-    .fmc-premium-table .mud-th { font-weight: 950; color: var(--mud-palette-text-secondary); font-size: 0.65rem; letter-spacing: 0.1em; padding: 20px 24px; text-transform: uppercase; border-bottom: 2px solid var(--mud-palette-divider); }
-    .fmc-premium-table .mud-td { padding: 18px 24px; border-bottom: 1px solid var(--mud-palette-divider); }
-    
-    .fmc-control-orchestrator { display: flex; align-items: center; gap: 12px; }
-    .fmc-search-box .mud-input-outlined { border-radius: 12px; background: var(--mud-palette-surface); }
-    
-    /* STATUS BADGES */
-    .fmc-status-badge {
-        display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 8px;
-        font-weight: 850; font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;
-    }
-    .fmc-status-badge.successful { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
-    .fmc-status-badge.approved { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
-    .fmc-status-badge.pending { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
-    .fmc-status-badge.error { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
-    .fmc-status-badge.failed { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
-    .fmc-status-badge.rejected { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
-    .fmc-status-badge.mixed { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); border: 1px solid rgba(var(--mud-palette-info-rgb), 0.2); }
-    
-    /* FIN typography */
-    .fmc-money { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums !important; letter-spacing: -0.05em !important; font-weight: 950 !important; }
-
-    @@media (max-width: 600px) {
-        .fmc-hero-text { font-size: 1.8rem !important; }
-        .fmc-header-area { flex-direction: column; align-items: stretch; }
-        .fmc-control-orchestrator { flex-direction: column-reverse; align-items: stretch; }
-    }
-</style>
-
+@inject ThemeService ThemeService
+<div class="fmc-ledger-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
     @* EXECUTIVE HERO HEADER *@
     <div class="d-flex align-center justify-space-between mb-8">
@@ -69,84 +17,146 @@
         </div>
     </div>
 
-    @* HIGH-FIDELITY LEDGER TABLE *@
     <MudPaper Elevation="0" Class="fmc-main-surface">
         <div class="fmc-header-area">
-             <div class="d-flex align-center">
-                <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.HistoryEdu" Color="Color.Primary" /></div>
-                <div>
-                    <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Forensic Settlement History</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Authorized audit stream of financial adjustments</MudText>
+            @* TOP TIER: IDENTITY & SEARCH *@
+            <div class="fmc-identity-row mb-3">
+                 <div class="d-flex align-center">
+                    <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.HistoryEdu" Color="Color.Primary" /></div>
+                    <div class="mr-6">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Forensic Settlement History</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Authorized audit stream of financial adjustments</MudText>
+                    </div>
                 </div>
-            </div>
-            <div class="fmc-control-orchestrator">
-                <div class="fmc-suite-element ml-auto mr-4 d-none d-md-flex gap-2">
-                    <MudTooltip Text="Export to Microsoft Excel">
-                        <MudIconButton Icon="@Icons.Custom.FileFormats.FileExcel" Color="Color.Success" Variant="Variant.Outlined" OnClick="ExportExcel" Style="border-radius:10px;" />
-                    </MudTooltip>
-                    <MudTooltip Text="Generate PDF Ledger">
-                        <MudIconButton Icon="@Icons.Custom.FileFormats.FilePdf" Color="Color.Error" Variant="Variant.Outlined" OnClick="ExportPdf" Style="border-radius:10px;" />
-                    </MudTooltip>
-                </div>
-                <div class="fmc-suite-element fmc-search-box" style="flex: 1;">
+
+                <div class="fmc-identity-search ml-auto" style="min-width: 320px;">
                     <MudTextField @bind-Value="_searchString" 
                                   Placeholder="Filter settlement records..." 
                                   Adornment="Adornment.Start" 
                                   AdornmentIcon="@Icons.Material.Filled.Search" 
                                   Variant="Variant.Outlined" 
-                                  Margin="Margin.None" />
+                                  Margin="Margin.Dense" />
+                </div>
+            </div>
+
+            @* BOTTOM TIER: ORCHESTRATION (DATES & EXPORTS) *@
+            <div class="fmc-orchestration-row">
+                <div class="fmc-temporal-filter">
+                    <div class="fmc-date-group mr-3">
+                        <button class="fmc-date-btn @(_activeDateRange == "all" ? "active" : "")" @onclick='() => SetQuickDate("all")'>ALL</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "today" ? "active" : "")" @onclick='() => SetQuickDate("today")'>TODAY</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "7d" ? "active" : "")" @onclick='() => SetQuickDate("7d")'>7D</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "30d" ? "active" : "")" @onclick='() => SetQuickDate("30d")'>30D</button>
+                    </div>
+                    <div class="fmc-custom-date-wrap d-none d-lg-flex align-center gap-2">
+                        <div class="fmc-date-input-box">
+                            <span class="fmc-date-label">STARTING PERIOD</span>
+                            <input type="date" value="@(_startDate?.ToString("yyyy-MM-dd"))" @onchange='(e) => UpdateDate(e, true)' class="fmc-raw-date" />
+                        </div>
+                        <div class="fmc-date-sep"></div>
+                        <div class="fmc-date-input-box">
+                            <span class="fmc-date-label">ENDING PERIOD</span>
+                            <input type="date" value="@(_endDate?.ToString("yyyy-MM-dd"))" @onchange='(e) => UpdateDate(e, false)' class="fmc-raw-date" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fmc-action-toolbar ml-3">
+                    <button class="fmc-premium-action excel" @onclick="ExportExcel">
+                        <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Size="Size.Small" Class="mr-2" />
+                        <span>XLS EXPORT</span>
+                    </button>
+                    <button class="fmc-premium-action pdf" @onclick="ExportPdf">
+                        <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" Class="mr-2" />
+                        <span>PDF AUDIT</span>
+                    </button>
                 </div>
             </div>
         </div>
 
         <MudTable Items="@_transactions" Hover="true" Elevation="0" Loading="@_loading" 
-                 OnRowClick="OnRowClick" T="TransactionDto"
+                 OnRowClick="OnRowClick" T="TransactionDto" 
+                 RowClassFunc="@((item, idx) => $"fmc-row-hover {(item.Amount > 0 ? "credit" : "debit")}")"
                  Filter="new Func<TransactionDto,bool>(FilterFunc1)" Class="fmc-premium-table">
+            <LoadingContent>
+                @for (int i = 0; i < 8; i++)
+                {
+                    <div class="d-flex align-center pa-4 px-6" style="border-bottom: 1px solid var(--mud-palette-divider); gap: 24px;">
+                        <div style="flex:1;" class="d-flex align-center gap-3">
+                            <div class="fmc-skel" style="width:4px; height:24px;"></div>
+                            <div style="flex:1;">
+                                <div class="fmc-skel fmc-skel-line mb-2" style="width:70%;"></div>
+                                <div class="fmc-skel fmc-skel-line" style="width:40%;"></div>
+                            </div>
+                        </div>
+                        <div style="flex:1;">
+                            <div class="fmc-skel fmc-skel-line mb-2" style="width:80%;"></div>
+                            <div class="fmc-skel fmc-skel-line" style="width:50%;"></div>
+                        </div>
+                        <div style="flex:1;" class="d-flex justify-center">
+                            <div class="fmc-skel fmc-skel-pill"></div>
+                        </div>
+                        <div style="flex:1;" class="d-flex justify-center">
+                            <div class="fmc-skel fmc-skel-pill"></div>
+                        </div>
+                        <div style="flex:1;" class="text-right">
+                            <div class="fmc-skel fmc-skel-line ml-auto" style="width:80px; height: 18px;"></div>
+                        </div>
+                    </div>
+                }
+            </LoadingContent>
             <HeaderContent>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Date)">TIMESTAMP</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Subscriber)">SUBSCRIBER</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Subscriber)">SUBSCRIBER / BATCH</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Category)">CATEGORY</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align:center;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Status)">STATUS</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align:right;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Amount)">AMOUNT</MudTableSortLabel></MudTh>
-                <MudTh Style="text-align:right;">ACTION</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>
-                    <div class="d-flex flex-column">
-                        <MudText Typo="Typo.body2" Style="font-weight:800;">@context!.Date.ToString("MMM dd, yyyy")</MudText>
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@context!.Date.ToString("HH:mm:ss")</MudText>
+                    <div class="d-flex align-center gap-3">
+                        <div class="fmc-ledger-bar" style="background: var(--mud-palette-divider);"></div>
+                        <div class="d-flex flex-column">
+                            <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@context!.Date.ToLocalTime().ToString("MMM dd, yyyy")</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@context!.Date.ToLocalTime().ToString("HH:mm:ss")</MudText>
+                        </div>
                     </div>
                 </MudTd>
                 <MudTd>
                     <div class="d-flex flex-column">
-                        <MudText Typo="Typo.body2" Style="font-weight:700;">@context!.Subscriber</MudText>
+                        <div class="d-flex align-center gap-2">
+                            @if (context.SubTransactions?.Any() == true || context.AccountNumber == "BATCH_SUMMARY")
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Color="Color.Info" Style="font-size: 1rem;" />
+                            }
+                            <MudText Typo="Typo.body2" Style="font-weight:900;">@context!.Subscriber</MudText>
+                        </div>
                         @if (!string.IsNullOrEmpty(context.AccountNumber))
                         {
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetMaskedAccount(context.AccountNumber)</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;">
+                                @(context.AccountNumber == "BATCH_SUMMARY" ? "BATCH FORENSIC SUMMARY" : GetMaskedAccount(context.AccountNumber))
+                            </MudText>
                         }
                     </div>
                 </MudTd>
                 <MudTd>
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" Style="font-weight: 800; font-size: 0.65rem;">
+                    <span class="fmc-status-badge mixed" style="font-size: 0.6rem; padding: 2px 8px; border-radius: 4px;">
                         @context!.Category.ToUpper()
-                    </MudChip>
+                    </span>
                 </MudTd>
                 <MudTd>
                     <div class="d-flex justify-center">
                         <div class="fmc-status-badge @(context!.Status.ToLower())">
-                            <MudIcon Icon="@GetStatusIcon(context!.Status)" Size="Size.Small" Class="mr-1" Style="font-size: 0.9rem;" />
+                            <MudIcon Icon="@GetStatusIcon(context!.Status)" Size="Size.Small" Class="mr-1" Style="font-size: 0.85rem;" />
                             <span>@context.Status.ToUpper()</span>
                         </div>
                     </div>
                 </MudTd>
                 <MudTd Style="text-align:right">
                     <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)" 
-                             Class="fmc-money" Style="font-size: 1.1rem;">
+                             Class="fmc-money" Style="font-size: 1.15rem; letter-spacing: -0.04em;">
                         @(context!.Amount > 0 ? "+" : "")@context!.Amount.ToString("C2")
                     </MudText>
-                </MudTd>
-                <MudTd Style="text-align:right">
-                    <MudIconButton Icon="@Icons.Material.Filled.History" Color="Color.Default" Size="Size.Small" />
                 </MudTd>
             </RowTemplate>
             <PagerContent>
@@ -155,6 +165,7 @@
         </MudTable>
     </MudPaper>
 </MudContainer>
+</div>
 
 @code {
     private List<TransactionDto> _transactions = new();
@@ -183,41 +194,58 @@
             var raw = await FinanceService.GetRecentTransactionsAsync(200);
             
             // ── AGGREGATION LOGIC ──
-            // If BatchId exists and has multiple items, group them as a single "Bulk" entry
+            // We group by BatchId if available. 
+            // If BatchId is missing but the Category is "Bulk Allotment" and timestamps match, we also group them.
             var processed = new List<TransactionDto>();
-            var batches = raw.Where(t => t.BatchId.HasValue && t.BatchId != Guid.Empty)
-                            .GroupBy(t => t.BatchId!.Value);
-            
-            var individuals = raw.Where(t => !t.BatchId.HasValue || t.BatchId == Guid.Empty);
-            
-            foreach (var batch in batches)
+
+            var bulkGroups = raw
+                .Where(t => (t.BatchId.HasValue && t.BatchId != Guid.Empty) || t.Category.Equals("Bulk Allotment", StringComparison.OrdinalIgnoreCase))
+                .GroupBy(t => new { 
+                    BatchId = t.BatchId ?? Guid.Empty, 
+                    t.Date,
+                    IsBulk = t.Category.Equals("Bulk Allotment", StringComparison.OrdinalIgnoreCase)
+                });
+
+            var individuals = raw.Where(t => !t.BatchId.HasValue && !t.Category.Equals("Bulk Allotment", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var group in bulkGroups)
             {
-                if (batch.Count() > 1)
+                var rep = group.OrderByDescending(x => x.Date).First();
+                var count = group.Count();
+                var allStatuses = group.Select(b => b.Status).Distinct().ToList();
+                var batchStatus = allStatuses.Count == 1
+                    ? allStatuses[0]
+                    : group.All(b => b.Status == "Approved") ? "Approved"
+                    : group.All(b => b.Status == "Rejected") ? "Rejected"
+                    : group.Any(b => b.Status == "Pending")  ? "Pending"
+                    : "Mixed";
+
+                processed.Add(new TransactionDto
                 {
-                    var rep = batch.First();
-                    processed.Add(new TransactionDto
-                    {
-                        Id = Guid.Empty, // Synthetic ID for UI
-                        BatchId = rep.BatchId,
-                        Date = batch.Max(x => x.Date),
-                        Amount = batch.Sum(x => x.Amount),
-                        Category = "BULK ALLOTMENT",
-                        Subscriber = $"Multiple Subscribers ({batch.Count()} items)",
-                        Label = rep.Label,
-                        Status = batch.All(b => b.Status == "Approved") ? "Approved" : 
-                                 batch.All(b => b.Status == "Rejected") ? "Rejected" : "Mixed",
-                        OrganizationId = rep.OrganizationId,
-                        AccountNumber = "BATCH_SUMMARY"
-                    });
-                }
-                else
-                {
-                    processed.Add(batch.First());
-                }
+                    Id             = rep.Id,
+                    BatchId        = rep.BatchId,
+                    Date           = group.Key.Date,
+                    Amount         = group.Sum(x => x.Amount),
+                    Category       = "Bulk Allotment",
+                    Subscriber     = count == 1 && string.IsNullOrEmpty(rep.Subscriber) == false
+                                        ? $"{rep.Subscriber} (Bulk)"
+                                        : $"{count} Cardholders (Bulk)",
+                    Label          = rep.Label,
+                    MakerName      = rep.MakerName,
+                    MakerId        = rep.MakerId,
+                    ApproverName   = rep.ApproverName,
+                    Status         = batchStatus,
+                    OrganizationId = rep.OrganizationId,
+                    AccountNumber  = "BATCH_SUMMARY",
+                    SubTransactions = group.ToList()
+                });
             }
-            
+
             processed.AddRange(individuals);
             _transactions = processed.OrderByDescending(t => t.Date).ToList();
+            
+            // Initial filter application
+            ApplyTemporalFilter();
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
@@ -238,7 +266,66 @@
         _selectedItem = item;
     }
 
-    private bool FilterFunc1(TransactionDto? transaction) => transaction != null && FilterFunc(transaction, _searchString);
+    private string _activeDateRange = "all";
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private List<TransactionDto> _allTransactions = new();
+
+    private void SetQuickDate(string range)
+    {
+        _activeDateRange = range;
+        var today = DateTime.Today;
+        
+        switch (range)
+        {
+            case "today":
+                _startDate = today;
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            case "7d":
+                _startDate = today.AddDays(-7);
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            case "30d":
+                _startDate = today.AddDays(-30);
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            default:
+                _startDate = null;
+                _endDate = null;
+                break;
+        }
+        ApplyTemporalFilter();
+    }
+
+    private void UpdateDate(ChangeEventArgs e, bool isStart)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            if (isStart) _startDate = dt;
+            else _endDate = dt.AddDays(1).AddTicks(-1);
+            _activeDateRange = "custom";
+            ApplyTemporalFilter();
+        }
+    }
+
+    private void ApplyTemporalFilter()
+    {
+        // This is called after LoadTransactions to populate the table
+        // For a true "Choose date" feature, we filter the _transactions list
+        // Note: In a real app, you'd ideally call the API with these dates.
+    }
+
+    private bool FilterFunc1(TransactionDto? transaction) 
+    {
+        if (transaction == null) return false;
+        
+        // Date Range Filtering
+        if (_startDate.HasValue && transaction.Date < _startDate.Value) return false;
+        if (_endDate.HasValue && transaction.Date > _endDate.Value) return false;
+
+        return FilterFunc(transaction, _searchString);
+    }
 
     private bool FilterFunc(TransactionDto transaction, string searchString)
     {

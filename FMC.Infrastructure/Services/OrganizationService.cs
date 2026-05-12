@@ -769,6 +769,43 @@ public class OrganizationService : IOrganizationService
         await _repository.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    /// <inheritdoc />
+    public async Task<bool> CancelBatchAsync(Guid batchId, string makerId, CancellationToken cancellationToken = default)
+    {
+        var transactions = await _repository.GetTransactionsByBatchIdAsync(batchId, cancellationToken);
+        var pendingTransactions = transactions.Where(t => t.Status == "Pending").ToList();
+
+        if (!pendingTransactions.Any()) return false;
+
+        decimal totalAmount = 0;
+        var orgId = pendingTransactions.First().OrganizationId ?? Guid.Empty;
+
+        foreach (var tx in pendingTransactions)
+        {
+            // Only the original Maker can cancel their own pending request
+            if (tx.MakerId != makerId) continue;
+
+            tx.Status = "Cancelled";
+            tx.ActionDate = DateTime.UtcNow;
+            totalAmount += tx.Amount;
+        }
+
+        await _auditService.RecordFinancialEventAsync(
+            "BATCH_CANCELLED", 
+            orgId, 
+            $"{pendingTransactions.Count} Cardholders (Bulk)", 
+            Math.Abs(totalAmount), 
+            "Batch Cancelled by Maker", 
+            makerId,
+            null,
+            orgId.ToString()
+        );
+
+        await _repository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     /// <inheritdoc />
     public async Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, CancellationToken cancellationToken = default)
     {

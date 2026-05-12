@@ -14,7 +14,9 @@
 @inject OrganizationApiService OrgService
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
+@inject ThemeService ThemeService
 
+<div class="fmc-dashboard-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
     <AuthorizeView Roles="@(Roles.SuperAdmin + "," + Roles.CEO)">
         <Authorized>
@@ -107,6 +109,12 @@
                     }
                 </MudItem>
             </MudGrid>
+            @* ── INTELLIGENCE OVERSIGHT (Full Width) ── *@
+            <MudGrid Class="mb-4">
+                <MudItem xs="12">
+                    <WorkflowAlertPanel Loading="_loading" IsCeo="@context.User.IsInRole(Roles.CEO)" />
+                </MudItem>
+            </MudGrid>
             @* ── ROW 1: PRIMARY OPERATIONAL CENTER (Repository & Audit) ── *@
             <MudGrid Spacing="4">
                 @* ── LEFT: REPOSITORY & ANALYTICS (8/12) ── *@
@@ -166,8 +174,28 @@
 
                             @if (_auditLoading)
                             {
-                                <div class="d-flex justify-center pa-10">
-                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                                <div class="fmc-wallet-skel-list">
+                                    @for (int i = 0; i < 3; i++)
+                                    {
+                                        <div class="fmc-wallet-skel-card">
+                                            <div class="d-flex align-center justify-space-between mb-4">
+                                                <div class="d-flex align-center gap-3" style="flex:1;">
+                                                    <div class="fmc-wallet-skel fmc-wallet-skel-avatar"></div>
+                                                    <div style="flex:1;">
+                                                        <div class="fmc-wallet-skel fmc-wallet-skel-line" style="width:55%; margin-bottom:8px;"></div>
+                                                        <div class="fmc-wallet-skel fmc-wallet-skel-line fmc-wallet-skel-sm" style="width:30%;"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="fmc-wallet-skel fmc-wallet-skel-pct"></div>
+                                            </div>
+                                            <div class="fmc-wallet-skel fmc-wallet-skel-bar mb-3"></div>
+                                            <div class="d-flex justify-space-between">
+                                                <div class="fmc-wallet-skel fmc-wallet-skel-line fmc-wallet-skel-sm" style="width:22%;"></div>
+                                                <div class="fmc-wallet-skel fmc-wallet-skel-line fmc-wallet-skel-sm" style="width:22%;"></div>
+                                                <div class="fmc-wallet-skel fmc-wallet-skel-line fmc-wallet-skel-sm" style="width:22%;"></div>
+                                            </div>
+                                        </div>
+                                    }
                                 </div>
                             }
                             else if (GetFilteredSubscribers().Any())
@@ -484,8 +512,24 @@
                         <div class="fmc-audit-scroll-area">
                             @if (_auditLoading)
                             {
-                                <div class="d-flex justify-center pa-8">
-                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" StrokeWidth="4" />
+                                <div class="fmc-audit-skel-list">
+                                    @for (int i = 0; i < 6; i++)
+                                    {
+                                        <div class="fmc-audit-skel-item">
+                                            <div class="fmc-audit-skel-indicator"></div>
+                                            <div class="fmc-audit-skel-body">
+                                                <div class="d-flex justify-space-between align-center mb-2">
+                                                    <div class="fmc-audit-skel fmc-audit-skel-amt"></div>
+                                                    <div class="fmc-audit-skel fmc-audit-skel-badge"></div>
+                                                </div>
+                                                <div class="fmc-audit-skel fmc-audit-skel-entity mb-2"></div>
+                                                <div class="d-flex justify-space-between">
+                                                    <div class="fmc-audit-skel fmc-audit-skel-meta" style="width: 30%;"></div>
+                                                    <div class="fmc-audit-skel fmc-audit-skel-meta" style="width: 22%;"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
                                 </div>
                             }
                             else if (!_allAuditLogs.Any())
@@ -508,7 +552,10 @@
                                         var clr = isCredit ? "credit" : isDebit ? "debit" : act.Contains("LOGIN") ? "info" : "warning";
                                         
                                         var localTime = log.CreatedAt.ToLocalTime();
-                                        <div class="fmc-audit-item @clr">
+                                        var capturedLog = log;
+                                        <div class="fmc-audit-item @clr fmc-audit-item-clickable"
+                                             @onclick="@(() => OpenAuditLogDialog(capturedLog))"
+                                             title="Click to view full details">
                                             <div class="fmc-audit-indicator"></div>
                                             <div class="fmc-audit-body-content">
                                                 <div class="d-flex justify-space-between align-center mb-1">
@@ -651,6 +698,7 @@
 
     </AuthorizeView>
 </MudContainer>
+</div>
 
 @code {
     #region ── UI State & Data ──
@@ -794,6 +842,19 @@
         {
             await RefreshDashboard();
         }
+    }
+
+    private async Task OpenAuditLogDialog(AuditLogDto log)
+    {
+        var parameters = new DialogParameters { ["Log"] = log };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<FMC.Components.Pages.Admin.Dialogs.AuditDetailDialog>("Forensic Event Trace", parameters, options);
     }
 
     private void OnGaugeScrub(ChangeEventArgs e, Guid orgId, decimal totalBalance)

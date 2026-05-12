@@ -118,15 +118,25 @@ public class SubmitBulkTransactionCommandHandler : IRequestHandler<SubmitBulkTra
                 request.IsCredit,
                 sampleRows), cancellationToken);
                 
-            // 6. Record consolidated audit trail for batch initiation
+            // 6. Record consolidated audit trail for batch initiation with structured JSON breakdown
+            var batchDetails = new {
+                OrganizationId = request.OrganizationId,
+                MakerName = request.MakerName,
+                TotalAmount = totalAmount,
+                ItemCount = submitted,
+                IsCredit = request.IsCredit,
+                Items = sampleRows.Select(r => new { r.CardNumber, r.Amount, r.Subscriber })
+            };
+            var jsonBreakdown = System.Text.Json.JsonSerializer.Serialize(batchDetails);
+
             await _auditService.RecordFinancialEventAsync(
                 "BATCH_SUBMITTED", 
                 request.OrganizationId, 
                 $"{submitted} Cardholders (Bulk)", 
                 totalAmount, 
                 $"Bulk {(request.IsCredit ? "Credit" : "Debit")} Allotment Initiation", 
-                request.MakerId, 
-                request.MakerName, 
+                request.MakerName, // Operator Name
+                jsonBreakdown,     // Structured JSON Payload
                 request.OrganizationId.ToString());
         }
 

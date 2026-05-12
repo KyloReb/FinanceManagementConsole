@@ -241,6 +241,16 @@ public class OrganizationApiService
         return response.IsSuccessStatusCode;
     }
 
+    /// <summary>
+    /// Maker Endpoint: Cancels an entire pending batch initiated by the current user.
+    /// </summary>
+    public async Task<bool> CancelBatchAsync(Guid batchId)
+    {
+        var response = await _httpClient.DeleteAsync($"api/users/transactions/batch/{batchId}/cancel");
+        if (response.IsSuccessStatusCode) NotifyDataChanged();
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<List<FMC.Shared.DTOs.BulkTransactionRowDto>> ParseExcelCardholderFileAsync(Guid orgId, Stream fileStream)
     {
         using var content = new MultipartFormDataContent();

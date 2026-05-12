@@ -1,0 +1,307 @@
+/* Isolated CSS for Accounts.razor */
+
+/* Variables scoped to this component */
+.fmc-acc-table-container {
+    --fmc-accent-premium: #4f46e5;
+    --fmc-accent-staff: #6366f1; /* More institutional indigo */
+    --fmc-accent-success: #10b981;
+}
+
+.fmc-acc-header { 
+    display: flex !important; 
+    align-items: center !important; 
+    justify-content: space-between !important; 
+    width: 100%;
+}
+
+.fmc-acc-bar { 
+    width: 6px; 
+    height: 54px; 
+    background: linear-gradient(to bottom, #4f46e5, #e11d48); 
+    border-radius: 4px; 
+}
+
+.fmc-acc-hero-text { 
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 900; 
+    letter-spacing: -0.05em; 
+    color: var(--mud-palette-text-primary); 
+    font-size: 2.75rem; 
+}
+
+.fmc-acc-subtitle { 
+    color: var(--mud-palette-text-secondary); 
+    opacity: 0.7; 
+    font-weight: 600; 
+    margin-top: -4px; 
+}
+
+::deep .fmc-acc-action-btn { 
+    border-radius: 10px !important; 
+    text-transform: uppercase !important; 
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 950 !important; 
+    font-size: 0.7rem !important;
+    letter-spacing: 0.15em !important;
+    padding: 14px 32px !important; 
+    background-color: #0f172a !important; /* High-contrast Midnight Slate */
+    color: white !important; 
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+::deep .fmc-acc-action-btn:hover {
+    transform: translateY(-1px);
+    background-color: #1e293b !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Glass KPI Cards */
+.fmc-acc-glass-card {
+    padding: 24px; border-radius: 28px; background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-divider); position: relative; overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.01);
+}
+.fmc-acc-glass-card:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,0,0,0.06); border-color: #4f46e5; }
+.fmc-acc-card-label { letter-spacing: 0.15em; opacity: 0.6; font-weight: 900; font-size: 0.65rem; text-transform: uppercase; margin-bottom: 8px; }
+.fmc-acc-kpi-val { font-weight: 950; letter-spacing: -0.03em; line-height:1; font-family: 'Roboto Mono', monospace; }
+.fmc-acc-card-icon { position: absolute; right: -10px; bottom: -10px; opacity: 0.05; font-size: 6rem !important; }
+
+.fmc-acc-glass-card.accent-premium { border-left: 6px solid #4f46e5; }
+.fmc-acc-glass-card.accent-administrative { border-left: 6px solid #8b5cf6; } 
+.fmc-acc-glass-card.accent-staff { border-left: 6px solid #e11d48; }
+
+/* Main Account Surfaces - Adaptive */
+.fmc-light-mode ::deep .fmc-acc-surface {
+    background-color: #f1f5f9 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+}
+
+.fmc-dark-mode ::deep .fmc-acc-surface {
+    background-color: var(--mud-palette-surface) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.fmc-acc-surface { width: 100%; }
+
+/* Matrix Header Backgrounds - Transparent to show panel theme */
+.fmc-staff-surface, .fmc-cardholder-surface { 
+    background: transparent !important; 
+    border-bottom: 1px solid var(--mud-palette-divider) !important;
+}
+
+/* Deep overrides for MudTable internals */
+::deep .fmc-acc-table { width: 100% !important; background: transparent !important; }
+
+/* Table Rows - Transparent for Minimalism */
+.fmc-light-mode ::deep .fmc-acc-table .mud-table-row {
+    background-color: transparent !important;
+}
+.fmc-dark-mode ::deep .fmc-acc-table .mud-table-row {
+    background-color: transparent !important;
+}
+
+/* Premium Matrix Overhaul */
+.fmc-staff-surface {
+    background: rgba(var(--mud-palette-surface-rgb), 0.3) !important;
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--mud-palette-divider) !important;
+    padding: 20px 24px !important;
+}
+
+::deep .fmc-acc-table {
+    background: transparent !important;
+}
+
+::deep .fmc-th {
+    font-family: 'Outfit', sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 0.65rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em !important;
+    color: var(--mud-palette-text-secondary) !important;
+    padding: 20px 24px !important;
+    border-bottom: 1px solid var(--mud-palette-divider) !important;
+    background: rgba(var(--mud-palette-surface-rgb), 0.2) !important;
+}
+
+::deep .mud-table-row {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-bottom: 1px solid rgba(var(--mud-palette-divider-rgb), 0.5) !important;
+}
+
+::deep .mud-table-row:hover {
+    background-color: rgba(var(--mud-palette-primary-rgb), 0.04) !important;
+    transform: translateX(4px);
+}
+
+/* Staff Identity Hierarchy */
+::deep .fmc-staff-name {
+    font-weight: 800 !important;
+    letter-spacing: -0.01em;
+    color: var(--mud-palette-text-primary);
+}
+
+::deep .fmc-staff-email {
+    font-weight: 600 !important;
+    opacity: 0.5;
+    font-size: 0.75rem !important;
+}
+
+/* Organization Hierarchy */
+::deep .fmc-org-name {
+    font-weight: 700 !important;
+    color: var(--mud-palette-text-primary);
+}
+
+::deep .fmc-org-sub {
+    font-weight: 700 !important;
+    opacity: 0.4;
+    text-transform: uppercase;
+    font-size: 0.6rem !important;
+    letter-spacing: 0.05em;
+}
+
+/* Premium Role Pill Styles */
+::deep .fmc-role-tag {
+    padding: 4px 14px !important;
+    border-radius: 20px !important;
+    font-size: 0.625rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.06em !important;
+    border: 1px solid transparent !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+::deep .fmc-role-tag.admin { 
+    background: rgba(239, 68, 68, 0.1) !important; 
+    color: #ef4444 !important; 
+    border-color: rgba(239, 68, 68, 0.2) !important; 
+}
+::deep .fmc-role-tag.ceo { 
+    background: rgba(99, 102, 241, 0.1) !important; 
+    color: #818cf8 !important; 
+    border-color: rgba(99, 102, 241, 0.2) !important; 
+}
+::deep .fmc-role-tag.maker { 
+    background: rgba(245, 158, 11, 0.1) !important; 
+    color: #fbbf24 !important; 
+    border-color: rgba(245, 158, 11, 0.2) !important; 
+}
+::deep .fmc-role-tag.approver { 
+    background: rgba(16, 185, 129, 0.1) !important; 
+    color: #34d399 !important; 
+    border-color: rgba(16, 185, 129, 0.2) !important; 
+}
+
+/* Search Bar Premium Overhaul */
+::deep .fmc-acc-input .mud-input-outlined {
+    border-radius: 14px !important;
+    background: rgba(var(--mud-palette-surface-rgb), 0.5) !important;
+    transition: all 0.2s ease !important;
+}
+
+::deep .fmc-acc-input .mud-input-outlined:focus-within {
+    background: var(--mud-palette-surface) !important;
+    box-shadow: 0 0 0 4px rgba(var(--mud-palette-primary-rgb), 0.1) !important;
+}
+
+/* Adjustment & Staff Icons Hover Premium */
+::deep .fmc-adj-btn {
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    padding: 8px !important;
+    border-radius: 12px !important;
+    background: transparent !important;
+}
+
+::deep .fmc-adj-btn:hover {
+    transform: scale(1.2) translateY(-2px);
+    background: rgba(var(--mud-palette-primary-rgb), 0.08) !important;
+}
+
+::deep .fmc-adj-btn.credit { color: #3b82f6 !important; }
+::deep .fmc-adj-btn.debit { color: #f43f5e !important; }
+::deep .fmc-adj-btn.staff-edit { color: #6366f1 !important; }
+::deep .fmc-adj-btn.staff-delete { color: #ef4444 !important; }
+
+::deep .fmc-adj-btn.credit:hover { filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.4)); }
+::deep .fmc-adj-btn.debit:hover { filter: drop-shadow(0 0 8px rgba(225, 29, 72, 0.4)); }
+::deep .fmc-adj-btn.staff-edit:hover { filter: drop-shadow(0 0 8px rgba(79, 70, 229, 0.4)); }
+::deep .fmc-adj-btn.staff-delete:hover { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.4)); }
+
+/* Global Row Utility */
+::deep .fmc-row-hidden { display: none !important; }
+
+/* Status Legend Premium Overhaul */
+.fmc-legend-panel {
+    background: rgba(var(--mud-palette-surface-rgb), 0.2) !important;
+    backdrop-filter: blur(4px);
+    border-radius: 16px;
+    border: 1px solid var(--mud-palette-divider);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+
+.fmc-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.fmc-status-dot::after {
+    content: '';
+    position: absolute;
+    top: -2px; left: -2px; right: -2px; bottom: -2px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    opacity: 0.3;
+}
+
+.fmc-status-dot.active { background-color: #10b981; color: #10b981; }
+.fmc-status-dot.dormant { background-color: #f59e0b; color: #f59e0b; }
+.fmc-status-dot.suspended { background-color: #ef4444; color: #ef4444; }
+.fmc-status-dot.uninitialized { background-color: #6366f1; color: #6366f1; }
+
+/* Table Overflow Fix */
+::deep .fmc-acc-table {
+    width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+::deep .mud-table-container {
+    overflow-x: hidden !important; /* Force hide unnecessary horizontal scroll */
+    padding-right: 8px; /* Buffer for hover translateX */
+}
+
+/* Custom Grouping Toggle Support */
+::deep .fmc-row-hidden {
+    display: none !important;
+}
+
+/* -- Accounts Page Premium Skeleton Loader -- */
+@keyframes page-shimmer {
+    0%   { background-position: -700px 0; }
+    100% { background-position: 700px 0; }
+}
+
+.fmc-page-skel {
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        var(--mud-palette-divider) 25%,
+        rgba(var(--mud-palette-primary-rgb), 0.05) 50%,
+        var(--mud-palette-divider) 75%
+    );
+    background-size: 700px 100%;
+    animation: page-shimmer 1.6s ease-in-out infinite;
+}

@@ -100,6 +100,47 @@
                     <MudText Typo="Typo.body2" Style="font-weight: 500;">@Transaction.RejectionReason</MudText>
                 </div>
             }
+
+            @* ── BULK BREAKDOWN SECTION ── *@
+            @if (Transaction.SubTransactions != null && Transaction.SubTransactions.Any())
+            {
+                <div class="mt-6">
+                    <div class="d-flex align-center gap-2 mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
+                    </div>
+                    
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--mud-palette-divider); border-radius: 12px;">
+                        <MudTable Items="@Transaction.SubTransactions" Dense="true" Hover="true" Elevation="0" Style="background: transparent;">
+                            <HeaderContent>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6;">CARDHOLDER</MudTh>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: right;">AMOUNT</MudTh>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: center;">STATUS</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="sub">
+                                <MudTd>
+                                    <div class="d-flex flex-column">
+                                        <MudText Typo="Typo.body2" Style="font-weight: 700; font-size: 0.8rem;">@sub.Subscriber</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.65rem;">@GetMaskedAccount(sub.AccountNumber)</MudText>
+                                    </div>
+                                </MudTd>
+                                <MudTd Style="text-align: right;">
+                                    <MudText Typo="Typo.body2" Class="fmc-financial-mono" Style="font-weight: 800; font-size: 0.85rem;" 
+                                             Color="@(sub.Amount < 0 ? Color.Error : Color.Success)">
+                                        @sub.Amount.ToString("C2")
+                                    </MudText>
+                                </MudTd>
+                                <MudTd Style="text-align: center;">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)" 
+                                             Style="font-weight: 900; font-size: 0.6rem; margin: 0;">
+                                        @sub.Status.ToUpper()
+                                    </MudChip>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                </div>
+            }
         </div>
     </DialogContent>
     
@@ -237,20 +278,58 @@
     /// </summary>
     private async Task CancelTransactionAsync()
     {
+        bool isBatch = Transaction.SubTransactions != null && Transaction.SubTransactions.Any();
+        string typeLabel = isBatch ? "batch" : "individual transaction";
+
+        string markup = $@"
+            <div class='d-flex flex-column align-center text-center pt-6 pb-2 px-2'>
+                <div class='mb-4' style='background: rgba(var(--mud-palette-error-rgb), 0.1); border-radius: 50%; padding: 16px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(var(--mud-palette-error-rgb), 0.2);'>
+                    <svg style='width:36px;height:36px;color:var(--mud-palette-error);' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                        <path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'></path>
+                        <line x1='12' y1='9' x2='12' y2='13'></line>
+                        <line x1='12' y1='17' x2='12.01' y2='17'></line>
+                    </svg>
+                </div>
+                <h3 style='font-weight: 900; letter-spacing: 0.05em; font-size: 1.15rem; color: var(--mud-palette-text-primary); margin-bottom: 8px;'>WITHDRAW REQUEST</h3>
+                <p style='color: var(--mud-palette-text-secondary); font-size: 0.85rem; line-height: 1.6; max-width: 280px;'>
+                    Are you sure you want to cancel this <b>{typeLabel}</b>?<br/>This action is permanent and cannot be undone.
+                </p>
+            </div>
+        ";
+
+        var options = new DialogOptions { 
+            CloseButton = false, 
+            MaxWidth = MaxWidth.ExtraSmall, 
+            FullWidth = true, 
+            NoHeader = true,
+            BackgroundClass = "fmc-dialog-blur"
+        };
+
+        bool? confirm = await DialogService.ShowMessageBoxAsync(
+            title: default,
+            markupMessage: new MarkupString(markup),
+            yesText: "Confirm", 
+            cancelText: "Go Back",
+            options: options);
+
+        if (confirm != true) return;
+
         try 
         {
             _processing = true;
             
-            bool success = await OrgService.CancelTransactionAsync(Transaction.Id);
+            bool success = isBatch 
+                ? await OrgService.CancelBatchAsync(Transaction.Id)
+                : await OrgService.CancelTransactionAsync(Transaction.Id);
             
             if (success)
             {
-                Snackbar.Add("Transaction request cancelled successfully.", Severity.Success);
+                Snackbar.Add(isBatch ? "Batch request cancelled successfully." : "Transaction request cancelled successfully.", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true)); // Signal parent to refresh data
             }
             else 
             {
-                Snackbar.Add("Failed to cancel transaction.", Severity.Error);
+                Snackbar.Add(isBatch ? "Failed to cancel batch." : "Failed to cancel transaction.", Severity.Error);
             }
         }
         catch (Exception ex)

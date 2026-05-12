@@ -8,7 +8,9 @@
 @inject OrganizationApiService OrgService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ThemeService ThemeService
 
+<div class="fmc-maker-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudGrid Spacing="4">
     <MudItem xs="12">
         <div class="d-flex flex-wrap align-center justify-space-between mb-4 gap-4">
@@ -19,12 +21,15 @@
             @if (_isMaker)
             {
                 <div class="d-flex gap-3">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenUserSelection(true))"
-                               Class="fmc-enterprise-btn">New Credit</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Surface" StartIcon="@Icons.Material.Filled.Remove" OnClick="@(() => OpenUserSelection(false))"
-                               Class="fmc-enterprise-btn secondary">New Debit</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.FileUpload" OnClick="OpenBulkUpload"
-                               Class="fmc-enterprise-btn info">Bulk Upload</MudButton>
+                    <MudButton Variant="Variant.Filled" OnClick="@(() => OpenUserSelection(true))"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Class="fmc-enterprise-btn credit">New Credit</MudButton>
+                    <MudButton Variant="Variant.Filled" OnClick="@(() => OpenUserSelection(false))"
+                               StartIcon="@Icons.Material.Filled.Remove"
+                               Class="fmc-enterprise-btn debit">New Debit</MudButton>
+                    <MudButton Variant="Variant.Filled" OnClick="OpenBulkUpload"
+                               StartIcon="@Icons.Material.Filled.FileUpload"
+                               Class="fmc-enterprise-btn bulk">Bulk Upload</MudButton>
                 </div>
             }
         </div>
@@ -112,186 +117,243 @@
     </MudItem>
 
 
-    @* 2-COLUMN OPERATIONAL VIEW *@
-    <MudItem xs="12" md="8">
-        <AuditLogPanel Logs="_allAuditLogs" Loading="_auditLoading" />
-    </MudItem>
-
-    <MudItem xs="12" md="4">
-        <MudPaper Class="pa-6 fmc-main-surface" Elevation="0" Style="display: flex; flex-direction: column; height: 100%; min-height: 500px; overflow: hidden;">
-            <div class="d-flex align-center justify-space-between mb-4">
-                <div class="d-flex align-center">
-                    <div class="fmc-header-icon mr-3" style="width: 44px; height: 44px; background: rgba(var(--mud-palette-warning-rgb), 0.1);"><MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Warning" /></div>
-                    <div>
-                        <MudText Typo="Typo.h6" Style="font-weight: 900;">Pending</MudText>
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Awaiting authorization</MudText>
-                    </div>
-                </div>
-                <div class="d-flex align-center">
-                    <MudTooltip Text="Full View">
-                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/pending-requests" />
-                    </MudTooltip>
-                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="LoadDashboardData" Disabled="_loadingData" />
-                </div>
+    @* ── OPERATIONAL ROW: Balanced Height Sync ── *@
+    <MudItem xs="12">
+        <div class="d-flex flex-wrap gap-6 fmc-operational-row" style="align-items: stretch;">
+            @* LEFT: ACTIVITY LOG (Master Height) *@
+            <div class="fmc-panel-container" style="flex: 8; min-width: 320px;">
+                <AuditLogPanel Logs="_allAuditLogs" Loading="_auditLoading" OnRefresh="RefreshAuditLogs" />
             </div>
 
-            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" SliderColor="Color.Primary" HideSlider="false">
-                <MudTabPanel Text="Queue" Icon="@Icons.Material.Filled.FormatListBulleted">
-                    <div class="fmc-pending-container mt-4">
-                        @if (_loadingData)
-                        {
-                            <div class="d-flex justify-center pa-8">
-                                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            @* RIGHT: PENDING QUEUE (Slave Height) *@
+            <div class="fmc-panel-container" style="flex: 4; min-width: 320px;">
+                <MudPaper Class="fmc-main-surface fmc-pending-paper" Elevation="0" Style="height: 820px; display: grid; grid-template-rows: auto 1fr; overflow: hidden; min-height: 0; transform: translateZ(0); -webkit-mask-image: -webkit-radial-gradient(white, black);">
+                    <div class="pa-6 pb-0" style="grid-row: 1;">
+                        <div class="d-flex align-center justify-space-between mb-4">
+                            <div class="d-flex align-center">
+                                <div class="fmc-header-icon fmc-warning-icon-bg mr-3">
+                                    <MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Warning" />
+                                </div>
+                                <div>
+                                    <MudText Typo="Typo.h6" Style="font-weight: 900;">Pending</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Awaiting authorization</MudText>
+                                </div>
                             </div>
-                        }
-                        else if (!_pendingTransactions.Any())
-                        {
-                            <div class="d-flex flex-column align-center justify-center pa-10 text-center" style="border: 2px dashed var(--mud-palette-divider); border-radius: 16px; min-height: 300px;">
-                                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Large" Style="opacity: 0.1;" />
-                                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-3">All clear! No pending allotment requests.</MudText>
+                            <div class="d-flex align-center">
+                                <MudTooltip Text="Full View">
+                                    <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/pending-requests" />
+                                </MudTooltip>
+                                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="RefreshPendingQueue" Disabled="_loadingData" />
                             </div>
-                        }
-                        else
-                        {
-                            <div class="fmc-scroll-list">
-                                @foreach (var group in GroupTransactions(_pendingTransactions))
-                                {
-                                    @if (group.IsBatch)
-                                    {
-                                        <div class="fmc-op-card mb-4" style="border-left: 4px solid var(--mud-palette-info); background: rgba(var(--mud-palette-info-rgb), 0.03);">
-                                            <div class="d-flex justify-space-between align-start mb-1 gap-2">
-                                                <div class="flex-grow-1" style="min-width: 0;">
-                                                    <div class="d-flex align-center gap-2 mb-1">
-                                                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 900; margin: 0; height: 18px; font-size: 0.6rem;">BATCH</MudChip>
-                                                        <MudText Typo="Typo.body2" Style="font-weight: 900; color: var(--mud-palette-info); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bulk Credit Allotment</MudText>
-                                                    </div>
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ID: @group.BatchId?.ToString()[..8]... • @group.Transactions.Count items</MudText>
-                                                </div>
-                                                <div class="text-right flex-shrink-0">
-                                                    <MudText Typo="Typo.h6" Color="Color.Success" Style="font-weight: 900; font-family: 'Roboto Mono', monospace;">
-                                                        @group.TotalAmount.ToString("C")
-                                                    </MudText>
-                                                </div>
-                                            </div>
+                        </div>
+                    </div>
 
-                                            <div class="fmc-op-footer d-flex justify-space-between align-center mt-3 pt-2" style="border-top: 1px dashed var(--mud-palette-divider);">
-                                                <div class="d-flex align-center" style="opacity: 0.6; min-width: 0; margin-right: 8px;">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Style="font-size: 0.8rem; margin-right: 4px; flex-shrink: 0;" />
-                                                    <MudText Typo="Typo.caption" Style="font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Maker: <b>@group.Transactions.First().MakerName</b></MudText>
+                    <div style="grid-row: 2; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+                        @* CUSTOM HIGH-FIDELITY TABS (Replacing MudTabs for strict scroll control) *@
+                        <div class="fmc-custom-tabs-header">
+                            <button class="fmc-tab-btn @(_activeTab == 0 ? "active" : "")" @onclick="@(() => _activeTab = 0)">
+                                <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" Class="mr-2" />
+                                QUEUE
+                            </button>
+                            <button class="fmc-tab-btn @(_activeTab == 1 ? "active" : "")" @onclick="@(() => _activeTab = 1)">
+                                <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Small" Class="mr-2" />
+                                TODAY
+                            </button>
+                        </div>
+
+                        <div class="fmc-tab-content-root">
+                        @if (_activeTab == 0)
+                        {
+                            @if (_loadingData)
+                            {
+                                <div class="fmc-skeleton-list">
+                                    @for (int i = 0; i < 3; i++)
+                                    {
+                                        <div class="fmc-skeleton-card">
+                                            <div class="d-flex justify-space-between align-start mb-3">
+                                                <div style="flex:1; margin-right: 12px;">
+                                                    <div class="fmc-skel fmc-skel-line" style="width: 60%; margin-bottom: 8px;"></div>
+                                                    <div class="fmc-skel fmc-skel-line fmc-skel-sm" style="width: 40%;"></div>
                                                 </div>
-                                                <div class="d-flex gap-2 flex-shrink-0">
-                                                    @if (_isApprover)
-                                                    {
-                                                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" 
-                                                                   OnClick="@(() => HandleBatchApproval(group.BatchId!.Value, true))"
-                                                                   Style="font-size: 0.65rem; font-weight: 900; border-radius: 8px; white-space: nowrap; min-width: 0; padding-left: 8px; padding-right: 8px;">Approve</MudButton>
-                                                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" 
-                                                                   OnClick="@(() => HandleBatchApproval(group.BatchId!.Value, false))"
-                                                                   Style="font-size: 0.65rem; font-weight: 900; border-radius: 8px; white-space: nowrap; min-width: 0; padding-left: 8px; padding-right: 8px;">Reject</MudButton>
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Style="font-weight: 900; margin: 0; font-size: 0.6rem;">AWAITING</MudChip>
-                                                    }
-                                                </div>
+                                                <div class="fmc-skel fmc-skel-line" style="width: 80px;"></div>
+                                            </div>
+                                            <div class="fmc-skel fmc-skel-line fmc-skel-sm" style="width: 90%; margin-bottom: 12px;"></div>
+                                            <div style="border-top: 1px dashed var(--mud-palette-divider); padding-top: 10px; display: flex; gap: 8px;">
+                                                <div class="fmc-skel fmc-skel-btn"></div>
+                                                <div class="fmc-skel fmc-skel-btn"></div>
                                             </div>
                                         </div>
                                     }
-                                    else
+                                </div>
+                            }
+                            else if (!_pendingTransactions.Any())
+                            {
+                                <div class="d-flex flex-column align-center justify-center pa-10 text-center" style="border: 2px dashed var(--mud-palette-divider); border-radius: 16px; min-height: 300px; margin: 16px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Large" Style="opacity: 0.1;" />
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary mt-3">All clear! No pending allotment requests.</MudText>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="fmc-scroll-list">
+                                    @foreach (var group in GroupTransactions(_pendingTransactions))
                                     {
-                                        var tx = group.Transactions.First();
-                                        <div class="fmc-op-card mb-4" @onclick="@(() => OpenTransactionDetail(tx))" style="cursor: pointer; border-left: 4px solid var(--mud-palette-warning);">
-                                            <div class="d-flex justify-space-between align-start mb-2">
-                                                <div class="flex-grow-1 mr-2" style="min-width: 0;">
-                                                    <MudText Typo="Typo.body2" Style="font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@tx.Subscriber</MudText>
-                                                    <div class="d-flex align-center mt-n1" style="opacity: 0.6;">
-                                                        <MudIcon Icon="@Icons.Material.Filled.CreditCard" Size="Size.Small" Style="font-size: 0.75rem; margin-right: 4px;" />
-                                                        <MudText Typo="Typo.caption" Style="font-family: 'Roboto Mono', monospace; font-size: 0.7rem;">@MaskAccount(tx.AccountNumber)</MudText>
-                                                    </div>
-                                                </div>
-                                                <div class="text-right flex-shrink-0">
-                                                    <MudText Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight: 900; font-family: 'Roboto Mono', monospace;">
-                                                        @tx.Amount.ToString("C")
-                                                    </MudText>
-                                                </div>
-                                            </div>
-                                            
-                                            <MudText Typo="Typo.caption" Class="d-block mb-3 mud-text-secondary" Style="font-style: italic; line-height: 1.1; font-size: 0.75rem;">@tx.Label</MudText>
-
-                                            <div class="fmc-op-footer d-flex justify-space-between align-center px-1" @onclick:stopPropagation="true">
-                                                <div class="d-flex align-center" style="opacity: 0.6; min-width: 0;">
-                                                    <MudIcon Icon="@Icons.Material.Filled.HistoryEdu" Size="Size.Small" Style="font-size: 0.8rem; margin-right: 4px; flex-shrink: 0;" />
-                                                    <MudText Typo="Typo.caption" Style="font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Maker: <b>@tx.MakerName</b></MudText>
-                                                </div>
-                                                <div class="d-flex align-center flex-shrink-0">
-                                                    <MudText Typo="Typo.caption" Style="font-size: 0.65rem; opacity: 0.5; margin-right: 8px;">@tx.Date.ToLocalTime().ToString("MMM dd, HH:mm")</MudText>
-                                                    @if (_isApprover)
-                                                    {
-                                                        <div class="d-flex gap-1">
-                                                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="@(() => HandleApproval(tx, true))" Class="pa-1" />
-                                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" Size="Size.Small" OnClick="@(() => HandleApproval(tx, false))" Class="pa-1" />
+                                        @if (group.IsBatch)
+                                        {
+                                            <div class="fmc-op-card mb-4 status-batch" @onclick="@(() => OpenBatchDetail(group))" style="background: rgba(var(--mud-palette-info-rgb), 0.03); cursor: pointer;">
+                                                <div class="d-flex justify-space-between align-start mb-1 gap-2">
+                                                    <div class="flex-grow-1" style="min-width: 0;">
+                                                        <div class="d-flex align-center gap-2 mb-1">
+                                                            <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 900; margin: 0; height: 18px; font-size: 0.6rem;">BATCH</MudChip>
+                                                            <MudText Typo="Typo.body2" Style="font-weight: 900; color: var(--mud-palette-info); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bulk Credit Allotment</MudText>
                                                         </div>
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Style="font-weight: 900; margin: 0; font-size: 0.6rem;">PENDING</MudChip>
-                                                    }
+                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ID: @group.BatchId?.ToString()[..8]... • @group.Transactions.Count items</MudText>
+                                                    </div>
+                                                    <div class="text-right flex-shrink-0">
+                                                        <MudText Typo="Typo.h6" Color="Color.Success" Style="font-weight: 900; font-family: 'Roboto Mono', monospace;">
+                                                            @group.TotalAmount.ToString("C")
+                                                        </MudText>
+                                                    </div>
+                                                </div>
+
+                                                <div class="fmc-op-footer mt-3 pt-2" style="border-top: 1px dashed var(--mud-palette-divider);">
+                                                    <div class="d-flex align-center mb-2" style="opacity: 0.6; gap: 6px;">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Style="font-size: 0.75rem;" />
+                                                        <span style="font-size: 0.62rem; font-weight: 700;">@group.Transactions.First().MakerName</span>
+                                                        <span style="font-size: 0.60rem; margin-left: auto;">@group.Transactions.First().Date.ToLocalTime().ToString("MMM dd, yyyy · HH:mm")</span>
+                                                    </div>
+                                                    <div class="d-flex gap-2 w-100" @onclick:stopPropagation="true">
+                                                        @if (_isApprover)
+                                                        {
+                                                            <button class="fmc-action-btn approve fmc-btn-full" @onclick="@(() => HandleBatchApproval(group.BatchId!.Value, true))">
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                                Approve
+                                                            </button>
+                                                            <button class="fmc-action-btn reject fmc-btn-full" @onclick="@(() => HandleBatchApproval(group.BatchId!.Value, false))">
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                                Reject
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="fmc-status-pill awaiting">AWAITING</span>
+                                                        }
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    }
-                                }
-                            </div>
-                        }
-                    </div>
-                </MudTabPanel>
+                                        }
+                                        else
+                                        {
+                                            var tx = group.Transactions.First();
+                                            <div class="fmc-op-card mb-4 status-pending" @onclick="@(() => OpenTransactionDetail(tx))" style="cursor: pointer;">
+                                                <div class="d-flex justify-space-between align-start mb-2">
+                                                    <div class="flex-grow-1 mr-2" style="min-width: 0;">
+                                                        <MudText Typo="Typo.body2" Style="font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@tx.Subscriber</MudText>
+                                                        <div class="d-flex align-center mt-n1" style="opacity: 0.6;">
+                                                            <MudIcon Icon="@Icons.Material.Filled.CreditCard" Size="Size.Small" Style="font-size: 0.75rem; margin-right: 4px;" />
+                                                            <MudText Typo="Typo.caption" Style="font-family: 'Roboto Mono', monospace; font-size: 0.7rem;">@MaskAccount(tx.AccountNumber)</MudText>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-right flex-shrink-0">
+                                                        <MudText Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight: 900; font-family: 'Roboto Mono', monospace;">
+                                                            @tx.Amount.ToString("C")
+                                                        </MudText>
+                                                    </div>
+                                                </div>
+                                                
+                                                <MudText Typo="Typo.caption" Class="d-block mb-3 mud-text-secondary" Style="font-style: italic; line-height: 1.1; font-size: 0.75rem;">@tx.Label</MudText>
 
-                <MudTabPanel Text="Today" Icon="@Icons.Material.Filled.History">
-                    <div class="fmc-pending-container mt-4">
-                        @if (_loadingData)
-                        {
-                            <div class="d-flex justify-center pa-8">
-                                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-                            </div>
-                        }
-                        else if (!_todayTransactions.Any())
-                        {
-                            <div class="d-flex flex-column align-center justify-center pa-10 text-center" style="border: 2px dashed var(--mud-palette-divider); border-radius: 16px; min-height: 300px;">
-                                <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Style="opacity: 0.1;" />
-                                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-3">No transactions processed today yet.</MudText>
-                            </div>
+                                                <div class="fmc-op-footer mt-2 pt-2 px-1" style="border-top: 1px dashed var(--mud-palette-divider);" @onclick:stopPropagation="true">
+                                                    <div class="d-flex align-center mb-2" style="opacity: 0.6; gap: 6px;">
+                                                        <MudIcon Icon="@Icons.Material.Filled.HistoryEdu" Size="Size.Small" Style="font-size: 0.75rem;" />
+                                                        <span style="font-size: 0.62rem; font-weight: 700;">@tx.MakerName</span>
+                                                        <span style="font-size: 0.60rem; margin-left: auto;">@tx.Date.ToLocalTime().ToString("MMM dd, yyyy · HH:mm")</span>
+                                                    </div>
+                                                    <div class="d-flex align-center">
+                                                        @if (_isApprover)
+                                                        {
+                                                            <div class="d-flex gap-1 ml-auto">
+                                                                <button class="fmc-icon-action approve" title="Approve" @onclick="@(() => HandleApproval(tx, true))">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                                </button>
+                                                                <button class="fmc-icon-action reject" title="Reject" @onclick="@(() => HandleApproval(tx, false))">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                                </button>
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="fmc-status-pill pending ml-auto">PENDING</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
                         }
                         else
                         {
-                            <div class="fmc-scroll-list">
-                                @foreach (var tx in _todayTransactions)
-                                {
-                                    <div class="fmc-op-card mb-4" @onclick="@(() => OpenTransactionDetail(tx))" style="cursor: pointer; border-left: 4px solid @(tx.Status == "Approved" ? "var(--mud-palette-success)" : tx.Status == "Rejected" ? "var(--mud-palette-error)" : "var(--mud-palette-warning)");">
-                                        <div class="d-flex justify-space-between align-start mb-2">
-                                            <div class="flex-grow-1 mr-2">
-                                                <MudText Typo="Typo.body2" Style="font-weight: 900;">@tx.Subscriber</MudText>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@tx.Label</MudText>
+                            @if (_loadingData)
+                            {
+                                <div class="fmc-skeleton-list">
+                                    @for (int i = 0; i < 3; i++)
+                                    {
+                                        <div class="fmc-skeleton-card">
+                                            <div class="d-flex justify-space-between align-start mb-3">
+                                                <div style="flex:1; margin-right: 12px;">
+                                                    <div class="fmc-skel fmc-skel-line" style="width: 55%; margin-bottom: 8px;"></div>
+                                                    <div class="fmc-skel fmc-skel-line fmc-skel-sm" style="width: 35%;"></div>
+                                                </div>
+                                                <div class="fmc-skel fmc-skel-chip"></div>
                                             </div>
-                                            <div class="text-right">
-                                                <MudText Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Class="fmc-financial-mono">
-                                                    @(tx.Amount.ToString("C"))
-                                                </MudText>
-                                                <MudChip T="string" Size="Size.Small" Color="@(tx.Status == "Approved" ? Color.Success : tx.Status == "Rejected" ? Color.Error : Color.Warning)" 
-                                                         Variant="Variant.Text" Style="font-weight: 950; margin: 0; font-size: 0.65rem;">@tx.Status.ToUpper()</MudChip>
+                                            <div class="fmc-skel fmc-skel-line fmc-skel-sm" style="width: 80%; margin-bottom: 8px;"></div>
+                                            <div class="fmc-skel fmc-skel-line fmc-skel-sm" style="width: 50%;"></div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (!_todayTransactions.Any())
+                            {
+                                <div class="d-flex flex-column align-center justify-center pa-10 text-center" style="border: 2px dashed var(--mud-palette-divider); border-radius: 16px; min-height: 300px; margin: 16px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Style="opacity: 0.1;" />
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary mt-3">No transactions processed today yet.</MudText>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="fmc-scroll-list">
+                                    @foreach (var tx in _todayTransactions)
+                                    {
+                                        <div class="fmc-op-card mb-4 status-@tx.Status.ToLower()" @onclick="@(() => OpenTransactionDetail(tx))" style="cursor: pointer;">
+                                            <div class="d-flex justify-space-between align-start mb-2">
+                                                <div class="flex-grow-1 mr-2">
+                                                    <MudText Typo="Typo.body2" Style="font-weight: 900;">@tx.Subscriber</MudText>
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@tx.Label</MudText>
+                                                </div>
+                                                <div class="text-right">
+                                                    <MudText Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Class="fmc-financial-mono">
+                                                        @(tx.Amount.ToString("C"))
+                                                    </MudText>
+                                                    <MudChip T="string" Size="Size.Small" Color="@(tx.Status == "Approved" ? Color.Success : tx.Status == "Rejected" ? Color.Error : Color.Warning)" 
+                                                             Variant="Variant.Text" Style="font-weight: 950; margin: 0; font-size: 0.65rem;">@tx.Status.ToUpper()</MudChip>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-space-between align-center mt-2" style="opacity: 0.6;">
+                                                <MudText Typo="Typo.caption">Time: @tx.Date.ToString("HH:mm")</MudText>
+                                                <MudText Typo="Typo.caption">Maker: @tx.MakerName</MudText>
                                             </div>
                                         </div>
-                                        <div class="d-flex justify-space-between align-center mt-2" style="opacity: 0.6;">
-                                            <MudText Typo="Typo.caption">Time: @tx.Date.ToString("HH:mm")</MudText>
-                                            <MudText Typo="Typo.caption">Maker: @tx.MakerName</MudText>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
+                                    }
+                                </div>
+                            }
                         }
                     </div>
-                </MudTabPanel>
-            </MudTabs>
-        </MudPaper>
+                    </div>
+                </MudPaper>
+            </div>
+        </div>
     </MudItem>
 
     @* ── REGISTERED CARDHOLDER REGISTRY (Full Width at Bottom) ── *@
@@ -425,80 +487,9 @@
         </MudItem>
     }
 </MudGrid>
+</div>
 
-<style>
-    /* ── PREMIUM DESIGN SYSTEM ── */
-    .fmc-glass-card {
-        position: relative; overflow: hidden; padding: 24px;
-        background-color: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider); border-radius: 24px;
-        height: 100%; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    }
-    .fmc-glass-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1); border-color: var(--mud-palette-primary); }
-    
-    .fmc-card-label { font-weight: 900; letter-spacing: 0.12em; color: var(--mud-palette-text-secondary); opacity: 0.6; font-size: 0.65rem; text-transform: uppercase; }
-    .fmc-financial-value { font-family: 'JetBrains Mono', monospace !important; font-weight: 950 !important; letter-spacing: -0.02em !important; }
-    .fmc-card-icon-bg { position: absolute; right: -12px; top: -12px; opacity: 0.05; font-size: 6rem !important; transform: rotate(-10deg); }
-    .fmc-card-icon-bg.primary { color: var(--mud-palette-primary); }
-    .fmc-card-icon-bg.success { color: var(--mud-palette-success); }
-    .fmc-card-icon-bg.info { color: var(--mud-palette-info); }
-    .fmc-card-icon-bg.warning { color: var(--mud-palette-warning); }
-
-    .fmc-card-progress { position: absolute; bottom: 0; left: 0; height: 4px; width: 40%; border-radius: 0 4px 4px 0; }
-    .fmc-card-progress.primary { background: var(--mud-palette-primary); }
-    .fmc-card-progress.success { background: var(--mud-palette-success); }
-    .fmc-card-progress.info { background: var(--mud-palette-info); }
-    .fmc-card-progress.warning { background: var(--mud-palette-warning); }
-
-    .fmc-main-surface { 
-        border-radius: 24px; border: 1px solid var(--mud-palette-divider); 
-        background-color: var(--mud-palette-surface); overflow: hidden;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03);
-    }
-    
-    .fmc-header-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 12px; }
-
-    /* Custom Status Pills */
-    .fmc-status-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 50px; font-size: 0.6rem; font-weight: 900; gap: 4px; border: 1px solid transparent; }
-    .fmc-status-pill.active { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border-color: rgba(var(--mud-palette-success-rgb), 0.2); }
-    .fmc-status-pill.suspended { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border-color: rgba(var(--mud-palette-error-rgb), 0.2); }
-
-    /* Pending scroll list */
-    .fmc-scroll-list { max-height: 520px; overflow-y: auto; overflow-x: hidden; padding-right: 6px; }
-    .fmc-scroll-list::-webkit-scrollbar { width: 4px; }
-    .fmc-scroll-list::-webkit-scrollbar-thumb { background: var(--mud-palette-divider); border-radius: 2px; }
-    .fmc-op-card { 
-        padding: 20px; border-radius: 16px; background: var(--mud-palette-background-grey); 
-        border: 1px solid var(--mud-palette-divider);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        min-width: 0; overflow: hidden;
-    }
-    .fmc-op-card:hover { transform: translateY(-2px); border-color: var(--mud-palette-primary); box-shadow: var(--mud-elevation-2); }
-    
-    .fmc-op-footer { margin-top: 12px; }
-    .fmc-financial-mono { font-family: 'JetBrains Mono', monospace !important; font-weight: 900 !important; }
-
-    .fmc-enterprise-btn {
-        border-radius: 12px !important;
-        height: 44px !important;
-        padding: 0 20px !important;
-        font-weight: 800 !important;
-        text-transform: none !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        font-size: 0.85rem !important;
-        box-shadow: none !important;
-        border: 1px solid transparent !important;
-    }
-    .fmc-enterprise-btn:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
-    .fmc-enterprise-btn.secondary { background-color: var(--mud-palette-surface) !important; border-color: var(--mud-palette-divider) !important; color: var(--mud-palette-text-primary) !important; }
-    .fmc-enterprise-btn.info { background-color: var(--mud-palette-info) !important; }
-
-    @@media (max-width: 960px) {
-        .fmc-scroll-list { max-height: none; }
-        .fmc-main-surface { border-radius: 20px; }
-    }
-</style>
+@* Styles moved to MakerDashboard.razor.css *@
 
 @code {
     [Parameter] public OrganizationDto Organization { get; set; } = new();
@@ -516,6 +507,7 @@
     private string? _currentUserId;
     private string _cardholderSearch = "";
     private string _roleDisplay = "Operations";
+    private int _activeTab = 0; // 0 = Queue, 1 = Today
 
     private bool FilterCardholders(UserDto user)
     {
@@ -549,20 +541,22 @@
 
     private async Task LoadDashboardData()
     {
+        await Task.WhenAll(RefreshPendingQueue(), RefreshAuditLogs());
+    }
+
+    private async Task RefreshPendingQueue()
+    {
         if (_loadingData) return;
         _loadingData = true;
-        _auditLoading = true;
         try
         {
             var pendingTask = OrgService.GetPendingTransactionsAsync(Organization.Id);
             var todayTask = OrgService.GetTodayTransactionsAsync(Organization.Id);
-            var auditTask = OrgService.GetRecentAuditLogsAsync(count: 20);
             
-            await Task.WhenAll(pendingTask, todayTask, auditTask);
+            await Task.WhenAll(pendingTask, todayTask);
             
             _pendingTransactions = await pendingTask;
             _todayTransactions = await todayTask;
-            _allAuditLogs = await auditTask;
         }
         catch (Exception ex)
         {
@@ -571,6 +565,23 @@
         finally
         {
             _loadingData = false;
+        }
+    }
+
+    private async Task RefreshAuditLogs()
+    {
+        if (_auditLoading) return;
+        _auditLoading = true;
+        try
+        {
+            _allAuditLogs = await OrgService.GetRecentAuditLogsAsync(count: 20);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to sync audit logs: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
             _auditLoading = false;
         }
     }
@@ -587,10 +598,17 @@
         }
         else
         {
-            bool? result = await DialogService.ShowMessageBoxAsync(
-                "Confirm Rejection", 
-                "Are you sure you want to reject this transaction?", 
-                yesText: "Yes, Reject", cancelText: "No, Cancel");
+            string rejectMarkup = @"
+                <div class='d-flex flex-column align-center text-center pt-6 pb-2 px-2'>
+                    <div class='mb-4' style='background: rgba(239,68,68,0.1); border-radius: 50%; width:72px; height:72px; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 20px rgba(239,68,68,0.2);'>
+                        <svg style='width:36px;height:36px;color:#ef4444;' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'></circle><line x1='15' y1='9' x2='9' y2='15'></line><line x1='9' y1='9' x2='15' y2='15'></line></svg>
+                    </div>
+                    <h3 style='font-weight:900;letter-spacing:0.05em;font-size:1.1rem;color:var(--mud-palette-text-primary);margin-bottom:8px;'>REJECT TRANSACTION</h3>
+                    <p style='color:var(--mud-palette-text-secondary);font-size:0.85rem;line-height:1.6;max-width:280px;'>This will permanently reject the pending request. The Maker will be notified and the transaction cannot be recovered.</p>
+                </div>
+            ";
+            var rejectOptions = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, NoHeader = true };
+            bool? result = await DialogService.ShowMessageBoxAsync(title: default, markupMessage: new MarkupString(rejectMarkup), yesText: "Confirm Reject", cancelText: "Go Back", options: rejectOptions);
             if (result != true) return;
         }
 
@@ -628,6 +646,42 @@
         };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         var dialog = await DialogService.ShowAsync<PendingDetailDialog>("Transaction Context", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            await LoadDashboardData();
+            await OnActionCompleted.InvokeAsync();
+        }
+    }
+
+    private async Task OpenBatchDetail(TransactionGroup group)
+    {
+        if (group.Transactions == null || !group.Transactions.Any()) return;
+        
+        var firstTx = group.Transactions.First();
+        var batchTx = new TransactionDto 
+        {
+            Id = group.BatchId ?? Guid.Empty,
+            Subscriber = "Bulk Credit Allotment",
+            AccountNumber = "MULTIPLE",
+            Amount = group.TotalAmount,
+            Date = firstTx.Date,
+            MakerName = firstTx.MakerName,
+            MakerId = firstTx.MakerId,
+            Status = "Pending",
+            Label = $"Batch: {group.Transactions.Count} items",
+            SubTransactions = group.Transactions
+        };
+
+        var parameters = new DialogParameters 
+        { 
+            ["Transaction"] = batchTx,
+            ["IsOwnTransaction"] = batchTx.MakerId == _currentUserId
+        };
+        // Use MaxWidth.Medium for batch dialogs to comfortably display the table
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PendingDetailDialog>("Batch Context", parameters, options);
         var result = await dialog.Result;
 
         if (result is not null && !result.Canceled)
@@ -708,10 +762,17 @@
         }
         else
         {
-            bool? result = await DialogService.ShowMessageBoxAsync(
-                "Confirm Batch Rejection", 
-                "Are you sure you want to reject this entire batch? This action cannot be undone.", 
-                yesText: "Yes, Reject", cancelText: "No, Cancel");
+            string batchRejectMarkup = @"
+                <div class='d-flex flex-column align-center text-center pt-6 pb-2 px-2'>
+                    <div class='mb-4' style='background: rgba(239,68,68,0.1); border-radius: 50%; width:72px; height:72px; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 20px rgba(239,68,68,0.2);'>
+                        <svg style='width:36px;height:36px;color:#ef4444;' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'></circle><line x1='15' y1='9' x2='9' y2='15'></line><line x1='9' y1='9' x2='15' y2='15'></line></svg>
+                    </div>
+                    <h3 style='font-weight:900;letter-spacing:0.05em;font-size:1.1rem;color:var(--mud-palette-text-primary);margin-bottom:8px;'>REJECT BATCH</h3>
+                    <p style='color:var(--mud-palette-text-secondary);font-size:0.85rem;line-height:1.6;max-width:280px;'>This will reject the <b>entire batch</b> and all its transactions. This action is permanent and cannot be undone.</p>
+                </div>
+            ";
+            var rejectOptions = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, NoHeader = true };
+            bool? result = await DialogService.ShowMessageBoxAsync(title: default, markupMessage: new MarkupString(batchRejectMarkup), yesText: "Confirm Reject", cancelText: "Go Back", options: rejectOptions);
             if (result != true) return;
         }
 

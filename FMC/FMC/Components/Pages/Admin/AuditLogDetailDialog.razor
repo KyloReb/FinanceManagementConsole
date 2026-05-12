@@ -1,0 +1,209 @@
+@using FMC.Shared.DTOs.Admin
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-3">
+            <div style="width:38px; height:38px; border-radius:10px; background:@_accentBg; display:flex; align-items:center; justify-content:center;">
+                <MudIcon Icon="@_accentIcon" Style="@($"color:{_accentColor}; font-size:1.2rem;")" />
+            </div>
+            <div>
+                <MudText Typo="Typo.subtitle1" Style="font-weight:950; letter-spacing:-0.01em; line-height:1.1;">Audit Log Detail</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700; line-height:1.1;">Entry #@Log?.Id</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (Log is null)
+        {
+            <MudText>No log data available.</MudText>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3 py-2">
+
+                @* ── Action & Timestamp Row ── *@
+                <div class="d-flex justify-space-between align-center flex-wrap gap-2">
+                    <MudChip T="string" Variant="Variant.Filled"
+                             Style="@($"background:{_accentBg}; color:{_accentColor}; font-weight:900; font-size:0.7rem; letter-spacing:0.06em;")"
+                             Icon="@_accentIcon">
+                        @Log.Action?.Replace("_", " ")
+                    </MudChip>
+                    <MudText Typo="Typo.caption" Style="font-weight:700; opacity:0.65;">
+                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Style="font-size:0.75rem; vertical-align:middle; margin-right:3px;" />
+                        @Log.CreatedAt.ToLocalTime().ToString("dddd, MMM dd yyyy — HH:mm:ss")
+                    </MudText>
+                </div>
+
+                <MudDivider />
+
+                @* ── Financial Info (if applicable) ── *@
+                @if (Log.Amount.HasValue && Log.Amount > 0)
+                {
+                    <div class="fmc-audit-detail-row highlight" style="@($"border-left: 4px solid {_accentColor}; background:{_accentBg}; border-radius:10px; padding:12px 16px;")">
+                        <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.6; text-transform:uppercase; letter-spacing:0.06em;">Amount</MudText>
+                        <MudText Typo="Typo.h5" Style="@($"font-family:'JetBrains Mono',monospace; font-weight:900; color:{_accentColor};")">
+                            @(_isCredit ? "+" : _isDebit ? "−" : "")@Log.Amount?.ToString("N2")
+                        </MudText>
+                    </div>
+                }
+
+                @* ── Entity / Label ── *@
+                <div class="d-flex gap-3 flex-wrap">
+                    @if (!string.IsNullOrWhiteSpace(Log.EntityName))
+                    {
+                        <div class="fmc-audit-detail-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.Business" Style="font-size:0.8rem; margin-right:4px; opacity:0.6;" />
+                            <div>
+                                <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">Entity / Organization</MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight:800;">@Log.EntityName</MudText>
+                            </div>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Log.Label))
+                    {
+                        <div class="fmc-audit-detail-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.Label" Style="font-size:0.8rem; margin-right:4px; opacity:0.6;" />
+                            <div>
+                                <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">Label</MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight:800;">@Log.Label</MudText>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @* ── Actor Info ── *@
+                <div class="d-flex gap-3 flex-wrap">
+                    @if (!string.IsNullOrWhiteSpace(Log.PerformedBy))
+                    {
+                        <div class="fmc-audit-detail-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Style="font-size:0.8rem; margin-right:4px; opacity:0.6;" />
+                            <div>
+                                <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">Performed By</MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight:800;">@Log.PerformedBy</MudText>
+                            </div>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Log.UserName))
+                    {
+                        <div class="fmc-audit-detail-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Style="font-size:0.8rem; margin-right:4px; opacity:0.6;" />
+                            <div>
+                                <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">User Account</MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight:800;">@Log.UserName</MudText>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @* ── Network / Device Info ── *@
+                @if (!string.IsNullOrWhiteSpace(Log.IpAddress) || !string.IsNullOrWhiteSpace(Log.Device))
+                {
+                    <div class="d-flex gap-3 flex-wrap">
+                        @if (!string.IsNullOrWhiteSpace(Log.IpAddress))
+                        {
+                            <div class="fmc-audit-detail-chip">
+                                <MudIcon Icon="@Icons.Material.Filled.Router" Style="font-size:0.8rem; margin-right:4px; opacity:0.6;" />
+                                <div>
+                                    <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">IP Address</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight:800; font-family:'JetBrains Mono',monospace;">@Log.IpAddress</MudText>
+                                </div>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Log.Device))
+                        {
+                            <div class="fmc-audit-detail-chip">
+                                <MudIcon Icon="@Icons.Material.Filled.Devices" Style="font-size:0.8rem; margin-right:4px; opacity:0.6;" />
+                                <div>
+                                    <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">Device</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight:800;">@Log.Device</MudText>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @* ── Details / Notes ── *@
+                @if (!string.IsNullOrWhiteSpace(Log.Details))
+                {
+                    <div style="background:var(--mud-palette-background-grey); border-radius:10px; padding:14px 16px;">
+                        <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.06em;">Details / Notes</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight:600; margin-top:4px; white-space:pre-wrap; line-height:1.6;">@Log.Details</MudText>
+                    </div>
+                }
+
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close" Style="border-radius:10px; font-weight:800;">
+            Close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .fmc-audit-detail-chip {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        background: var(--mud-palette-background-grey);
+        border-radius: 10px;
+        padding: 10px 14px;
+        flex: 1;
+        min-width: 160px;
+    }
+</style>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public AuditLogDto? Log { get; set; }
+
+    private bool _isCredit;
+    private bool _isDebit;
+    private string _accentColor  = "var(--mud-palette-warning)";
+    private string _accentBg     = "rgba(var(--mud-palette-warning-rgb),0.1)";
+    private string _accentIcon   = Icons.Material.Filled.Info;
+
+    protected override void OnParametersSet()
+    {
+        if (Log is null) return;
+
+        var act = Log.Action?.ToUpper() ?? "";
+        _isCredit = act is "CREDIT" or "TRANSACTION_APPROVED" or "WALLET_ADJUSTED";
+        _isDebit  = act is "DEBIT"  or "REJECTED";
+
+        if (_isCredit)
+        {
+            _accentColor = "var(--mud-palette-success)";
+            _accentBg    = "rgba(var(--mud-palette-success-rgb),0.12)";
+            _accentIcon  = Icons.Material.Filled.TrendingUp;
+        }
+        else if (_isDebit)
+        {
+            _accentColor = "var(--mud-palette-error)";
+            _accentBg    = "rgba(var(--mud-palette-error-rgb),0.12)";
+            _accentIcon  = Icons.Material.Filled.TrendingDown;
+        }
+        else if (act.Contains("LOGIN"))
+        {
+            _accentColor = "var(--mud-palette-info)";
+            _accentBg    = "rgba(var(--mud-palette-info-rgb),0.12)";
+            _accentIcon  = Icons.Material.Filled.Login;
+        }
+        else if (act.Contains("LOGOUT"))
+        {
+            _accentColor = "var(--mud-palette-text-secondary)";
+            _accentBg    = "rgba(127,127,127,0.1)";
+            _accentIcon  = Icons.Material.Filled.Logout;
+        }
+        else
+        {
+            _accentColor = "var(--mud-palette-warning)";
+            _accentBg    = "rgba(var(--mud-palette-warning-rgb),0.12)";
+            _accentIcon  = Icons.Material.Filled.EventNote;
+        }
+    }
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

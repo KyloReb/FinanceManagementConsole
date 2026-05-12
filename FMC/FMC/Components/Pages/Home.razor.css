@@ -49,15 +49,28 @@
 .fmc-card-progress.warning { background: var(--mud-palette-warning); }
 .fmc-card-progress.error { background: var(--mud-palette-error); }
 
-/* Main Repository Surface */
-.fmc-main-surface { 
-    border-radius: 24px; border: 1px solid var(--mud-palette-divider); 
-    background-color: var(--mud-palette-surface); overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03);
+/* Main Repository Surfaces - Adaptive */
+.fmc-light-mode ::deep .fmc-main-surface,
+.fmc-light-mode ::deep .fmc-audit-surface { 
+    background-color: #f1f5f9 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
 }
+
+.fmc-dark-mode ::deep .fmc-main-surface,
+.fmc-dark-mode ::deep .fmc-audit-surface { 
+    background-color: var(--mud-palette-surface) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
 .fmc-header-area { 
     padding: 32px; display: flex; align-items: center; justify-content: space-between; 
-    background-color: var(--mud-palette-background-grey);
+    background-color: transparent !important;
     border-bottom: 1px solid var(--mud-palette-divider);
 }
 .fmc-header-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 12px; }
@@ -129,7 +142,7 @@
 }
 .fmc-audit-header {
     padding: 20px 24px;
-    background: var(--mud-palette-surface);
+    background: transparent !important;
     border-bottom: 1px solid var(--mud-palette-divider);
 }
 .fmc-audit-section-label {
@@ -161,6 +174,18 @@
     gap: 12px;
 }
 .fmc-audit-item:last-child { border-bottom: none; }
+.fmc-audit-item-clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.12s ease;
+}
+.fmc-audit-item-clickable:hover {
+    background-color: var(--mud-palette-action-default-hover);
+    transform: translateX(2px);
+}
+.fmc-audit-item-clickable:active {
+    transform: translateX(0px);
+    opacity: 0.85;
+}
 .fmc-audit-indicator {
     position: absolute;
     left: 0; top: 0; bottom: 0;
@@ -292,13 +317,21 @@
 /* ── Subscriber Wallet Health Cards ── */
 .fmc-wallet-health-list { display: flex; flex-direction: column; gap: 12px; max-height: 680px; overflow-y: auto; padding-right: 4px; }
 
+/* Subscriber Wallet Health Cards - Adaptive */
 .fmc-health-card {
     padding: 16px 18px;
     border-radius: 16px;
     border: 1px solid var(--mud-palette-divider);
-    background: var(--mud-palette-background-grey);
+    background: var(--mud-palette-surface);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
+
+.fmc-light-mode ::deep .fmc-health-card {
+    background: rgba(255, 255, 255, 0.6) !important; /* Semi-transparent glass effect */
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
 .fmc-health-card:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
 
 .fmc-health-critical {
@@ -420,3 +453,43 @@
     border-bottom: 1px solid var(--mud-palette-divider);
     transform: translateX(-50%) rotate(45deg);
 }
+
+/* -- Audit Log Skeleton (reused from AuditLogPanel) -- */
+@keyframes audit-shimmer {
+    0%   { background-position: -500px 0; }
+    100% { background-position: 500px 0; }
+}
+.fmc-audit-skel-list { display: flex; flex-direction: column; }
+.fmc-audit-skel-item { padding: 16px 24px; border-bottom: 1px solid var(--mud-palette-divider); display: flex; gap: 16px; position: relative; }
+.fmc-audit-skel-item:last-child { border-bottom: none; }
+.fmc-audit-skel-indicator { width: 4px; border-radius: 2px; position: absolute; left: 0; top: 12px; bottom: 12px; background: var(--mud-palette-divider); }
+.fmc-audit-skel-body { flex: 1; padding-left: 8px; }
+.fmc-audit-skel {
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--mud-palette-divider) 25%, rgba(var(--mud-palette-primary-rgb), 0.06) 50%, var(--mud-palette-divider) 75%);
+    background-size: 500px 100%;
+    animation: audit-shimmer 1.6s ease-in-out infinite;
+}
+.fmc-audit-skel-amt   { height: 13px; width: 72px; }
+.fmc-audit-skel-badge { height: 16px; width: 80px; border-radius: 4px; }
+.fmc-audit-skel-entity { height: 12px; width: 60%; }
+.fmc-audit-skel-meta  { height: 9px; border-radius: 4px; }
+
+/* -- Wallet Health Skeleton (SuperAdmin/CEO) -- */
+@keyframes wallet-shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+.fmc-wallet-skel-list { display: flex; flex-direction: column; gap: 16px; padding: 4px 0; }
+.fmc-wallet-skel-card { background: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); border-radius: 16px; padding: 20px 24px; }
+.fmc-wallet-skel {
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--mud-palette-divider) 25%, rgba(var(--mud-palette-primary-rgb), 0.06) 50%, var(--mud-palette-divider) 75%);
+    background-size: 600px 100%;
+    animation: wallet-shimmer 1.6s ease-in-out infinite;
+}
+.fmc-wallet-skel-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+.fmc-wallet-skel-line   { height: 14px; }
+.fmc-wallet-skel-sm     { height: 10px; }
+.fmc-wallet-skel-pct    { width: 60px; height: 30px; border-radius: 8px; flex-shrink: 0; }
+.fmc-wallet-skel-bar    { height: 10px; width: 100%; border-radius: 20px; }

@@ -1,5 +1,7 @@
 @using FMC.Shared.DTOs.Admin
+@using FMC.Components.Pages.Admin.Dialogs
 @inject OrganizationApiService OrgService
+@inject IDialogService DialogService
 
 <div class="fmc-audit-surface">
     <div class="fmc-audit-header">
@@ -8,12 +10,17 @@
                 <div class="fmc-audit-icon mr-3"><MudIcon Icon="@Icons.Material.Filled.EventNote" Color="Color.Info" Size="Size.Small" /></div>
                 <div class="fmc-audit-title-text">
                     <MudText Typo="Typo.subtitle1" Style="font-weight: 950; letter-spacing: -0.01em; line-height: 1.1;">System Activity Log</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; line-height: 1.1;">Global audit feed</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; line-height: 1.1;">Global audit feed · click a row for details</MudText>
                 </div>
             </div>
-            <MudTooltip Text="Export & View All">
-                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/admin/audit" />
-            </MudTooltip>
+            <div class="d-flex align-center gap-2">
+                <MudTooltip Text="Refresh Log">
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="OnRefresh" Disabled="Loading" />
+                </MudTooltip>
+                <MudTooltip Text="Export &amp; View All">
+                    <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/admin/audit" />
+                </MudTooltip>
+            </div>
         </div>
     </div>
     <div class="fmc-audit-section-label">
@@ -23,8 +30,24 @@
     <div class="fmc-audit-scroll-area">
         @if (Loading)
         {
-            <div class="d-flex justify-center pa-8">
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" StrokeWidth="4" />
+            <div class="fmc-audit-skel-list">
+                @for (int i = 0; i < 6; i++)
+                {
+                    <div class="fmc-audit-skel-item">
+                        <div class="fmc-audit-skel-indicator"></div>
+                        <div class="fmc-audit-skel-body">
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <div class="fmc-audit-skel fmc-audit-skel-amt"></div>
+                                <div class="fmc-audit-skel fmc-audit-skel-badge"></div>
+                            </div>
+                            <div class="fmc-audit-skel fmc-audit-skel-entity mb-2"></div>
+                            <div class="d-flex justify-space-between">
+                                <div class="fmc-audit-skel fmc-audit-skel-meta" style="width: 30%;"></div>
+                                <div class="fmc-audit-skel fmc-audit-skel-meta" style="width: 22%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         }
         else if (!Logs.Any())
@@ -40,19 +63,21 @@
                 @foreach (var log in Logs.Take(10))
                 {
                     var act = log.Action?.ToUpper() ?? "UNKNOWN";
-                    var isCredit = act == "CREDIT";
-                    var isDebit = act == "DEBIT";
+                    var isCredit = act == "CREDIT" || act == "TRANSACTION_APPROVED" || act == "WALLET_ADJUSTED";
+                    var isDebit  = act == "DEBIT"  || act == "REJECTED";
                     var clr = isCredit ? "credit" : isDebit ? "debit" : act.Contains("LOGIN") ? "info" : "warning";
-                    
                     var localTime = log.CreatedAt.ToLocalTime();
-                    <div class="fmc-audit-item @clr">
+                    var capturedLog = log;
+                    <div class="fmc-audit-item @clr fmc-audit-item-clickable"
+                         @onclick="@(() => OpenDetail(capturedLog))"
+                         title="Click to view full details">
                         <div class="fmc-audit-indicator"></div>
                         <div class="fmc-audit-body-content">
                             <div class="d-flex justify-space-between align-center mb-1">
                                 <span class="fmc-audit-amt @clr">
                                     @(log.Amount > 0 ? (isCredit ? "+" : isDebit ? "-" : "") + log.Amount?.ToString("N2") : "SYSTEM")
                                 </span>
-                                <span class="fmc-audit-badge @clr">@act</span>
+                                <span class="fmc-audit-badge @clr">@act.Replace("_", " ")</span>
                             </div>
                             <MudText Typo="Typo.body2" Class="fmc-audit-entity-compact">@log.EntityName</MudText>
                             <div class="d-flex justify-space-between mt-1" style="opacity: 0.6;">
@@ -85,10 +110,13 @@
     .fmc-audit-title { display: flex; align-items: center; }
     .fmc-audit-icon { width: 32px; height: 32px; background: rgba(var(--mud-palette-info-rgb), 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
     .fmc-audit-section-label { padding: 12px 24px; background: var(--mud-palette-background-grey); border-bottom: 1px solid var(--mud-palette-divider); }
-    .fmc-audit-scroll-area { flex: 1; overflow-y: auto; }
-    .fmc-audit-list { padding: 0; }
-    .fmc-audit-item { padding: 16px 24px; border-bottom: 1px solid var(--mud-palette-divider); display: flex; gap: 16px; transition: background 0.2s; position: relative; }
-    .fmc-audit-item:hover { background: rgba(var(--mud-palette-primary-rgb), 0.02); }
+    .fmc-audit-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .fmc-audit-list { padding: 0; overflow-x: hidden; }
+    .fmc-audit-item { padding: 16px 24px; border-bottom: 1px solid var(--mud-palette-divider); display: flex; gap: 16px; transition: background 0.15s, transform 0.12s; position: relative; width: 100%; box-sizing: border-box; }
+    .fmc-audit-item:last-child { border-bottom: none; }
+    .fmc-audit-item-clickable { cursor: pointer; }
+    .fmc-audit-item-clickable:hover { background: var(--mud-palette-action-default-hover); transform: translateX(2px); }
+    .fmc-audit-item-clickable:active { opacity: 0.85; transform: translateX(0); }
     .fmc-audit-indicator { width: 4px; border-radius: 2px; position: absolute; left: 0; top: 12px; bottom: 12px; }
     .fmc-audit-item.credit .fmc-audit-indicator { background: var(--mud-palette-success); }
     .fmc-audit-item.debit .fmc-audit-indicator { background: var(--mud-palette-error); }
@@ -105,9 +133,44 @@
     .fmc-audit-badge.warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
     .fmc-audit-entity-compact { font-weight: 800; color: var(--mud-palette-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     .fmc-audit-footer { border-top: 1px solid var(--mud-palette-divider); margin-top: auto; }
+
+    /* ── Audit Log Skeleton Loader ── */
+    @@keyframes audit-shimmer {
+        0%   { background-position: -500px 0; }
+        100% { background-position: 500px 0; }
+    }
+    .fmc-audit-skel-list { display: flex; flex-direction: column; }
+    .fmc-audit-skel-item { padding: 16px 24px; border-bottom: 1px solid var(--mud-palette-divider); display: flex; gap: 16px; position: relative; }
+    .fmc-audit-skel-item:last-child { border-bottom: none; }
+    .fmc-audit-skel-indicator { width: 4px; border-radius: 2px; position: absolute; left: 0; top: 12px; bottom: 12px; background: var(--mud-palette-divider); }
+    .fmc-audit-skel-body { flex: 1; padding-left: 8px; }
+    .fmc-audit-skel {
+        border-radius: 5px;
+        background: linear-gradient(90deg, var(--mud-palette-divider) 25%, rgba(var(--mud-palette-primary-rgb), 0.06) 50%, var(--mud-palette-divider) 75%);
+        background-size: 500px 100%;
+        animation: audit-shimmer 1.6s ease-in-out infinite;
+    }
+    .fmc-audit-skel-amt   { height: 13px; width: 72px; }
+    .fmc-audit-skel-badge { height: 16px; width: 80px; border-radius: 4px; }
+    .fmc-audit-skel-entity { height: 12px; width: 60%; }
+    .fmc-audit-skel-meta  { height: 9px; border-radius: 4px; }
 </style>
 
 @code {
     [Parameter] public List<AuditLogDto> Logs { get; set; } = new();
     [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+
+    private async Task OpenDetail(AuditLogDto log)
+    {
+        var parameters = new DialogParameters { ["Log"] = log };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<AuditDetailDialog>("Forensic Event Trace", parameters, options);
+    }
 }

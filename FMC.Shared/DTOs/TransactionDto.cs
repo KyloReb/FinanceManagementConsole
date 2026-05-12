@@ -18,4 +18,5 @@ public class TransactionDto
     public DateTime? ActionDate { get; set; }
     public Guid? OrganizationId { get; set; }
     public Guid? BatchId { get; set; }
+    public List<TransactionDto>? SubTransactions { get; set; }
 }

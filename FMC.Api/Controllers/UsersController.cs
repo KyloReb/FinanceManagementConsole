@@ -261,6 +261,17 @@ public class UsersController : ControllerBase
         return success ? Ok() : BadRequest("Cancellation failed. You can only cancel your own pending transactions.");
     }
 
+    [Authorize(Roles = Roles.Maker)]
+    [HttpDelete("transactions/batch/{batchId:guid}/cancel")]
+    public async Task<IActionResult> CancelBatch(Guid batchId)
+    {
+        var makerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(makerId)) return Unauthorized();
+
+        var success = await _organizationService.CancelBatchAsync(batchId, makerId, HttpContext.RequestAborted);
+        return success ? Ok() : BadRequest("Batch cancellation failed. You can only cancel your own pending batches.");
+    }
+
     [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker)]
     [HttpGet("organizations/{orgId:guid}/pending-transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetPendingTransactions(Guid orgId)

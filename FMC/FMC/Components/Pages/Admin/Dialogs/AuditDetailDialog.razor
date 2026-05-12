@@ -43,10 +43,10 @@
                     <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Operator / Actor</MudText>
                     <div class="d-flex align-center gap-3 mt-2">
                         <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
-                            @(GetInitial(Log.PerformedBy ?? Log.UserName))
+                            @(GetInitial(GetFriendlyName()))
                         </MudAvatar>
                         <div>
-                            <MudText Style="font-weight:800; font-size:0.9rem;">@(Log.PerformedBy ?? Log.UserName ?? "System")</MudText>
+                            <MudText Style="font-weight:800; font-size:0.9rem;">@GetFriendlyName()</MudText>
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">Authenticated User</MudText>
                         </div>
                     </div>
@@ -59,6 +59,62 @@
                     </div>
                 </MudItem>
             </MudGrid>
+
+            @* ── BATCH BREAKDOWN (Forensic Detail) ── *@
+            @if (Log.Action == "BATCH_SUBMITTED" || (Log.Amount.HasValue && Log.EntityName.Contains("Bulk")))
+            {
+                <div class="detail-section mb-6">
+                    <div class="d-flex align-center gap-2 mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
+                    </div>
+                    
+                    <div class="fmc-breakdown-surface">
+                        @if (TryGetBatchData(out var batchData))
+                        {
+                            <MudTable Items="@batchData.Items" Dense="true" Hover="true" Elevation="0" Style="background: transparent;">
+                                <HeaderContent>
+                                    <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6;">CARDHOLDER</MudTh>
+                                    <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: right;">AMOUNT</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="item">
+                                    <MudTd>
+                                        <div class="d-flex flex-column">
+                                            <MudText Typo="Typo.body2" Style="font-weight: 700; font-size: 0.8rem;">@item.Subscriber</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.65rem;">@MaskAccount(item.CardNumber)</MudText>
+                                        </div>
+                                    </MudTd>
+                                    <MudTd Style="text-align: right;">
+                                        <MudText Typo="Typo.body2" Style="font-family:'JetBrains Mono',monospace; font-weight: 800; font-size: 0.85rem;" 
+                                                 Color="@(batchData.IsCredit ? Color.Success : Color.Error)">
+                                            @(batchData.IsCredit ? "+" : "-")@item.Amount.ToString("N2")
+                                        </MudText>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <div class="pa-4">
+                                <div class="d-flex justify-space-between align-center mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">TOTAL MAGNITUDE</MudText>
+                                        <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;">@Log.Amount?.ToString("C")</MudText>
+                                    </div>
+                                    <div class="text-right">
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">OPERATION TYPE</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Style="font-weight:900; margin:0;">BULK_ALLOTMENT</MudChip>
+                                    </div>
+                                </div>
+                                <MudDivider Class="mb-3 opacity-20" />
+                                <MudText Typo="Typo.caption" Style="font-style:italic; opacity:0.7;">
+                                    Forensic Note: Detailed itemization is available in the primary transactional ledger.
+                                </MudText>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
 
             @* TELEMETRY *@
             <div class="detail-section mb-6">
@@ -79,7 +135,7 @@
             <div class="detail-section">
                 <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Forensic Metadata</MudText>
                 <MudPaper Elevation="0" Class="mt-2 pa-4 fmc-memo-box">
-                    <MudText Typo="Typo.body2" Style="font-style:italic;">@(Log.Label ?? Log.Details ?? "No additional forensic metadata recorded for this event identity.")</MudText>
+                    <MudText Typo="Typo.body2" Style="font-style:italic;">@GetMemo()</MudText>
                 </MudPaper>
             </div>
         </div>
@@ -96,7 +152,9 @@
     .fmc-highlight-box { background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 12px; border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1); }
     .fmc-surface-box { background: var(--mud-palette-background-grey); border-radius: 12px; border: 1px dashed var(--mud-palette-divider); }
     .fmc-memo-box { background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider); border-radius: 12px; color: var(--mud-palette-text-secondary); }
+    .fmc-breakdown-surface { background: rgba(var(--mud-palette-info-rgb), 0.02); border-radius: 12px; border: 1px solid var(--mud-palette-divider); max-height: 240px; overflow-y: auto; }
     .opacity-50 { opacity: 0.5; }
+    .opacity-20 { opacity: 0.2; }
 </style>
 
 @code {
@@ -104,6 +162,47 @@
     [Parameter] public AuditLogDto Log { get; set; } = default!;
 
     private void Close() => MudDialog.Cancel();
+
+    private string GetFriendlyName()
+    {
+        // Prioritize actual UserName from the system, fallback to PerformedBy if it's not a Guid
+        if (!string.IsNullOrWhiteSpace(Log.UserName) && Log.UserName != "Unknown") return Log.UserName;
+        
+        var name = Log.PerformedBy ?? "System";
+        if (Guid.TryParse(name, out _))
+        {
+            return "Administrative Operator";
+        }
+        return name;
+    }
+
+    private string GetMemo()
+    {
+        if (string.IsNullOrWhiteSpace(Log.Details)) return Log.Label ?? "No forensic metadata recorded.";
+        
+        // If details is JSON (starts with {), show the label instead to avoid showing raw JSON in the memo
+        if (Log.Details.Trim().StartsWith("{")) return Log.Label ?? "Structured Batch Data Record";
+        
+        return Log.Details;
+    }
+
+    private bool TryGetBatchData(out BatchDetail? data)
+    {
+        data = null;
+        if (string.IsNullOrWhiteSpace(Log.Details) || !Log.Details.Trim().StartsWith("{")) return false;
+        
+        try {
+            data = System.Text.Json.JsonSerializer.Deserialize<BatchDetail>(Log.Details, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return data != null;
+        } catch { return false; }
+    }
+
+    private string MaskAccount(string? account)
+    {
+        if (string.IsNullOrEmpty(account)) return "N/A";
+        if (account.Length <= 10) return account;
+        return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
+    }
 
     private char GetInitial(string? name)
     {
@@ -114,14 +213,13 @@
 
     private void CopyRef()
     {
-        // Simulate copy or use JS
         Snackbar.Add("Event reference copied to clipboard", Severity.Info);
     }
 
     private string GetEventIcon(string action)
     {
         return action switch {
-            "CREDIT" => Icons.Material.Filled.AddModerator,
+            "CREDIT" or "BATCH_SUBMITTED" => Icons.Material.Filled.AddModerator,
             "DEBIT" => Icons.Material.Filled.RemoveModerator,
             "LOGIN" or "LOGIN_SUCCESS" => Icons.Material.Filled.VpnKey,
             _ => Icons.Material.Filled.Hub
@@ -131,10 +229,20 @@
     private Color GetEventColor(string action)
     {
         return action switch {
-            "CREDIT" => Color.Success,
+            "CREDIT" or "BATCH_SUBMITTED" => Color.Success,
             "DEBIT" => Color.Error,
             "LOGIN" or "LOGIN_SUCCESS" => Color.Info,
             _ => Color.Primary
         };
+    }
+
+    public class BatchDetail {
+        public bool IsCredit { get; set; }
+        public List<BatchItem> Items { get; set; } = new();
+    }
+    public class BatchItem {
+        public string? CardNumber { get; set; }
+        public decimal Amount { get; set; }
+        public string? Subscriber { get; set; }
     }
 }

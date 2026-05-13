@@ -13,11 +13,13 @@ using FMC.Infrastructure.Caching;
 using FMC.Infrastructure.Repositories;
 using FMC.Infrastructure.Resilience;
 using FMC.Infrastructure.BackgroundJobs;
+using FMC.Infrastructure.Diagnostics;
 using FMC.Shared.Auth;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -182,6 +184,12 @@ builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<ISystemAlertService, SystemAlertService>();
 builder.Services.AddScoped<IExcelParserService, FMC.Infrastructure.Services.ExcelParserService>();
 builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
+builder.Services.AddScoped<ISystemHealthService, SystemHealthService>();
+
+// Infrastructure Diagnostics & Monitoring
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("Financial Database", tags: new[] { "Database" })
+    .AddCheck("Self", () => HealthCheckResult.Healthy("FMC API is online"), tags: new[] { "Liveness" });
 
 // Background Job Services
 // NotificationJobService is the typed job class that Hangfire instantiates in its own DI scope.
@@ -304,6 +312,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 // ─────────────────────────────────────────────────────────────
 // Recurrent Background Jobs (Hangfire)

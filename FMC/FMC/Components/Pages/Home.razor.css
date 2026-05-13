@@ -315,7 +315,15 @@
 }
 
 /* ── Subscriber Wallet Health Cards ── */
-.fmc-wallet-health-list { display: flex; flex-direction: column; gap: 12px; max-height: 680px; overflow-y: auto; padding-right: 4px; }
+.fmc-wallet-health-list { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    max-height: 680px; 
+    overflow-y: auto; 
+    padding: 12px 6px; /* Added padding to allow for hover lift/glow */
+    margin: -12px -6px; /* Negate padding for external alignment */
+}
 
 /* Subscriber Wallet Health Cards - Adaptive */
 .fmc-health-card {
@@ -332,7 +340,21 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
 }
 
-.fmc-health-card:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.fmc-health-card.clickable {
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fmc-health-card.clickable:hover {
+    transform: translateY(-2px) scale(1.005);
+    box-shadow: 0 10px 30px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+    border-color: var(--mud-palette-primary) !important;
+}
+
+.fmc-health-card.clickable:active {
+    transform: scale(0.99);
+    opacity: 0.9;
+}
 
 .fmc-health-critical {
     border-color: var(--mud-palette-error) !important;
@@ -493,3 +515,98 @@
 .fmc-wallet-skel-sm     { height: 10px; }
 .fmc-wallet-skel-pct    { width: 60px; height: 30px; border-radius: 8px; flex-shrink: 0; }
 .fmc-wallet-skel-bar    { height: 10px; width: 100%; border-radius: 20px; }
+
+/* -- Tactical Filter Toolbar -- */
+.fmc-filter-toolbar {
+    padding: 6px 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap; /* Prevent wrapping */
+    overflow-x: auto;  /* Allow horizontal scroll on very small screens if needed */
+    scrollbar-width: none; /* Hide scrollbar for clean look */
+}
+.fmc-filter-toolbar::-webkit-scrollbar { display: none; }
+
+.fmc-filter-chip {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.05); /* Stable background for Light Mode */
+    border: 1px solid var(--mud-palette-divider);
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.6rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.fmc-dark-mode .fmc-filter-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.fmc-filter-chip:hover {
+    background: rgba(var(--mud-palette-primary-rgb), 0.08);
+    border-color: var(--mud-palette-primary);
+    color: var(--mud-palette-text-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Premium Gradient Active States */
+.fmc-filter-chip.active {
+    color: white !important;
+    border: none !important;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+    opacity: 1 !important;
+}
+
+.fmc-filter-chip.active .mud-icon-root { color: white !important; }
+
+/* ── Specific Color Gradients (Non-Flat) ── */
+.fmc-filter-chip.active[data-sort="util_high"] {
+    background: linear-gradient(135deg, #FF6B6B 0%, #EE0979 100%) !important;
+    box-shadow: 0 6px 16px rgba(238, 9, 121, 0.3) !important;
+}
+
+.fmc-filter-chip.active[data-sort="util_low"] {
+    background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%) !important;
+    box-shadow: 0 6px 16px rgba(33, 147, 176, 0.3) !important;
+}
+
+.fmc-filter-chip.active[data-sort="alpha"] {
+    background: linear-gradient(135deg, #614385 0%, #516395 100%) !important;
+    box-shadow: 0 6px 16px rgba(97, 67, 133, 0.3) !important;
+}
+
+.fmc-filter-chip.active[data-sort="recent"] {
+    background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%) !important;
+    box-shadow: 0 6px 16px rgba(0, 176, 155, 0.3) !important;
+}
+
+/* Active Glow Micro-Animation */
+.fmc-filter-chip.active::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Status Dots for high-density signaling */
+.fmc-status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    display: inline-block;
+}
+.fmc-status-dot.critical { background: var(--mud-palette-error); box-shadow: 0 0 8px var(--mud-palette-error); }
+.fmc-status-dot.warning  { background: var(--mud-palette-warning); box-shadow: 0 0 8px var(--mud-palette-warning); }

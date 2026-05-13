@@ -27,6 +27,8 @@ public sealed class OrganizationNotificationHandler :
     INotificationHandler<TransactionPendingEvent>,
     INotificationHandler<TransactionApprovedEvent>,
     INotificationHandler<BatchApprovedEvent>,
+    INotificationHandler<BatchRejectedEvent>,
+    INotificationHandler<BatchCancelledEvent>,
     INotificationHandler<BulkUploadSubmittedEvent>,
     INotificationHandler<WalletAdjustedEvent>
 {
@@ -53,6 +55,7 @@ public sealed class OrganizationNotificationHandler :
 
         _jobService.Enqueue<NotificationJobService>(job =>
             job.SendPendingApprovalNotificationAsync(
+                notification.TransactionId,
                 notification.OrganizationId,
                 notification.TargetUserId,
                 notification.MakerName,
@@ -72,6 +75,7 @@ public sealed class OrganizationNotificationHandler :
 
         _jobService.Enqueue<NotificationJobService>(job =>
             job.SendBulkUploadNotificationAsync(
+                notification.BatchId,
                 notification.OrganizationId,
                 notification.MakerName,
                 notification.TotalCount,
@@ -110,9 +114,49 @@ public sealed class OrganizationNotificationHandler :
             notification.BatchId);
 
         _jobService.Enqueue<NotificationJobService>(job =>
-            job.SendBatchApprovalConfirmationAsync(
+            job.SendBatchStatusNotificationAsync(
                 notification.BatchId,
-                notification.OrganizationId));
+                notification.OrganizationId,
+                "Approved",
+                null));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Handles a batch rejection event by enqueuing a consolidated notification.
+    /// </summary>
+    public Task Handle(BatchRejectedEvent notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing BatchRejectionConfirmation job for Batch {BatchId}",
+            notification.BatchId);
+
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendBatchStatusNotificationAsync(
+                notification.BatchId,
+                notification.OrganizationId,
+                "Rejected",
+                notification.Reason));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Handles a batch cancellation event by enqueuing a consolidated notification.
+    /// </summary>
+    public Task Handle(BatchCancelledEvent notification, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "[NotificationHandler] Queuing BatchCancellationConfirmation job for Batch {BatchId}",
+            notification.BatchId);
+
+        _jobService.Enqueue<NotificationJobService>(job =>
+            job.SendBatchStatusNotificationAsync(
+                notification.BatchId,
+                notification.OrganizationId,
+                "Cancelled",
+                null));
 
         return Task.CompletedTask;
     }
@@ -128,6 +172,7 @@ public sealed class OrganizationNotificationHandler :
 
         _jobService.Enqueue<NotificationJobService>(job =>
             job.SendWalletAdjustmentNotificationAsync(
+                notification.AdjustmentId,
                 notification.OrganizationId,
                 notification.Amount,
                 notification.NewBalance));

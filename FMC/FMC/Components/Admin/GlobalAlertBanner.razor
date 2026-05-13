@@ -1,0 +1,100 @@
+@using FMC.Services
+@inject GlobalAlertService AlertService
+@implements IDisposable
+
+@if (AlertService.CurrentAlert.IsActive)
+{
+    <div class="fmc-global-alert-banner @AlertService.CurrentAlert.Severity">
+        <div class="banner-content">
+            <MudIcon Icon="@GetIcon()" Class="mr-3" Size="Size.Small" />
+            <span class="alert-message">@AlertService.CurrentAlert.Message</span>
+            <span class="alert-time">(@AlertService.CurrentAlert.Timestamp.ToLocalTime().ToString("t"))</span>
+        </div>
+        <button class="close-btn" @onclick="AlertService.ClearAlert">
+            <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
+        </button>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        AlertService.OnAlertChanged += StateHasChanged;
+    }
+
+    private string GetIcon() => AlertService.CurrentAlert.Severity switch
+    {
+        "error" => Icons.Material.Filled.ReportProblem,
+        "warning" => Icons.Material.Filled.Warning,
+        _ => Icons.Material.Filled.Info
+    };
+
+    public void Dispose()
+    {
+        AlertService.OnAlertChanged -= StateHasChanged;
+    }
+}
+
+<style>
+    .fmc-global-alert-banner {
+        width: 100%;
+        padding: 10px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+        position: relative;
+        z-index: 1000;
+        animation: slide-down 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .fmc-global-alert-banner.error {
+        background: linear-gradient(90deg, #ff3d00, #d63031);
+        color: white;
+        box-shadow: 0 4px 15px rgba(255, 61, 0, 0.3);
+    }
+
+    .fmc-global-alert-banner.warning {
+        background: linear-gradient(90deg, #ffb300, #f39c12);
+        color: #1a1c1e;
+        box-shadow: 0 4px 15px rgba(255, 179, 0, 0.2);
+    }
+
+    .banner-content {
+        display: flex;
+        align-items: center;
+    }
+
+    .alert-time {
+        opacity: 0.7;
+        margin-left: 8px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .close-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: inherit;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .close-btn:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    @@keyframes slide-down {
+        from { transform: translateY(-100%); }
+        to { transform: translateY(0); }
+    }
+</style>

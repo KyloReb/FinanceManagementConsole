@@ -111,6 +111,7 @@ public class SubmitBulkTransactionCommandHandler : IRequestHandler<SubmitBulkTra
             var sampleRows = resultRows.Where(r => string.IsNullOrEmpty(r.ValidationError)).Take(20).ToList();
 
             await _publisher.Publish(new BulkUploadSubmittedEvent(
+                batchId,
                 request.OrganizationId,
                 request.MakerName,
                 submitted,

@@ -1,4 +1,4 @@
-﻿@implements IDisposable
+@implements IDisposable
 @using System.Reflection
 @inject PersistentComponentState ApplicationState
 @inject IHttpContextAccessor HttpContextAccessor
@@ -10,54 +10,56 @@
     <MudDialogProvider />
     <MudSnackbarProvider />
 
-    <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Client._Imports).Assembly }">
-        <Found Context="routeData">
-            <AuthorizeView>
-                <Authorized>
-                    <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-                </Authorized>
-                <NotAuthorized>
-                    @if (routeData.PageType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Any())
-                    {
+    <FMC.Components.Admin.FmcErrorBoundary>
+        <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(Client._Imports).Assembly }">
+            <Found Context="routeData">
+                <AuthorizeView>
+                    <Authorized>
                         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-                    }
-                    else
-                    {
+                    </Authorized>
+                    <NotAuthorized>
+                        @if (routeData.PageType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Any())
+                        {
+                            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+                        }
+                        else
+                        {
+                            <LayoutView Layout="typeof(Layout.BlankLayout)">
+                                @if (context.User.Identity?.IsAuthenticated != true)
+                                {
+                                    <RedirectToLogin />
+                                }
+                                else
+                                {
+                                    <div style="padding: 20px; text-align: center;">
+                                        <h2>Access Denied</h2>
+                                        <p>You do not have permission to view this page.</p>
+                                    </div>
+                                }
+                            </LayoutView>
+                        }
+                    </NotAuthorized>
+                    <Authorizing>
                         <LayoutView Layout="typeof(Layout.BlankLayout)">
-                            @if (context.User.Identity?.IsAuthenticated != true)
-                            {
-                                <RedirectToLogin />
-                            }
-                            else
-                            {
-                                <div style="padding: 20px; text-align: center;">
-                                    <h2>Access Denied</h2>
-                                    <p>You do not have permission to view this page.</p>
-                                </div>
-                            }
+                            <div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:var(--mud-palette-background);">
+                                <p style="color:var(--mud-palette-text-primary);">Authenticating...</p>
+                            </div>
                         </LayoutView>
-                    }
-                </NotAuthorized>
-                <Authorizing>
-                    <LayoutView Layout="typeof(Layout.BlankLayout)">
-                        <div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:var(--mud-palette-background);">
-                            <p style="color:var(--mud-palette-text-primary);">Authenticating...</p>
-                        </div>
-                    </LayoutView>
-                </Authorizing>
-            </AuthorizeView>
-            <FocusOnNavigate RouteData="routeData" Selector="h1" />
-        </Found>
-        <NotFound>
-            <PageTitle>Not found</PageTitle>
-            <LayoutView Layout="typeof(Layout.BlankLayout)">
-                <div style="padding: 2.5rem; text-align: center;">
-                    <h1>Sorry, there's nothing at this address.</h1>
-                    <MudButton Href="/" Color="Color.Primary" Variant="Variant.Filled" Class="mt-4">Go to Home</MudButton>
-                </div>
-            </LayoutView>
-        </NotFound>
-    </Router>
+                    </Authorizing>
+                </AuthorizeView>
+                <FocusOnNavigate RouteData="routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                <PageTitle>Not found</PageTitle>
+                <LayoutView Layout="typeof(Layout.BlankLayout)">
+                    <div style="padding: 2.5rem; text-align: center;">
+                        <h1>Sorry, there's nothing at this address.</h1>
+                        <MudButton Href="/" Color="Color.Primary" Variant="Variant.Filled" Class="mt-4">Go to Home</MudButton>
+                    </div>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </FMC.Components.Admin.FmcErrorBoundary>
 </CascadingAuthenticationState>
 
 @code {

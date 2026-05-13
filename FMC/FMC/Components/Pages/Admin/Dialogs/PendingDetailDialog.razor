@@ -142,13 +142,26 @@
                 </div>
             }
         </div>
+
+        @if (_showSuccessOverlay)
+        {
+            <div class="fmc-success-overlay @(_isRejection ? "rejected" : "")">
+                <div class="fmc-success-icon-container">
+                    <MudIcon Icon="@(_isRejection ? Icons.Material.Filled.Gavel : Icons.Material.Filled.Verified)" Class="fmc-success-icon" />
+                </div>
+                <MudText Typo="Typo.h5" Class="fmc-success-text">@_successMessage</MudText>
+                <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_successSubtext</MudText>
+            </div>
+        }
     </DialogContent>
     
     <DialogActions>
-        <MudButton OnClick="CloseDialog" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
-        <MudSpacer />
-        
-        <!-- Action Buttons Contextual to User Role and Status -->
+        @if (!_showSuccessOverlay)
+        {
+            <MudButton OnClick="CloseDialog" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
+            <MudSpacer />
+            
+            <!-- Action Buttons Contextual to User Role and Status -->
         @if (Transaction.Status == "Pending")
         {
             @if (IsOwnTransaction)
@@ -176,6 +189,7 @@
                            OnClick="@(() => ProcessDecisionAsync(approve: true))"
                            Disabled="@_processing"
                            Style="background-color: #2e7d32; color: #ffffff; font-weight: 900; text-transform:none; border-radius: 8px;">Approve</MudButton>
+            }
             }
         }
     </DialogActions>
@@ -213,6 +227,10 @@
     private bool _processing;
     private bool _showFullAccount;
     private bool _isApprover;
+    private bool _showSuccessOverlay;
+    private bool _isRejection;
+    private string _successMessage = "";
+    private string _successSubtext = "";
 
     #endregion
 
@@ -263,6 +281,17 @@
         "Cancelled" => Color.Default,
         _           => Color.Info
     };
+
+    private async Task ShowSuccessOverlayAsync(string title, string subtext, bool isRejection = false)
+    {
+        _successMessage = title;
+        _successSubtext = subtext;
+        _isRejection = isRejection;
+        _showSuccessOverlay = true;
+        StateHasChanged();
+        await Task.Delay(1500); // Premium dwell time for decision certification
+        MudDialog.Close(DialogResult.Ok(true));
+    }
 
     #endregion
 
@@ -324,8 +353,7 @@
             
             if (success)
             {
-                Snackbar.Add(isBatch ? "Batch request cancelled successfully." : "Transaction request cancelled successfully.", Severity.Success);
-                MudDialog.Close(DialogResult.Ok(true)); // Signal parent to refresh data
+                await ShowSuccessOverlayAsync("REQUEST WITHDRAWN", isBatch ? "Batch has been removed from the queue." : "Transaction has been removed.");
             }
             else 
             {
@@ -366,8 +394,15 @@
                     return;
                 }
 
-                success = await OrgService.ApproveTransactionAsync(Transaction.Id);
-                if (success) Snackbar.Add("Transaction approved successfully.", Severity.Success);
+                bool isBatch = Transaction.SubTransactions != null && Transaction.SubTransactions.Any();
+                success = isBatch 
+                    ? await OrgService.ApproveBatchAsync(Transaction.Id)
+                    : await OrgService.ApproveTransactionAsync(Transaction.Id);
+
+                if (success) 
+                {
+                    await ShowSuccessOverlayAsync("TRANSACTION AUTHORIZED", "Decision has been securely logged to the ledger.");
+                }
             }
             else
             {
@@ -394,8 +429,16 @@
                 {
                     // Proceed with rejection using the provided reason
                     var reason = result.Data as string ?? "Rejected by approver.";
-                    success = await OrgService.RejectTransactionAsync(Transaction.Id, reason);
-                    if (success) Snackbar.Add("Transaction rejected.", Severity.Warning);
+                    bool isBatch = Transaction.SubTransactions != null && Transaction.SubTransactions.Any();
+                    
+                    success = isBatch
+                        ? await OrgService.RejectBatchAsync(Transaction.Id, reason)
+                        : await OrgService.RejectTransactionAsync(Transaction.Id, reason);
+
+                    if (success)
+                    {
+                        await ShowSuccessOverlayAsync("DECISION LOGGED", "Transaction has been rejected and archived.", isRejection: true);
+                    }
                 }
                 else 
                 {
@@ -405,12 +448,7 @@
                 }
             }
 
-            // Close the main detail dialog if the backend operation succeeded
-            if (success)
-            {
-                MudDialog.Close(DialogResult.Ok(true));
-            }
-            else
+            if (!success)
             {
                 Snackbar.Add("Action failed. Please check permissions or available account balance.", Severity.Error);
             }

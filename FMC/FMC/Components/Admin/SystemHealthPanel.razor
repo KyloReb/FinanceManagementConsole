@@ -1,0 +1,189 @@
+@using FMC.Shared.DTOs.Admin
+@using FMC.Services.Api
+@inject AdminService AdminService
+@implements IDisposable
+
+@inject FMC.Services.ThemeService ThemeService
+
+@code {
+    [Parameter] public bool IsLoading { get; set; }
+}
+
+<div class="health-pulse-panel fmc-main-surface @(_health?.Status.ToLower()) @(ThemeService.IsDarkMode ? "dark-theme" : "light-theme")">
+    <div class="panel-header">
+        <div class="status-indicator">
+            <div class="pulse-ring" style="background: @(_health?.StatusColor ?? "#b2bec3")"></div>
+            <div class="pulse-dot" style="background: @(_health?.StatusColor ?? "#b2bec3")"></div>
+        </div>
+        <div class="header-text">
+            <h3>Infrastructure Health Pulse</h3>
+            <span class="uptime-text">UPTIME: @FormatUptime(_health?.Uptime)</span>
+        </div>
+        <div class="live-badge">LIVE TELEMETRY</div>
+    </div>
+
+    @if (IsLoading || _health == null)
+    {
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="skeleton-box mb-4" style="height: 12px; width: 40%;"></div>
+                <div class="d-flex justify-space-between mb-4">
+                    <div class="skeleton-box" style="height: 32px; width: 25%;"></div>
+                    <div class="skeleton-box" style="height: 32px; width: 25%;"></div>
+                    <div class="skeleton-box" style="height: 32px; width: 25%;"></div>
+                </div>
+                <div class="skeleton-box" style="height: 6px; width: 100%;"></div>
+            </div>
+            <div class="metric-card">
+                <div class="skeleton-box mb-4" style="height: 12px; width: 40%;"></div>
+                <div class="perf-stats">
+                    <div class="d-flex justify-space-between"><div class="skeleton-box" style="height: 14px; width: 30%;"></div><div class="skeleton-box" style="height: 14px; width: 20%;"></div></div>
+                    <div class="d-flex justify-space-between"><div class="skeleton-box" style="height: 14px; width: 30%;"></div><div class="skeleton-box" style="height: 14px; width: 20%;"></div></div>
+                    <div class="d-flex justify-space-between"><div class="skeleton-box" style="height: 14px; width: 30%;"></div><div class="skeleton-box" style="height: 14px; width: 20%;"></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="infrastructure-list">
+            <div class="d-flex justify-space-between py-2"><div class="skeleton-box" style="height: 16px; width: 40%;"></div><div class="skeleton-box" style="height: 16px; width: 20%;"></div></div>
+            <div class="d-flex justify-space-between py-2"><div class="skeleton-box" style="height: 16px; width: 40%;"></div><div class="skeleton-box" style="height: 16px; width: 20%;"></div></div>
+        </div>
+    }
+    else
+    {
+        <div class="metrics-grid">
+            <!-- Job Pipeline Card -->
+            <div class="metric-card">
+                <div class="card-label">Async Job Pipeline</div>
+                <div class="job-stats">
+                    <div class="stat">
+                        <span class="stat-value">@_health.JobPipeline.Active</span>
+                        <span class="stat-label">Active</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value @(_health.JobPipeline.Failed > 0 ? "warning" : "")">@_health.JobPipeline.Failed</span>
+                        <span class="stat-label">Failed</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">@_health.JobPipeline.Queued</span>
+                        <span class="stat-label">Queued</span>
+                    </div>
+                </div>
+                <div class="throughput-bar">
+                    <div class="bar-fill" style="width: @(CalculateThroughputPct(_health.JobPipeline))%"></div>
+                </div>
+            </div>
+
+            <!-- Performance Card -->
+            <div class="metric-card">
+                <div class="card-label">Computational Load</div>
+                <div class="perf-stats">
+                    <div class="perf-item">
+                        <span class="p-label">PROCESSOR USAGE</span>
+                        <span class="p-value">@_health.Performance.CpuUsagePct.ToString("F1")%</span>
+                    </div>
+                    <div class="perf-item">
+                        <span class="p-label">MEMORY ALLOCATION</span>
+                        <span class="p-value">@_health.Performance.MemoryUsageMb.ToString("F0") MB</span>
+                    </div>
+                    <div class="perf-item">
+                        <span class="p-label">NETWORK LATENCY</span>
+                        <span class="p-value">@_health.Performance.AvgRequestLatencyMs.ToString("F0") ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="infrastructure-list">
+            @foreach (var item in _health.Infrastructure)
+            {
+                <div class="infra-item">
+                    <span class="infra-name">@item.Name</span>
+                    <div class="infra-status @item.Status.ToLower()">
+                        <span class="latency">@item.LatencyMs</span>
+                        <div class="status-pill">@item.Status</div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private SystemHealthDto? _health;
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshHealth();
+        
+        // Polling every 30 seconds to maintain real-time visibility without overhead
+        _timer = new Timer(async _ => 
+        {
+            await InvokeAsync(async () => 
+            {
+                await RefreshHealth();
+            });
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    [Inject] private FMC.Services.GlobalAlertService GlobalAlert { get; set; } = default!;
+
+    private async Task RefreshHealth()
+    {
+        try
+        {
+            _health = await AdminService.GetSystemHealthPulseAsync();
+            
+            // Phase 1: Hybrid Notification Integration
+            if (_health != null)
+            {
+                if (_health.Status.Equals("Unhealthy", StringComparison.OrdinalIgnoreCase))
+                {
+                    GlobalAlert.SetAlert(
+                        "CRITICAL INFRASTRUCTURE DEGRADATION: One or more core systems are offline.", 
+                        "error"
+                    );
+                }
+                else if (_health.Status.Equals("Degraded", StringComparison.OrdinalIgnoreCase))
+                {
+                    GlobalAlert.SetAlert(
+                        "SYSTEM ADVISORY: Performance is degraded. Background jobs may be delayed.", 
+                        "warning"
+                    );
+                }
+                else if (_health.Status.Equals("Healthy", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Only clear if the current alert was a health-related one
+                    if (GlobalAlert.CurrentAlert.Message.Contains("SYSTEM") || GlobalAlert.CurrentAlert.Message.Contains("INFRASTRUCTURE"))
+                    {
+                        GlobalAlert.ClearAlert();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Health Refresh Error: {ex.Message}");
+            GlobalAlert.SetAlert("TELEMETRY LOST: Unable to reach the health diagnostic engine.", "error");
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private string FormatUptime(TimeSpan? uptime)
+    {
+        if (!uptime.HasValue) return "0h 0m";
+        return $"{(int)uptime.Value.TotalHours}h {uptime.Value.Minutes}m";
+    }
+
+    private int CalculateThroughputPct(JobPipelineDto pipeline)
+    {
+        int total = pipeline.Active + pipeline.Queued + pipeline.Succeeded;
+        if (total == 0) return 0;
+        return Math.Min(100, (pipeline.Succeeded * 100) / total);
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

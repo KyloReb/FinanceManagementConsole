@@ -59,6 +59,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     /// </summary>
     public DbSet<SystemAlert> SystemAlerts { get; set; }
     public DbSet<Cardholder> Cardholders { get; set; }
+    public DbSet<NotificationAudit> NotificationAudits { get; set; }
 
     /// <inheritdoc />
     public override DbSet<ApplicationUser> Users => Set<ApplicationUser>();
@@ -146,5 +147,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasIndex(a => a.IsResolved);
         builder.Entity<SystemAlert>()
             .HasIndex(a => a.CreatedAt);
+
+        builder.Entity<NotificationAudit>()
+            .HasIndex(n => n.NotificationKey)
+            .IsUnique();
+        builder.Entity<NotificationAudit>()
+            .HasIndex(n => n.SentAt);
     }
 }

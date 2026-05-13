@@ -13,6 +13,7 @@ public interface IApplicationDbContext
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<SystemAlert> SystemAlerts { get; }
     DbSet<Cardholder> Cardholders { get; }
+    DbSet<NotificationAudit> NotificationAudits { get; }
     DbSet<ApplicationUser> Users { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

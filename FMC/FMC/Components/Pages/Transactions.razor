@@ -35,7 +35,8 @@
                                   Adornment="Adornment.Start" 
                                   AdornmentIcon="@Icons.Material.Filled.Search" 
                                   Variant="Variant.Outlined" 
-                                  Margin="Margin.Dense" />
+                                  Margin="Margin.Dense"
+                                  Immediate="true" />
                 </div>
             </div>
 
@@ -159,7 +160,27 @@
                     </MudText>
                 </MudTd>
             </RowTemplate>
+            <NoRecordsContent>
+                <div class="fmc-empty-state">
+                    <div class="fmc-empty-glow"></div>
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-empty-icon" />
+                    <MudText Typo="Typo.h6" Class="fmc-empty-title">No matching forensic records</MudText>
+                    <MudText Typo="Typo.body2" Class="fmc-empty-subtitle">Your tactical query did not yield any results in the current stream.</MudText>
+                </div>
+            </NoRecordsContent>
+            <FooterContent>
+            </FooterContent>
             <PagerContent>
+                @if (!_loading && _transactions.Any(FilterFunc1))
+                {
+                    <div class="fmc-end-of-stream-wrap" style="padding: 20px 0;">
+                        <div class="fmc-end-indicator">
+                            <div class="fmc-end-line"></div>
+                            <span class="fmc-end-text">END OF FORENSIC AUDIT STREAM</span>
+                            <div class="fmc-end-line"></div>
+                        </div>
+                    </div>
+                }
                 <MudTablePager />
             </PagerContent>
         </MudTable>

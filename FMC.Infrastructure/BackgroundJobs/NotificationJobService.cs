@@ -54,6 +54,7 @@ public sealed class NotificationJobService
     /// <param name="makerName">Display name of the Maker who initiated the request.</param>
     /// <param name="amount">Transaction amount for display in the notification.</param>
     public async Task SendPendingApprovalNotificationAsync(
+        Guid transactionId,
         Guid organizationId,
         string targetUserId,
         string makerName,
@@ -106,11 +107,18 @@ public sealed class NotificationJobService
 
             foreach (var email in recipients)
             {
-                await _emailService.SendEmailAsync(
-                    email!,
-                    $"FMC Action Required: Pending Approval for {org.Name}",
-                    body,
-                    attachments);
+                if (string.IsNullOrEmpty(email)) continue;
+
+                if (await ShouldSendNotificationAsync("PENDING_APPROVAL", transactionId, email))
+                {
+                    await _emailService.SendEmailAsync(
+                        email,
+                        $"FMC Action Required: Pending Approval for {org.Name}",
+                        body,
+                        attachments);
+                    
+                    await LogNotificationSentAsync("PENDING_APPROVAL", transactionId, email);
+                }
             }
 
             _logger.LogInformation("[BackgroundJob] PendingApproval notification sent to {Count} recipients.", recipients.Count);
@@ -131,6 +139,7 @@ public sealed class NotificationJobService
     /// Maker submits a bulk transaction file.
     /// </summary>
     public async Task SendBulkUploadNotificationAsync(
+        Guid batchId,
         Guid organizationId,
         string makerName,
         int totalCount,
@@ -174,11 +183,18 @@ public sealed class NotificationJobService
 
             foreach (var email in recipients)
             {
-                await _emailService.SendEmailAsync(
-                    email!,
-                    $"FMC Action Required: Bulk Batch Settlement — {org.Name}",
-                    body,
-                    attachments);
+                if (string.IsNullOrEmpty(email)) continue;
+
+                if (await ShouldSendNotificationAsync("BULK_SUBMITTED", batchId, email))
+                {
+                    await _emailService.SendEmailAsync(
+                        email,
+                        $"FMC Action Required: Bulk Batch Settlement — {org.Name}",
+                        body,
+                        attachments);
+
+                    await LogNotificationSentAsync("BULK_SUBMITTED", batchId, email);
+                }
             }
 
             _logger.LogInformation("[BackgroundJob] BulkUpload notification sent to {Count} recipients.", recipients.Count);
@@ -244,11 +260,16 @@ public sealed class NotificationJobService
 
                 foreach (var email in recipients)
                 {
-                    await _emailService.SendEmailAsync(
-                        email,
-                        $"FMC Notification: Transaction Approved — {org.Name}",
-                        body,
-                        attachments);
+                    if (await ShouldSendNotificationAsync("TRANSACTION_APPROVED", transactionId, email))
+                    {
+                        await _emailService.SendEmailAsync(
+                            email,
+                            $"FMC Notification: Transaction Approved — {org.Name}",
+                            body,
+                            attachments);
+                            
+                        await LogNotificationSentAsync("TRANSACTION_APPROVED", transactionId, email);
+                    }
                 }
 
                 _logger.LogInformation("[BackgroundJob] ApprovalConfirmation sent to {Count} recipients.", recipients.Count);
@@ -269,14 +290,14 @@ public sealed class NotificationJobService
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Sends a consolidated settlement confirmation email to the Maker and CEO after an
-    /// entire batch of transactions is approved. This prevents email flooding for bulk uploads.
+    /// Sends a consolidated settlement confirmation email to the Maker and CEO after a 
+    /// batch changes status (Approved, Rejected, Cancelled). This prevents email flooding.
     /// </summary>
-    public async Task SendBatchApprovalConfirmationAsync(Guid batchId, Guid organizationId)
+    public async Task SendBatchStatusNotificationAsync(Guid batchId, Guid organizationId, string status, string? reason = null)
     {
         try
         {
-            _logger.LogInformation("[BackgroundJob] Sending BatchApprovalConfirmation for Batch {BatchId}", batchId);
+            _logger.LogInformation("[BackgroundJob] Sending BatchStatusNotification ({Status}) for Batch {BatchId}", status, batchId);
 
             var transactionsWithCardholders = await (from t in _context.Transactions.IgnoreQueryFilters()
                                                      where t.BatchId == batchId
@@ -292,7 +313,7 @@ public sealed class NotificationJobService
 
             if (!transactionsWithCardholders.Any() || org == null)
             {
-                _logger.LogWarning("[BackgroundJob] BatchApprovalConfirmation aborted — Batch or Org not found.");
+                _logger.LogWarning("[BackgroundJob] BatchStatusNotification aborted — Batch or Org not found.");
                 return;
             }
 
@@ -320,30 +341,34 @@ public sealed class NotificationJobService
             {
                 var body = _templateService.GenerateBatchNotificationEmail(
                     org.Name, 
-                    "Approved", 
+                    status, 
                     transactionDtos, 
                     transactionsWithCardholders.Count > 20);
                     
                 var attachments = BuildAttachments();
+                var subject = $"FMC Notification: Batch {status} — {org.Name}";
 
                 foreach (var email in recipients)
                 {
-                    await _emailService.SendEmailAsync(
-                        email,
-                        $"FMC Notification: Batch Approved — {org.Name}",
-                        body,
-                        attachments);
+                    if (await ShouldSendNotificationAsync($"BATCH_{status.ToUpper()}", batchId, email))
+                    {
+                        await _emailService.SendEmailAsync(email, subject, body, attachments);
+                        await LogNotificationSentAsync($"BATCH_{status.ToUpper()}", batchId, email);
+                    }
                 }
 
-                _logger.LogInformation("[BackgroundJob] BatchApprovalConfirmation sent to {Count} recipients.", recipients.Count);
+                _logger.LogInformation("[BackgroundJob] BatchStatusNotification ({Status}) sent to {Count} recipients.", status, recipients.Count);
             }
 
-            // Chained responsibility: check capacity AFTER approval emails are sent
-            await SendCapacityAlertIfNeededAsync(org, ceoEmail);
+            // Chained responsibility: only check capacity for approvals
+            if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+            {
+                await SendCapacityAlertIfNeededAsync(org, ceoEmail);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[BackgroundJob] Failed to send BatchApprovalConfirmation for Batch {BatchId}", batchId);
+            _logger.LogError(ex, "[BackgroundJob] Failed to send BatchStatusNotification for Batch {BatchId}", batchId);
             throw;
         }
     }
@@ -357,6 +382,7 @@ public sealed class NotificationJobService
     /// credits or debits the organization's core operations wallet.
     /// </summary>
     public async Task SendWalletAdjustmentNotificationAsync(
+        Guid adjustmentId,
         Guid organizationId,
         decimal amount,
         decimal newBalance)
@@ -385,12 +411,17 @@ public sealed class NotificationJobService
                 newBalance,
                 isCredit);
 
-            var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
-            await _emailService.SendEmailAsync(
-                ceoEmail,
-                $"FMC Advisory: {actionTitle} — {org.Name}",
-                body,
-                BuildAttachments());
+            if (await ShouldSendNotificationAsync("WALLET_ADJUSTMENT", adjustmentId, ceoEmail))
+            {
+                var actionTitle = isCredit ? "Wallet Credited Successfully" : "Wallet Adjustment (Debit)";
+                await _emailService.SendEmailAsync(
+                    ceoEmail,
+                    $"FMC Advisory: {actionTitle} — {org.Name}",
+                    body,
+                    BuildAttachments());
+                    
+                await LogNotificationSentAsync("WALLET_ADJUSTMENT", adjustmentId, ceoEmail);
+            }
 
             _logger.LogInformation("[BackgroundJob] WalletAdjustment notification sent to CEO for Org {OrgId}", organizationId);
         }
@@ -490,4 +521,41 @@ public sealed class NotificationJobService
     {
         { "nlklogo", Convert.FromBase64String(BrandingConstants.NationlinkLogoBase64) }
     };
+
+    // ─────────────────────────────────────────────────────────
+    // Idempotency Engine
+    // ─────────────────────────────────────────────────────────
+
+    private async Task<bool> ShouldSendNotificationAsync(string action, Guid entityId, string recipient)
+    {
+        var key = $"{action}:{entityId}:{recipient.ToLower().Trim()}";
+        var alreadySent = await _context.NotificationAudits
+            .AnyAsync(a => a.NotificationKey == key);
+            
+        if (alreadySent)
+        {
+            _logger.LogInformation("[Idempotency] Skipping duplicate notification: {Key}", key);
+            return false;
+        }
+        
+        return true;
+    }
+
+    private async Task LogNotificationSentAsync(string action, Guid entityId, string recipient, string? providerId = null)
+    {
+        var key = $"{action}:{entityId}:{recipient.ToLower().Trim()}";
+        var audit = new NotificationAudit
+        {
+            NotificationKey = key,
+            ActionType = action,
+            EntityId = entityId.ToString(),
+            Recipient = recipient,
+            ProviderMessageId = providerId,
+            SentAt = DateTime.UtcNow,
+            Status = "SENT"
+        };
+        
+        _context.NotificationAudits.Add(audit);
+        await _context.SaveChangesAsync();
+    }
 }

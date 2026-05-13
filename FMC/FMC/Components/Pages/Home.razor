@@ -109,12 +109,6 @@
                     }
                 </MudItem>
             </MudGrid>
-            @* ── INTELLIGENCE OVERSIGHT (Full Width) ── *@
-            <MudGrid Class="mb-4">
-                <MudItem xs="12">
-                    <WorkflowAlertPanel Loading="_loading" IsCeo="@context.User.IsInRole(Roles.CEO)" />
-                </MudItem>
-            </MudGrid>
             @* ── ROW 1: PRIMARY OPERATIONAL CENTER (Repository & Audit) ── *@
             <MudGrid Spacing="4">
                 @* ── LEFT: REPOSITORY & ANALYTICS (8/12) ── *@
@@ -123,54 +117,73 @@
 
                         @* ── SUBSCRIBER WALLET HEALTH ── *@
                         <MudPaper Elevation="0" Class="fmc-main-surface pa-8">
-                            <div class="d-flex align-center justify-space-between mb-6">
-                                <div class="d-flex align-center">
-                                    <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-primary-rgb), 0.1);">
-                                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" />
+                            <div class="d-flex flex-column mb-6">
+                                @* ── Row 1: Header + Global Controls ── *@
+                                <div class="d-flex align-center justify-space-between mb-3">
+                                    <div class="d-flex align-center">
+                                        <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-primary-rgb), 0.1);">
+                                            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="Color.Primary" />
+                                        </div>
+                                        <div>
+                                            <div class="d-flex align-center gap-2">
+                                                <MudText Typo="Typo.h6" Style="font-weight: 950; letter-spacing: -0.02em; white-space: nowrap; font-size: 1.1rem;">Subscriber Wallet Health</MudText>
+                                                @* Summary Risk Status *@
+                                                @if (!_auditLoading && GetFilteredSubscribers().Any())
+                                                {
+                                                    var criticalCount = GetFilteredSubscribers().Count(o => o.TotalBalance > 0 && (o.Usage / o.TotalBalance) >= 0.9m);
+                                                    var warnCount     = GetFilteredSubscribers().Count(o => o.TotalBalance > 0 && (o.Usage / o.TotalBalance) >= 0.7m && (o.Usage / o.TotalBalance) < 0.9m);
+                                                    
+                                                    <div class="d-flex align-center gap-1 ml-1">
+                                                        @if (criticalCount > 0) { <span class="fmc-status-dot critical" title="@criticalCount CRITICAL"></span> }
+                                                        @if (warnCount > 0)     { <span class="fmc-status-dot warning" title="@warnCount WARNING"></span> }
+                                                    </div>
+                                                }
+                                            </div>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; font-size: 0.7rem;">Real-time utilization & depletion risk per tenant</MudText>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <MudText Typo="Typo.h6" Style="font-weight: 950; letter-spacing: -0.02em;">Subscriber Wallet Health</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700;">Real-time utilization & depletion risk per tenant</MudText>
-                                    </div>
-                                </div>
-                                    <div class="d-flex align-center gap-4">
-                                        @* Summary Risk Chips *@
-                                        @if (!_auditLoading && GetFilteredSubscribers().Any())
-                                        {
-                                            var criticalCount = GetFilteredSubscribers().Count(o => o.TotalBalance > 0 && (o.Usage / o.TotalBalance) >= 0.9m);
-                                            var warnCount     = GetFilteredSubscribers().Count(o => o.TotalBalance > 0 && (o.Usage / o.TotalBalance) >= 0.7m && (o.Usage / o.TotalBalance) < 0.9m);
-                                            
-                                            @if (criticalCount > 0)
-                                            {
-                                                <MudChip T="string" Color="Color.Error" Variant="Variant.Filled"
-                                                         Icon="@Icons.Material.Filled.ErrorOutline"
-                                                         Style="font-size:0.65rem; font-weight:900;">
-                                                    @criticalCount CRITICAL
-                                                </MudChip>
-                                            }
-                                            @if (warnCount > 0)
-                                            {
-                                                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled"
-                                                         Icon="@Icons.Material.Filled.WarningAmber"
-                                                         Style="font-size:0.65rem; font-weight:900;">
-                                                    @warnCount WARNING
-                                                </MudChip>
-                                            }
-                                        }
-
-                                        @* Search & page-size controls — SuperAdmin only *@
-                                        @if (_isSuperAdmin)
-                                        {
-                                            <MudTextField @bind-Value="_walletSearchQuery" Placeholder="Search tenant..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="width: 200px; background: var(--mud-palette-background);" />
-                                            <MudSelect @bind-Value="_walletPageSize" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="width: 80px; background: var(--mud-palette-background);">
+                                    
+                                    @if (_isSuperAdmin)
+                                    {
+                                        <div class="d-flex align-center gap-2">
+                                            <MudTextField @bind-Value="_walletSearchQuery" Placeholder="Search tenant..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="width: 180px; background: var(--mud-palette-background);" />
+                                            <MudSelect @bind-Value="_walletPageSize" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="width: 70px; background: var(--mud-palette-background);">
                                                 <MudSelectItem Value="5">5</MudSelectItem>
                                                 <MudSelectItem Value="10">10</MudSelectItem>
                                                 <MudSelectItem Value="20">20</MudSelectItem>
-                                                <MudSelectItem Value="50">50</MudSelectItem>
                                             </MudSelect>
-                                        }
-                                    </div>
+                                        </div>
+                                    }
                                 </div>
+
+                                @* ── Row 2: Tactical Sorting Toolbar ── *@
+                                @if (_isSuperAdmin)
+                                {
+                                    <div class="fmc-filter-toolbar d-flex align-center gap-1 mt-2">
+                                        <MudText Typo="Typo.caption" Style="font-weight: 900; opacity: 0.5; margin-right: 8px; letter-spacing: 0.05em; font-size: 0.65rem;">OVERSIGHT PRIORITY:</MudText>
+                                        <button class="fmc-filter-chip @(_walletSortOrder == "util_high" ? "active" : "")" 
+                                                data-sort="util_high" @onclick="@(() => _walletSortOrder = "util_high")">
+                                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
+                                            HIGHEST UTILIZATION
+                                        </button>
+                                        <button class="fmc-filter-chip @(_walletSortOrder == "util_low" ? "active" : "")" 
+                                                data-sort="util_low" @onclick="@(() => _walletSortOrder = "util_low")">
+                                            <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
+                                            LOWEST UTILIZATION
+                                        </button>
+                                        <button class="fmc-filter-chip @(_walletSortOrder == "alpha" ? "active" : "")" 
+                                                data-sort="alpha" @onclick="@(() => _walletSortOrder = "alpha")">
+                                            <MudIcon Icon="@Icons.Material.Filled.SortByAlpha" Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
+                                            ALPHABETICAL
+                                        </button>
+                                        <button class="fmc-filter-chip @(_walletSortOrder == "recent" ? "active" : "")" 
+                                                data-sort="recent" @onclick="@(() => _walletSortOrder = "recent")">
+                                            <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
+                                            RECENTLY CREDITED
+                                        </button>
+                                    </div>
+                                }
+                            </div>
 
                             @if (_auditLoading)
                             {
@@ -200,19 +213,29 @@
                             }
                             else if (GetFilteredSubscribers().Any())
                             {
-                                @* Sort cards: Critical first, then Warning, then Healthy *@
+                                @* Sort Logic based on Toolbar Selection *@
                                 var sorted = GetFilteredSubscribers()
                                     .Select(o => new {
                                         Org       = o,
                                         UsedPct   = o.TotalBalance > 0 ? (double)(o.Usage / o.TotalBalance) * 100 : 0,
-                                        Remaining = Math.Max(0, o.TotalBalance - o.Usage)
-                                    })
-                                    .OrderByDescending(x => x.UsedPct)
-                                    .ToList();
+                                        Remaining = Math.Max(0, o.TotalBalance - o.Usage),
+                                        IsRecent  = HasRecentCredit(o)
+                                    });
+
+                                switch(_walletSortOrder)
+                                {
+                                    case "alpha": sorted = sorted.OrderBy(x => x.Org.Name); break;
+                                    case "util_high": sorted = sorted.OrderByDescending(x => x.UsedPct); break;
+                                    case "util_low": sorted = sorted.OrderBy(x => x.UsedPct); break;
+                                    case "recent": sorted = sorted.OrderByDescending(x => x.IsRecent).ThenByDescending(x => x.UsedPct); break;
+                                    default: sorted = sorted.OrderByDescending(x => x.UsedPct); break;
+                                }
+
+                                var sortedList = sorted.ToList();
 
                                 <div class="fmc-wallet-health-list">
                                     @{ int wi = 0; }
-                                    @foreach (var item in sorted)
+                                    @foreach (var item in sortedList)
                                     {
                                         var wIdx       = wi++;
                                         var pct        = item.UsedPct;
@@ -224,7 +247,8 @@
                                         var tierLabel  = isCritical ? "CRITICAL" : isWarning ? "WARNING" : "HEALTHY";
                                         var capturedId = item.Org.Id; // capture for lambda closures
 
-                                        <div class="fmc-health-card @(isCritical ? "fmc-health-critical" : isWarning ? "fmc-health-warn" : "")">
+                                        <div class="fmc-health-card @(_isSuperAdmin ? "clickable" : "") @(isCritical ? "fmc-health-critical" : isWarning ? "fmc-health-warn" : "")"
+                                             @onclick="@(() => { if(_isSuperAdmin) Navigation.NavigateTo($"/admin/organizations/{capturedId}"); })">
 
                                             @* ── Row 1: Avatar + Name + Tier + Cardholder Count + Percentage ── *@
                                             <div class="d-flex justify-space-between align-center mb-3">
@@ -236,7 +260,7 @@
                                                         <div class="d-flex align-center gap-2 flex-wrap">
                                                             <MudText Typo="Typo.body2" Style="font-weight: 900; line-height: 1.2;">@item.Org.Name</MudText>
                                                             <span class="fmc-tier-badge" style="color: @tierColor; border-color: @tierColor;">@tierLabel</span>
-                                                            @if (HasRecentCredit(item.Org))
+                                                            @if (item.IsRecent)
                                                             {
                                                                 <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Style="font-size:0.6rem;height:18px;margin-left:4px;">Recently Credited</MudChip>
                                                             }
@@ -248,122 +272,130 @@
                                                         </MudText>
                                                     </div>
                                                 </div>
-                                                <div class="d-flex align-center gap-1">
-                                                    <div class="text-right mr-3">
-                                                        <MudText Typo="Typo.h6" Style="@($"font-weight: 900; font-family: 'JetBrains Mono', monospace; color: {tierColor}; line-height:1;")">
-                                                            @pct.ToString("F1")%
-                                                        </MudText>
-                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.62rem;">UTILIZED</MudText>
-                                                    </div>
+                                                    <div class="d-flex align-center gap-1">
+                                                        <div class="text-right mr-3">
+                                                            <MudText Typo="Typo.h6" Style="@($"font-weight: 900; font-family: 'JetBrains Mono', monospace; color: {tierColor}; line-height:1;")">
+                                                                @pct.ToString("F1")%
+                                                            </MudText>
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.62rem;">UTILIZED</MudText>
+                                                        </div>
                                                     @* ── Manage Wallet (SuperAdmin only for Credit/Debit) ── *@
                                                     @if (_isSuperAdmin)
                                                     {
                                                         <MudTooltip Text="Credit Wallet" Arrow="true" Placement="Placement.Top">
-                                                            <MudIconButton Icon="@Icons.Material.Filled.Add"
-                                                                           Size="Size.Small"
-                                                                           Color="Color.Success"
-                                                                           Variant="Variant.Outlined"
-                                                                           Style="border-radius: 10px; width: 32px; height: 32px; margin-right: 4px;"
-                                                                           OnClick="@(() => OpenAdjustmentDialog(item.Org, true))" />
+                                                            <div @onclick:stopPropagation="true" style="display: inline-block;">
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                                               Size="Size.Small"
+                                                                               Color="Color.Success"
+                                                                               Variant="Variant.Outlined"
+                                                                               Style="border-radius: 10px; width: 32px; height: 32px; margin-right: 4px;"
+                                                                               OnClick="@(() => OpenAdjustmentDialog(item.Org, true))" />
+                                                            </div>
                                                         </MudTooltip>
                                                         <MudTooltip Text="Debit Wallet" Arrow="true" Placement="Placement.Top">
-                                                            <MudIconButton Icon="@Icons.Material.Filled.Remove"
-                                                                           Size="Size.Small"
-                                                                           Color="Color.Error"
-                                                                           Variant="Variant.Outlined"
-                                                                           Style="border-radius: 10px; width: 32px; height: 32px; margin-right: 4px;"
-                                                                           OnClick="@(() => OpenAdjustmentDialog(item.Org, false))" />
+                                                            <div @onclick:stopPropagation="true" style="display: inline-block;">
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                                               Size="Size.Small"
+                                                                               Color="Color.Error"
+                                                                               Variant="Variant.Outlined"
+                                                                               Style="border-radius: 10px; width: 32px; height: 32px; margin-right: 4px;"
+                                                                               OnClick="@(() => OpenAdjustmentDialog(item.Org, false))" />
+                                                            </div>
                                                         </MudTooltip>
                                                     }
-                                                    <MudTooltip Text="Manage Wallet" Arrow="true" Placement="Placement.Top">
-                                                        <MudIconButton Icon="@Icons.Material.Filled.ManageAccounts"
-                                                                       Size="Size.Small"
-                                                                       Color="@(isCritical ? Color.Error : Color.Default)"
-                                                                       Variant="Variant.Outlined"
-                                                                       Style="border-radius: 10px; width: 32px; height: 32px;"
-                                                                       OnClick="@(() => Navigation.NavigateTo($"/admin/organizations/{capturedId}"))" />
-                                                    </MudTooltip>
-                                                </div>
-                                            </div>
-
-                                            @* ── Row 2: Annotated Fuel Gauge with Draggable Scrubber ── *@
-                                            <div class="d-flex justify-space-between mb-1">
-                                                <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱0</MudText>
-                                                <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.5; font-weight: 800;">← drag to explore →</MudText>
-                                                <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱@item.Org.TotalBalance.ToString("N0")</MudText>
-                                            </div>
-
-                                            @* Scrubber wrapper: gauge fill behind, invisible range input on top *@
-                                            <div class="fmc-gauge-wrapper">
-                                                @* Fill responds to drag: uses scrub position when active, real pct when idle *@
-                                                @{
-                                                    var isScrubbing = _scrubActive.GetValueOrDefault(capturedId);
-                                                    var fillPct     = isScrubbing
-                                                        ? _scrubPositions.GetValueOrDefault(capturedId, pct)
-                                                        : pct;
-                                                    var fillColor   = fillPct >= 90 ? "var(--mud-palette-error)"
-                                                                    : fillPct >= 70 ? "var(--mud-palette-warning)"
-                                                                                    : "var(--mud-palette-success)";
-                                                    // Disable transition while dragging for instant feedback
-                                                    var fillTransition = isScrubbing ? "none" : "width 0.6s cubic-bezier(0.4, 0, 0.2, 1)";
-                                                }
-                                                <div class="fmc-gauge-track">
-                                                    <div class="fmc-gauge-fill @(fillPct >= 90 ? "fmc-gauge-pulse" : "")"
-                                                         style="width: @(Math.Min(fillPct, 100).ToString("F1"))%; background: @fillColor; transition: @fillTransition;">
+                                                        
+                                                        @* ── Minimize Toggle ── *@
+                                                        <div @onclick:stopPropagation="true" style="display: inline-block;">
+                                                            <MudIconButton Icon="@(_cardCollapsed.GetValueOrDefault(capturedId) ? Icons.Material.Filled.KeyboardArrowDown : Icons.Material.Filled.KeyboardArrowUp)"
+                                                                           Size="Size.Small"
+                                                                           Color="Color.Inherit"
+                                                                           Class="ml-1"
+                                                                           Style="opacity: 0.5;"
+                                                                           OnClick="@(() => ToggleCardCollapse(capturedId))" />
+                                                        </div>
                                                     </div>
-                                                    @* Threshold markers with tooltips *@
-                                                    <MudTooltip Text="⚠ 70% — Caution threshold" Arrow="true" Placement="Placement.Top">
-                                                        <div class="fmc-gauge-marker" style="left: 70%;"></div>
-                                                    </MudTooltip>
-                                                    <MudTooltip Text="🔴 90% — Critical / Exhaustion risk" Arrow="true" Placement="Placement.Top">
-                                                        <div class="fmc-gauge-marker fmc-gauge-marker-critical" style="left: 90%;"></div>
-                                                    </MudTooltip>
                                                 </div>
 
-                                                @* Invisible range input overlaid for drag interaction *@
-                                                <input type="range" min="0" max="100" step="0.1"
-                                                       value="@(_scrubPositions.GetValueOrDefault(capturedId, pct).ToString("F1"))"
-                                                       class="fmc-gauge-scrubber"
-                                                       @oninput="@((e) => OnGaugeScrub(e, capturedId, item.Org.TotalBalance))"
-                                                       @onmouseenter="@(() => _scrubActive[capturedId] = true)"
-                                                       @onmouseleave="@(() => { _scrubActive[capturedId] = false; _scrubPositions[capturedId] = pct; })" />
-
-                                                @* Floating tooltip showing peso amount at scrub position *@
-                                                @if (_scrubActive.GetValueOrDefault(capturedId))
-                                                {
-                                                    var sp = _scrubPositions.GetValueOrDefault(capturedId, pct);
-                                                    var sa = _scrubAmounts.GetValueOrDefault(capturedId, (decimal)(pct / 100.0) * item.Org.TotalBalance);
-                                                    var tipLeft = Math.Max(8, Math.Min(sp, 88)); // clamp so tip doesn't go off edge
-                                                    var isAboveReal = sp > pct;
-                                                    <div class="fmc-scrub-tip" style="left: @tipLeft.ToString("F1")%;">
-                                                        <div class="fmc-scrub-tip-pct" style="color: @(isAboveReal ? "var(--mud-palette-text-secondary)" : tierColor);">@sp.ToString("F1")%</div>
-                                                        <div class="fmc-scrub-tip-amt">₱@sa.ToString("N0")</div>
-                                                        <div class="fmc-scrub-tip-arrow"></div>
+                                                <MudCollapse Expanded="!_cardCollapsed.GetValueOrDefault(capturedId)">
+                                                    @* ── Row 2: Annotated Fuel Gauge with Draggable Scrubber ── *@
+                                                    <div class="d-flex justify-space-between mb-1 mt-4">
+                                                        <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱0</MudText>
+                                                        <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.5; font-weight: 800;">← drag to explore →</MudText>
+                                                        <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱@item.Org.TotalBalance.ToString("N0")</MudText>
                                                     </div>
-                                                }
-                                            </div>
 
-                                            @* ── Row 3: Spent | Remaining | Limit ── *@
-                                            <div class="d-flex justify-space-between mt-3">
-                                                <div>
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Spent</MudText>
-                                                    <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace; color: var(--mud-palette-error);">
-                                                        @item.Org.Usage.ToString("N0")
-                                                    </MudText>
-                                                </div>
-                                                <div class="text-center">
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Remaining</MudText>
-                                                    <MudText Typo="Typo.body2" Style="@($"font-weight: 900; font-family: 'JetBrains Mono', monospace; color: {tierColor};")">
-                                                        @item.Remaining.ToString("N0")
-                                                    </MudText>
-                                                </div>
-                                                <div class="text-right">
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Wallet Limit</MudText>
-                                                    <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;">
-                                                        @item.Org.TotalBalance.ToString("N0")
-                                                    </MudText>
-                                                </div>
-                                            </div>
+                                                    @* Scrubber wrapper: gauge fill behind, invisible range input on top *@
+                                                    <div class="fmc-gauge-wrapper">
+                                                        @* Fill responds to drag: uses scrub position when active, real pct when idle *@
+                                                        @{
+                                                            var isScrubbing = _scrubActive.GetValueOrDefault(capturedId);
+                                                            var fillPct     = isScrubbing
+                                                                ? _scrubPositions.GetValueOrDefault(capturedId, pct)
+                                                                : pct;
+                                                            var fillColor   = fillPct >= 90 ? "var(--mud-palette-error)"
+                                                                            : fillPct >= 70 ? "var(--mud-palette-warning)"
+                                                                                            : "var(--mud-palette-success)";
+                                                            // Disable transition while dragging for instant feedback
+                                                            var fillTransition = isScrubbing ? "none" : "width 0.6s cubic-bezier(0.4, 0, 0.2, 1)";
+                                                        }
+                                                        <div class="fmc-gauge-track">
+                                                            <div class="fmc-gauge-fill @(fillPct >= 90 ? "fmc-gauge-pulse" : "")"
+                                                                 style="width: @(Math.Min(fillPct, 100).ToString("F1"))%; background: @fillColor; transition: @fillTransition;">
+                                                            </div>
+                                                            @* Threshold markers with tooltips *@
+                                                            <MudTooltip Text="⚠ 70% — Caution threshold" Arrow="true" Placement="Placement.Top">
+                                                                <div class="fmc-gauge-marker" style="left: 70%;"></div>
+                                                            </MudTooltip>
+                                                            <MudTooltip Text="🔴 90% — Critical / Exhaustion risk" Arrow="true" Placement="Placement.Top">
+                                                                <div class="fmc-gauge-marker fmc-gauge-marker-critical" style="left: 90%;"></div>
+                                                            </MudTooltip>
+                                                        </div>
+
+                                                        @* Invisible range input overlaid for drag interaction *@
+                                                        <input type="range" min="0" max="100" step="0.1"
+                                                               value="@(_scrubPositions.GetValueOrDefault(capturedId, pct).ToString("F1"))"
+                                                               class="fmc-gauge-scrubber"
+                                                               @oninput="@((e) => OnGaugeScrub(e, capturedId, item.Org.TotalBalance))"
+                                                               @onmouseenter="@(() => _scrubActive[capturedId] = true)"
+                                                               @onmouseleave="@(() => { _scrubActive[capturedId] = false; _scrubPositions[capturedId] = pct; })" />
+
+                                                        @* Floating tooltip showing peso amount at scrub position *@
+                                                        @if (_scrubActive.GetValueOrDefault(capturedId))
+                                                        {
+                                                            var sp = _scrubPositions.GetValueOrDefault(capturedId, pct);
+                                                            var sa = _scrubAmounts.GetValueOrDefault(capturedId, (decimal)(pct / 100.0) * item.Org.TotalBalance);
+                                                            var tipLeft = Math.Max(8, Math.Min(sp, 88)); // clamp so tip doesn't go off edge
+                                                            var isAboveReal = sp > pct;
+                                                            <div class="fmc-scrub-tip" style="left: @tipLeft.ToString("F1")%;">
+                                                                <div class="fmc-scrub-tip-pct" style="color: @(isAboveReal ? "var(--mud-palette-text-secondary)" : tierColor);">@sp.ToString("F1")%</div>
+                                                                <div class="fmc-scrub-tip-amt">₱@sa.ToString("N0")</div>
+                                                                <div class="fmc-scrub-tip-arrow"></div>
+                                                            </div>
+                                                        }
+                                                    </div>
+
+                                                    @* ── Row 3: Spent | Remaining | Limit ── *@
+                                                    <div class="d-flex justify-space-between mt-3">
+                                                        <div>
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Spent</MudText>
+                                                            <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace; color: var(--mud-palette-error);">
+                                                                @item.Org.Usage.ToString("N0")
+                                                            </MudText>
+                                                        </div>
+                                                        <div class="text-center">
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Remaining</MudText>
+                                                            <MudText Typo="Typo.body2" Style="@($"font-weight: 900; font-family: 'JetBrains Mono', monospace; color: {tierColor};")">
+                                                                @item.Remaining.ToString("N0")
+                                                            </MudText>
+                                                        </div>
+                                                        <div class="text-right">
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Wallet Limit</MudText>
+                                                            <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;">
+                                                                @item.Org.TotalBalance.ToString("N0")
+                                                            </MudText>
+                                                        </div>
+                                                    </div>
+                                                </MudCollapse>
                                         </div>
                                     }
                                 </div>
@@ -377,6 +409,12 @@
                                 </div>
                             }
                         </MudPaper>
+                        
+                        @* ── SYSTEM HEALTH PULSE (SuperAdmin Only) ── *@
+                        @if (_isSuperAdmin)
+                        {
+                            <FMC.Components.Admin.SystemHealthPanel IsLoading="@_auditLoading" />
+                        }
 
                         @* ── REGISTERED CARDHOLDER REGISTRY (CEO/Approver/Maker only) ── *@
                         @{
@@ -736,7 +774,27 @@
     private Dictionary<Guid, double> _scrubPositions = new();
     private Dictionary<Guid, decimal> _scrubAmounts = new();
     private Dictionary<Guid, bool> _scrubActive = new();
+    private Dictionary<Guid, bool> _cardCollapsed = new();
+    private string _walletSortOrder = "util_high";
     private string _cardholderSearch = "";
+    #endregion
+
+    #region ── UI Handlers ──
+    private string GetSortLabel() => _walletSortOrder switch
+    {
+        "alpha" => "Alphabetical",
+        "util_high" => "Highest Utilization",
+        "util_low" => "Lowest Utilization",
+        "recent" => "Recently Credited",
+        _ => "Sort By"
+    };
+    private void ToggleCardCollapse(Guid orgId)
+    {
+        if (_cardCollapsed.ContainsKey(orgId))
+            _cardCollapsed[orgId] = !_cardCollapsed[orgId];
+        else
+            _cardCollapsed[orgId] = true;
+    }
     #endregion
 
     #region ── Lifecycle & Core Logic ──

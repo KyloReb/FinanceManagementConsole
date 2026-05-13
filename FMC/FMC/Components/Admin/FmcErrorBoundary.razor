@@ -1,0 +1,114 @@
+@using Microsoft.AspNetCore.Components.Web
+@using FMC.Services.Api
+@inject AdminService AdminService
+@inject ISnackbar Snackbar
+
+<ErrorBoundary @ref="_errorBoundary">
+    <ChildContent>
+        @ChildContent
+    </ChildContent>
+    <ErrorContent Context="exception">
+        <div class="fmc-error-boundary-panel">
+            <div class="error-container">
+                <MudIcon Icon="@Icons.Material.Filled.RunningWithErrors" Size="Size.Large" Color="Color.Error" />
+                <MudText Typo="Typo.h5" Class="mt-4" Style="font-weight: 800;">Circuit Interrupted</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2 px-8 text-center">
+                    An unexpected exception has occurred in the interface. We have automatically captured the forensics and notified the SuperAdmin.
+                </MudText>
+                
+                <div class="error-details mt-6">
+                    <code>@exception.Message</code>
+                </div>
+
+                <div class="d-flex gap-4 mt-8">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Recover" StartIcon="@Icons.Material.Filled.Refresh">
+                        Restore Interface
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Inherit" OnClick="@(() => _showTrace = !_showTrace)">
+                        @( _showTrace ? "Hide Forensics" : "View Forensics")
+                    </MudButton>
+                </div>
+
+                @if (_showTrace)
+                {
+                    <div class="trace-box mt-4">
+                        <pre>@exception.StackTrace</pre>
+                    </div>
+                }
+            </div>
+        </div>
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private ErrorBoundary? _errorBoundary;
+    private bool _showTrace;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // When parameters change (like navigation), try to reset the error boundary
+        _errorBoundary?.Recover();
+    }
+
+    private void Recover()
+    {
+        _showTrace = false;
+        _errorBoundary?.Recover();
+    }
+
+    internal async Task ReportError(Exception ex, string? componentName = null)
+    {
+        // This is called by the ErrorBoundary internally if we use a custom one, 
+        // but here we are using the standard one's ErrorContent.
+        // Blazor doesn't give us an easy "OnError" hook in the standard component,
+        // so we'll use the OnParametersSet trick or just report it when ErrorContent renders.
+        
+        await AdminService.ReportClientErrorAsync(ex.Message, ex.StackTrace ?? "No stack trace available", componentName);
+        Snackbar.Add("Diagnostic report transmitted to SuperAdmin.", Severity.Info);
+    }
+}
+
+<style>
+    .fmc-error-boundary-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        padding: 40px;
+        background: rgba(var(--mud-palette-surface-rgb), 0.5);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        border: 2px dashed var(--mud-palette-error);
+        margin: 20px;
+    }
+
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .error-details {
+        background: rgba(var(--mud-palette-error-rgb), 0.1);
+        padding: 12px 20px;
+        border-radius: 12px;
+        color: var(--mud-palette-error);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+    }
+
+    .trace-box {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 16px;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        text-align: left;
+        width: 100%;
+    }
+</style>

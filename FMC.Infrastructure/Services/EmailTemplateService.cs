@@ -157,57 +157,62 @@ public class EmailTemplateService : IEmailTemplateService
         var count = transactions.Count();
         var totalAmount = transactions.Sum(t => t.Amount);
         var previewItems = transactions.Take(20).ToList();
+        var isApproved = batchAction.Equals("Approved", StringComparison.OrdinalIgnoreCase);
+        var themeColor = isApproved ? "#00b894" : "#4834d4";
 
         var tableRows = "";
         foreach (var item in previewItems)
         {
             tableRows += $@"
-                <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                    <td style=""padding:8px 4px;color:#2d3436;font-size:13px;word-break:break-word;"">{item.Subscriber}</td>
-                    <td style=""padding:8px 4px;color:#636e72;font-size:13px;text-align:center;white-space:nowrap;"">{FinanceUtils.MaskCard(item.AccountNumber ?? "")}</td>
-                    <td style=""padding:8px 4px;font-weight:700;color:#2d3436;text-align:right;font-size:13px;white-space:nowrap;"">{item.Amount:C}</td>
+                <tr style=""border-bottom: 1px solid #f1f2f6;"">
+                    <td style=""padding:12px 8px;color:#2d3436;font-size:13px;font-weight:600;"">{item.Subscriber}</td>
+                    <td style=""padding:12px 8px;color:#636e72;font-size:12px;text-align:center;font-family:monospace;"">{FinanceUtils.MaskCard(item.AccountNumber ?? "")}</td>
+                    <td style=""padding:12px 8px;font-weight:700;color:#2d3436;text-align:right;font-size:13px;"">{item.Amount:N2}</td>
                 </tr>";
         }
 
         var attachmentNotice = hasAttachments 
-            ? $@"<p style=""background:#fff3cd; color:#856404; padding:12px; border-radius:8px; font-size:13px; margin-top:16px; border:1px solid #ffeeba;"">
-                    <strong>Notice:</strong> This batch contains {count} items. Due to the high volume, a full reconciliation report (Excel & PDF) has been attached to this email.
-                 </p>" 
+            ? $@"<div style=""margin-top:20px;padding:16px;background:rgba(72, 52, 212, 0.05);border-radius:12px;border:1px solid rgba(72, 52, 212, 0.1);"">
+                    <p style=""margin:0;color:#4834d4;font-size:13px;line-height:1.5;"">
+                        <strong>Volume Notice:</strong> This batch contains {count} records. A full reconciliation manifest (Excel) is attached for your records.
+                    </p>
+                 </div>" 
             : "";
 
         var content = $@"
-            <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Batch {batchAction}</h2>
-            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                A batch of <strong>{count}</strong> transactions has been <strong>{batchAction.ToLower()}</strong> for <strong>{orgName}</strong>.
-            </p>
+            <div style=""text-align:center;margin-top:30px;"">
+                <span style=""background:{themeColor}10;color:{themeColor};padding:6px 14px;border-radius:20px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1px;"">Batch {batchAction}</span>
+                <h2 style=""color:#2d3436;margin-top:16px;font-size:28px;font-weight:900;letter-spacing:-1px;"">Settlement Consolidated</h2>
+                <p style=""color:#636e72;font-size:15px;line-height:1.6;max-width:400px;margin:10px auto 30px auto;"">
+                    A batch of <strong>{count}</strong> transactions has been <strong>{batchAction.ToLower()}</strong> and settled for {orgName}.
+                </p>
+            </div>
 
-            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
-                <table style=""width:100%;border-collapse:collapse;margin-bottom:16px;"">
-                    <tr>
-                        <td style=""width:50%;color:#636e72;font-size:14px;padding-right:8px;white-space:nowrap;"">Total Transactions</td>
-                        <td style=""width:50%;font-weight:700;color:#2d3436;text-align:right;white-space:nowrap;"">{count}</td>
-                    </tr>
-                    <tr>
-                        <td style=""width:50%;color:#636e72;font-size:14px;padding-right:8px;white-space:nowrap;"">Total Batch Value</td>
-                        <td style=""width:50%;font-weight:900;color:#4834d4;text-align:right;font-size:18px;white-space:nowrap;"">{totalAmount:C}</td>
-                    </tr>
-                </table>
+            <div style=""background:#ffffff;border:1px solid #f1f2f6;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.02);"">
+                <div style=""display:flex;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid #f1f2f6;padding-bottom:15px;"">
+                    <div>
+                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Batch Liquidity</p>
+                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:{themeColor};"">₱{totalAmount:N2}</p>
+                    </div>
+                    <div style=""text-align:right;"">
+                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Item Count</p>
+                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:#2d3436;"">{count}</p>
+                    </div>
+                </div>
 
-                <h4 style=""margin:20px 0 10px 0;color:#2d3436;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:0.6;"">Preview (First {previewItems.Count})</h4>
-                <div style=""overflow-x:auto;max-width:100%;"">
-                <table style=""width:100%;min-width:300px;border-collapse:collapse;"">
+                <h4 style=""margin:20px 0 12px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:800;"">Transaction Breakdown</h4>
+                <table style=""width:100%;border-collapse:collapse;"">
                     <thead>
-                        <tr style=""border-bottom: 2px solid #e1e5ea;"">
-                            <th style=""text-align:left;padding:8px 4px;font-size:11px;color:#636e72;"">CARDHOLDER</th>
-                            <th style=""text-align:center;padding:8px 4px;font-size:11px;color:#636e72;"">CARD NUMBER</th>
-                            <th style=""text-align:right;padding:8px 4px;font-size:11px;color:#636e72;"">AMOUNT</th>
+                        <tr style=""border-bottom: 2px solid #f1f2f6;"">
+                            <th style=""text-align:left;padding:8px;font-size:11px;color:#b2bec3;text-transform:uppercase;"">Subscriber</th>
+                            <th style=""text-align:center;padding:8px;font-size:11px;color:#b2bec3;text-transform:uppercase;"">Card Number</th>
+                            <th style=""text-align:right;padding:8px;font-size:11px;color:#b2bec3;text-transform:uppercase;"">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
                         {tableRows}
                     </tbody>
                 </table>
-                </div>
                 {attachmentNotice}
             </div>";
 
@@ -217,6 +222,7 @@ public class EmailTemplateService : IEmailTemplateService
     public string GenerateBulkUploadNotificationEmail(string orgName, string makerName, int totalCount, decimal totalAmount, bool isCredit, List<FMC.Shared.DTOs.BulkTransactionRowDto>? sampleRows = null)
     {
         var actionType = isCredit ? "Credit" : "Debit";
+        var themeColor = "#4834d4";
         
         var tableRows = "";
         if (sampleRows != null && sampleRows.Any())
@@ -224,59 +230,58 @@ public class EmailTemplateService : IEmailTemplateService
             foreach (var row in sampleRows)
             {
                 tableRows += $@"
-                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                        <td style=""padding:8px 4px;color:#2d3436;font-size:13px;word-break:break-word;"">{row.Subscriber}</td>
-                        <td style=""padding:8px 4px;color:#636e72;font-size:13px;text-align:center;white-space:nowrap;"">{FinanceUtils.MaskCard(row.CardNumber)}</td>
-                        <td style=""padding:8px 4px;font-weight:700;color:#2d3436;text-align:right;font-size:13px;white-space:nowrap;"">{row.Amount:C}</td>
+                    <tr style=""border-bottom: 1px solid #f1f2f6;"">
+                        <td style=""padding:12px 8px;color:#2d3436;font-size:13px;font-weight:600;"">{row.Subscriber}</td>
+                        <td style=""padding:12px 8px;color:#636e72;font-size:12px;text-align:center;font-family:monospace;"">{FinanceUtils.MaskCard(row.CardNumber)}</td>
+                        <td style=""padding:12px 8px;font-weight:700;color:#2d3436;text-align:right;font-size:13px;"">{row.Amount:N2}</td>
                     </tr>";
             }
         }
 
         var sampleTable = string.IsNullOrEmpty(tableRows) ? "" : $@"
-            <h4 style=""margin:24px 0 10px 0;color:#2d3436;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:0.6;"">Batch Preview (First {sampleRows?.Count})</h4>
-            <div style=""overflow-x:auto;max-width:100%;"">
-            <table style=""width:100%;min-width:300px;border-collapse:collapse;"">
+            <h4 style=""margin:24px 0 12px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:800;"">Batch Preview (First {sampleRows?.Count})</h4>
+            <table style=""width:100%;border-collapse:collapse;"">
                 <thead>
-                    <tr style=""border-bottom: 2px solid #e1e5ea;"">
-                        <th style=""text-align:left;padding:8px 4px;font-size:11px;color:#636e72;"">CARDHOLDER</th>
-                        <th style=""text-align:center;padding:8px 4px;font-size:11px;color:#636e72;"">CARD NUMBER</th>
-                        <th style=""text-align:right;padding:8px 4px;font-size:11px;color:#636e72;"">AMOUNT</th>
+                    <tr style=""border-bottom: 2px solid #f1f2f6;"">
+                        <th style=""text-align:left;padding:8px;font-size:11px;color:#b2bec3;text-transform:uppercase;"">Cardholder</th>
+                        <th style=""text-align:center;padding:8px;font-size:11px;color:#b2bec3;text-transform:uppercase;"">Card Number</th>
+                        <th style=""text-align:right;padding:8px;font-size:11px;color:#b2bec3;text-transform:uppercase;"">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     {tableRows}
                 </tbody>
-            </table>
-            </div>";
+            </table>";
 
         var content = $@"
-            <h2 style=""color:#4834d4;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Bulk Batch Submitted</h2>
-            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
-                A new bulk <strong>{actionType}</strong> batch has been submitted by <strong>{makerName}</strong> for <strong>{orgName}</strong> and is awaiting validation.
-            </p>
-            
-            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #e1e5ea;"">
-                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Batch Summary</h4>
-                <table style=""width:100%;border-collapse:collapse;"">
-                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                        <td style=""width:50%;padding:12px 4px 12px 0;color:#636e72;font-size:14px;white-space:nowrap;"">Total Transactions</td>
-                        <td style=""width:50%;padding:12px 0 12px 4px;font-weight:700;color:#2d3436;text-align:right;white-space:nowrap;"">{totalCount} items</td>
-                    </tr>
-                    <tr style=""border-bottom: 1px solid #e1e5ea;"">
-                        <td style=""width:50%;padding:12px 4px 12px 0;color:#636e72;font-size:14px;white-space:nowrap;"">Operation Type</td>
-                        <td style=""width:50%;padding:12px 0 12px 4px;font-weight:700;color:#2d3436;text-align:right;white-space:nowrap;"">{actionType}</td>
-                    </tr>
-                    <tr>
-                        <td style=""width:50%;padding:16px 4px 0 0;color:#2d3436;font-size:15px;font-weight:700;white-space:nowrap;"">Total Batch Value</td>
-                        <td style=""width:50%;padding:16px 0 0 4px;font-weight:900;color:#4834d4;text-align:right;font-size:22px;white-space:nowrap;"">{totalAmount:C}</td>
-                    </tr>
-                </table>
-                {sampleTable}
+            <div style=""text-align:center;margin-top:30px;"">
+                <span style=""background:{themeColor}10;color:{themeColor};padding:6px 14px;border-radius:20px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1px;"">Awaiting Validation</span>
+                <h2 style=""color:#2d3436;margin-top:16px;font-size:28px;font-weight:900;letter-spacing:-1px;"">Bulk Batch Submission</h2>
+                <p style=""color:#636e72;font-size:15px;line-height:1.6;max-width:400px;margin:10px auto 30px auto;"">
+                    A new bulk <strong>{actionType}</strong> batch has been initiated by <strong>{makerName}</strong> for {orgName}.
+                </p>
             </div>
 
-            <p style=""color:#636e72;font-size:14px;line-height:1.5;margin-bottom:30px;text-align:center;"">
-                Please log in to the Intelligence Oversight panel of your Finance Management Console to review and authorize this batch settlement.
-            </p>";
+            <div style=""background:#ffffff;border:1px solid #f1f2f6;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.02);"">
+                <div style=""display:flex;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid #f1f2f6;padding-bottom:15px;"">
+                    <div>
+                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Total Batch Value</p>
+                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:{themeColor};"">₱{totalAmount:N2}</p>
+                    </div>
+                    <div style=""text-align:right;"">
+                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Item Count</p>
+                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:#2d3436;"">{totalCount}</p>
+                    </div>
+                </div>
+
+                {sampleTable}
+
+                <div style=""margin-top:30px;padding:20px;background:#f8f9fa;border-radius:12px;text-align:center;"">
+                    <p style=""margin:0;color:#636e72;font-size:14px;line-height:1.5;"">
+                        Please log in to the <strong>Intelligence Oversight</strong> panel of your console to authorize this settlement.
+                    </p>
+                </div>
+            </div>";
 
         return GetContainer(content);
     }

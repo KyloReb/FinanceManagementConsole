@@ -1,0 +1,80 @@
+.fmc-success-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(var(--mud-palette-surface-rgb), 0.95);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    animation: fmc-fade-in 0.4s ease;
+}
+
+.fmc-success-icon-container {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(var(--mud-palette-success-rgb), 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.fmc-success-icon-container::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    border: 2px solid rgba(var(--mud-palette-success-rgb), 0.2);
+    animation: fmc-pulse-ring 2s infinite ease-out;
+}
+
+.fmc-success-icon {
+    font-size: 3rem !important;
+    color: var(--mud-palette-success);
+    animation: fmc-check-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.fmc-success-text {
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: var(--mud-palette-text-primary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.fmc-success-subtext {
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.85rem;
+}
+
+@keyframes fmc-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fmc-check-pop {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fmc-pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.5; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* Rejection Variant */
+.fmc-success-overlay.rejected .fmc-success-icon-container {
+    background: rgba(var(--mud-palette-error-rgb), 0.1);
+}
+.fmc-success-overlay.rejected .fmc-success-icon-container::after {
+    border-color: rgba(var(--mud-palette-error-rgb), 0.2);
+}
+.fmc-success-overlay.rejected .fmc-success-icon {
+    color: var(--mud-palette-error);
+}

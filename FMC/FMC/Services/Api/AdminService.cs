@@ -66,4 +66,34 @@ public class AdminService
     {
         return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.DocumentationDto>($"api/documentation/{fileName}");
     }
+
+    public async Task<FMC.Shared.DTOs.Admin.SystemHealthDto?> GetSystemHealthPulseAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.SystemHealthDto>("api/system/health-pulse");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task ReportClientErrorAsync(string message, string stackTrace, string? component = null)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("api/system/report-error", new 
+            { 
+                Message = message, 
+                StackTrace = stackTrace, 
+                Component = component,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch
+        {
+            // Silent fail for error reporting to avoid infinite loops
+        }
+    }
 }

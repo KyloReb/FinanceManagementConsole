@@ -360,7 +360,8 @@ public class OrganizationService : IOrganizationService
             performedBy, 
             performedByEmail);
 
-        await _publisher.Publish(new WalletAdjustedEvent(org.Id, amount, newBalance, label ?? "Administrative Adjustment"), cancellationToken);
+        var adjustmentId = Guid.NewGuid();
+        await _publisher.Publish(new WalletAdjustedEvent(adjustmentId, org.Id, amount, newBalance, label ?? "Administrative Adjustment"), cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
             org.Id, amount, newBalance);
@@ -461,7 +462,7 @@ public class OrganizationService : IOrganizationService
         // ── Phase 1: Workflow Notifications (Handled by OrganizationNotificationHandler) ──
         if (orgId.HasValue)
         {
-            await _publisher.Publish(new TransactionPendingEvent(orgId.Value, performedBy, userId.ToString(), amount, label ?? "Standard Allotment"), cancellationToken);
+            await _publisher.Publish(new TransactionPendingEvent(transaction.Id, orgId.Value, performedBy, userId.ToString(), amount, label ?? "Standard Allotment"), cancellationToken);
         }
         
         _logger.LogInformation("[OrganizationService] Transaction PENDING for {UserId} by Maker {MakerId}. Amount: {Amount}", 
@@ -533,7 +534,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // ── Phase 2: Workflow Completion Notifications (Handled by OrganizationNotificationHandler) ──
-        if (transaction.OrganizationId.HasValue)
+        if (publishEvent && transaction.OrganizationId.HasValue)
         {
             await _publisher.Publish(new TransactionApprovedEvent(transaction.OrganizationId.Value, transaction.Id), cancellationToken);
         }
@@ -803,6 +804,10 @@ public class OrganizationService : IOrganizationService
         );
 
         await _repository.SaveChangesAsync(cancellationToken);
+
+        // Notify stakeholders of the consolidated cancellation
+        await _publisher.Publish(new BatchCancelledEvent(orgId, batchId, makerId), cancellationToken);
+
         return true;
     }
 
@@ -1025,8 +1030,13 @@ public class OrganizationService : IOrganizationService
         {
             totalAmount += tx.Amount;
             // Reuse the existing single-transaction approval logic to ensure all security checks (4-eyes, org-isolation) are honored
-            await ApproveTransactionAsync(tx.Id, approverId, true, skipAuditLog: true, cancellationToken);
+            // IMPORTANT: Pass 'publishEvent: false' to prevent individual email flooding for batch operations
+            await ApproveTransactionAsync(tx.Id, approverId, publishEvent: false, skipAuditLog: true, cancellationToken);
         }
+
+        // Phase 2: Workflow Completion Notification
+        // Publish a single BatchApprovedEvent to trigger a consolidated settlement confirmation email
+        await _publisher.Publish(new BatchApprovedEvent(orgId, batchId, approverId), cancellationToken);
 
         var approver = await _identityService.GetUserByIdAsync(approverId);
         await _auditService.RecordFinancialEventAsync(
@@ -1069,6 +1079,11 @@ public class OrganizationService : IOrganizationService
             approverId, 
             null, 
             orgId.ToString());
+
+        await _repository.SaveChangesAsync(cancellationToken);
+
+        // Notify stakeholders of the consolidated rejection
+        await _publisher.Publish(new BatchRejectedEvent(orgId, batchId, approverId, reason), cancellationToken);
 
         return true;
     }

@@ -108,47 +108,71 @@
         <AuthorizeView Context="authState">
             <Authorized>
                 @* ACCOUNT DROPDOWN (Avatar & Name as Trigger) *@
+                @* ACCOUNT DROPDOWN (Avatar & Name as Trigger) *@
                 <MudMenu @bind-Open="_userMenuOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" 
-                         Dense="true" Class="ml-1" PopoverClass="mud-elevation-25">
+                         Dense="true" Class="ml-1" PopoverClass="fmc-user-popover mud-elevation-25">
                     <ActivatorContent>
-                        <div class="d-flex align-center cursor-pointer pa-1 rounded-pill user-menu-trigger" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
-                            <div class="fmc-nav-username d-flex align-center mr-3 ml-2">
-                                <MudText Typo="Typo.body2">@GetDisplayName(authState.User)</MudText>
+                        <div class="fmc-user-trigger @(_userMenuOpen ? "active" : "")" @onclick="ToggleUserMenu" @onclick:stopPropagation="true">
+                            <div class="fmc-user-info-text mr-3 ml-1">
+                                <MudText Typo="Typo.body2" Class="fmc-user-name">@GetDisplayName(authState.User)</MudText>
                             </div>
-                            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 600;">
-                                @GetInitials(authState.User)
-                            </MudAvatar>
+                            <div class="fmc-user-avatar-wrap">
+                                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="fmc-avatar-glow">
+                                    @GetInitials(authState.User)
+                                </MudAvatar>
+                            </div>
                         </div>
                     </ActivatorContent>
                     <ChildContent>
-                            <div class="pa-4" style="min-width: 220px; background-color: var(--mud-palette-surface); border-bottom: 1px solid var(--mud-palette-divider);">
-                                <div class="d-flex align-start mb-1">
-                                    <MudText Typo="Typo.body2" Color="Color.Primary"><b>@GetDisplayName(authState.User)</b></MudText>
+                        <div class="fmc-user-dropdown-panel">
+                            <div class="fmc-user-header">
+                                <div class="d-flex align-center justify-space-between mb-2">
+                                    <MudText Typo="Typo.h6" Class="fmc-executive-name">@GetDisplayName(authState.User)</MudText>
                                     @if (!string.IsNullOrEmpty(GetOrganization(authState.User)))
                                     {
-                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="ml-1 px-1 py-0 ma-0 text-xs" Style="height: 16px; font-size: 0.65rem; align-self: flex-start; margin-top: -2px !important;">
-                                            @GetOrganization(authState.User)
-                                        </MudChip>
+                                        <div class="fmc-org-tag">@GetOrganization(authState.User)</div>
                                     }
                                 </div>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="text-transform: uppercase; letter-spacing: 1px; font-weight: 500;">@GetRoleName(authState.User)</MudText>
+                                <div class="fmc-role-indicator">
+                                    <div class="fmc-role-dot"></div>
+                                    <MudText Typo="Typo.caption" Class="fmc-role-text">@GetRoleName(authState.User).ToUpper()</MudText>
+                                </div>
                             </div>
-                            <div class="py-2" style="background-color: var(--mud-palette-surface);">
-                                <MudMenuItem Icon="@Icons.Material.Filled.Person" OnClick="@(() => NavigationManager.NavigateTo("/profile"))">Edit Profile</MudMenuItem>
-                                <MudMenuItem Icon="@Icons.Material.Filled.Settings" OnClick="@(() => NavigationManager.NavigateTo("/settings"))">Settings</MudMenuItem>
+                            
+                            <div class="fmc-user-actions">
+                                <MudMenuItem Class="fmc-user-item" Icon="@Icons.Material.Filled.Person" OnClick="@(() => NavigationManager.NavigateTo("/profile"))">
+                                    <div class="d-flex align-center justify-space-between w-100">
+                                        <span>Edit Profile</span>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="fmc-item-chevron" />
+                                    </div>
+                                </MudMenuItem>
+                                <MudMenuItem Class="fmc-user-item" Icon="@Icons.Material.Filled.Settings" OnClick="@(() => NavigationManager.NavigateTo("/settings"))">
+                                    <div class="d-flex align-center justify-space-between w-100">
+                                        <span>Settings</span>
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="fmc-item-chevron" />
+                                    </div>
+                                </MudMenuItem>
                                 
                                 <AuthorizeView Roles="@FMC.Shared.Auth.Roles.SuperAdmin" Context="adminContext">
                                     <Authorized>
-                                        <MudDivider Class="my-2" />
-                                        <MudMenuItem Icon="@Icons.Material.Filled.CorporateFare" IconColor="Color.Info" OnClick="@(() => NavigationManager.NavigateTo("/admin/organizations"))">Manage System Tenants</MudMenuItem>
+                                        <div class="fmc-user-divider"></div>
+                                        <MudMenuItem Class="fmc-user-item tenant-manager" Icon="@Icons.Material.Filled.CorporateFare" OnClick="@(() => NavigationManager.NavigateTo("/admin/organizations"))">
+                                            <div class="d-flex align-center justify-space-between w-100">
+                                                <span>Manage System Tenants</span>
+                                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="fmc-item-chevron" />
+                                            </div>
+                                        </MudMenuItem>
                                     </Authorized>
                                 </AuthorizeView>
 
-                                <MudDivider Class="my-2" />
-                                <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="LogoutAsync"><b>Logout</b></MudMenuItem>
+                                <div class="fmc-user-divider"></div>
+                                <MudMenuItem Class="fmc-user-item logout-action" Icon="@Icons.Material.Filled.Logout" OnClick="LogoutAsync">
+                                    <span class="fmc-logout-text">Terminate Session</span>
+                                </MudMenuItem>
                             </div>
-                        </ChildContent>
-                    </MudMenu>
+                        </div>
+                    </ChildContent>
+                </MudMenu>
                 </Authorized>
             <NotAuthorized>
                 <MudButton Href="/login" Variant="Variant.Text" Color="Color.Inherit" Class="mr-2">Log In</MudButton>
@@ -167,8 +191,11 @@
     </AuthorizeView>
 
     @* Main Page Content *@
-    <MudMainContent Class="pa-4 pt-16">
-        @Body
+    <MudMainContent Class="pa-0 pt-16">
+        <FMC.Components.Admin.GlobalAlertBanner />
+        <div class="pa-4">
+            @Body
+        </div>
     </MudMainContent>
 </MudLayout>
 
@@ -177,15 +204,7 @@
     .dark { --fmc-calendar-filter: invert(1); }
     
     .brand-link:hover { opacity: 0.8; }
-    .user-menu-trigger:hover {
-        background-color: var(--mud-palette-action-default-hover);
-        border-radius: 20px;
-    }
-
-    @@media (max-width: 960px) {
-        .fmc-nav-username { display: none !important; }
-    }
-
+    
     /* ── Notification Bell ── */
     .fmc-bell-wrap {
         position: relative;
@@ -287,6 +306,71 @@
         transition: opacity 0.2s;
     }
     .fmc-notif-action:hover { opacity: 0.7; }
+
+    /* ── Executive User Menu ── */
+    .fmc-user-trigger {
+        display: flex; align-items: center; padding: 4px 8px; border-radius: 14px;
+        cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
+    }
+    .fmc-user-trigger:hover, .fmc-user-trigger.active {
+        background: rgba(var(--mud-palette-primary-rgb), 0.05);
+        border-color: rgba(var(--mud-palette-primary-rgb), 0.1);
+    }
+    .fmc-user-name { font-weight: 800 !important; letter-spacing: -0.02em; color: var(--mud-palette-text-primary); }
+    .fmc-avatar-glow { box-shadow: 0 0 15px rgba(var(--mud-palette-primary-rgb), 0.3); font-weight: 800 !important; }
+
+    .fmc-user-popover .mud-popover { 
+        padding: 0 !important; 
+        background: transparent !important;
+        box-shadow: none !important;
+        margin-top: 8px !important;
+    }
+    .fmc-user-dropdown-panel {
+        width: 320px;
+        background: rgba(var(--mud-palette-surface-rgb), 0.9) !important;
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.15) !important;
+    }
+
+    .fmc-user-header {
+        padding: 24px;
+        background: linear-gradient(to bottom right, rgba(var(--mud-palette-primary-rgb), 0.05), transparent);
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-executive-name { font-weight: 950 !important; letter-spacing: -0.04em; color: var(--mud-palette-text-primary); }
+    .fmc-org-tag { 
+        padding: 4px 10px; border-radius: 8px; background: rgba(var(--mud-palette-primary-rgb), 0.1);
+        color: var(--mud-palette-primary); font-size: 0.65rem; font-weight: 950; letter-spacing: 0.05em;
+        border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.2);
+    }
+    .fmc-role-indicator { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .fmc-role-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mud-palette-primary); box-shadow: 0 0 8px var(--mud-palette-primary); }
+    .fmc-role-text { font-weight: 800 !important; letter-spacing: 0.1em; color: var(--mud-palette-text-secondary); opacity: 0.8; }
+
+    .fmc-user-actions { padding: 12px; }
+    .fmc-user-item { 
+        border-radius: 12px !important; margin-bottom: 4px; padding: 12px 16px !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .fmc-user-item:hover { 
+        background: rgba(var(--mud-palette-primary-rgb), 0.05) !important;
+        transform: translateX(4px);
+    }
+    .fmc-user-item ::deep .mud-list-item-icon { color: var(--mud-palette-primary) !important; min-width: 36px !important; }
+    .fmc-item-chevron { opacity: 0; transition: all 0.2s ease; transform: translateX(-10px); }
+    .fmc-user-item:hover .fmc-item-chevron { opacity: 0.5; transform: translateX(0); }
+
+    .fmc-user-divider { height: 1px; background: var(--mud-palette-divider); margin: 8px 12px; opacity: 0.5; }
+
+    .fmc-user-item.logout-action { margin-top: 8px; }
+    .fmc-user-item.logout-action:hover { background: rgba(var(--mud-palette-error-rgb), 0.05) !important; }
+    .fmc-user-item.logout-action ::deep .mud-list-item-icon { color: var(--mud-palette-error) !important; }
+    .fmc-logout-text { font-weight: 950 !important; color: var(--mud-palette-error); letter-spacing: 0.02em; }
 </style>
 
 @code {
@@ -400,95 +484,78 @@
         {
             _isUpdatingAlerts = true;
             _notifications.Clear();
-            var seenKeys = new HashSet<string>(); // Enterprise-level deduplication (OrgId_Type)
+            var seenKeys = new HashSet<string>(); 
             
             var authState = await AuthService.GetAuthenticationStateAsync();
             var user = authState.User;
+            if (user?.Identity?.IsAuthenticated != true) return;
 
-            // 1. Fetch System Alerts (SuperAdmin only)
+            // 1. Fetch Persistent Alerts (System Alerts / Organization Alerts)
+            // Now available to all roles due to Phase 3 API refactor
             try
             {
-                if (user.IsInRole(Roles.SuperAdmin))
+                var dbAlerts = await OrgService.GetActiveAlertsAsync();
+                foreach (var alert in dbAlerts)
                 {
-                    var dbAlerts = await OrgService.GetActiveAlertsAsync();
-                    foreach (var alert in dbAlerts)
-                    {
-                        // Clean Nationlink from DB alerts too if they somehow slipped in
-                        if (alert.Message.Contains("Nationlink", StringComparison.OrdinalIgnoreCase)) continue;
+                    var businessKey = $"{alert.EntityId}_{alert.Title}";
+                    if (seenKeys.Contains(businessKey)) continue;
 
-                        var businessKey = $"{alert.EntityId}_{alert.Title}";
-                        if (seenKeys.Contains(businessKey)) continue;
-
-                        _notifications.Add(new NotifItem(
-                            alert.Id,
-                            alert.Title, 
-                            alert.Message, 
-                            alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
-                            alert.Severity.ToString().ToLower(),
-                            1,
-                            alert.EntityId,
-                            alert.CreatedAt
-                        ));
-                        seenKeys.Add(businessKey);
-                    }
+                    _notifications.Add(new NotifItem(
+                        alert.Id,
+                        alert.Title, 
+                        alert.Message, 
+                        alert.EntityType == "Organization" ? $"/admin/organizations/{alert.EntityId}" : "/admin/audit",
+                        alert.Severity.ToString().ToLower(),
+                        1,
+                        alert.EntityId,
+                        alert.CreatedAt
+                    ));
+                    seenKeys.Add(businessKey);
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MainLayout] System Alerts Load Error: {ex.Message}");
-            }
+            catch { /* Managed by silent fail */ }
 
-            // 2. Fetch Workflow Alerts (CEO, Maker, Approver, SuperAdmin)
+            // 2. Fetch Workflow Alerts (Pending requests, etc.)
             try
             {
-                if (user.IsInRole(Roles.CEO) || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdmin))
+                var wfAlerts = await OrgService.GetWorkflowAlertsAsync();
+                foreach (var alert in wfAlerts)
                 {
-                    var wfAlerts = await OrgService.GetWorkflowAlertsAsync();
-                    foreach (var alert in wfAlerts)
+                    if (_dismissedNotifications.Contains(alert.EntityId ?? "")) continue;
+
+                    var businessKey = $"{alert.EntityId}_{alert.Title}";
+                    if (seenKeys.Contains(businessKey)) continue;
+
+                    // Routing Logic
+                    var href = "/transactions";
+                    if (alert.EntityId != null)
                     {
-                        if (_dismissedNotifications.Contains(alert.EntityId ?? ""))
-                            continue;
-
-                        var businessKey = $"{alert.EntityId}_{alert.Title}";
-                        if (seenKeys.Contains(businessKey)) continue;
-
-                        // ── Enterprise Routing ──
-                        var href = "/transactions";
-                        if (alert.EntityId != null)
+                        if (alert.EntityId.StartsWith("Pending")) href = "/pending-requests";
+                        else if (alert.EntityId.StartsWith("Threshold_"))
                         {
-                            if (alert.EntityId.StartsWith("Pending")) href = "/pending-requests";
-                            else if (alert.EntityId.StartsWith("Threshold_"))
-                            {
-                                var parts = alert.EntityId.Split('_');
-                                if (parts.Length > 1) href = $"/admin/organizations/{parts[1]}";
-                            }
+                            var parts = alert.EntityId.Split('_');
+                            if (parts.Length > 1) href = $"/admin/organizations/{parts[1]}";
                         }
-
-                        _notifications.Add(new NotifItem(
-                            0, // Synthetic ID for transient workflow alerts
-                            alert.Title,
-                            alert.Message,
-                            href,
-                            alert.Severity.ToString().ToLower(),
-                            1,
-                            alert.EntityId,
-                            DateTime.UtcNow
-                        ));
-                        seenKeys.Add(businessKey);
                     }
+
+                    _notifications.Add(new NotifItem(
+                        0, // Synthetic ID for transient workflow alerts
+                        alert.Title,
+                        alert.Message,
+                        href,
+                        alert.Severity.ToString().ToLower(),
+                        1,
+                        alert.EntityId,
+                        DateTime.UtcNow
+                    ));
+                    seenKeys.Add(businessKey);
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MainLayout] Workflow Alerts Load Error: {ex.Message}");
-            }
-
-            // 3. Computed alerts are now deprecated in favor of server-side truth from GetActiveAlerts and GetWorkflowAlerts
-            // This prevents the "Triple Notification" issue where the same threshold was flagged by the DB, the Workflow API, and local logic.
+            catch { /* Managed by silent fail */ }
 
             _alertCount = _notifications.Count;
         }
-        catch { /* Fallback for pre-rendering or auth latency */ }
+        catch { /* Fallback for pre-rendering */ }
         finally { _isUpdatingAlerts = false; }
     }
 

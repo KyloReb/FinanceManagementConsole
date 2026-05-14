@@ -439,6 +439,9 @@
     {
         if (firstRender)
         {
+            // Dismiss the institutional splash screen once the app is interactive
+            try { await JSRuntime.InvokeVoidAsync("fmcPreloader.hide"); } catch { }
+
             try
             {
                 var dictStr = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "fmc_wf_dismissed");

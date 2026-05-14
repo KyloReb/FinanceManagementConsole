@@ -71,7 +71,49 @@
                     </MudText>
                 </div>
             </div>
+            @if (_showSuccessOverlay)
+            {
+                <div class="fmc-success-overlay">
+                    <div class="fmc-success-inner">
+                        <div class="fmc-success-icon-container">
+                            <div class="fmc-glow-pulse"></div>
+                            <MudIcon Icon="@Icons.Material.Filled.Verified" Class="fmc-success-icon" />
+                        </div>
+                        <MudText Typo="Typo.h5" Class="fmc-success-text">@_successMessage</MudText>
+                        <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_successSubtext</MudText>
+                        
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Success" 
+                                   OnClick="Cancel"
+                                   Style="margin-top:24px; text-transform:none; font-weight:800; border-radius:12px; height:48px; min-width:160px;">
+                            Done
+                        </MudButton>
+                    </div>
+                </div>
+            }
+
+            @if (_showErrorOverlay)
+            {
+                <div class="fmc-success-overlay fmc-error-overlay">
+                    <div class="fmc-success-inner">
+                        <div class="fmc-success-icon-container fmc-error-icon">
+                            <div class="fmc-glow-pulse"></div>
+                            <MudIcon Icon="@Icons.Material.Filled.Error" Class="fmc-success-icon" Style="color: inherit;" />
+                        </div>
+                        <MudText Typo="Typo.h5" Class="fmc-success-text" Style="color: #ef5350;">@_errorMessage</MudText>
+                        <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_errorSubtext</MudText>
+                        
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Error" 
+                                   OnClick="@(() => { _showErrorOverlay = false; StateHasChanged(); })"
+                                   Style="margin-top:24px; text-transform:none; font-weight:800; border-radius:12px; height:48px; min-width:160px;">
+                            Dismiss
+                        </MudButton>
+                    </div>
+                </div>
+            }
         </div>
+
         <MudMessageBox @ref="_mbox" Title="Capacity Synchronization" CancelText="Cancel">
             <MessageContent>
                 Are you sure you want to align the Wallet Limit with the current actual balance? This action updates the institutional liquidity ceiling.
@@ -82,25 +124,28 @@
         </MudMessageBox>
     </DialogContent>
     <DialogActions>
-        <div class="px-6 pb-6 d-flex w-100 gap-3">
-            <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 700;">Discard</MudButton>
-            <MudSpacer />
-            <MudButton Color="@(_isCredit ? Color.Success : Color.Error)" 
-                       Variant="Variant.Filled" 
-                       Disabled="@(!IsFormValid())" 
-                       OnClick="HandleSubmitClick"
-                       Style="text-transform:none; font-weight: 800; border-radius: 12px; height: 48px; min-width: 180px;">
-                @if (_isProcessing)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    <span>Processing...</span>
-                }
-                else
-                {
-                    <span>Confirm @(_isCredit ? "Credit" : "Debit") Selection</span>
-                }
-            </MudButton>
-        </div>
+        @if (!_showSuccessOverlay && !_showErrorOverlay)
+        {
+            <div class="px-6 pb-6 d-flex w-100 gap-3">
+                <MudButton OnClick="Cancel" Variant="Variant.Text" Style="text-transform:none; font-weight: 700;">Discard</MudButton>
+                <MudSpacer />
+                <MudButton Color="@(_isCredit ? Color.Success : Color.Error)" 
+                           Variant="Variant.Filled" 
+                           Disabled="@(!IsFormValid())" 
+                           OnClick="HandleSubmitClick"
+                           Style="text-transform:none; font-weight: 800; border-radius: 12px; height: 48px; min-width: 180px;">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Processing...</span>
+                    }
+                    else
+                    {
+                        <span>Confirm @(_isCredit ? "Credit" : "Debit") Selection</span>
+                    }
+                </MudButton>
+            </div>
+        }
     </DialogActions>
 </MudDialog>
 
@@ -167,6 +212,82 @@
         border-radius: 20px; padding: 24px; 
         border: 1px solid var(--mud-palette-divider); 
     }
+
+    /* Success/Error Overlays */
+    .fmc-success-overlay { 
+        position: fixed; 
+        inset: 0; 
+        background: rgba(var(--mud-palette-surface-rgb), 0.7); 
+        backdrop-filter: blur(12px) saturate(180%); 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        z-index: 9999; 
+        padding: 24px; 
+        text-align: center; 
+        animation: fmc-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+    }
+    .fmc-success-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 48px;
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 32px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        max-width: 480px;
+        width: 90%;
+        animation: fmc-modal-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .fmc-success-icon-container { 
+        width: 80px; 
+        height: 80px; 
+        border-radius: 20px; 
+        background: rgba(46,125,50,0.12); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        margin-bottom: 20px; 
+        box-shadow: 0 0 30px rgba(46,125,50,0.2); 
+        position: relative;
+        color: #2e7d32;
+        animation: fmc-icon-entrance 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both; 
+    }
+    .fmc-error-icon {
+        background: rgba(239, 68, 68, 0.12);
+        box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+    .fmc-success-icon { font-size: 3rem !important; color: inherit; }
+    .fmc-success-text { font-weight: 950 !important; letter-spacing: 0.05em !important; margin-bottom: 8px !important; color: var(--mud-palette-text-primary); }
+    .fmc-success-subtext { opacity: 0.7; max-width: 280px; line-height: 1.6; }
+
+    .fmc-glow-pulse {
+        position: absolute;
+        inset: -4px;
+        border-radius: 24px;
+        opacity: 0;
+        animation: fmc-pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+    .fmc-success-icon-container .fmc-glow-pulse { border: 2px solid #2e7d32; }
+    .fmc-error-icon .fmc-glow-pulse { border: 2px solid #ef4444; }
+    
+    @@keyframes fmc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @@keyframes fmc-modal-pop {
+        from { opacity: 0; transform: scale(0.9) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @@keyframes fmc-icon-entrance {
+        from { transform: scale(0) rotate(-45deg); opacity: 0; }
+        to { transform: scale(1) rotate(0); opacity: 1; }
+    }
+    @@keyframes fmc-pulse-ring {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.1); opacity: 0; }
+        100% { transform: scale(0.95); opacity: 0; }
+    }
 </style>
 
 @code {
@@ -183,6 +304,13 @@
     private string _label = "";
     private bool _isProcessing;
     private bool _isCredit;
+
+    private bool _showSuccessOverlay;
+    private string _successMessage = "";
+    private string _successSubtext = "";
+    private bool _showErrorOverlay;
+    private string _errorMessage = "";
+    private string _errorSubtext = "";
 
     protected override void OnInitialized()
     {
@@ -245,17 +373,16 @@
             if (success)
             {
                 OrgService.NotifyDataChanged();
-                Snackbar.Add($"Institutional ledger updated successfully for {Organization.Name}", Severity.Success);
-                MudDialog.Close(DialogResult.Ok(true));
+                ShowSuccessOverlay("INSTITUTIONAL LEDGER UPDATED", $"Funding allocation successfully committed for {Organization.Name}");
             }
             else
             {
-                Snackbar.Add("Failed to commit organization ledger adjustment.", Severity.Error);
+                ShowErrorOverlay("COMMITMENT FAILED", "Unable to process institution ledger adjustment.");
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"System Infrastructure Error: {ex.Message}", Severity.Error);
+            ShowErrorOverlay("SYSTEM INFRASTRUCTURE ERROR", ex.Message);
         }
         finally
         {
@@ -275,14 +402,28 @@
                 if (success)
                 {
                     OrgService.NotifyDataChanged();
-                    Snackbar.Add("Wallet Limit successfully synchronized.", Severity.Info);
-                    MudDialog.Close(DialogResult.Ok(true));
+                    ShowSuccessOverlay("CAPACITY SYNCHRONIZED", "Wallet Limit successfully aligned with current actual balance.");
                 }
             }
             catch (Exception ex)
             {
-                Snackbar.Add($"Sync Failed: {ex.Message}", Severity.Error);
+                ShowErrorOverlay("SYNC FAILED", ex.Message);
             }
         }
+    }
+    private void ShowSuccessOverlay(string title, string subtext)
+    {
+        _successMessage = title;
+        _successSubtext = subtext;
+        _showSuccessOverlay = true;
+        StateHasChanged();
+    }
+
+    private void ShowErrorOverlay(string title, string subtext)
+    {
+        _errorMessage = title;
+        _errorSubtext = subtext;
+        _showErrorOverlay = true;
+        StateHasChanged();
     }
 }

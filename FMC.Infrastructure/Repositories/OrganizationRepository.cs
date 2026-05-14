@@ -37,10 +37,10 @@ public class OrganizationRepository : IOrganizationRepository
         var orgTenantIds = orgIds.Select(id => id.ToString()).ToList();
         var ceoIds = orgs.Where(o => !string.IsNullOrEmpty(o.ChiefExecutiveId)).Select(o => o.ChiefExecutiveId).Distinct().ToList();
 
-        // Batch 1: User Counts
-        var userCounts = await _context.Cardholders
-            .Where(c => orgIds.Contains(c.OrganizationId))
-            .GroupBy(c => c.OrganizationId)
+        // Batch 1: User Counts (Actual Web Project Users/AspNetUsers)
+        var userCounts = await _context.Users.OfType<ApplicationUser>()
+            .Where(u => u.OrganizationId.HasValue && orgIds.Contains(u.OrganizationId.Value))
+            .GroupBy(u => u.OrganizationId!.Value)
             .Select(g => new { OrgId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.OrgId, x => x.Count, ct);
 
@@ -106,8 +106,8 @@ public class OrganizationRepository : IOrganizationRepository
 
     public async Task<int> GetUserCountAsync(Guid organizationId, CancellationToken ct = default)
     {
-        return await _context.Cardholders
-            .CountAsync(c => c.OrganizationId == organizationId, ct);
+        return await _context.Users.OfType<ApplicationUser>()
+            .CountAsync(u => u.OrganizationId == organizationId, ct);
     }
 
     public async Task<decimal> GetTotalUserBalanceAsync(Guid organizationId, CancellationToken ct = default)

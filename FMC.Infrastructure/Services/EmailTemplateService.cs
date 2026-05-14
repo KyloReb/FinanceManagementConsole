@@ -189,15 +189,19 @@ public class EmailTemplateService : IEmailTemplateService
             </div>
 
             <div style=""background:#ffffff;border:1px solid #f1f2f6;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.02);"">
-                <div style=""display:flex;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid #f1f2f6;padding-bottom:15px;"">
-                    <div>
-                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Batch Liquidity</p>
-                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:{themeColor};"">₱{totalAmount:N2}</p>
-                    </div>
-                    <div style=""text-align:right;"">
-                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Item Count</p>
-                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:#2d3436;"">{count}</p>
-                    </div>
+                <div style=""margin-bottom:20px;border-bottom:1px solid #f1f2f6;padding-bottom:15px;"">
+                    <table style=""width:100%;border-collapse:collapse;"">
+                        <tr>
+                            <td style=""vertical-align:top;"">
+                                <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Batch Liquidity</p>
+                                <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:{themeColor};"">₱{totalAmount:N2}</p>
+                            </td>
+                            <td style=""vertical-align:top;text-align:right;"">
+                                <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Item Count</p>
+                                <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:#2d3436;"">{count}</p>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
                 <h4 style=""margin:20px 0 12px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:800;"">Transaction Breakdown</h4>
@@ -263,15 +267,19 @@ public class EmailTemplateService : IEmailTemplateService
             </div>
 
             <div style=""background:#ffffff;border:1px solid #f1f2f6;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.02);"">
-                <div style=""display:flex;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid #f1f2f6;padding-bottom:15px;"">
-                    <div>
-                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Total Batch Value</p>
-                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:{themeColor};"">₱{totalAmount:N2}</p>
-                    </div>
-                    <div style=""text-align:right;"">
-                        <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Item Count</p>
-                        <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:#2d3436;"">{totalCount}</p>
-                    </div>
+                <div style=""margin-bottom:20px;border-bottom:1px solid #f1f2f6;padding-bottom:15px;"">
+                    <table style=""width:100%;border-collapse:collapse;"">
+                        <tr>
+                            <td style=""vertical-align:top;"">
+                                <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Total Batch Value</p>
+                                <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:{themeColor};"">₱{totalAmount:N2}</p>
+                            </td>
+                            <td style=""vertical-align:top;text-align:right;"">
+                                <p style=""margin:0;font-size:11px;color:#b2bec3;text-transform:uppercase;font-weight:800;letter-spacing:1px;"">Item Count</p>
+                                <p style=""margin:5px 0 0 0;font-size:24px;font-weight:900;color:#2d3436;"">{totalCount}</p>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
 
                 {sampleTable}

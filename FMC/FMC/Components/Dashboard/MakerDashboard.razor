@@ -410,9 +410,9 @@
                                     <div>
                                         <div class="d-flex align-center gap-2">
                                             <MudText Style="font-weight:800; font-size:0.85rem;">@ch.DisplayName</MudText>
-                                            <span class="fmc-status-pill @(ch.IsActive ? "active" : "suspended")" style="font-size:0.55rem; padding: 1px 6px;">
-                                                @(ch.IsActive ? "Active" : "Suspended")
-                                            </span>
+                                            <MudChip T="string" Color="@(ch.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.55rem; font-weight: 900; padding: 0 6px; height: 18px; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(var(--mud-palette-success-rgb), 0.1);">
+                                                @(ch.IsActive ? "ACTIVE" : "SUSPENDED")
+                                            </MudChip>
                                         </div>
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family:'JetBrains Mono',monospace; font-size:0.65rem;">
                                             @MaskAccount(ch.AccountNumber)
@@ -457,9 +457,9 @@
                                     <div>
                                         <div class="d-flex align-center gap-2">
                                             <MudText Style="font-weight:800; font-size:0.85rem;">@ch.DisplayName</MudText>
-                                            <span class="fmc-status-pill @(ch.IsActive ? "active" : "suspended")" style="font-size:0.55rem; padding: 1px 4px;">
-                                                @(ch.IsActive ? "Active" : "Susp")
-                                            </span>
+                                            <MudChip T="string" Color="@(ch.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.55rem; font-weight: 900; padding: 0 6px; height: 18px; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(var(--mud-palette-success-rgb), 0.1);">
+                                                @(ch.IsActive ? "ACTIVE" : "SUSP")
+                                            </MudChip>
                                         </div>
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family:'JetBrains Mono',monospace; font-size:0.65rem;">
                                             @MaskAccount(ch.AccountNumber)
@@ -486,6 +486,40 @@
             </MudPaper>
         </MudItem>
     }
+    
+    @if (_showSuccessOverlay)
+    {
+        <div class="fmc-page-success-overlay">
+            <div class="fmc-page-success-inner">
+                <div class="fmc-page-success-icon">
+                    <div class="fmc-glow-pulse"></div>
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="font-size: 3.5rem; color: inherit;" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 950; letter-spacing: 0.05em; color: var(--mud-palette-success); margin-bottom: 8px;">@_successTitle</MudText>
+                <MudText Typo="Typo.body1" Style="opacity: 0.75; max-width: 380px; text-align: center; line-height: 1.7;">@_successSubtext</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Style="margin-top: 24px; background-color: #2e7d32; color: #fff; font-weight: 900; text-transform: none; border-radius: 10px; min-width: 140px; height: 44px;"
+                           OnClick="@(() => { _showSuccessOverlay = false; StateHasChanged(); })">Done</MudButton>
+            </div>
+        </div>
+    }
+
+    @if (_showErrorOverlay)
+    {
+        <div class="fmc-page-error-overlay">
+            <div class="fmc-page-error-inner">
+                <div class="fmc-page-error-icon">
+                    <div class="fmc-glow-pulse"></div>
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Style="font-size: 3rem; color: inherit;" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 950; letter-spacing: 0.05em; color: #ef5350; margin-bottom: 8px;">@_errorTitle</MudText>
+                <MudText Typo="Typo.body1" Style="opacity: 0.75; max-width: 380px; text-align: center; line-height: 1.7;">@_errorSubtext</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Style="margin-top: 24px; background-color: #c62828; color: #fff; font-weight: 900; text-transform: none; border-radius: 10px; min-width: 140px; height: 44px;"
+                           OnClick="@(() => { _showErrorOverlay = false; StateHasChanged(); })">Dismiss</MudButton>
+            </div>
+        </div>
+    }
 </MudGrid>
 </div>
 
@@ -508,6 +542,12 @@
     private string _cardholderSearch = "";
     private string _roleDisplay = "Operations";
     private int _activeTab = 0; // 0 = Queue, 1 = Today
+    private bool _showErrorOverlay;
+    private string _errorTitle = "";
+    private string _errorSubtext = "";
+    private bool _showSuccessOverlay;
+    private string _successTitle = "";
+    private string _successSubtext = "";
 
     private bool FilterCardholders(UserDto user)
     {
@@ -560,7 +600,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to sync operational queue: {ex.Message}", Severity.Error);
+            ShowApprovalError($"Failed to sync operational queue: {ex.Message}", false);
         }
         finally
         {
@@ -578,7 +618,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to sync audit logs: {ex.Message}", Severity.Error);
+            ShowApprovalError($"Failed to sync audit logs: {ex.Message}", false);
         }
         finally
         {
@@ -626,14 +666,19 @@
 
             if (success)
             {
-                Snackbar.Add(approve ? "Transaction approved and ledger updated." : "Transaction rejected.", Severity.Success);
+                ShowSuccessOverlay(approve ? "TRANSACTION APPROVED" : "TRANSACTION REJECTED", 
+                                 approve ? "The ledger has been updated and funds allocated." : "The request has been removed from the queue.");
                 await LoadDashboardData();
                 await OnActionCompleted.InvokeAsync();
+            }
+            else
+            {
+                ShowApprovalError("Authorization could not be completed. Verify account balance.", false);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Action failed: {ex.Message}", Severity.Error);
+            ShowApprovalError(ex.Message, false);
         }
     }
 
@@ -778,6 +823,9 @@
 
         try
         {
+            var group = GroupTransactions(_pendingTransactions).FirstOrDefault(g => g.BatchId == batchId);
+            int count = group?.Transactions.Count ?? 0;
+
             bool success = false;
             if (approve)
             {
@@ -790,14 +838,19 @@
 
             if (success)
             {
-                Snackbar.Add(approve ? "Batch approved successfully!" : "Batch rejected.", Severity.Success);
+                ShowSuccessOverlay(approve ? "BATCH AUTHORIZED" : "BATCH REJECTED", 
+                                 approve ? "The entire batch has been securely processed." : "The batch and its transactions have been denied.");
                 await LoadDashboardData();
                 await OnActionCompleted.InvokeAsync();
+            }
+            else
+            {
+                ShowApprovalError("Batch authorization could not be completed.", true, count);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Action failed: {ex.Message}", Severity.Error);
+            ShowApprovalError(ex.Message, true, GroupTransactions(_pendingTransactions).FirstOrDefault(g => g.BatchId == batchId)?.Transactions.Count ?? 0);
         }
     }
 
@@ -808,4 +861,89 @@
         public decimal TotalAmount { get; set; }
         public bool IsBatch { get; set; }
     }
+
+    #region Premium Error Handling
+
+    private void ShowApprovalError(string rawMessage, bool isBatch, int batchCount = 0)
+    {
+        bool isLiquidityError = rawMessage.Contains("insufficient", StringComparison.OrdinalIgnoreCase)
+                             || rawMessage.Contains("liquidity", StringComparison.OrdinalIgnoreCase);
+
+        var batchNote = isBatch && batchCount > 0
+            ? $" ({batchCount} settlement{(batchCount > 1 ? "s" : "")})"
+            : string.Empty;
+
+        _errorTitle = isLiquidityError ? "INSUFFICIENT LIQUIDITY" : (isBatch ? "BATCH FAILED" : "ACTION FAILED");
+        
+        if (isLiquidityError)
+        {
+            _errorSubtext = $"The organization's corporate float does not have enough balance to cover this settlement{batchNote}. Contact your SuperAdmin to top-up the wallet.";
+        }
+        else
+        {
+            _errorSubtext = rawMessage;
+        }
+
+        _showErrorOverlay = true;
+        StateHasChanged();
+    }
+
+    private void ShowSuccessOverlay(string title, string subtext)
+    {
+        _successTitle = title;
+        _successSubtext = subtext;
+        _showSuccessOverlay = true;
+        StateHasChanged();
+    }
+
+    #endregion
 }
+
+<style>
+    /* Full-page error overlay — mirrors the dialog success overlay pattern */
+    .fmc-page-error-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+        background: rgba(0, 0, 0, 0.55);
+        animation: fmc-overlay-in 0.25s ease;
+    }
+    .fmc-page-error-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    .fmc-page-error-icon {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: rgba(211, 47, 47, 0.12);
+        box-shadow: 0 0 40px rgba(211, 47, 47, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        animation: fmc-icon-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @@keyframes fmc-overlay-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    @@keyframes fmc-icon-pop {
+        from { transform: scale(0.5); opacity: 0; }
+        to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .fmc-page-success-overlay {
+        background: rgba(0, 0, 0, 0.6);
+    }
+    .fmc-page-success-icon {
+        background: rgba(67, 160, 71, 0.12);
+        box-shadow: 0 0 40px rgba(67, 160, 71, 0.3);
+    }
+</style>

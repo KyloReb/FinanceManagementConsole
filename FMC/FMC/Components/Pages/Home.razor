@@ -146,12 +146,20 @@
                                     @if (_isSuperAdmin)
                                     {
                                         <div class="d-flex align-center gap-2">
-                                            <MudTextField @bind-Value="_walletSearchQuery" Placeholder="Search tenant..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Style="width: 180px; background: var(--mud-palette-background);" />
-                                            <MudSelect @bind-Value="_walletPageSize" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="width: 70px; background: var(--mud-palette-background);">
-                                                <MudSelectItem Value="5">5</MudSelectItem>
-                                                <MudSelectItem Value="10">10</MudSelectItem>
-                                                <MudSelectItem Value="20">20</MudSelectItem>
-                                            </MudSelect>
+                                            <MudTooltip Text="Refresh Data" Arrow="true" Placement="Placement.Top">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Refresh" 
+                                                               Color="Color.Primary" 
+                                                               Size="Size.Small" 
+                                                               OnClick="RefreshDashboard"
+                                                               Class="@((_loading || _auditLoading) ? "fmc-spin" : "")"
+                                                               Style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 8px; width: 32px; height: 32px;" />
+                                            </MudTooltip>
+                                            <div class="fmc-wallet-search-wrapper">
+                                                <MudIcon Icon="@Icons.Material.Filled.Search" Class="fmc-wallet-search-icon" />
+                                                <input @bind-value="_walletSearchQuery" @bind-value:event="oninput" 
+                                                       placeholder="Search tenants..." 
+                                                       class="fmc-wallet-search-input" />
+                                            </div>
                                         </div>
                                     }
                                 </div>
@@ -161,15 +169,17 @@
                                 {
                                     <div class="fmc-filter-toolbar d-flex align-center gap-1 mt-2">
                                         <MudText Typo="Typo.caption" Style="font-weight: 900; opacity: 0.5; margin-right: 8px; letter-spacing: 0.05em; font-size: 0.65rem;">OVERSIGHT PRIORITY:</MudText>
-                                        <button class="fmc-filter-chip @(_walletSortOrder == "util_high" ? "active" : "")" 
-                                                data-sort="util_high" @onclick="@(() => _walletSortOrder = "util_high")">
-                                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
-                                            HIGHEST UTILIZATION
+                                        <button class="fmc-filter-chip @(_walletSortOrder == "util_high" || _walletSortOrder == "util_low" ? "active" : "")" 
+                                                data-sort="@(_walletSortOrder == "util_low" ? "util_low" : "util_high")"
+                                                @onclick="ToggleUtilizationSort">
+                                            <MudIcon Icon="@(_walletSortOrder == "util_low" ? Icons.Material.Filled.TrendingDown : Icons.Material.Filled.TrendingUp)" 
+                                                     Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
+                                            @(_walletSortOrder == "util_low" ? "LOWEST UTILIZATION" : "HIGHEST UTILIZATION")
                                         </button>
-                                        <button class="fmc-filter-chip @(_walletSortOrder == "util_low" ? "active" : "")" 
-                                                data-sort="util_low" @onclick="@(() => _walletSortOrder = "util_low")">
-                                            <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
-                                            LOWEST UTILIZATION
+                                        <button class="fmc-filter-chip" @onclick="ToggleAllCards">
+                                            <MudIcon Icon="@(_allMinimized ? Icons.Material.Filled.UnfoldMore : Icons.Material.Filled.UnfoldLess)" 
+                                                     Size="Size.Small" Class="mr-2" Style="font-size: 0.9rem;" />
+                                            @(_allMinimized ? "SHOW ALL" : "MINIMIZE ALL")
                                         </button>
                                         <button class="fmc-filter-chip @(_walletSortOrder == "alpha" ? "active" : "")" 
                                                 data-sort="alpha" @onclick="@(() => _walletSortOrder = "alpha")">
@@ -259,7 +269,7 @@
                                                     <div style="min-width: 0;">
                                                         <div class="d-flex align-center gap-2 flex-wrap">
                                                             <MudText Typo="Typo.body2" Style="font-weight: 900; line-height: 1.2;">@item.Org.Name</MudText>
-                                                            <span class="fmc-tier-badge" style="color: @tierColor; border-color: @tierColor;">@tierLabel</span>
+                                                            <span class="fmc-tier-badge tier-@(tierLabel.ToLower())">@tierLabel</span>
                                                             @if (item.IsRecent)
                                                             {
                                                                 <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Style="font-size:0.6rem;height:18px;margin-left:4px;">Recently Credited</MudChip>
@@ -300,6 +310,16 @@
                                                                                Variant="Variant.Outlined"
                                                                                Style="border-radius: 10px; width: 32px; height: 32px; margin-right: 4px;"
                                                                                OnClick="@(() => OpenAdjustmentDialog(item.Org, false))" />
+                                                            </div>
+                                                        </MudTooltip>
+                                                        <MudTooltip Text="Manage Organization" Arrow="true" Placement="Placement.Top">
+                                                            <div @onclick:stopPropagation="true" style="display: inline-block;">
+                                                                <MudIconButton Icon="@Icons.Material.Filled.Settings"
+                                                                               Size="Size.Small"
+                                                                               Color="Color.Primary"
+                                                                               Variant="Variant.Outlined"
+                                                                               Style="border-radius: 10px; width: 32px; height: 32px;"
+                                                                               OnClick="@(() => Navigation.NavigateTo($"/admin/organizations/{capturedId}"))" />
                                                             </div>
                                                         </MudTooltip>
                                                     }
@@ -465,9 +485,9 @@
                                                     <div>
                                                         <div class="d-flex align-center gap-2">
                                                             <MudText Style="font-weight:800; font-size:0.85rem;">@ch.DisplayName</MudText>
-                                                            <span class="fmc-status-pill @(ch.IsActive ? "active" : "suspended")" style="font-size:0.55rem; padding: 1px 6px;">
-                                                                @(ch.IsActive ? "Active" : "Suspended")
-                                                            </span>
+                                                            <MudChip T="string" Color="@(ch.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.55rem; font-weight: 900; padding: 0 6px; height: 18px; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(var(--mud-palette-success-rgb), 0.1);">
+                                                                @(ch.IsActive ? "ACTIVE" : "SUSPENDED")
+                                                            </MudChip>
                                                         </div>
                                                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family:'JetBrains Mono',monospace; font-size:0.65rem;">
                                                             @MaskAccount(ch.AccountNumber)
@@ -501,9 +521,9 @@
                                                     <div>
                                                         <div class="d-flex align-center gap-2">
                                                             <MudText Style="font-weight:800; font-size:0.85rem;">@ch.DisplayName</MudText>
-                                                            <span class="fmc-status-pill @(ch.IsActive ? "active" : "suspended")" style="font-size:0.55rem; padding: 1px 4px;">
-                                                                @(ch.IsActive ? "Active" : "Susp")
-                                                            </span>
+                                                            <MudChip T="string" Color="@(ch.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.55rem; font-weight: 900; padding: 0 6px; height: 18px; line-height: 1.2; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(var(--mud-palette-success-rgb), 0.1);">
+                                                                @(ch.IsActive ? "ACTIVE" : "SUSP")
+                                                            </MudChip>
                                                         </div>
                                                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family:'JetBrains Mono',monospace; font-size:0.65rem;">
                                                             @MaskAccount(ch.AccountNumber)
@@ -788,6 +808,20 @@
         "recent" => "Recently Credited",
         _ => "Sort By"
     };
+    private bool _allMinimized = false;
+    private void ToggleUtilizationSort()
+    {
+        if (_walletSortOrder == "util_high") _walletSortOrder = "util_low";
+        else _walletSortOrder = "util_high";
+    }
+    private void ToggleAllCards()
+    {
+        _allMinimized = !_allMinimized;
+        foreach (var org in _organizations)
+        {
+            _cardCollapsed[org.Id] = _allMinimized;
+        }
+    }
     private void ToggleCardCollapse(Guid orgId)
     {
         if (_cardCollapsed.ContainsKey(orgId))
@@ -881,7 +915,12 @@
         }
     }
 
-    private async Task RefreshDashboard() => await OnInitializedAsync();
+    private async Task RefreshDashboard() 
+    {
+        _auditLoading = true;
+        StateHasChanged();
+        await OnInitializedAsync();
+    }
     #endregion
 
     #region ── UI Handlers & Dialogs ──

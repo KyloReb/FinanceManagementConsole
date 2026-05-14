@@ -1,7 +1,18 @@
 @inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
 
 <MudLayout>
     <MudMainContent Class="pa-0">
         @Body
     </MudMainContent>
 </MudLayout>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try { await JSRuntime.InvokeVoidAsync("fmcPreloader.hide"); } catch { }
+        }
+    }
+}

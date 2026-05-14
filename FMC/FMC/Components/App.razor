@@ -62,6 +62,18 @@
             }
         };
 
+        window.fmcPreloader = {
+            hide: function() {
+                const loader = document.getElementById('fmc-preloader');
+                if (loader) {
+                    loader.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (loader.parentNode) loader.parentNode.removeChild(loader);
+                    }, 800);
+                }
+            }
+        };
+
         (function () {
             try {
                 var theme = null;
@@ -95,6 +107,16 @@
     Handles initial document structure, resource loading, and early theme initialization to prevent flickers.
 *@
 <body>
+    <div id="fmc-preloader">
+        <div class="preloader-content">
+            <img src="nlkLogo.png" alt="NLK Logo" class="preloader-logo" />
+        </div>
+        <div class="preloader-footer">
+            <span class="preloader-from">from</span>
+            <span class="preloader-brand">Nationlink/INFOSERVE</span>
+        </div>
+    </div>
+
     <Routes @rendermode="@InteractiveServer" />
     <ReconnectModal />
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>

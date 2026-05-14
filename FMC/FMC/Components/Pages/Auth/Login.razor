@@ -9,7 +9,7 @@
 
 <div class="d-flex justify-center align-center py-8" style="min-height: 100vh; background-color: var(--mud-palette-background);">
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
-        <MudImage Src="nlklogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
+        <MudImage Src="nlkLogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
 
         @if (!string.IsNullOrEmpty(_errorMessage))
@@ -112,7 +112,7 @@
             if (result != null)
             {
                 // Rely on SignalR state change to transition to Home/ReturnUrl instantly, preventing any SSR layout flashes
-                NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl);
+                NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
             }
             else
             {

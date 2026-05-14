@@ -137,4 +137,87 @@ h1:focus {
         opacity: 1;
     }
 }
+
+/* PREMIUM SPLASH SCREEN (FACEBOOK STYLE) - THEME AWARE */
+:root {
+    --preloader-bg: #f8fafc; /* Light Theme BG */
+    --preloader-text-low: rgba(15,23,42,0.3);
+    --preloader-text-high: rgba(15,23,42,0.8);
+    --preloader-glow: rgba(0,0,0,0.05);
+}
+
+html.dark {
+    --preloader-bg: #11111b; /* Dark Theme BG */
+    --preloader-text-low: rgba(255,255,255,0.3);
+    --preloader-text-high: rgba(255,255,255,0.8);
+    --preloader-glow: rgba(255,255,255,0.05);
+}
+
+#fmc-preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background-color: var(--preloader-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+}
+
+#fmc-preloader.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.preloader-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: preloader-entrance 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.preloader-logo {
+    width: 100px;
+    height: auto;
+    filter: drop-shadow(0 0 20px var(--preloader-glow));
+    animation: preloader-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.preloader-footer {
+    position: absolute;
+    bottom: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.preloader-from {
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    color: var(--preloader-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+}
+
+.preloader-brand {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--preloader-text-high);
+    letter-spacing: 0.1em;
+}
+
+@keyframes preloader-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 20px var(--preloader-glow)); }
+    50% { transform: scale(1.05); opacity: 0.85; filter: drop-shadow(0 0 30px var(--preloader-glow)); }
+}
+
+@keyframes preloader-entrance {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
 

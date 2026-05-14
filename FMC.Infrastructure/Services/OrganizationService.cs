@@ -1025,10 +1025,21 @@ public class OrganizationService : IOrganizationService
         var orgId = pendingTransactions.First().OrganizationId ?? Guid.Empty;
         var tenantId = pendingTransactions.First().TenantId;
         var label = pendingTransactions.First().Label ?? "Bulk Batch Approval";
+        
+        foreach (var tx in pendingTransactions) totalAmount += tx.Amount;
+
+        // 2. Pre-flight Liquidity Check (FinTech Best Practice: Batch Atomicity)
+        // Ensure the organization wallet can cover the ENTIRE batch before processing a single item.
+        var orgAccount = await _repository.GetAccountByTenantIdAsync(tenantId, cancellationToken);
+        if (orgAccount == null) throw new ApplicationException("Institutional wallet not found.");
+        
+        if (orgAccount.Balance < totalAmount)
+        {
+            throw new InvalidOperationException($"Insufficient liquidity for full batch. Required: {totalAmount:C}, Available: {orgAccount.Balance:C}. Top-up the wallet to proceed.");
+        }
 
         foreach (var tx in pendingTransactions)
         {
-            totalAmount += tx.Amount;
             // Reuse the existing single-transaction approval logic to ensure all security checks (4-eyes, org-isolation) are honored
             // IMPORTANT: Pass 'publishEvent: false' to prevent individual email flooding for batch operations
             await ApproveTransactionAsync(tx.Id, approverId, publishEvent: false, skipAuditLog: true, cancellationToken);

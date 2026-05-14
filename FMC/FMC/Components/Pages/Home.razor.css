@@ -301,6 +301,23 @@
 
 .fmc-suite-element .mud-icon-root { font-size: 1.1rem !important; }
 
+/* ── Premium Wallet Search ── */
+.fmc-wallet-search-wrapper { position: relative; width: 220px; display: flex; align-items: center; margin-left: 8px; }
+.fmc-wallet-search-icon { position: absolute; left: 14px; color: var(--mud-palette-text-secondary); opacity: 0.5; font-size: 1.1rem !important; z-index: 2; }
+.fmc-wallet-search-input { 
+    width: 100%; padding: 8px 12px 8px 38px; 
+    background: var(--mud-palette-background-grey); 
+    border: 1px solid var(--mud-palette-divider); 
+    border-radius: 12px; font-weight: 700; font-size: 0.75rem; 
+    color: var(--mud-palette-text-primary); transition: all 0.3s ease; 
+}
+.fmc-wallet-search-input:focus { 
+    outline: none; border-color: var(--mud-palette-primary); 
+    background: var(--mud-palette-surface); 
+    box-shadow: 0 0 0 3px rgba(var(--mud-palette-primary-rgb), 0.1); 
+}
+.fmc-wallet-search-input::placeholder { color: var(--mud-palette-text-secondary); opacity: 0.5; }
+
 .fmc-timeframe-selector { background: var(--mud-palette-background-grey); padding: 4px; border-radius: 12px; display: flex; gap: 2px; }
 .fmc-timeframe-btn { 
     border-radius: 10px !important; font-weight: 800 !important; font-size: 0.65rem !important; 
@@ -377,10 +394,18 @@
 }
 
 .fmc-tier-badge {
-    font-size: 0.55rem; font-weight: 900; letter-spacing: 0.08em;
-    padding: 1px 6px; border-radius: 4px; border: 1px solid;
+    font-size: 0.55rem; font-weight: 950; letter-spacing: 0.1em;
+    padding: 2px 8px; border-radius: 6px; border: 1.5px solid;
     text-transform: uppercase;
 }
+
+.fmc-light-mode .fmc-tier-badge.tier-critical { background: #fee2e2; color: #991b1b; border-color: #f87171; }
+.fmc-light-mode .fmc-tier-badge.tier-warning  { background: #fef3c7; color: #92400e; border-color: #fbbf24; }
+.fmc-light-mode .fmc-tier-badge.tier-healthy  { background: #dcfce7; color: #166534; border-color: #4ade80; }
+
+.fmc-dark-mode .fmc-tier-badge.tier-critical { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.3); }
+.fmc-dark-mode .fmc-tier-badge.tier-warning  { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
+.fmc-dark-mode .fmc-tier-badge.tier-healthy  { background: rgba(34, 197, 94, 0.1); color: #4ade80; border-color: rgba(34, 197, 94, 0.3); }
 
 /* Fuel Gauge Track */
 .fmc-gauge-track {
@@ -518,23 +543,25 @@
 
 /* -- Tactical Filter Toolbar -- */
 .fmc-filter-toolbar {
-    padding: 6px 0;
+    padding: 10px 0;
     display: flex;
     align-items: center;
-    flex-wrap: nowrap; /* Prevent wrapping */
-    overflow-x: auto;  /* Allow horizontal scroll on very small screens if needed */
-    scrollbar-width: none; /* Hide scrollbar for clean look */
+    flex-wrap: nowrap; /* Enforce single row */
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 6px;
 }
 .fmc-filter-toolbar::-webkit-scrollbar { display: none; }
 
 .fmc-filter-chip {
-    height: 36px;
-    padding: 0 12px;
+    height: 32px; /* Slightly shorter */
+    padding: 0 10px; /* Tighter padding */
     border-radius: 10px;
-    background: rgba(0, 0, 0, 0.05); /* Stable background for Light Mode */
+    background: rgba(0, 0, 0, 0.05);
     border: 1px solid var(--mud-palette-divider);
     color: var(--mud-palette-text-secondary);
-    font-size: 0.6rem;
+    font-size: 0.58rem; /* Slightly smaller text */
     font-weight: 800;
     display: flex;
     align-items: center;
@@ -545,7 +572,7 @@
     position: relative;
     overflow: hidden;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex-shrink: 1; /* Allow compression to stay in one row */
 }
 
 .fmc-dark-mode .fmc-filter-chip {
@@ -561,30 +588,29 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-/* Premium Gradient Active States */
+/* Premium Gradient Active States - Enhanced for Light Mode Visibility */
 .fmc-filter-chip.active {
     color: white !important;
     border: none !important;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
     opacity: 1 !important;
+    font-weight: 950 !important;
 }
 
 .fmc-filter-chip.active .mud-icon-root { color: white !important; }
 
-/* ── Specific Color Gradients (Non-Flat) ── */
 .fmc-filter-chip.active[data-sort="util_high"] {
-    background: linear-gradient(135deg, #FF6B6B 0%, #EE0979 100%) !important;
-    box-shadow: 0 6px 16px rgba(238, 9, 121, 0.3) !important;
+    background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important; /* Deeper Ruby for visibility */
+    box-shadow: 0 6px 16px rgba(190, 18, 60, 0.25) !important;
 }
 
 .fmc-filter-chip.active[data-sort="util_low"] {
-    background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%) !important;
-    box-shadow: 0 6px 16px rgba(33, 147, 176, 0.3) !important;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%) !important;
+    box-shadow: 0 6px 16px rgba(3, 105, 161, 0.25) !important;
 }
 
 .fmc-filter-chip.active[data-sort="alpha"] {
-    background: linear-gradient(135deg, #614385 0%, #516395 100%) !important;
-    box-shadow: 0 6px 16px rgba(97, 67, 133, 0.3) !important;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%) !important;
+    box-shadow: 0 6px 16px rgba(109, 40, 217, 0.25) !important;
 }
 
 .fmc-filter-chip.active[data-sort="recent"] {
@@ -601,6 +627,14 @@
     background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
     opacity: 0.5;
     pointer-events: none;
+}
+.fmc-spin {
+    animation: fmc-rotation 1s infinite linear;
+}
+
+@@keyframes fmc-rotation {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Status Dots for high-density signaling */

@@ -197,9 +197,17 @@ public class UsersController : ControllerBase
             var success = await _organizationService.ApproveTransactionAsync(transactionId, approverId, true, false, HttpContext.RequestAborted);
             return success ? Ok() : BadRequest("Approval failed. Transaction may be in an invalid state.");
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
         catch (ApplicationException ex)
         {
             return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
         }
     }
 
@@ -233,9 +241,17 @@ public class UsersController : ControllerBase
             var success = await _organizationService.ApproveBatchAsync(batchId, approverId, HttpContext.RequestAborted);
             return success ? Ok() : BadRequest("Batch approval failed or batch is empty.");
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
         catch (ApplicationException ex)
         {
             return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
         }
     }
 
@@ -246,8 +262,23 @@ public class UsersController : ControllerBase
         var approverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(approverId)) return Unauthorized();
 
-        var success = await _organizationService.RejectBatchAsync(batchId, approverId, request.Reason, HttpContext.RequestAborted);
-        return success ? Ok() : BadRequest("Batch rejection failed.");
+        try
+        {
+            var success = await _organizationService.RejectBatchAsync(batchId, approverId, request.Reason, HttpContext.RequestAborted);
+            return success ? Ok() : BadRequest("Batch rejection failed.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ApplicationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
+        }
     }
 
     [Authorize(Roles = Roles.Maker)]

@@ -153,10 +153,33 @@
                 <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_successSubtext</MudText>
             </div>
         }
+
+        @if (_showErrorOverlay)
+        {
+            <div class="fmc-success-overlay fmc-error-overlay">
+                <div class="fmc-success-icon-container" style="background: rgba(211,47,47,0.12); box-shadow: 0 0 40px rgba(211,47,47,0.25);">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="fmc-success-icon" Style="color: #ef5350;" />
+                </div>
+                <MudText Typo="Typo.h5" Class="fmc-success-text" Style="color: #ef5350;">@_errorMessage</MudText>
+                <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_errorSubtext</MudText>
+            </div>
+        }
     </DialogContent>
     
     <DialogActions>
-        @if (!_showSuccessOverlay)
+        @if (_showSuccessOverlay)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Style="background-color: #2e7d32; color: #fff; font-weight: 900; text-transform: none; border-radius: 8px; min-width: 120px;"
+                       OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))">Done</MudButton>
+        }
+        else if (_showErrorOverlay)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Style="background-color: #c62828; color: #fff; font-weight: 900; text-transform: none; border-radius: 8px; min-width: 120px;"
+                       OnClick="@(() => { _showErrorOverlay = false; StateHasChanged(); })">Dismiss</MudButton>
+        }
+        else
         {
             <MudButton OnClick="CloseDialog" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
             <MudSpacer />
@@ -231,6 +254,9 @@
     private bool _isRejection;
     private string _successMessage = "";
     private string _successSubtext = "";
+    private bool _showErrorOverlay;
+    private string _errorMessage = "";
+    private string _errorSubtext = "";
 
     #endregion
 
@@ -282,15 +308,21 @@
         _           => Color.Info
     };
 
-    private async Task ShowSuccessOverlayAsync(string title, string subtext, bool isRejection = false)
+    private void ShowSuccessOverlay(string title, string subtext, bool isRejection = false)
     {
         _successMessage = title;
         _successSubtext = subtext;
         _isRejection = isRejection;
         _showSuccessOverlay = true;
         StateHasChanged();
-        await Task.Delay(1500); // Premium dwell time for decision certification
-        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void ShowErrorOverlay(string title, string subtext)
+    {
+        _errorMessage = title;
+        _errorSubtext = subtext;
+        _showErrorOverlay = true;
+        StateHasChanged();
     }
 
     #endregion
@@ -353,16 +385,16 @@
             
             if (success)
             {
-                await ShowSuccessOverlayAsync("REQUEST WITHDRAWN", isBatch ? "Batch has been removed from the queue." : "Transaction has been removed.");
+                ShowSuccessOverlay("REQUEST WITHDRAWN", isBatch ? "Batch has been removed from the queue." : "Transaction has been removed.");
             }
             else 
             {
-                Snackbar.Add(isBatch ? "Failed to cancel batch." : "Failed to cancel transaction.", Severity.Error);
+                ShowErrorOverlay("WITHDRAWAL BLOCKED", isBatch ? "Unable to cancel batch at this time." : "Unable to cancel transaction.");
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            ShowErrorOverlay("OPERATION FAILED", ex.Message);
         }
         finally
         {
@@ -401,7 +433,7 @@
 
                 if (success) 
                 {
-                    await ShowSuccessOverlayAsync("TRANSACTION AUTHORIZED", "Decision has been securely logged to the ledger.");
+                    ShowSuccessOverlay("TRANSACTION AUTHORIZED", "Decision has been securely logged to the ledger.");
                 }
             }
             else
@@ -437,7 +469,7 @@
 
                     if (success)
                     {
-                        await ShowSuccessOverlayAsync("DECISION LOGGED", "Transaction has been rejected and archived.", isRejection: true);
+                        ShowSuccessOverlay("DECISION LOGGED", "Transaction has been rejected and archived.", isRejection: true);
                     }
                 }
                 else 
@@ -450,12 +482,28 @@
 
             if (!success)
             {
-                Snackbar.Add("Action failed. Please check permissions or available account balance.", Severity.Error);
+                ShowErrorOverlay("SETTLEMENT BLOCKED", "Unable to process. Verify balance and permissions.");
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"System Error: {ex.Message}", Severity.Error);
+            bool isLiquidityError = ex.Message.Contains("insufficient", StringComparison.OrdinalIgnoreCase)
+                                 || ex.Message.Contains("liquidity", StringComparison.OrdinalIgnoreCase);
+
+            if (isLiquidityError)
+            {
+                var batchCount = (Transaction.SubTransactions != null && Transaction.SubTransactions.Any()) 
+                                 ? Transaction.SubTransactions.Count : 0;
+                var batchNote = batchCount > 0 ? $" ({batchCount} settlements)" : string.Empty;
+
+                ShowErrorOverlay(
+                    "INSUFFICIENT LIQUIDITY",
+                    $"The organization's corporate float does not have enough balance to cover this settlement{batchNote}. Contact your SuperAdmin to top-up the wallet.");
+            }
+            else
+            {
+                ShowErrorOverlay("AUTHORIZATION FAILED", ex.Message);
+            }
         }
         finally
         {

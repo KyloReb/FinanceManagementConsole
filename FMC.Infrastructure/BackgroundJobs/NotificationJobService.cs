@@ -181,6 +181,27 @@ public sealed class NotificationJobService
 
             var attachments = BuildAttachments();
 
+            if (totalCount > 20)
+            {
+                var allTx = await (from t in _context.Transactions.IgnoreQueryFilters()
+                                   where t.BatchId == batchId
+                                   join c in _context.Cardholders.IgnoreQueryFilters() on t.TenantId equals c.Id.ToString() into cardholders
+                                   from ch in cardholders.DefaultIfEmpty()
+                                   select new FMC.Shared.DTOs.TransactionDto {
+                                       Id = t.Id,
+                                       Amount = t.Amount,
+                                       Status = t.Status,
+                                       Date = t.Date,
+                                       Subscriber = ch != null ? $"{ch.FirstName} {ch.LastName}" : "Subscriber",
+                                       AccountNumber = ch != null ? ch.AccountNumber : "N/A"
+                                   }).ToListAsync();
+
+                if (allTx.Any())
+                {
+                    var excelBytes = GenerateExcelManifest(allTx);
+                    attachments.Add($"Batch_{batchId.ToString()[..8]}_Manifest.xlsx", excelBytes);
+                }
+            }
             foreach (var email in recipients)
             {
                 if (string.IsNullOrEmpty(email)) continue;
@@ -346,6 +367,13 @@ public sealed class NotificationJobService
                     transactionsWithCardholders.Count > 20);
                     
                 var attachments = BuildAttachments();
+                
+                if (transactionsWithCardholders.Count > 20)
+                {
+                    var excelBytes = GenerateExcelManifest(transactionDtos);
+                    attachments.Add($"Settlement_{batchId.ToString()[..8]}_Manifest.xlsx", excelBytes);
+                }
+
                 var subject = $"FMC Notification: Batch {status} — {org.Name}";
 
                 foreach (var email in recipients)
@@ -521,6 +549,39 @@ public sealed class NotificationJobService
     {
         { "nlklogo", Convert.FromBase64String(BrandingConstants.NationlinkLogoBase64) }
     };
+
+    private byte[] GenerateExcelManifest(IEnumerable<FMC.Shared.DTOs.TransactionDto> transactions)
+    {
+        using var workbook = new ClosedXML.Excel.XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Settlement Manifest");
+        
+        worksheet.Cell(1, 1).Value = "Subscriber Name";
+        worksheet.Cell(1, 2).Value = "Card Number";
+        worksheet.Cell(1, 3).Value = "Amount";
+        worksheet.Cell(1, 4).Value = "Date";
+        worksheet.Cell(1, 5).Value = "Status";
+
+        var headerRange = worksheet.Range(1, 1, 1, 5);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+
+        int row = 2;
+        foreach (var t in transactions)
+        {
+            worksheet.Cell(row, 1).Value = t.Subscriber;
+            worksheet.Cell(row, 2).Value = t.AccountNumber;
+            worksheet.Cell(row, 3).Value = t.Amount;
+            worksheet.Cell(row, 4).Value = t.Date.ToString("yyyy-MM-dd HH:mm:ss");
+            worksheet.Cell(row, 5).Value = t.Status;
+            row++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new System.IO.MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
 
     // ─────────────────────────────────────────────────────────
     // Idempotency Engine

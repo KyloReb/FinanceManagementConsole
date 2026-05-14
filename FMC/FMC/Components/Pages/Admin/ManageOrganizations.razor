@@ -16,41 +16,104 @@
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12">
     @* PLATINUM HEADER *@
-    <div class="fmc-org-header mb-8 flex-wrap gap-4">
-        <div class="d-flex align-center">
-            <div class="fmc-org-bar mr-4"></div>
-            <div>
-                <MudText Typo="Typo.h4" Class="fmc-org-hero-text">Manage Organizations</MudText>
-                <MudText Typo="Typo.body1" Class="fmc-org-subtitle d-none d-sm-block">Centralized Corporate Entities & Multi-Tenant Directory</MudText>
+    <div class="fmc-premium-header mb-10">
+        <div class="d-flex align-center flex-grow-1">
+            <div class="fmc-accent-line"></div>
+            <div class="ml-5">
+                <MudText Typo="Typo.h3" Class="fmc-hero-title">Organization Directory</MudText>
+                <MudText Typo="Typo.subtitle1" Class="fmc-hero-subtitle">Institutional oversight of all corporate tenants and capital distribution nodes.</MudText>
             </div>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                   StartIcon="@Icons.Material.Filled.DomainAdd" Size="Size.Large"
-                   OnClick="OpenCreateDialog" Class="fmc-org-action-btn">Register Organization</MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   StartIcon="@Icons.Material.Filled.AddBusiness" 
+                   OnClick="OpenCreateDialog" 
+                   Class="fmc-hero-btn">Register New Entity</MudButton>
+    </div>
+
+    @* METRIC HUD *@
+    <div class="fmc-metric-hud mb-10">
+        <div class="fmc-metric-card">
+            <div class="fmc-metric-icon primary">
+                <MudIcon Icon="@Icons.Material.Filled.Domain" />
+            </div>
+            <div class="fmc-metric-data">
+                <MudText Typo="Typo.h4">@_organizations.Count</MudText>
+                <MudText Typo="Typo.caption">TOTAL TENANTS</MudText>
+            </div>
+        </div>
+        <div class="fmc-metric-card">
+            <div class="fmc-metric-icon info">
+                <MudIcon Icon="@Icons.Material.Filled.People" />
+            </div>
+            <div class="fmc-metric-data">
+                <MudText Typo="Typo.h4">@_organizations.Sum(x => x.UserCount)</MudText>
+                <MudText Typo="Typo.caption">AGGREGATE WORKFORCE</MudText>
+            </div>
+        </div>
+        <div class="fmc-metric-card">
+            <div class="fmc-metric-icon success">
+                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" />
+            </div>
+            <div class="fmc-metric-data">
+                <MudText Typo="Typo.h4">@_organizations.Count(x => x.IsActive)</MudText>
+                <MudText Typo="Typo.caption">ACTIVE NODES</MudText>
+            </div>
+        </div>
+        <div class="fmc-metric-card">
+            <div class="fmc-metric-icon warning">
+                <MudIcon Icon="@Icons.Material.Filled.Layers" />
+            </div>
+            <div class="fmc-metric-data">
+                <MudText Typo="Typo.h4">@_organizations.Count(x => !x.IsActive)</MudText>
+                <MudText Typo="Typo.caption">SUSPENDED NODES</MudText>
+            </div>
+        </div>
     </div>
 
     @if (_loading)
     {
-        <div class="d-flex flex-column align-center justify-center py-20">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">Retrieving corporate registry...</MudText>
-        </div>
+        <MudPaper Elevation="0" Class="fmc-org-surface pa-8">
+            <div class="d-flex align-center justify-space-between mb-8">
+                <MudSkeleton Width="200px" Height="42px" Animation="Animation.Wave" Style="border-radius: 12px;" />
+                <MudSkeleton Width="300px" Height="42px" Animation="Animation.Wave" Style="border-radius: 12px;" />
+            </div>
+            @for (int i = 0; i < 5; i++)
+            {
+                <div class="d-flex align-center gap-4 py-6 @(i < 4 ? "fmc-border-bottom" : "")">
+                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Animation="Animation.Wave" />
+                    <div class="flex-grow-1">
+                        <MudSkeleton Width="35%" Height="24px" Animation="Animation.Wave" Class="mb-2" />
+                        <MudSkeleton Width="20%" Height="14px" Animation="Animation.Wave" />
+                    </div>
+                    <MudSkeleton Width="120px" Height="30px" Animation="Animation.Wave" Style="border-radius: 8px;" />
+                    <MudSkeleton Width="100px" Height="30px" Animation="Animation.Wave" Style="border-radius: 8px;" />
+                    <MudSkeleton Width="80px" Height="30px" Animation="Animation.Wave" Style="border-radius: 8px;" />
+                </div>
+            }
+        </MudPaper>
     }
     else
     {
         @if (!_isMobile)
         {
-            @* DESKTOP DIAGNOSTIC GRID *@
-            <MudPaper Elevation="0" Class="fmc-org-surface">
+            <div class="fmc-grid-container">
                 <MudDataGrid @ref="_grid" Items="@_organizations" Hover="true" Bordered="false" Striped="false" 
-                              Filterable="true" SortMode="SortMode.Multiple" Elevation="0" 
-                              QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-org-grid">
+                              Filterable="false" SortMode="SortMode.Single" Elevation="0" 
+                              QuickFilter="@QuickFilter" T="OrganizationDto" Class="fmc-premium-grid">
                     <ToolBarContent>
-                        <MudText Typo="Typo.h6" Style="font-weight: 800;">System Tenants</MudText>
-                        <MudSpacer />
-                        <MudTextField @bind-Value="_searchString" Placeholder="Search by name or ID..." 
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-search-box" />
+                        <div class="fmc-toolbar-content">
+                            <div class="d-flex align-center">
+                                <div class="fmc-toolbar-accent"></div>
+                                <MudText Typo="Typo.h6" Class="fmc-toolbar-title">System Tenants</MudText>
+                            </div>
+                            <MudSpacer />
+                            <div class="fmc-search-wrapper">
+                                <MudIcon Icon="@Icons.Material.Filled.Search" Class="fmc-search-icon" />
+                                <input @bind-value="_searchString" @bind-value:event="oninput" 
+                                       placeholder="Search entities, IDs, or leadership..." 
+                                       class="fmc-search-input" />
+                            </div>
+                        </div>
                     </ToolBarContent>
                     <Columns>
                         <TemplateColumn Title="" Sortable="false" Filterable="false" HeaderStyle="width: 50px;">
@@ -66,38 +129,40 @@
                                 </MudMenu>
                             </CellTemplate>
                         </TemplateColumn>
-                        <PropertyColumn Property="x => x.Name" Title="Organization">
+                        <PropertyColumn Property="x => x.Name" Title="Corporate Entity">
                             <CellTemplate>
                                 <div class="d-flex align-center">
-                                    <MudAvatar Color="@GetAvatarColor(context.Item.Name)" Variant="Variant.Filled" Size="Size.Small" Class="mr-3">
-                                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
-                                    </MudAvatar>
-                                    <div class="d-flex flex-column">
-                                        <MudText Typo="Typo.body2" Style="font-weight: 800;">@context.Item.Name</MudText>
-                                        <MudText Typo="Typo.caption" Style="opacity:0.5; font-family:monospace; font-size:0.6rem;">@context.Item.Id</MudText>
+                                    <div class="fmc-entity-avatar" style="background: @GetAvatarGradient(context.Item.Id, context.Item.Name)">
+                                        @context.Item.Name[0]
+                                    </div>
+                                    <div class="d-flex flex-column ml-4">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudText Typo="Typo.body1" Class="fmc-entity-name">@context.Item.Name</MudText>
+                                            <div class="fmc-status-dot @(context.Item.IsActive ? "active" : "suspended")" title="@(context.Item.IsActive ? "Active" : "Suspended")"></div>
+                                        </div>
+                                        <MudText Typo="Typo.caption" Class="fmc-entity-id">ID: @context.Item.Id.ToString().Substring(0, 18)...</MudText>
                                     </div>
                                 </div>
                             </CellTemplate>
                         </PropertyColumn>
-                        <PropertyColumn Property='x => x.CeoName ?? "Unassigned"' Title="Chief Executive" />
-                        <PropertyColumn Property="x => x.UserCount" Title="Users">
+                        <PropertyColumn Property='x => x.CeoName ?? "Unassigned"' Title="Leadership">
                             <CellTemplate>
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Style="font-weight:800; border-radius:6px;">
-                                    @context.Item.UserCount
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonOutline" Size="Size.Small" Class="mr-2" Style="opacity: 0.5;" />
+                                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@(context.Item.CeoName ?? "TBD")</MudText>
+                                </div>
+                            </CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="x => x.UserCount" Title="Workforce">
+                            <CellTemplate>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Style="font-weight:900; border-radius:8px; border-width:2px;">
+                                    @context.Item.UserCount Users
                                 </MudChip>
                             </CellTemplate>
                         </PropertyColumn>
                         <PropertyColumn Property="x => x.CreatedAt" Title="Registration">
                             <CellTemplate>
-                                <MudText Typo="Typo.body2" Style="font-weight:600;">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
-                            </CellTemplate>
-                        </PropertyColumn>
-                        <PropertyColumn Property="x => x.IsActive" Title="Status">
-                            <CellTemplate>
-                                <MudChip T="string" Size="Size.Small" Color="@(context.Item.IsActive ? Color.Success : Color.Error)" 
-                                         Variant="Variant.Filled" Style="border-radius: 6px; font-weight:800; font-size:0.6rem;">
-                                    @(context.Item.IsActive ? "ACTIVE" : "SUSPENDED")
-                                </MudChip>
+                                <MudText Typo="Typo.body2" Style="font-weight:600; opacity:0.8;">@context.Item.CreatedAt.ToString("MMM dd, yyyy")</MudText>
                             </CellTemplate>
                         </PropertyColumn>
                     </Columns>
@@ -105,11 +170,10 @@
                         <MudDataGridPager T="OrganizationDto" />
                     </PagerContent>
                 </MudDataGrid>
-            </MudPaper>
+            </div>
         }
         else
         {
-            @* MOBILE DOSSIER VIEW *@
             <div class="d-flex flex-column gap-3">
                 <MudTextField @bind-Value="_searchString" Placeholder="Search organizations..." 
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
@@ -117,25 +181,28 @@
                 
                 @foreach (var org in _organizations.Where(o => QuickFilter(o)))
                 {
-                    <div class="fmc-org-mobile-card">
-                        <div class="fmc-mobile-header pa-4">
+                    <div class="fmc-org-mobile-card mb-4">
+                        <div class="fmc-mobile-header pa-5">
                             <div class="d-flex justify-space-between align-start">
-                                <div class="d-flex gap-3">
-                                    <MudAvatar Color="@GetAvatarColor(org.Name)" Size="Size.Medium">
-                                        <MudIcon Icon="@Icons.Material.Filled.Business" />
-                                    </MudAvatar>
-                                    <div class="d-flex flex-column" style="max-width: 200px;">
-                                        <MudText Typo="Typo.body1" Style="font-weight:950; line-height:1.2;">@org.Name</MudText>
-                                        <MudText Typo="Typo.caption" Style="opacity:0.6; font-family:monospace; font-size:0.6rem; overflow:hidden; text-overflow:ellipsis;">@org.Id</MudText>
+                                <div class="d-flex gap-4">
+                                    <div class="fmc-entity-avatar" style="background: @GetAvatarGradient(org.Id, org.Name)">
+                                        @org.Name[0]
+                                    </div>
+                                    <div class="d-flex flex-column pt-1">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudText Typo="Typo.h6" Style="font-weight:950; line-height:1.1; letter-spacing:-0.02em;">@org.Name</MudText>
+                                            <div class="fmc-status-dot @(org.IsActive ? "active" : "suspended")" style="width: 8px; height: 8px;"></div>
+                                        </div>
+                                        <MudText Typo="Typo.caption" Style="color:#64748b; font-family:'JetBrains Mono',monospace; font-size:0.65rem; margin-top:4px;">@org.Id</MudText>
                                     </div>
                                 </div>
-                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Small" AnchorOrigin="Origin.BottomRight">
-                                     <MudMenuItem OnClick="@(() => OpenEditDialog(org))" Disabled='@(org.Name == "Nationlink/Infoserve Inc.")'>Edit</MudMenuItem>
-                                     <MudMenuItem OnClick="@(() => ConfirmDelete(org))" Disabled='@(org.Name == "Nationlink/Infoserve Inc.")' IconColor="Color.Error">Delete</MudMenuItem>
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true" Size="Size.Medium" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                     <MudMenuItem OnClick="@(() => OpenEditDialog(org))" Disabled='@(org.Name == "Nationlink/Infoserve Inc.")' Icon="@Icons.Material.Filled.Edit">Edit Settings</MudMenuItem>
+                                     <MudMenuItem OnClick="@(() => ConfirmDelete(org))" Disabled='@(org.Name == "Nationlink/Infoserve Inc.")' Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">Suspend Tenant</MudMenuItem>
                                 </MudMenu>
                             </div>
                         </div>
-                        <div class="fmc-mobile-body px-4 py-3">
+                        <div class="fmc-mobile-body px-5 py-4">
                             <div class="fmc-mobile-row">
                                 <span class="fmc-mobile-label">CHIEF EXECUTIVE</span>
                                 <span class="fmc-mobile-val">@(org.CeoName ?? "Unassigned")</span>
@@ -143,12 +210,6 @@
                             <div class="fmc-mobile-row">
                                 <span class="fmc-mobile-label">WORKFORCE</span>
                                 <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight:900; height:20px;">@org.UserCount users</MudChip>
-                            </div>
-                            <div class="fmc-mobile-row">
-                                <span class="fmc-mobile-label">STATUS</span>
-                                <MudChip T="string" Color="@(org.IsActive ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Filled" Style="font-weight:900; height:20px; font-size:0.55rem;">
-                                    @(org.IsActive ? "ACTIVE" : "SUSPENDED")
-                                </MudChip>
                             </div>
                         </div>
                     </div>
@@ -159,33 +220,80 @@
 </MudContainer>
 
 <style>
-    /* ORGANIZATION DIRECTORY PREMIUM DESIGN */
-    .fmc-org-header { display: flex; align-items: center; justify-content: space-between; }
-    .fmc-org-bar { width: 6px; height: 50px; background: linear-gradient(to bottom, var(--mud-palette-primary), var(--mud-palette-info)); border-radius: 4px; }
-    .fmc-org-hero-text { font-weight: 950; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); }
-    .fmc-org-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.7; font-weight: 600; }
-    .fmc-org-action-btn { border-radius: 12px; text-transform:none; font-weight: 800; padding: 10px 24px !important; }
+    /* ULTRA PREMIUM DESIGN SYSTEM */
+    .fmc-premium-header { display: flex; align-items: center; justify-content: space-between; position: relative; }
+    .fmc-accent-line { width: 4px; height: 60px; background: linear-gradient(to bottom, #6366f1, #06b6d4); border-radius: 10px; box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+    .fmc-hero-title { font-weight: 950; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); }
+    .fmc-hero-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.5; font-weight: 600; max-width: 500px; }
+    .fmc-hero-btn { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important; color: white !important; border-radius: 16px; text-transform: none; font-weight: 900; padding: 14px 32px !important; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .fmc-hero-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(79, 70, 229, 0.4); }
 
-    /* Surface & Grid */
-    .fmc-org-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
-    .fmc-org-grid .mud-table-head { background: var(--mud-palette-background-grey); }
-    .fmc-org-grid .mud-th { font-weight: 950 !important; font-size: 0.65rem !important; letter-spacing: 0.1em; text-transform: uppercase; padding: 16px 24px !important; color: var(--mud-palette-text-secondary); }
-    .fmc-org-grid .mud-td { padding: 14px 24px !important; border-bottom: 1px solid var(--mud-palette-divider); }
-    .fmc-search-box { width: 280px; }
-    .fmc-search-box .mud-input-outlined { border-radius: 12px; background: var(--mud-palette-surface); }
+    /* Metric HUD */
+    .fmc-metric-hud { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+    .fmc-metric-card { background: var(--mud-palette-surface); padding: 24px; border-radius: 24px; border: 1px solid var(--mud-palette-divider); display: flex; align-items: center; gap: 20px; transition: all 0.3s ease; }
+    .fmc-metric-card:hover { transform: translateY(-5px); border-color: var(--mud-palette-primary); box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+    .fmc-metric-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+    .fmc-metric-icon.primary { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+    .fmc-metric-icon.info { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+    .fmc-metric-icon.success { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+    .fmc-metric-icon.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .fmc-metric-data h4 { font-weight: 950; letter-spacing: -0.02em; margin-bottom: 2px; }
+    .fmc-metric-data span { font-weight: 900; letter-spacing: 0.1em; opacity: 0.4; }
 
-    /* Mobile Cards */
-    .fmc-org-mobile-card { background: var(--mud-palette-surface); border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 8px; }
-    .fmc-mobile-header { border-bottom: 1px solid var(--mud-palette-background-grey); }
-    .fmc-mobile-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.03); }
-    .fmc-mobile-row:last-child { border-bottom: none; }
-    .fmc-mobile-label { font-size: 0.55rem; font-weight: 900; color: var(--mud-palette-text-secondary); opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
-    .fmc-mobile-val { font-size: 0.8rem; font-weight: 800; color: var(--mud-palette-text-primary); }
+    /* Grid Container & Toolbar */
+    .fmc-grid-container { background: var(--mud-palette-surface); border-radius: 32px; border: 1px solid var(--mud-palette-divider); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.04); }
+    .fmc-toolbar-content { display: flex; align-items: center; width: 100%; padding: 24px 32px; background: var(--mud-palette-surface); border-bottom: 1px solid var(--mud-palette-divider); }
+    .fmc-toolbar-accent { width: 4px; height: 24px; background: var(--mud-palette-primary); border-radius: 4px; margin-right: 16px; }
+    .fmc-toolbar-title { font-weight: 900; letter-spacing: -0.02em; color: var(--mud-palette-text-primary); }
+    
+    .fmc-search-wrapper { position: relative; width: 400px; display: flex; align-items: center; }
+    .fmc-search-icon { position: absolute; left: 20px; color: var(--mud-palette-text-secondary); opacity: 0.5; font-size: 1.2rem; }
+    .fmc-search-input { width: 100%; padding: 14px 20px 14px 52px; background: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); border-radius: 20px; font-weight: 600; font-size: 0.9rem; color: var(--mud-palette-text-primary); transition: all 0.3s ease; }
+    .fmc-search-input:hover { border-color: var(--mud-palette-text-secondary); opacity: 0.8; }
+    .fmc-search-input:focus { outline: none; border-color: var(--mud-palette-primary); background: var(--mud-palette-surface); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+    .fmc-search-input::placeholder { color: var(--mud-palette-text-secondary); opacity: 0.4; }
+
+    .fmc-premium-grid { background: transparent !important; }
+    .fmc-premium-grid .mud-table-head { background: var(--mud-palette-background-grey); border-bottom: 1px solid var(--mud-palette-divider); }
+    .fmc-premium-grid .mud-th { font-weight: 900 !important; font-size: 0.65rem !important; letter-spacing: 0.15em; text-transform: uppercase; padding: 24px !important; color: var(--mud-palette-text-secondary) !important; }
+    .fmc-premium-grid .mud-td { padding: 20px 24px !important; border-bottom: 1px solid var(--mud-palette-divider); transition: all 0.2s ease; }
+    
+    .fmc-premium-grid .mud-table-row { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+    .fmc-premium-grid .mud-table-row:hover { background: var(--mud-palette-action-hover) !important; transform: translateX(8px); }
+    .fmc-premium-grid .mud-table-row:hover .fmc-entity-avatar { transform: scale(1.1) rotate(5deg); box-shadow: 0 8px 15px rgba(0,0,0,0.2); }
+    .fmc-premium-grid .mud-table-row:hover .fmc-entity-name { color: var(--mud-palette-primary); }
+    .fmc-premium-grid .mud-table-row:hover .fmc-status-dot { transform: scale(1.5); }
+
+    .fmc-entity-avatar { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 950; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .fmc-entity-name { font-weight: 900; letter-spacing: -0.01em; color: var(--mud-palette-text-primary); transition: color 0.3s ease; }
+    .fmc-entity-id { font-family: 'JetBrains Mono', monospace; opacity: 0.4; font-size: 0.65rem; }
+    .fmc-capacity-bar { border-radius: 10px; height: 6px !important; background: var(--mud-palette-background-grey); }
+
+    /* Status & Dots */
+    .fmc-status-dot { width: 10px; height: 10px; border-radius: 50%; position: relative; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .fmc-status-dot.active { background: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.6); animation: fmc-pulse-green 2s infinite; }
+    .fmc-status-dot.suspended { background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
+    .fmc-status-dot::after { content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px; border-radius: 50%; border: 1px solid currentColor; opacity: 0.3; }
+
+    @@keyframes fmc-pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    .fmc-border-bottom { border-bottom: 1px solid var(--mud-palette-divider); }
+
+    @@media (max-width: 1200px) {
+        .fmc-metric-hud { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @@media (max-width: 900px) {
+        .fmc-premium-header { flex-direction: column; align-items: flex-start; gap: 24px; }
+        .fmc-hero-btn { width: 100%; }
+    }
 
     @@media (max-width: 600px) {
-        .fmc-org-hero-text { font-size: 1.5rem !important; }
-        .fmc-org-header { flex-direction: column; align-items: stretch; gap: 16px; }
-        .fmc-org-action-btn { width: 100%; order: -1; }
+        .fmc-metric-hud { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -254,11 +362,27 @@
         return false;
     }
 
-    private Color GetAvatarColor(string name)
+    private string GetAvatarGradient(Guid id, string name)
     {
-        var hash = name.GetHashCode();
-        var colors = new[] { Color.Primary, Color.Secondary, Color.Tertiary, Color.Info, Color.Success, Color.Warning };
-        return colors[Math.Abs(hash) % colors.Length];
+        // Use a combination of ID and name hash for better variety
+        var combinedHash = id.GetHashCode() ^ (name.GetHashCode() * 31);
+        
+        var gradients = new[] { 
+            "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)", // Indigo -> Purple
+            "linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%)", // Blue -> Teal
+            "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)", // Amber -> Red
+            "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)", // Emerald -> Blue
+            "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)", // Pink -> Violet
+            "linear-gradient(135deg, #f97316 0%, #facc15 100%)", // Orange -> Yellow
+            "linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)", // Cyan -> Blue
+            "linear-gradient(135deg, #84cc16 0%, #10b981 100%)", // Lime -> Emerald
+            "linear-gradient(135deg, #ef4444 0%, #f97316 100%)", // Red -> Orange
+            "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)", // Violet -> Pink
+            "linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%)", // Teal -> Sky
+            "linear-gradient(135deg, #facc15 0%, #84cc16 100%)"  // Yellow -> Lime
+        };
+        
+        return gradients[Math.Abs(combinedHash) % gradients.Length];
     }
 
     private async Task OpenCreateDialog()

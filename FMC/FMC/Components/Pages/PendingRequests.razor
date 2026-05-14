@@ -74,6 +74,39 @@
         </div>
     </div>
 </MudContainer>
+    @if (_showSuccessOverlay)
+    {
+        <div class="fmc-page-success-overlay">
+            <div class="fmc-page-success-inner">
+                <div class="fmc-page-success-icon">
+                    <div class="fmc-glow-pulse"></div>
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="font-size: 3.5rem; color: inherit;" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 950; letter-spacing: 0.05em; color: var(--mud-palette-success); margin-bottom: 8px;">@_successTitle</MudText>
+                <MudText Typo="Typo.body1" Style="opacity: 0.75; max-width: 380px; text-align: center; line-height: 1.7;">@_successSubtext</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Style="margin-top: 24px; background-color: #2e7d32; color: #fff; font-weight: 900; text-transform: none; border-radius: 10px; min-width: 140px; height: 44px;"
+                           OnClick="@(() => { _showSuccessOverlay = false; StateHasChanged(); })">Done</MudButton>
+            </div>
+        </div>
+    }
+
+    @if (_showErrorOverlay)
+    {
+        <div class="fmc-page-error-overlay">
+            <div class="fmc-page-error-inner">
+                <div class="fmc-page-error-icon">
+                    <div class="fmc-glow-pulse"></div>
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Style="font-size: 3rem; color: inherit;" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 950; letter-spacing: 0.05em; color: #ef5350; margin-bottom: 8px;">@_errorTitle</MudText>
+                <MudText Typo="Typo.body1" Style="opacity: 0.75; max-width: 380px; text-align: center; line-height: 1.7;">@_errorSubtext</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Style="margin-top: 24px; background-color: #c62828; color: #fff; font-weight: 900; text-transform: none; border-radius: 10px; min-width: 140px; height: 44px;"
+                           OnClick="@(() => { _showErrorOverlay = false; StateHasChanged(); })">Dismiss</MudButton>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -237,11 +270,28 @@
                         @if (status == "Pending" && _isApprover && context.Transactions.Any(t => t.MakerId != _currentUserId))
                         {
                             <div class="d-flex gap-2">
-                                <MudButton Variant="Variant.Filled" Size="Size.Small" StartIcon="@Icons.Material.Filled.Check" OnClick="@(() => HandleGroupApprovalAsync(context, approve: true))" 
-                                           Style="background-color: #2e7d32; color: #ffffff; border-radius: 8px; font-weight: 800; text-transform: none; opacity: 0.9;">
-                                    @(context.BatchId.HasValue ? "Approve Batch" : "Approve")
+                                <MudButton Variant="Variant.Filled" 
+                                           Size="Size.Small" 
+                                           StartIcon="@Icons.Material.Filled.Check" 
+                                           OnClick="@(() => HandleGroupApprovalAsync(context, approve: true))" 
+                                           Disabled="_isProcessing"
+                                           Style="background-color: #2e7d32; color: #ffffff; border-radius: 8px; font-weight: 800; text-transform: none; opacity: 0.9; min-width: 120px;">
+                                    @if (_isProcessing)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        <span>...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(context.BatchId.HasValue ? "Approve Batch" : "Approve")</span>
+                                    }
                                 </MudButton>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" StartIcon="@Icons.Material.Filled.Close" OnClick="@(() => HandleGroupApprovalAsync(context, approve: false))" 
+                                <MudButton Variant="Variant.Outlined" 
+                                           Color="Color.Error" 
+                                           Size="Size.Small" 
+                                           StartIcon="@Icons.Material.Filled.Close" 
+                                           OnClick="@(() => HandleGroupApprovalAsync(context, approve: false))" 
+                                           Disabled="_isProcessing"
                                            Style="border-radius: 8px; font-weight: 800; text-transform: none;">
                                     @(context.BatchId.HasValue ? "Reject Batch" : "Reject")
                                 </MudButton>
@@ -363,6 +413,91 @@
         transition: opacity 0.2s;
     }
     ::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+    /* Full-page error overlay — mirrors the dialog success overlay pattern */
+    .fmc-page-success-overlay, .fmc-page-error-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(12px) saturate(180%);
+        background: rgba(var(--mud-palette-surface-rgb), 0.7);
+        animation: fmc-overlay-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .fmc-page-error-inner, .fmc-page-success-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 48px;
+        background: var(--mud-palette-surface);
+        border-radius: 32px;
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        max-width: 480px;
+        width: 90%;
+        transform-origin: center;
+        animation: fmc-modal-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .fmc-page-error-icon, .fmc-page-success-icon {
+        width: 96px;
+        height: 96px;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        position: relative;
+        animation: fmc-icon-entrance 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both;
+    }
+
+    .fmc-page-error-icon {
+        background: rgba(239, 68, 68, 0.12);
+        box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    .fmc-page-success-icon {
+        background: rgba(34, 197, 94, 0.12);
+        box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .fmc-glow-pulse {
+        position: absolute;
+        inset: -4px;
+        border-radius: 28px;
+        opacity: 0;
+        animation: fmc-pulse-ring 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+
+    .fmc-page-error-icon .fmc-glow-pulse { border: 2px solid #ef4444; }
+    .fmc-page-success-icon .fmc-glow-pulse { border: 2px solid #22c55e; }
+
+    @@keyframes fmc-overlay-in {
+        from { opacity: 0; backdrop-filter: blur(0px); }
+        to { opacity: 1; backdrop-filter: blur(12px) saturate(180%); }
+    }
+
+    @@keyframes fmc-modal-pop {
+        from { opacity: 0; transform: scale(0.8) translateY(20px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    @@keyframes fmc-icon-entrance {
+        from { transform: scale(0) rotate(-45deg); opacity: 0; }
+        to { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    @@keyframes fmc-pulse-ring {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.1); opacity: 0; }
+        100% { transform: scale(0.95); opacity: 0; }
+    }
 </style>
 
 @code {
@@ -389,6 +524,13 @@
 
     // UI State
     private bool _loading = true;
+    private bool _isProcessing = false;
+    private bool _showErrorOverlay = false;
+    private string _errorTitle = "";
+    private string _errorSubtext = "";
+    private bool _showSuccessOverlay = false;
+    private string _successTitle = "";
+    private string _successSubtext = "";
     private int _activeIndex = 0;
     private string _searchString = "";
     private DateRange? _filterDateRange;
@@ -416,7 +558,7 @@
         }
         else
         {
-            Snackbar.Add("Organizational context unresolved.", Severity.Error);
+            ShowApprovalErrorAsync("Organizational context unresolved.", false);
             _loading = false;
         }
     }
@@ -444,7 +586,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Load Failed: {ex.Message}", Severity.Error);
+            ShowApprovalErrorAsync($"Load Failed: {ex.Message}", false);
         }
         finally
         {
@@ -627,19 +769,28 @@
 
         try
         {
+            _isProcessing = true;
+            StateHasChanged();
+
             var success = approve 
                 ? await OrgService.ApproveTransactionAsync(tx.Id)
                 : await OrgService.RejectTransactionAsync(tx.Id, "Rejected by Authorized Personnel");
 
             if (success)
             {
-                Snackbar.Add(approve ? "Execution Successful" : "Settlement Terminated", Severity.Success);
+                ShowSuccessOverlayAsync(approve ? "EXECUTION SUCCESSFUL" : "SETTLEMENT TERMINATED",
+                                      approve ? "The transaction has been securely authorized and logged." : "The request has been rejected and archived.");
                 await LoadQueueDataAsync();
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Authorization Failed: {ex.Message}", Severity.Error);
+            ShowApprovalErrorAsync(ex.Message, isBatch: false);
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
         }
     }
 
@@ -659,12 +810,15 @@
 
         try
         {
+            _isProcessing = true;
+            StateHasChanged();
+
             if (group.BatchId.HasValue)
             {
                 if (approve)
                 {
                     await OrgService.ApproveBatchAsync(group.BatchId.Value);
-                    Snackbar.Add("Bulk Batch Authorized Successfully", Severity.Success);
+                    ShowSuccessOverlayAsync("BATCH AUTHORIZED", "The entire settlement batch has been processed successfully.");
                 }
                 else
                 {
@@ -687,7 +841,7 @@
                     {
                         var reason = result.Data as string ?? "Batch rejected by approver.";
                         await OrgService.RejectBatchAsync(group.BatchId.Value, reason);
-                        Snackbar.Add("Bulk Batch Denied", Severity.Warning);
+                        ShowSuccessOverlayAsync("BATCH DENIED", "The batch has been rejected and removed from the active queue.");
                     }
                     else return; // Cancelled reasoning prompt
                 }
@@ -702,8 +856,49 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Batch Error: {ex.Message}", Severity.Error);
+            ShowApprovalErrorAsync(ex.Message, isBatch: group.BatchId.HasValue, batchCount: group.Transactions.Count);
         }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    #endregion
+
+    #region Premium Error Handling
+
+    private void ShowApprovalErrorAsync(string rawMessage, bool isBatch, int batchCount = 0)
+    {
+        bool isLiquidityError = rawMessage.Contains("insufficient", StringComparison.OrdinalIgnoreCase)
+                             || rawMessage.Contains("liquidity", StringComparison.OrdinalIgnoreCase);
+
+        var batchNote = isBatch && batchCount > 0
+            ? $" ({batchCount} settlement{(batchCount > 1 ? "s" : "")})"
+            : string.Empty;
+
+        _errorTitle = isLiquidityError ? "INSUFFICIENT LIQUIDITY" : (isBatch ? "BATCH FAILED" : "ACTION FAILED");
+        
+        if (isLiquidityError)
+        {
+            _errorSubtext = $"The organization's corporate float does not have enough balance to cover this settlement{batchNote}. Contact your SuperAdmin to top-up the wallet.";
+        }
+        else
+        {
+            _errorSubtext = rawMessage;
+        }
+
+        _showErrorOverlay = true;
+        StateHasChanged();
+    }
+
+    private void ShowSuccessOverlayAsync(string title, string subtext)
+    {
+        _successTitle = title;
+        _successSubtext = subtext;
+        _showSuccessOverlay = true;
+        StateHasChanged();
     }
 
     #endregion

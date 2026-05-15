@@ -14,6 +14,8 @@ public interface IReportService
 {
     byte[] GenerateExcel(string title, IEnumerable<TransactionDto> transactions);
     byte[] GeneratePdf(string title, IEnumerable<TransactionDto> transactions);
+    byte[] GenerateAuditExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs);
+    byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs);
 }
 
 public class ReportService : IReportService
@@ -112,6 +114,110 @@ public class ReportService : IReportService
                         table.Cell().Element(CellStyle).Text(FinanceUtils.MaskCard(tx.AccountNumber ?? ""));
                         table.Cell().Element(CellStyle).Text(tx.Amount.ToString("C"));
                         table.Cell().Element(CellStyle).Text(tx.Status);
+
+                        static IContainer CellStyle(IContainer container)
+                        {
+                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten4).PaddingVertical(5);
+                        }
+                    }
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("Page ");
+                    x.CurrentPageNumber();
+                });
+            });
+        }).GeneratePdf();
+    }
+
+    public byte[] GenerateAuditExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs)
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Audit Logs");
+        
+        worksheet.Cell(1, 1).Value = "Date";
+        worksheet.Cell(1, 2).Value = "Action";
+        worksheet.Cell(1, 3).Value = "Organization/Context";
+        worksheet.Cell(1, 4).Value = "Performed By";
+        worksheet.Cell(1, 5).Value = "Amount";
+        worksheet.Cell(1, 6).Value = "Label";
+
+        var headerRow = worksheet.Row(1);
+        headerRow.Style.Font.Bold = true;
+        headerRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
+
+        int row = 2;
+        foreach (var l in logs)
+        {
+            worksheet.Cell(row, 1).Value = l.CreatedAt.ToLocalTime().ToString("g");
+            worksheet.Cell(row, 2).Value = l.Action;
+            worksheet.Cell(row, 3).Value = l.EntityName ?? l.Organization ?? "System";
+            worksheet.Cell(row, 4).Value = l.PerformedBy ?? "System";
+            worksheet.Cell(row, 5).Value = l.Amount;
+            worksheet.Cell(row, 6).Value = l.Label ?? l.Details;
+            row++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Helvetica"));
+
+                page.Header().Row(row =>
+                {
+                    row.RelativeItem().Column(col =>
+                    {
+                        col.Item().Text(title).FontSize(16).SemiBold().FontColor(Colors.Blue.Medium);
+                        col.Item().Text($"{DateTime.Now:MMMM dd, yyyy}").FontSize(9);
+                    });
+                });
+
+                page.Content().PaddingVertical(1, Unit.Centimetre).Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.RelativeColumn(2);
+                        columns.RelativeColumn(2);
+                        columns.RelativeColumn(3);
+                        columns.RelativeColumn(2);
+                        columns.RelativeColumn(4);
+                    });
+
+                    table.Header(header =>
+                    {
+                        header.Cell().Element(HeaderStyle).Text("Date");
+                        header.Cell().Element(HeaderStyle).Text("Action");
+                        header.Cell().Element(HeaderStyle).Text("Context");
+                        header.Cell().Element(HeaderStyle).Text("Amount");
+                        header.Cell().Element(HeaderStyle).Text("Label");
+
+                        static IContainer HeaderStyle(IContainer container)
+                        {
+                            return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5);
+                        }
+                    });
+
+                    foreach (var tx in logs)
+                    {
+                        table.Cell().Element(CellStyle).Text(tx.CreatedAt.ToLocalTime().ToString("MM/dd HH:mm"));
+                        table.Cell().Element(CellStyle).Text(tx.Action);
+                        table.Cell().Element(CellStyle).Text(tx.EntityName ?? tx.Organization ?? "System");
+                        table.Cell().Element(CellStyle).Text(tx.Amount?.ToString("C") ?? "-");
+                        table.Cell().Element(CellStyle).Text(tx.Label ?? tx.Details);
 
                         static IContainer CellStyle(IContainer container)
                         {

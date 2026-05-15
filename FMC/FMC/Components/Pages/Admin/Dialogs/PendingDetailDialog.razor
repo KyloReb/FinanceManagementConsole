@@ -91,6 +91,71 @@
                     </MudItem>
                 }
             </MudGrid>
+            
+            @* ── LIQUIDITY FLOW DIAGRAM ── *@
+            @{
+                var isCorporateToUser = Transaction.Amount > 0; // Credit to user
+                var absAmount = Math.Abs(Transaction.Amount);
+                var corporateName = "Corporate Liquidity";
+                var cardholderIdentity = GetMaskedAccount(Transaction.AccountNumber);
+                
+                var sourceName = isCorporateToUser ? _orgName : cardholderIdentity;
+                var destName = isCorporateToUser ? cardholderIdentity : _orgName;
+                var sourceIcon = isCorporateToUser ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Wallet;
+                var destIcon = isCorporateToUser ? Icons.Material.Filled.Wallet : Icons.Material.Filled.AccountBalance;
+            }
+
+            <div class="mt-6 mb-2">
+                <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
+                <div class="mt-2 pa-4 fmc-flow-surface d-flex align-center justify-space-between">
+                    
+                    <!-- Source Node -->
+                    <div class="d-flex flex-column align-center" style="width: 150px; z-index: 2;">
+                        <div class="fmc-flow-node source">
+                            <MudIcon Icon="@sourceIcon" Style="font-size: 1.2rem; color: var(--mud-palette-info);" />
+                        </div>
+                        <div class="mt-2 text-center" style="line-height: 1.1;">
+                            <MudText Style="font-weight: 800; font-size: 0.7rem; display: block;">@sourceName</MudText>
+                            @if (isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
+                            {
+                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@GetMaskedAccount(_orgAccountNumber)</MudText>
+                            }
+                            else if (!isCorporateToUser)
+                            {
+                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@cardholderIdentity</MudText>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Animated Connector -->
+                    <div class="fmc-flow-connector flex-grow-1 mx-2" style="position: relative; z-index: 1; height: 2px; background: rgba(var(--mud-palette-info-rgb), 0.2); margin-top: -24px;">
+                        <div class="fmc-flow-particle"></div>
+                        <div class="fmc-flow-badge">
+                            <MudText Style="font-family:'Roboto Mono',monospace; font-weight:900; font-size:0.7rem; color: var(--mud-palette-info);">
+                                @absAmount.ToString("N2")
+                            </MudText>
+                        </div>
+                    </div>
+
+                    <!-- Destination Node -->
+                    <div class="d-flex flex-column align-center" style="width: 150px; z-index: 2;">
+                        <div class="fmc-flow-node dest">
+                            <MudIcon Icon="@destIcon" Style="font-size: 1.2rem; color: var(--mud-palette-success);" />
+                        </div>
+                        <div class="mt-2 text-center" style="line-height: 1.1;">
+                            <MudText Style="font-weight: 800; font-size: 0.7rem; display: block;">@destName</MudText>
+                            @if (!isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
+                            {
+                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@GetMaskedAccount(_orgAccountNumber)</MudText>
+                            }
+                            else if (isCorporateToUser)
+                            {
+                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@cardholderIdentity</MudText>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Rejection Feedback Alert -->
             @if (!string.IsNullOrEmpty(Transaction.RejectionReason))
@@ -218,6 +283,43 @@
     </DialogActions>
 </MudDialog>
 
+<style>
+    .fmc-financial-mono { font-family: 'Roboto Mono', monospace; font-weight: 900; }
+    .fmc-flow-surface { background: rgba(var(--mud-palette-primary-rgb), 0.02); border-radius: 12px; border: 1px dashed var(--mud-palette-divider); position: relative; overflow: hidden; }
+    .fmc-flow-node { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--mud-palette-surface); border: 2px solid var(--mud-palette-divider); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .fmc-flow-node.source { border-color: rgba(var(--mud-palette-info-rgb), 0.5); }
+    .fmc-flow-node.dest { border-color: rgba(var(--mud-palette-success-rgb), 0.5); }
+    
+    .fmc-flow-particle {
+        position: absolute;
+        top: -3px;
+        left: 0;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--mud-palette-info);
+        box-shadow: 0 0 8px var(--mud-palette-info);
+        animation: flow-move 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @@keyframes flow-move {
+        0% { left: 0; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { left: 100%; opacity: 0; }
+    }
+    .fmc-flow-badge {
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--mud-palette-surface);
+        padding: 1px 8px;
+        border-radius: 10px;
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+</style>
+
 @code {
     #region Parameters & Injections
 
@@ -257,6 +359,9 @@
     private bool _showErrorOverlay;
     private string _errorMessage = "";
     private string _errorSubtext = "";
+    
+    private string _orgName = "Corporate Liquidity";
+    private string _orgAccountNumber = "";
 
     #endregion
 
@@ -267,6 +372,18 @@
         // Resolve user roles once during component initialization
         var authState = await AuthStateTask;
         _isApprover = authState.User.IsInRole(Roles.Approver);
+
+        if (Transaction.OrganizationId.HasValue)
+        {
+            try {
+                var org = await OrgService.GetByIdAsync(Transaction.OrganizationId.Value);
+                if (org != null)
+                {
+                    _orgName = org.Name;
+                    _orgAccountNumber = org.AccountNumber;
+                }
+            } catch { }
+        }
     }
 
     #endregion

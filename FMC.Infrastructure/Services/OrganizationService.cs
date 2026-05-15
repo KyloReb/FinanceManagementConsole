@@ -351,12 +351,14 @@ public class OrganizationService : IOrganizationService
 
         // 6. Audit Trail & Notifications
         var performedByEmail = (await _identityService.GetUserByIdAsync(performedBy))?.Email;
+        var auditDescription = label ?? (amount > 0 ? "System-wide Wallet Funding" : "System-wide Wallet Withdrawal");
+        
         await _auditService.RecordFinancialEventAsync(
             amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED", 
             org.Id, 
             "N/A", 
             Math.Abs(amount), 
-            label ?? "Administrative Adjustment", 
+            $"{auditDescription} — Impact: {(amount > 0 ? "Institutional Capital Increased" : "Institutional Capital Reduced")}", 
             performedBy, 
             performedByEmail);
 
@@ -429,10 +431,18 @@ public class OrganizationService : IOrganizationService
 
         // 4. Create PENDING Transaction (Maker Step)
         // No balance adjustment happens here!
+        var org = await _repository.GetByIdAsync(orgId ?? Guid.Empty, cancellationToken);
+        var orgAcc = org?.AccountNumber ?? "N/A";
+        var userAcc = cardholder?.AccountNumber ?? (await _identityService.GetUserByIdAsync(userId.ToString()))?.AccountNumber ?? "N/A";
+
+        var accountingNote = amount >= 0 
+            ? $"Debit Subscriber [{orgAcc}] ➔ Credit Cardholder [{userAcc}]"
+            : $"Debit Cardholder [{userAcc}] ➔ Credit Subscriber [{orgAcc}]";
+            
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
-            Label = label ?? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request"),
+            Label = (label ?? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request")) + $" — {accountingNote}",
             Amount = amount,
             Date = DateTime.UtcNow,
             Category = "Subscriber Allotment",
@@ -446,12 +456,15 @@ public class OrganizationService : IOrganizationService
         await _repository.AddTransactionAsync(transaction, cancellationToken);
 
         // 4. Trace the forensic audit event for Initiation
+        var auditAction = amount >= 0 ? "CREDIT" : "DEBIT";
+        var auditDetail = label ?? (amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request");
+
         await _auditService.RecordFinancialEventAsync(
-            "INITIATE_" + (amount >= 0 ? "CREDIT" : "DEBIT"), 
+            "INITIATE_" + auditAction, 
             orgId ?? Guid.Empty, 
             $"{firstName} {lastName}".Trim(), 
             Math.Abs(amount), 
-            label ?? "Pending Allotment Initiation", 
+            $"{auditDetail} — {accountingNote}", 
             performedBy,
             null,
             orgId?.ToString()
@@ -517,6 +530,20 @@ public class OrganizationService : IOrganizationService
         transaction.Status = "Approved";
         transaction.ApproverId = approverId;
         transaction.ActionDate = DateTime.UtcNow;
+
+        // Semantic Update: Ensure the label reflects the final settlement flow with explicit account numbers
+        var org = await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken);
+        var orgAcc = org?.AccountNumber ?? "N/A";
+        var targetUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
+        var userAcc = targetUser?.AccountNumber ?? "N/A";
+
+        var accountingNote = transaction.Amount >= 0 
+            ? $"Debit Subscriber [{orgAcc}] ➔ Credit Cardholder [{userAcc}]"
+            : $"Debit Cardholder [{userAcc}] ➔ Credit Subscriber [{orgAcc}]";
+        
+        // Update the label to include the finalized flow if it's not already perfectly represented
+        transaction.Label = $"{transaction.Label.Split(" — ")[0]} — {accountingNote}";
+        
         await _repository.SaveChangesAsync(cancellationToken);
 
         // 7. Audit Trail for Final Commitment
@@ -527,7 +554,7 @@ public class OrganizationService : IOrganizationService
                 transaction.OrganizationId.Value, 
                 userAccount.Name, 
                 transaction.Amount, 
-                transaction.Label, 
+                $"{transaction.Label} — {accountingNote}", 
                 approverId, 
                 approver?.Email, 
                 transaction.OrganizationId.Value.ToString());
@@ -1050,12 +1077,19 @@ public class OrganizationService : IOrganizationService
         await _publisher.Publish(new BatchApprovedEvent(orgId, batchId, approverId), cancellationToken);
 
         var approver = await _identityService.GetUserByIdAsync(approverId);
+        var org = await _repository.GetByIdAsync(orgId, cancellationToken);
+        var orgAcc = org?.AccountNumber ?? "N/A";
+
+        var accountingNote = totalAmount >= 0 
+            ? $"Debit Subscriber [{orgAcc}] ➔ Credit MULTIPLE"
+            : $"Debit MULTIPLE ➔ Credit Subscriber [{orgAcc}]";
+
         await _auditService.RecordFinancialEventAsync(
             "BATCH_APPROVED", 
             orgId, 
             $"{pendingTransactions.Count} Cardholders (Bulk)", 
             Math.Abs(totalAmount), 
-            label, 
+            $"{label.Split(" — ")[0]} — {accountingNote}", 
             approverId, 
             approver?.Email, 
             orgId.ToString());

@@ -1,0 +1,275 @@
+/* ── Identity Profile Container ── */
+.fmc-profile-container { background-color: transparent; }
+
+/* ── Sidebar Navigation Card ── */
+.fmc-sidebar-card {
+    border-radius: 20px !important;
+    border: 1px solid var(--mud-palette-divider) !important;
+    background-color: var(--mud-palette-surface) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+}
+
+/* ── Sidebar Mini-Stats / Shortcuts ── */
+.fmc-mini-stat {
+    background-color: var(--mud-palette-background-grey);
+    border-radius: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}
+.fmc-mini-stat.clickable { cursor: pointer; }
+.fmc-mini-stat:hover { transform: translateX(5px); background-color: var(--mud-palette-action-hover); border-color: rgba(var(--mud-palette-primary-rgb), 0.1); }
+.fmc-mini-stat.active { background-color: rgba(var(--mud-palette-primary-rgb), 0.08); border-color: rgba(var(--mud-palette-primary-rgb), 0.2); }
+.fmc-mini-stat.active .mud-typography { color: var(--mud-palette-primary); }
+
+/* ── Avatar Styling ── */
+.avatar-wrapper {
+    padding: 6px;
+    background: rgba(var(--mud-palette-primary-rgb), 0.1);
+    border-radius: 50%;
+}
+
+/* ── Role Badges ── */
+.fmc-profile-badge {
+    font-size: 0.6rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    background-color: var(--mud-palette-background-grey);
+    color: var(--mud-palette-text-secondary);
+    border-radius: 6px;
+}
+.fmc-profile-badge.admin { background-color: #ffebee; color: #c62828; }
+.fmc-profile-badge.ceo { background-color: #e3f2fd; color: #1565c0; }
+
+/* ── Financial Metric Cards ── */
+.fmc-balance-card {
+    border-radius: 20px !important;
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
+    color: white !important;
+    box-shadow: 0 10px 30px -10px rgba(30, 58, 138, 0.4) !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.fmc-balance-container { padding: 8px 0; }
+
+.fmc-institutional-card {
+    border-radius: 20px !important;
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%) !important;
+    color: white !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.fmc-balance-amount {
+    font-family: 'JetBrains Mono', 'Roboto Mono', 'Segoe UI Mono', monospace !important;
+    font-weight: 800 !important;
+    line-height: 1.1 !important;
+    font-size: clamp(1.2rem, 3.5vw, 2.4rem) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.5px;
+    text-shadow: 0 0 1px rgba(255,255,255,0.3);
+}
+
+/* ── Organization / Tenant Info ── */
+.fmc-org-card {
+    border-radius: 20px !important;
+    border: 1px solid var(--mud-palette-divider) !important;
+    background-color: var(--mud-palette-surface) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+}
+
+.fmc-org-compact { display: flex; align-items: center; }
+.fmc-org-name-compact { font-weight: 800 !important; letter-spacing: -0.5px; line-height: 1.2; font-size: 1.1rem; }
+
+/* ── Tabbed Identity Console ── */
+.fmc-profile-tabs {
+    border-radius: 24px !important;
+    border: 1px solid var(--mud-palette-divider) !important;
+    background-color: var(--mud-palette-surface) !important;
+    overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.12) !important;
+}
+
+.fmc-tab-content-premium {
+    background: linear-gradient(180deg, rgba(var(--mud-palette-surface-rgb), 0) 0%, rgba(var(--mud-palette-primary-rgb), 0.08) 100%);
+    position: relative;
+    min-height: 250px;
+    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1);
+    border-radius: 0 0 24px 24px;
+    margin: -1px;
+}
+
+.fmc-premium-overline { color: var(--mud-palette-primary); font-weight: 900 !important; letter-spacing: 1.5px !important; font-size: 0.65rem !important; }
+.fmc-premium-title { font-weight: 900 !important; letter-spacing: -0.8px !important; }
+
+.fmc-security-badge-premium { 
+    display: flex; align-items: center; 
+    padding: 8px 16px; background: rgba(var(--mud-palette-success-rgb), 0.15); 
+    color: var(--mud-palette-success); border-radius: 12px; 
+    font-size: 0.7rem; font-weight: 900; letter-spacing: 0.5px;
+    border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2);
+}
+
+/* ── Empty State Handling ── */
+.fmc-empty-icon-container {
+    width: 100px;
+    height: 100px;
+    background: rgba(var(--mud-palette-primary-rgb), 0.05);
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-items: center;
+    border: 2px dashed rgba(var(--mud-palette-primary-rgb), 0.2);
+}
+
+/* ── Identity Record Cards (Compact Glass) ── */
+.fmc-id-card {
+    padding: 16px 20px;
+    background-color: rgba(var(--mud-palette-surface-rgb), 0.75);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.fmc-id-card:hover { 
+    border-color: rgba(var(--mud-palette-primary-rgb), 0.5); 
+    transform: translateY(-4px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    background-color: rgba(var(--mud-palette-surface-rgb), 0.9);
+}
+
+.fmc-id-label { font-weight: 900 !important; letter-spacing: 1.2px !important; opacity: 0.5; font-size: 0.6rem !important; }
+.fmc-id-value { font-weight: 800 !important; letter-spacing: -0.5px !important; font-size: 1.1rem !important; }
+.fmc-id-value-compact { font-weight: 800 !important; letter-spacing: -0.3px !important; font-size: 0.95rem !important; color: var(--mud-palette-text-secondary); }
+
+.fmc-edit-input-compact .mud-input-slot { font-weight: 800 !important; font-size: 1rem !important; padding: 4px 8px !important; }
+
+/* ── Record Accent Lines ── */
+.fmc-id-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 4px 0 0 4px; }
+.fmc-id-accent.primary { background: var(--mud-palette-primary); }
+.fmc-id-accent.secondary { background: var(--mud-palette-secondary); }
+.fmc-id-accent.info { background: var(--mud-palette-info); }
+
+/* ── Identity Icons ── */
+.fmc-id-icon-bg { 
+    width: 32px; height: 32px; 
+    display: flex; align-items: center; justify-content: center; 
+    border-radius: 10px; 
+}
+.fmc-id-icon-bg.primary { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); }
+.fmc-id-icon-bg.secondary { background: rgba(var(--mud-palette-secondary-rgb), 0.1); color: var(--mud-palette-secondary); }
+.fmc-id-icon-bg.info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
+
+/* ── Security & Verification Chips ── */
+.fmc-security-badge { 
+    display: flex; align-items: center; 
+    padding: 6px 14px; background: rgba(var(--mud-palette-success-rgb), 0.08); 
+    color: var(--mud-palette-success); border-radius: 10px; 
+    font-size: 0.65rem; font-weight: 900; letter-spacing: 0.5px; 
+}
+
+.fmc-verified-chip { 
+    background: rgba(var(--mud-palette-background-grey-rgb), 0.8); 
+    padding: 4px 10px; border-radius: 8px; 
+    font-size: 0.6rem; font-weight: 800; letter-spacing: 0.5px;
+    color: var(--mud-palette-text-secondary);
+}
+
+/* ── Interaction States ── */
+.fmc-hover-card {
+    transition: all 0.2s ease-in-out;
+}
+.fmc-hover-card:hover {
+    border-color: var(--mud-palette-primary) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08) !important;
+}
+
+.status-dot { width: 8px; height: 8px; background-color: var(--mud-palette-success); border-radius: 50%; box-shadow: 0 0 8px var(--mud-palette-success); }
+.status-dot.sm { width: 6px; height: 6px; }
+
+/* ── Form Control Overrides ── */
+.fmc-input-wrapper {
+    padding: 16px;
+    background-color: var(--mud-palette-background-grey);
+    border-radius: 12px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+.fmc-input-wrapper:hover { border-color: var(--mud-palette-primary); background-color: var(--mud-palette-surface); }
+.fmc-readonly-val { font-weight: 700; font-size: 1.1rem; color: var(--mud-palette-text-primary); }
+
+/* ── Digital Ledger Table ── */
+.fmc-trace-table .mud-table-head { background-color: transparent; border-bottom: 2px solid var(--mud-palette-divider); }
+.fmc-th { font-weight: 900 !important; font-size: 0.7rem !important; color: var(--mud-palette-text-secondary) !important; letter-spacing: 1px; padding: 16px 8px !important; }
+
+/* ── Action Buttons ── */
+.fmc-action-btn { text-transform:none; font-weight:800; border-radius:12px; min-height: 48px; padding: 0 24px; }
+
+.fmc-btn-save {
+    background: linear-gradient(135deg, var(--mud-palette-primary) 0%, var(--mud-palette-primary-darken) 100%) !important;
+    color: white !important;
+    font-weight: 900 !important;
+    letter-spacing: 1px !important;
+    border-radius: 14px !important;
+    padding: 10px 28px !important;
+    box-shadow: 0 6px 20px rgba(var(--mud-palette-primary-rgb), 0.3) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    text-transform: uppercase !important;
+}
+.fmc-btn-save:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 12px 30px rgba(var(--mud-palette-primary-rgb), 0.45) !important;
+    filter: brightness(1.1);
+}
+.fmc-btn-save:active { transform: translateY(0) scale(0.98); }
+
+.fmc-btn-cancel {
+    color: var(--mud-palette-text-secondary) !important;
+    font-weight: 800 !important;
+    letter-spacing: 1px !important;
+    border-radius: 14px !important;
+    padding: 10px 24px !important;
+    transition: all 0.2s ease !important;
+    text-transform: uppercase !important;
+}
+.fmc-btn-cancel:hover {
+    background: rgba(var(--mud-palette-text-primary-rgb), 0.08) !important;
+    color: var(--mud-palette-text-primary) !important;
+    transform: translateY(-1px);
+}
+
+/* ── Edit State Overrides ── */
+.fmc-edit-input .mud-input-outlined { background: var(--mud-palette-surface) !important; border-radius: 8px !important; }
+.fmc-edit-input .mud-input-slot { font-weight: 800 !important; color: var(--mud-palette-primary) !important; font-size: 1.1rem !important; }
+.fmc-id-card.editing { border-color: var(--mud-palette-primary); background-color: var(--mud-palette-surface); }
+
+/* ── Alerts ── */
+.fmc-zero-alert { border-radius: 12px !important; border: 1px solid var(--mud-palette-warning-lighten) !important; }
+
+/* ── Responsive Refinements ── */
+@media (max-width: 960px) {
+    .fmc-balance-amount { font-size: 1.8rem !important; }
+    .fmc-org-name-compact { font-size: 0.9rem !important; }
+}
+
+@media (max-width: 600px) {
+    .fmc-action-btn { margin-top: 12px; width: 100%; }
+    .fmc-profile-container { padding-left: 8px; padding-right: 8px; }
+    .fmc-sidebar-card { padding: 16px !important; }
+}

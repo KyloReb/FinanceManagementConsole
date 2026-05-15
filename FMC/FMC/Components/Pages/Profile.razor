@@ -10,10 +10,60 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-16 fmc-profile-container">
     @if (_user == null)
     {
-        <div class="d-flex flex-column align-center justify-center" style="height:60vh;">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
-            <MudText Typo="Typo.h6" Class="mt-4" Style="opacity:0.6;">Synchronizing Identity Ledger...</MudText>
-        </div>
+        <MudGrid Spacing="4">
+            <MudItem xs="12" sm="8" Class="pb-2">
+                <MudSkeleton Width="250px" Height="40px" SkeletonType="SkeletonType.Rectangle" Class="rounded-lg mb-2" />
+                <MudSkeleton Width="350px" Height="20px" SkeletonType="SkeletonType.Rectangle" Class="rounded" />
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center justify-sm-end pb-2">
+                <MudSkeleton Width="150px" Height="48px" SkeletonType="SkeletonType.Rectangle" Class="rounded-xl" />
+            </MudItem>
+
+            <MudItem xs="12" lg="4">
+                <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center fmc-sidebar-card">
+                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="110px" Height="110px" Class="mb-4" />
+                    <MudSkeleton Width="180px" Height="30px" Class="mb-1" />
+                    <MudSkeleton Width="220px" Height="18px" Class="mb-3" />
+                    <MudSkeleton Width="100px" Height="24px" Class="mb-4 rounded" />
+                    <MudDivider Class="mb-4 w-100" Style="opacity:0.2;" />
+                    <div class="w-100 d-flex flex-column gap-2">
+                        <MudSkeleton Width="100%" Height="44px" Class="rounded-lg" />
+                        <MudSkeleton Width="100%" Height="44px" Class="rounded-lg" />
+                        <MudSkeleton Width="100%" Height="44px" Class="rounded-lg" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" lg="8">
+                <MudGrid Spacing="3">
+                    <MudItem xs="6">
+                        <MudSkeleton Width="100%" Height="140px" SkeletonType="SkeletonType.Rectangle" Class="rounded-xl" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudSkeleton Width="100%" Height="140px" SkeletonType="SkeletonType.Rectangle" Class="rounded-xl" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudPaper Elevation="0" Class="fmc-profile-tabs" Style="height: 400px;">
+                            <div class="px-8 pt-8">
+                                <MudSkeleton Width="200px" Height="15px" Class="mb-2" />
+                                <MudSkeleton Width="250px" Height="30px" Class="mb-6" />
+                                <MudGrid Spacing="3">
+                                    <MudItem xs="6">
+                                        <MudSkeleton Width="100%" Height="80px" Class="rounded-lg" />
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudSkeleton Width="100%" Height="80px" Class="rounded-lg" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudSkeleton Width="100%" Height="80px" Class="rounded-lg" />
+                                    </MudItem>
+                                </MudGrid>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+        </MudGrid>
     }
     else
     {
@@ -23,11 +73,29 @@
                 <MudText Typo="Typo.h4" Style="font-weight:800; letter-spacing:-0.5px;">@(_isForeignProfile ? "User Audit Profile" : "Identity Profile")</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@(_isForeignProfile ? $"Administrative forensic view for account ID: {UserId}" : "Security, Identity & Financial Sovereignty")</MudText>
             </MudItem>
-            <MudItem xs="12" sm="4" Class="d-flex align-center justify-sm-end pb-2">
-                @if (IsAdminOrCeo)
+            <MudItem xs="12" sm="4" Class="d-flex align-center justify-sm-end pb-2 gap-2">
+                @if (!_isForeignProfile && !_isEditing)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" 
+                               OnClick="@StartEdit" Class="fmc-action-btn-compact">
+                        Edit Profile
+                    </MudButton>
+                }
+                else if (_isEditing)
+                {
+                    <MudButton Variant="Variant.Text" OnClick="@CancelEdit" Class="fmc-btn-cancel mr-2">
+                        CANCEL
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" 
+                               OnClick="@SaveProfile" Class="fmc-btn-save" Disabled="@_saving">
+                        @(_saving ? "SYNCHRONIZING..." : "SAVE CHANGES")
+                    </MudButton>
+                }
+                
+                @if (IsAdminOrCeo && !_isEditing)
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Dashboard" 
-                               OnClick="@(() => Navigation.NavigateTo("/"))" Class="fmc-action-btn w-100 w-sm-auto">
+                               OnClick="@(() => Navigation.NavigateTo("/"))" Class="fmc-action-btn">
                         Control Center
                     </MudButton>
                 }
@@ -36,7 +104,7 @@
             <MudItem xs="12" lg="4">
                 <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center fmc-sidebar-card">
                     <div class="avatar-wrapper mb-4">
-                        <MudAvatar Color="Color.Primary" Style="height:110px; width:110px; font-size:2.5rem; font-weight:700; background: linear-gradient(135deg, var(--mud-palette-primary) 0%, var(--mud-palette-primary-darken) 100%);">
+                        <MudAvatar Style="@($"height:110px; width:110px; font-size:2.5rem; font-weight:700; background: {GetAvatarGradient(_user.Id)}; color: white; box-shadow: 0 8px 20px rgba(0,0,0,0.15);")">
                             @(GetInitials(_user))
                         </MudAvatar>
                     </div>
@@ -57,15 +125,15 @@
                     <MudDivider Class="mb-4 w-100" Style="opacity:0.2;" />
                     
                     <div class="w-100 d-flex flex-column gap-1 mt-1">
-                        <div class="d-flex align-center pa-3 fmc-mini-stat">
+                        <div class="d-flex align-center pa-3 fmc-mini-stat clickable @(_activeTab == 0 ? "active" : "")" @onclick="@(() => _activeTab = 0)">
                             <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small" Color="Color.Primary" Class="mr-3" />
                             <MudText Typo="Typo.body2" Style="font-weight:700;">Personal Details</MudText>
                         </div>
-                        <div class="d-flex align-center pa-3 fmc-mini-stat">
+                        <div class="d-flex align-center pa-3 fmc-mini-stat clickable" @onclick="@StartEdit">
                             <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Color="Color.Info" Class="mr-3" />
                             <MudText Typo="Typo.body2" Style="font-weight:700;">Security & Credentials</MudText>
                         </div>
-                        <div class="d-flex align-center pa-3 fmc-mini-stat">
+                        <div class="d-flex align-center pa-3 fmc-mini-stat clickable @(_activeTab == 1 ? "active" : "")" @onclick="@(() => _activeTab = 1)">
                             <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Default" Class="mr-3" />
                             <MudText Typo="Typo.body2" Style="font-weight:700;">Activity Session</MudText>
                         </div>
@@ -156,48 +224,87 @@
                     }
 
                     <MudItem xs="12">
-                        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="fmc-profile-tabs">
+                        <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="fmc-profile-tabs">
                             <MudTabPanel Text="Identity Mapping" Icon="@Icons.Material.Filled.Fingerprint">
-                                <div class="px-8 pt-8 pb-4">
-                                    <MudText Typo="Typo.overline" Style="color:var(--mud-palette-primary); font-weight:900; letter-spacing:1px;">INSTITUTIONAL IDENTITY RECORDS</MudText>
-                                    <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px; opacity:0.9;">Secure Profile Mapping</MudText>
+                                <div class="fmc-tab-content-premium">
+                                    <div class="px-8 pt-8 pb-4 d-flex align-center justify-space-between">
+                                        <div>
+                                            <MudText Typo="Typo.overline" Class="fmc-premium-overline">INSTITUTIONAL IDENTITY RECORDS</MudText>
+                                            <MudText Typo="Typo.h5" Class="fmc-premium-title">Secure Identity Mapping</MudText>
+                                        </div>
+                                        <div class="fmc-security-badge-premium">
+                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-2" />
+                                            <span>ENCRYPTED LEDGER</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <MudGrid Spacing="2" Class="px-8 pb-8">
+                                        <MudItem xs="12" sm="6">
+                                            <div class="fmc-id-card @(_isEditing ? "editing" : "")">
+                                                <div class="fmc-id-accent primary"></div>
+                                                <div class="fmc-id-content">
+                                                    <div class="d-flex align-center mb-1">
+                                                        <div class="fmc-id-icon-bg primary mr-2">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Style="font-size:0.9rem;" />
+                                                        </div>
+                                                        <MudText Typo="Typo.caption" Class="fmc-id-label">GIVEN NAME</MudText>
+                                                    </div>
+                                                    @if (_isEditing)
+                                                    {
+                                                        <MudTextField @bind-Value="_editModel.FirstName" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-edit-input-compact" Placeholder="Enter name" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Typo="Typo.body1" Class="fmc-id-value">@_user.FirstName</MudText>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudItem>
+
+                                        <MudItem xs="12" sm="6">
+                                            <div class="fmc-id-card @(_isEditing ? "editing" : "")">
+                                                <div class="fmc-id-accent secondary"></div>
+                                                <div class="fmc-id-content">
+                                                    <div class="d-flex align-center mb-1">
+                                                        <div class="fmc-id-icon-bg secondary mr-2">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Style="font-size:0.9rem;" />
+                                                        </div>
+                                                        <MudText Typo="Typo.caption" Class="fmc-id-label">SURNAME</MudText>
+                                                    </div>
+                                                    @if (_isEditing)
+                                                    {
+                                                        <MudTextField @bind-Value="_editModel.LastName" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-edit-input-compact" Placeholder="Enter surname" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Typo="Typo.body1" Class="fmc-id-value">@_user.LastName</MudText>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudItem>
+
+                                        <MudItem xs="12">
+                                            <div class="fmc-id-card">
+                                                <div class="fmc-id-accent info"></div>
+                                                <div class="fmc-id-content">
+                                                    <div class="d-flex align-center justify-space-between mb-1">
+                                                        <div class="d-flex align-center">
+                                                            <div class="fmc-id-icon-bg info mr-2">
+                                                                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Style="font-size:0.9rem;" />
+                                                            </div>
+                                                            <MudText Typo="Typo.caption" Class="fmc-id-label">REGISTERED INSTITUTIONAL EMAIL</MudText>
+                                                        </div>
+                                                        <div class="d-flex align-center fmc-verified-chip">
+                                                            <div class="status-dot sm mr-2"></div>
+                                                            <span>VERIFIED CHANNEL</span>
+                                                        </div>
+                                                    </div>
+                                                    <MudText Typo="Typo.h6" Style="font-weight:800; letter-spacing:-0.2px;">@_user.Email</MudText>
+                                                </div>
+                                            </div>
+                                        </MudItem>
+                                    </MudGrid>
                                 </div>
-                                
-                                <MudGrid Spacing="3" Class="px-8 pb-8">
-                                    <MudItem xs="12" sm="6">
-                                        <div class="fmc-id-card">
-                                            <div class="d-flex align-center mb-2">
-                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Style="opacity:0.6;" Class="mr-2" />
-                                                <MudText Typo="Typo.caption" Style="font-weight:900; letter-spacing:1px; opacity:0.6;">GIVEN NAME</MudText>
-                                            </div>
-                                            <MudText Typo="Typo.h6" Style="font-weight:800; opacity:0.95;">@_user.FirstName</MudText>
-                                        </div>
-                                    </MudItem>
-
-                                    <MudItem xs="12" sm="6">
-                                        <div class="fmc-id-card">
-                                            <div class="d-flex align-center mb-2">
-                                                <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Style="opacity:0.6;" Class="mr-2" />
-                                                <MudText Typo="Typo.caption" Style="font-weight:900; letter-spacing:1px; opacity:0.6;">SURNAME</MudText>
-                                            </div>
-                                            <MudText Typo="Typo.h6" Style="font-weight:800; opacity:0.95;">@_user.LastName</MudText>
-                                        </div>
-                                    </MudItem>
-
-                                    <MudItem xs="12">
-                                        <div class="fmc-id-card">
-                                            <div class="d-flex align-center mb-2">
-                                                <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" Color="Color.Primary" Class="mr-2" />
-                                                <MudText Typo="Typo.caption" Style="font-weight:900; letter-spacing:1px; opacity:0.6;">REGISTERED INSTITUTIONAL EMAIL</MudText>
-                                            </div>
-                                            <MudText Typo="Typo.h6" Style="font-weight:800; opacity:0.95;">@_user.Email</MudText>
-                                            <div class="mt-2 d-flex align-center">
-                                                <div class="status-dot mr-2"></div>
-                                                <MudText Typo="Typo.caption" Style="font-weight:600; opacity:0.5;">Verified Authentication Channel</MudText>
-                                            </div>
-                                        </div>
-                                    </MudItem>
-                                </MudGrid>
                             </MudTabPanel>
                             
                             @if (_user.Role == Roles.User)
@@ -264,163 +371,6 @@
     }
 </MudContainer>
 
-<style>
-    .fmc-profile-container { background-color: transparent; }
-    
-    .fmc-sidebar-card {
-        border-radius: 20px !important;
-        border: 1px solid var(--mud-palette-lines-default) !important;
-        background-color: var(--mud-palette-surface) !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
-    }
-
-    .fmc-mini-stat {
-        background-color: var(--mud-palette-background-grey);
-        border-radius: 12px;
-        transition: transform 0.2s;
-    }
-    .fmc-mini-stat:hover { transform: translateX(5px); background-color: var(--mud-palette-action-hover); }
-
-    .avatar-wrapper {
-        padding: 6px;
-        background: rgba(var(--mud-palette-primary-rgb), 0.1);
-        border-radius: 50%;
-    }
-
-    .fmc-profile-badge {
-        font-size: 0.6rem;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        padding: 5px 12px;
-        background-color: var(--mud-palette-background-grey);
-        color: var(--mud-palette-text-secondary);
-        border-radius: 6px;
-    }
-    .fmc-profile-badge.admin { background-color: #ffebee; color: #c62828; }
-    .fmc-profile-badge.ceo { background-color: #e3f2fd; color: #1565c0; }
-
-    .fmc-balance-card {
-        border-radius: 20px !important;
-        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
-        color: white !important;
-        box-shadow: 0 10px 30px -10px rgba(30, 58, 138, 0.4) !important;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
-    
-    .fmc-balance-container { padding: 8px 0; }
-    
-    .fmc-institutional-card {
-        border-radius: 20px !important;
-        background: linear-gradient(135deg, #0f172a 0%, #334155 100%) !important;
-        color: white !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .fmc-balance-amount {
-        font-family: 'JetBrains Mono', 'Roboto Mono', 'Segoe UI Mono', monospace !important;
-        font-weight: 800 !important;
-        line-height: 1.1 !important;
-        font-size: clamp(1.2rem, 3.5vw, 2.4rem) !important;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        letter-spacing: -0.5px;
-        text-shadow: 0 0 1px rgba(255,255,255,0.3);
-    }
-
-    .fmc-org-card {
-        border-radius: 20px !important;
-        border: 1px solid var(--mud-palette-lines-default) !important;
-        background-color: var(--mud-palette-surface) !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
-    }
-    
-    .fmc-org-compact { display: flex; align-items: center; }
-    .fmc-org-name-compact { font-weight: 800 !important; letter-spacing: -0.5px; line-height: 1.2; font-size: 1.1rem; }
-
-    .fmc-profile-tabs {
-        border-radius: 20px !important;
-        border: 1px solid var(--mud-palette-lines-default) !important;
-        background-color: var(--mud-palette-surface) !important;
-        overflow: hidden;
-        box-shadow: 0 4px 25px rgba(0,0,0,0.03) !important;
-    }
-
-    .fmc-empty-icon-container {
-        width: 100px;
-        height: 100px;
-        background: rgba(var(--mud-palette-primary-rgb), 0.05);
-        border-radius: 30px;
-        display: flex;
-        align-center;
-        justify-content: center;
-        align-items: center;
-        border: 2px dashed rgba(var(--mud-palette-primary-rgb), 0.2);
-    }
-
-    .fmc-id-card {
-        padding: 24px;
-        background-color: var(--mud-palette-background-grey);
-        border: 1px solid var(--mud-palette-lines-default);
-        border-radius: 16px;
-        transition: all 0.3s ease;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    .fmc-id-card:hover { 
-        border-color: var(--mud-palette-primary); 
-        background-color: var(--mud-palette-surface);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-
-    .fmc-hover-card {
-        transition: all 0.2s ease-in-out;
-    }
-    .fmc-hover-card:hover {
-        border-color: var(--mud-palette-primary) !important;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08) !important;
-    }
-
-    .status-dot { width: 8px; height: 8px; background-color: var(--mud-palette-success); border-radius: 50%; box-shadow: 0 0 8px var(--mud-palette-success); }
-
-    .fmc-input-wrapper {
-        padding: 16px;
-        background-color: var(--mud-palette-background-grey);
-        border-radius: 12px;
-        border: 1px solid transparent;
-        transition: all 0.2s;
-    }
-    .fmc-input-wrapper:hover { border-color: var(--mud-palette-primary); background-color: var(--mud-palette-surface); }
-    .fmc-readonly-val { font-weight: 700; font-size: 1.1rem; color: var(--mud-palette-text-primary); }
-
-    .fmc-trace-table .mud-table-head { background-color: transparent; border-bottom: 2px solid var(--mud-palette-lines-default); }
-    .fmc-th { font-weight: 900 !important; font-size: 0.7rem !important; color: var(--mud-palette-text-secondary) !important; letter-spacing: 1px; padding: 16px 8px !important; }
-
-    .fmc-action-btn { text-transform:none; font-weight:800; border-radius:12px; min-height: 48px; padding: 0 24px; }
-
-    .fmc-zero-alert { border-radius: 12px !important; border: 1px solid var(--mud-palette-warning-lighten) !important; }
-
-    @@media (max-width: 960px) {
-        .fmc-balance-amount { font-size: 1.8rem !important; }
-        .fmc-org-name-compact { font-size: 0.9rem !important; }
-    }
-    
-    @@media (max-width: 600px) {
-        .fmc-action-btn { margin-top: 12px; width: 100%; }
-        .fmc-profile-container { padding-left: 8px; padding-right: 8px; }
-        .fmc-sidebar-card { padding: 16px !important; }
-    }
-</style>
-
 @code {
     [Inject] private FMC.Services.Api.AuthService AuthService { get; set; } = default!;
     [Inject] private FMC.Services.Api.ApiFinanceService FinanceService { get; set; } = default!;
@@ -438,6 +388,10 @@
     private List<FMC.Shared.DTOs.TransactionDto> _transactions = new();
     private bool _loadingHistory = true;
     private bool _isForeignProfile = false;
+    private bool _isEditing = false;
+    private bool _saving = false;
+    private int _activeTab = 0;
+    private UpdateUserDto _editModel = new();
 
     private bool IsAdminOrCeo => _user?.Role == Roles.SuperAdmin || _user?.Role == Roles.CEO;
 
@@ -502,6 +456,75 @@
         {
             _loadingHistory = false;
         }
+    }
+
+    private void StartEdit()
+    {
+        if (_user == null) return;
+        _editModel = new UpdateUserDto
+        {
+            Id = _user.Id,
+            FirstName = _user.FirstName ?? "",
+            LastName = _user.LastName ?? "",
+            Email = _user.Email ?? "",
+            Role = _user.Role,
+            IsActive = _user.IsActive,
+            Organization = _user.Organization
+        };
+        _isEditing = true;
+    }
+
+    private void CancelEdit() => _isEditing = false;
+
+    private async Task SaveProfile()
+    {
+        if (_user == null || _saving) return;
+        
+        _saving = true;
+        try 
+        {
+            var result = await AdminService.UpdateUserAsync(_editModel);
+            if (result.Succeeded)
+            {
+                _user.FirstName = _editModel.FirstName;
+                _user.LastName = _editModel.LastName;
+                _isEditing = false;
+                Snackbar.Add("Identity profile successfully updated on the secure ledger.", Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Failed to update profile identity.", Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Ledger write failure. Profile remains unchanged.", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private string GetAvatarGradient(string userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return "linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)";
+        
+        // Premium color palettes
+        string[][] palettes = new[] {
+            new[] { "#FF6B6B", "#EE0979" }, // Sunset
+            new[] { "#4158D0", "#C850C0" }, // Royal
+            new[] { "#0093E9", "#80D0C7" }, // Ocean
+            new[] { "#00DBDE", "#FC00FF" }, // Neon
+            new[] { "#8EC5FC", "#E0C3FC" }, // Cloud
+            new[] { "#FAD961", "#F76B1C" }, // Fire
+            new[] { "#614385", "#516395" }  // Deep Space
+        };
+        
+        int index = Math.Abs(userId.GetHashCode()) % palettes.Length;
+        var colors = palettes[index];
+        return $"linear-gradient(135deg, {colors[0]} 0%, {colors[1]} 100%)";
     }
 
     private string GetInitials(UserDto? user)

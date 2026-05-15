@@ -1,5 +1,6 @@
 @using FMC.Shared.DTOs.Admin
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 
 <MudDialog>
     <TitleContent>
@@ -136,6 +137,15 @@
         }
     </DialogContent>
     <DialogActions>
+        <MudTooltip Text="Download log as .txt file" Placement="Placement.Top" Arrow="true">
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       Color="Color.Default"
+                       OnClick="DownloadLog"
+                       Style="border-radius:10px; font-weight:800; text-transform:none; margin-right:auto;">
+                Download Log
+            </MudButton>
+        </MudTooltip>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close" Style="border-radius:10px; font-weight:800;">
             Close
         </MudButton>
@@ -206,4 +216,61 @@
     }
 
     private void Close() => MudDialog.Close(DialogResult.Ok(true));
+
+    /// <summary>
+    /// Builds a plain-text forensic report from all available log fields
+    /// and triggers a browser file download via JSInterop.
+    /// </summary>
+    private async Task DownloadLog()
+    {
+        if (Log is null) return;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("═══════════════════════════════════════════════════════");
+        sb.AppendLine("         FORENSIC AUDIT LOG EXPORT — FMC SYSTEM");
+        sb.AppendLine("═══════════════════════════════════════════════════════");
+        sb.AppendLine();
+        sb.AppendLine($"Log ID       : #{Log.Id}");
+        sb.AppendLine($"Exported At  : {DateTime.Now:yyyy-MM-dd HH:mm:ss} (Local)");
+        sb.AppendLine();
+        sb.AppendLine("───────────────────────── EVENT ─────────────────────────");
+        sb.AppendLine($"Action       : {Log.Action}");
+        sb.AppendLine($"Timestamp    : {Log.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        if (Log.Amount.HasValue)
+            sb.AppendLine($"Amount       : {(_isCredit ? "+" : _isDebit ? "−" : "")}{Log.Amount?.ToString("N2")}");
+        sb.AppendLine();
+        sb.AppendLine("───────────────────────── ENTITY ────────────────────────");
+        if (!string.IsNullOrWhiteSpace(Log.EntityName))
+            sb.AppendLine($"Entity       : {Log.EntityName}");
+        if (!string.IsNullOrWhiteSpace(Log.Label))
+            sb.AppendLine($"Label        : {Log.Label}");
+        sb.AppendLine();
+        sb.AppendLine("───────────────────────── ACTOR ─────────────────────────");
+        if (!string.IsNullOrWhiteSpace(Log.PerformedBy))
+            sb.AppendLine($"Performed By : {Log.PerformedBy}");
+        if (!string.IsNullOrWhiteSpace(Log.UserName))
+            sb.AppendLine($"User Account : {Log.UserName}");
+        sb.AppendLine();
+        sb.AppendLine("───────────────────────── NETWORK ───────────────────────");
+        if (!string.IsNullOrWhiteSpace(Log.IpAddress))
+            sb.AppendLine($"IP Address   : {Log.IpAddress}");
+        if (!string.IsNullOrWhiteSpace(Log.Device))
+            sb.AppendLine($"Device       : {Log.Device}");
+        if (!string.IsNullOrWhiteSpace(Log.Details))
+        {
+            sb.AppendLine();
+            sb.AppendLine("───────────────────────── DETAILS ───────────────────────");
+            sb.AppendLine(Log.Details);
+        }
+        sb.AppendLine();
+        sb.AppendLine("═══════════════════════════════════════════════════════");
+        sb.AppendLine("END OF LOG");
+
+        var filename = $"audit_log_{Log.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+        var content = sb.ToString();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var base64 = Convert.ToBase64String(bytes);
+
+        await JS.InvokeVoidAsync("fmcDownloadBase64", filename, "text/plain", base64);
+    }
 }

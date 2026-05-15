@@ -305,3 +305,25 @@
     background-size: 700px 100%;
     animation: page-shimmer 1.6s ease-in-out infinite;
 }
+
+/* ── Theme-Aware Avatar Color Palette ──
+   8 vivid, distinct hues that remain legible in both light and dark mode.
+   Assigned via fmc-avatar-{index} class generated from the display name hash. */
+::deep .fmc-avatar-0 { background-color: #6366f1 !important; } /* Indigo */
+::deep .fmc-avatar-1 { background-color: #8b5cf6 !important; } /* Violet */
+::deep .fmc-avatar-2 { background-color: #0891b2 !important; } /* Cyan */
+::deep .fmc-avatar-3 { background-color: #0d9488 !important; } /* Teal */
+::deep .fmc-avatar-4 { background-color: #059669 !important; } /* Emerald */
+::deep .fmc-avatar-5 { background-color: #d97706 !important; } /* Amber */
+::deep .fmc-avatar-6 { background-color: #dc2626 !important; } /* Red */
+::deep .fmc-avatar-7 { background-color: #7c3aed !important; } /* Purple */
+
+/* Mobile card avatars also use the same scheme */
+.fmc-acc-mobile-card ::deep .fmc-avatar-0 { background-color: #6366f1 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-1 { background-color: #8b5cf6 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-2 { background-color: #0891b2 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-3 { background-color: #0d9488 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-4 { background-color: #059669 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-5 { background-color: #d97706 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-6 { background-color: #dc2626 !important; }
+.fmc-acc-mobile-card ::deep .fmc-avatar-7 { background-color: #7c3aed !important; }

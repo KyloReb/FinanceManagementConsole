@@ -24,7 +24,7 @@
                     <MudButton Variant="Variant.Filled" OnClick="@(() => OpenUserSelection(true))"
                                StartIcon="@Icons.Material.Filled.Add"
                                Class="fmc-enterprise-btn credit">New Credit</MudButton>
-                    <MudButton Variant="Variant.Filled" OnClick="@(() => OpenUserSelection(false))"
+                    <MudButton Variant="Variant.Filled" Disabled="true"
                                StartIcon="@Icons.Material.Filled.Remove"
                                Class="fmc-enterprise-btn debit">New Debit</MudButton>
                     <MudButton Variant="Variant.Filled" OnClick="OpenBulkUpload"
@@ -429,8 +429,8 @@
                             @if (_isMaker)
                             {
                                 <MudTd Style="text-align:center;">
-                                    <MudTooltip Text="Debit">
-                                        <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline" Color="Color.Error" Size="Size.Small" OnClick="@(() => OpenBalanceAdjustment(ch, false))" />
+                                    <MudTooltip Text="Debit Disabled">
+                                        <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline" Color="Color.Default" Size="Size.Small" Disabled="true" />
                                     </MudTooltip>
                                     <MudTooltip Text="Credit">
                                         <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenBalanceAdjustment(ch, true))" />
@@ -476,7 +476,7 @@
                             @if (_isMaker)
                             {
                                 <div class="d-flex justify-end gap-2 mt-2">
-                                    <MudButton StartIcon="@Icons.Material.Filled.RemoveCircleOutline" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => OpenBalanceAdjustment(ch, false))">Debit</MudButton>
+                                    <MudButton StartIcon="@Icons.Material.Filled.RemoveCircleOutline" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Disabled="true">Debit</MudButton>
                                     <MudButton StartIcon="@Icons.Material.Filled.AddCircleOutline" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => OpenBalanceAdjustment(ch, true))">Credit</MudButton>
                                 </div>
                             }

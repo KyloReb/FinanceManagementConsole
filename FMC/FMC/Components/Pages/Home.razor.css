@@ -644,3 +644,46 @@
 }
 .fmc-status-dot.critical { background: var(--mud-palette-error); box-shadow: 0 0 8px var(--mud-palette-error); }
 .fmc-status-dot.warning  { background: var(--mud-palette-warning); box-shadow: 0 0 8px var(--mud-palette-warning); }
+
+/* ── System Activity Log Date Filter Toolbar ── */
+.fmc-date-group {
+    display: flex;
+    gap: 2px;
+    background: rgba(0,0,0,0.06);
+    padding: 2px;
+    border-radius: 7px;
+    width: 100%;
+}
+.fmc-dark-mode .fmc-date-group { background: rgba(255,255,255,0.06); }
+
+.fmc-date-btn {
+    flex: 1;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 0.65rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    color: var(--mud-palette-text-secondary);
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+}
+.fmc-date-btn:hover {
+    background: rgba(var(--mud-palette-primary-rgb), 0.08);
+    color: var(--mud-palette-text-primary);
+}
+.fmc-date-btn.active {
+    background: var(--mud-palette-primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(var(--mud-palette-primary-rgb), 0.3);
+}
+
+/* Scroll area for activity log entries */
+.fmc-audit-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}

@@ -80,6 +80,10 @@
                                 <span class="fmc-audit-badge @clr">@act.Replace("_", " ")</span>
                             </div>
                             <MudText Typo="Typo.body2" Class="fmc-audit-entity-compact">@log.EntityName</MudText>
+                            @if (!string.IsNullOrEmpty(log.Label))
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="font-size: 0.6rem; font-weight: 700; line-height: 1.1; margin-top: 2px;">@log.Label</MudText>
+                            }
                             <div class="d-flex justify-space-between mt-1" style="opacity: 0.6;">
                                 <span style="font-size: 0.65rem; font-weight: 700;">
                                     <MudIcon Icon="@Icons.Material.Filled.Person" Style="font-size: 0.6rem; margin-right: 2px; vertical-align: middle;" />

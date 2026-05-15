@@ -195,7 +195,7 @@
                                 }
                             </div>
 
-                            @if (_auditLoading)
+                            @if (_loading)
                             {
                                 <div class="fmc-wallet-skel-list">
                                     @for (int i = 0; i < 3; i++)
@@ -257,8 +257,7 @@
                                         var tierLabel  = isCritical ? "CRITICAL" : isWarning ? "WARNING" : "HEALTHY";
                                         var capturedId = item.Org.Id; // capture for lambda closures
 
-                                        <div class="fmc-health-card @(_isSuperAdmin ? "clickable" : "") @(isCritical ? "fmc-health-critical" : isWarning ? "fmc-health-warn" : "")"
-                                             @onclick="@(() => { if(_isSuperAdmin) Navigation.NavigateTo($"/admin/organizations/{capturedId}"); })">
+                                        <div class="fmc-health-card @(isCritical ? "fmc-health-critical" : isWarning ? "fmc-health-warn" : "")">
 
                                             @* ── Row 1: Avatar + Name + Tier + Cardholder Count + Percentage ── *@
                                             <div class="d-flex justify-space-between align-center mb-3">
@@ -558,13 +557,20 @@
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; line-height: 1.1;">Global audit feed</MudText>
                                     </div>
                                 </div>
-                                <MudTooltip Text="Export & View All">
-                                    <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/admin/audit" />
-                                </MudTooltip>
+                                <div class="d-flex align-center gap-1">
+                                    <MudTooltip Text="Full Intelligence Explorer">
+                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/admin/audit" />
+                                    </MudTooltip>
+                                </div>
                             </div>
                         </div>
-                        <div class="fmc-audit-section-label">
-                            <MudText Typo="Typo.caption" Style="font-weight:900; opacity: 0.6; letter-spacing: 0.05em;">LATEST ACTIVITY</MudText>
+                        <div class="fmc-audit-section-label" style="display: flex; justify-content: flex-end; padding-top: 8px; padding-bottom: 8px;">
+                            <div class="fmc-date-group w-100 d-flex justify-space-between">
+                                <button class="fmc-date-btn @(_activeAuditRange == "all" ? "active" : "")" style="flex:1;" @onclick='() => SetAuditRange("all")'>ALL</button>
+                                <button class="fmc-date-btn @(_activeAuditRange == "today" ? "active" : "")" style="flex:1;" @onclick='() => SetAuditRange("today")'>TODAY</button>
+                                <button class="fmc-date-btn @(_activeAuditRange == "7d" ? "active" : "")" style="flex:1;" @onclick='() => SetAuditRange("7d")'>7D</button>
+                                <button class="fmc-date-btn @(_activeAuditRange == "30d" ? "active" : "")" style="flex:1;" @onclick='() => SetAuditRange("30d")'>30D</button>
+                            </div>
                         </div>
 
                         <div class="fmc-audit-scroll-area">
@@ -623,6 +629,10 @@
                                                     <span class="fmc-audit-badge @clr">@act.Replace("_", " ")</span>
                                                 </div>
                                                 <MudText Typo="Typo.body2" Class="fmc-audit-entity-compact">@log.EntityName</MudText>
+                                                @if (!string.IsNullOrEmpty(log.Label))
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="font-size: 0.6rem; font-weight: 700; line-height: 1.1; margin-top: 2px;">@log.Label</MudText>
+                                                }
                                                 <div class="d-flex justify-space-between mt-1" style="opacity: 0.6;">
                                                     <span style="font-size: 0.65rem; font-weight: 700;">
                                                         <MudIcon Icon="@Icons.Material.Filled.Person" Style="font-size: 0.6rem; margin-right: 2px; vertical-align: middle;" />
@@ -761,7 +771,6 @@
 @code {
     #region ── UI State & Data ──
     private bool _loading = true;
-    private bool _auditLoading = true;
     private bool _isCeo;
     private bool _isSuperAdmin;
     private List<OrganizationDto> _organizations = new();
@@ -769,6 +778,9 @@
     private List<AuditLogDto> _auditLogs = new();
     private List<AuditLogDto> _allAuditLogs = new();
     private int _auditLogLimit = 10;
+    private bool _auditLoading = true;
+    private string _activeAuditRange = "7d";
+    private AuditLogQueryDto _auditQuery = new() { PageSize = 20 };
     private string _walletSearchQuery = "";
     private int _walletPageSize = 5;
 
@@ -987,6 +999,28 @@
     #endregion
 
     #region ── Helpers & Data Preparation ──
+    private async Task SetAuditRange(string range)
+    {
+        _activeAuditRange = range;
+        var today = DateTime.Today;
+        _auditQuery.FromDate = null;
+        _auditQuery.ToDate = null;
+
+        switch (range)
+        {
+            case "today": _auditQuery.FromDate = today; _auditQuery.ToDate = today; break;
+            case "7d": _auditQuery.FromDate = today.AddDays(-7); _auditQuery.ToDate = today; break;
+            case "30d": _auditQuery.FromDate = today.AddDays(-30); _auditQuery.ToDate = today; break;
+        }
+
+        _auditLoading = true;
+        StateHasChanged();
+        var result = await OrgService.SearchAuditLogsAsync(_auditQuery);
+        _allAuditLogs = result.Items.ToList();
+        _auditLoading = false;
+        StateHasChanged();
+    }
+
     private IEnumerable<OrganizationDto> GetFilteredSubscribers()
     {
         var query = _organizations.Where(o => o.Name != "Nationlink/Infoserve Inc.");

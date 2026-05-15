@@ -1,6 +1,9 @@
 @using MudBlazor
 @using FMC.Shared.DTOs.Admin
+@using FMC.Services.Api
 @inject ISnackbar Snackbar
+@inject OrganizationApiService OrgService
+@inject AdminService AdminService
 
 <MudDialog Class="fmc-audit-dialog">
     <TitleContent>
@@ -20,14 +23,19 @@
                 <div class="d-flex justify-space-between align-center mt-2 pa-4 fmc-highlight-box">
                     <div>
                         <MudText Style="font-weight:900; font-size:1.1rem; color: var(--mud-palette-primary);">@Log.Action</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Log.CreatedAt.ToString("MMMM dd, yyyy 'at' HH:mm:ss.fff")</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Log.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy 'at' HH:mm:ss.fff")</MudText>
                     </div>
                     @if (Log.Amount.HasValue)
                     {
                         <div class="text-right">
-                            <MudText Style="font-weight:900; font-size:1.2rem; font-family:'JetBrains Mono',monospace;" 
-                                     Color="@(Log.Action == "CREDIT" ? Color.Success : Color.Error)">
-                                @(Log.Action == "CREDIT" ? "+" : "-")@Log.Amount.Value.ToString("N2")
+                            @{
+                                var actUpper = Log.Action?.ToUpper() ?? "";
+                                var isCreditToUser = actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("ALLOT");
+                                var sign = isCreditToUser ? "+" : "-";
+                                var color = isCreditToUser ? Color.Success : Color.Error;
+                            }
+                            <MudText Style="font-weight:900; font-size:1.2rem; font-family:'JetBrains Mono',monospace;" Color="@color">
+                                @sign@Math.Abs(Log.Amount.Value).ToString("N2")
                             </MudText>
                             <MudText Typo="Typo.caption">Currency Magnitude</MudText>
                         </div>
@@ -60,6 +68,81 @@
                 </MudItem>
             </MudGrid>
 
+            @* ── LIQUIDITY FLOW DIAGRAM ── *@
+            @if (Log.Amount.HasValue && !Log.Action.Contains("BATCH") && (!Log.EntityName?.Contains("Bulk") ?? true))
+            {
+                var actUpper = Log.Action?.ToUpper() ?? "";
+                var isCorporateToUser = actUpper.Contains("CREDIT") || actUpper.Contains("APPROV") || actUpper.Contains("ALLOT") || actUpper.Contains("DEPOSIT");
+                var absAmount = Math.Abs(Log.Amount.Value);
+                var orgIdentity = GetOrgIdentity();
+                var cardholderIdentity = GetCardNumber();
+                
+                var sourceName = isCorporateToUser ? _orgName : (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder");
+                var destName = isCorporateToUser ? (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder") : _orgName;
+                var sourceIcon = isCorporateToUser ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Wallet;
+                var destIcon = isCorporateToUser ? Icons.Material.Filled.Wallet : Icons.Material.Filled.AccountBalance;
+
+                <div class="detail-section mb-6">
+                    <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
+                    <div class="mt-2 pa-4 fmc-surface-box d-flex align-center justify-space-between" style="position:relative; overflow: hidden;">
+                        
+                        <!-- Source Node -->
+                        <div class="d-flex flex-column align-center" style="width: 140px; z-index: 2;">
+                            <div class="fmc-flow-node source">
+                                <MudIcon Icon="@sourceIcon" Style="font-size: 1.5rem; color: var(--mud-palette-info);" />
+                            </div>
+                            <div class="mt-2 text-center" style="line-height: 1.1;">
+                                <MudText Style="font-weight: 800; font-size: 0.7rem; display: block;">@sourceName</MudText>
+                                @if (isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
+                                {
+                                    <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@MaskAccount(_orgAccountNumber)</MudText>
+                                }
+                                else if (!isCorporateToUser)
+                                {
+                                    var sub = MaskAccount(_userAccountNumber);
+                                    if (sub != sourceName)
+                                    {
+                                        <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@sub</MudText>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Animated Connector -->
+                        <div class="fmc-flow-connector flex-grow-1 mx-2" style="position: relative; z-index: 1; height: 2px; background: rgba(var(--mud-palette-info-rgb), 0.2); margin-top: -24px;">
+                            <div class="fmc-flow-particle"></div>
+                            <div class="fmc-flow-badge">
+                                <MudText Style="font-family:'JetBrains Mono',monospace; font-weight:900; font-size:0.75rem; color: var(--mud-palette-info);">
+                                    @absAmount.ToString("N2")
+                                </MudText>
+                            </div>
+                        </div>
+
+                        <!-- Destination Node -->
+                        <div class="d-flex flex-column align-center" style="width: 140px; z-index: 2;">
+                            <div class="fmc-flow-node dest">
+                                <MudIcon Icon="@destIcon" Style="font-size: 1.5rem; color: var(--mud-palette-success);" />
+                            </div>
+                            <div class="mt-2 text-center" style="line-height: 1.1;">
+                                <MudText Style="font-weight: 800; font-size: 0.7rem; display: block;">@destName</MudText>
+                                @if (!isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
+                                {
+                                    <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@MaskAccount(_orgAccountNumber)</MudText>
+                                }
+                                else if (isCorporateToUser)
+                                {
+                                    var sub = MaskAccount(_userAccountNumber);
+                                    if (sub != destName)
+                                    {
+                                        <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@sub</MudText>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
             @* ── BATCH BREAKDOWN (Forensic Detail) ── *@
             @if (Log.Action == "BATCH_SUBMITTED" || (Log.Amount.HasValue && Log.EntityName.Contains("Bulk")))
             {
@@ -87,7 +170,7 @@
                                     <MudTd Style="text-align: right;">
                                         <MudText Typo="Typo.body2" Style="font-family:'JetBrains Mono',monospace; font-weight: 800; font-size: 0.85rem;" 
                                                  Color="@(batchData.IsCredit ? Color.Success : Color.Error)">
-                                            @(batchData.IsCredit ? "+" : "-")@item.Amount.ToString("N2")
+                                            @(batchData.IsCredit ? "+" : "-")₱@item.Amount.ToString("N2")
                                         </MudText>
                                     </MudTd>
                                 </RowTemplate>
@@ -138,6 +221,7 @@
                     <MudText Typo="Typo.body2" Style="font-style:italic;">@GetMemo()</MudText>
                 </MudPaper>
             </div>
+            <div style="height: 32px;"></div>
         </div>
     </DialogContent>
     <DialogActions>
@@ -155,11 +239,88 @@
     .fmc-breakdown-surface { background: rgba(var(--mud-palette-info-rgb), 0.02); border-radius: 12px; border: 1px solid var(--mud-palette-divider); max-height: 240px; overflow-y: auto; }
     .opacity-50 { opacity: 0.5; }
     .opacity-20 { opacity: 0.2; }
+
+    /* Flow Diagram Styles */
+    .fmc-flow-node { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--mud-palette-surface); border: 2px solid var(--mud-palette-divider); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .fmc-flow-node.source { border-color: rgba(var(--mud-palette-info-rgb), 0.5); }
+    .fmc-flow-node.dest { border-color: rgba(var(--mud-palette-success-rgb), 0.5); }
+    
+    .fmc-flow-particle {
+        position: absolute;
+        top: -3px;
+        left: 0;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mud-palette-info);
+        box-shadow: 0 0 8px var(--mud-palette-info);
+        animation: flow-move 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @@keyframes flow-move {
+        0% { left: 0; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { left: 100%; opacity: 0; }
+    }
+    .fmc-flow-badge {
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--mud-palette-surface);
+        padding: 2px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
 </style>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public AuditLogDto Log { get; set; } = default!;
+
+    private string _orgName = "";
+    private string _orgAccountNumber = "";
+    private string _userAccountNumber = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgName = !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Corporate Liquidity";
+        _userAccountNumber = GetCardNumber();
+        
+        // Deep resolution: If we have an EntityName (e.g. "Wallet: Ava Gonzalez"), try to find the user's full identity
+        if (!string.IsNullOrWhiteSpace(Log.EntityName) && Log.EntityName.Contains(":"))
+        {
+            try {
+                var targetName = Log.EntityName.Split(':').Last().Trim();
+                var users = await AdminService.GetUsersAsync();
+                var user = users.FirstOrDefault(u => u.DisplayName.Equals(targetName, StringComparison.OrdinalIgnoreCase) 
+                                                  || u.UserName?.Equals(targetName, StringComparison.OrdinalIgnoreCase) == true);
+                
+                if (user != null)
+                {
+                    if (string.IsNullOrEmpty(_orgName) || _orgName == "Corporate Liquidity")
+                        _orgName = user.Organization ?? _orgName;
+                        
+                    if (string.IsNullOrEmpty(_orgAccountNumber))
+                        _orgAccountNumber = user.OrganizationAccountNumber;
+                        
+                    if (string.IsNullOrEmpty(_userAccountNumber) || _userAccountNumber == targetName)
+                        _userAccountNumber = user.AccountNumber;
+                }
+            } catch { }
+        }
+
+        // Fallback for Org lookup by name if not already found
+        if (!string.IsNullOrWhiteSpace(_orgName) && _orgName != "Corporate Liquidity" && string.IsNullOrEmpty(_orgAccountNumber))
+        {
+            try {
+                var orgs = await OrgService.GetOrganizationsAsync();
+                var org = orgs.FirstOrDefault(o => o.Name.Equals(_orgName, StringComparison.OrdinalIgnoreCase));
+                if (org != null) _orgAccountNumber = org.AccountNumber;
+            } catch { }
+        }
+    }
 
     private void Close() => MudDialog.Cancel();
 
@@ -178,12 +339,12 @@
 
     private string GetMemo()
     {
-        if (string.IsNullOrWhiteSpace(Log.Details)) return Log.Label ?? "No forensic metadata recorded.";
-        
-        // If details is JSON (starts with {), show the label instead to avoid showing raw JSON in the memo
-        if (Log.Details.Trim().StartsWith("{")) return Log.Label ?? "Structured Batch Data Record";
-        
-        return Log.Details;
+        var memo = Log.Label ?? "No forensic metadata recorded.";
+        if (!string.IsNullOrWhiteSpace(Log.Details) && !Log.Details.Trim().StartsWith("{") && !Log.Details.Contains("@"))
+        {
+            memo += $" | Additional: {Log.Details}";
+        }
+        return memo;
     }
 
     private bool TryGetBatchData(out BatchDetail? data)
@@ -202,6 +363,53 @@
         if (string.IsNullOrEmpty(account)) return "N/A";
         if (account.Length <= 10) return account;
         return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
+    }
+
+    private string GetCardNumber()
+    {
+        if (TryGetBatchData(out var batchData) && batchData.Items.Any())
+        {
+            return MaskAccount(batchData.Items.First().CardNumber);
+        }
+        
+        // Try to parse JSON from Details for single transactions
+        if (!string.IsNullOrWhiteSpace(Log.Details) && Log.Details.Trim().StartsWith("{"))
+        {
+            try {
+                using var doc = System.Text.Json.JsonDocument.Parse(Log.Details);
+                if (doc.RootElement.TryGetProperty("cardNumber", out var prop))
+                    return MaskAccount(prop.GetString());
+                if (doc.RootElement.TryGetProperty("accountNumber", out var propAcc))
+                    return MaskAccount(propAcc.GetString());
+            } catch { }
+        }
+
+        // Fallback to Label if it looks like a card number
+        if (!string.IsNullOrWhiteSpace(Log.Label) && Log.Label.Length > 10)
+        {
+            var label = Log.Label.Replace(" ", "");
+            if (label.All(c => char.IsDigit(c) || c == '*' || c == '-'))
+                return MaskAccount(Log.Label);
+        }
+            
+        return Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder"; 
+    }
+
+    private string GetOrgIdentity()
+    {
+        // Try to parse JSON from Details for org account number
+        if (!string.IsNullOrWhiteSpace(Log.Details) && Log.Details.Trim().StartsWith("{"))
+        {
+            try {
+                using var doc = System.Text.Json.JsonDocument.Parse(Log.Details);
+                if (doc.RootElement.TryGetProperty("orgAccountNumber", out var prop))
+                    return MaskAccount(prop.GetString());
+                if (doc.RootElement.TryGetProperty("sourceAccountNumber", out var propSrc))
+                    return MaskAccount(propSrc.GetString());
+            } catch { }
+        }
+        
+        return !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Corporate Liquidity";
     }
 
     private char GetInitial(string? name)

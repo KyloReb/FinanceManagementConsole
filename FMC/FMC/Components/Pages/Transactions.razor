@@ -48,6 +48,7 @@
                         <button class="fmc-date-btn @(_activeDateRange == "today" ? "active" : "")" @onclick='() => SetQuickDate("today")'>TODAY</button>
                         <button class="fmc-date-btn @(_activeDateRange == "7d" ? "active" : "")" @onclick='() => SetQuickDate("7d")'>7D</button>
                         <button class="fmc-date-btn @(_activeDateRange == "30d" ? "active" : "")" @onclick='() => SetQuickDate("30d")'>30D</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "1y" ? "active" : "")" @onclick='() => SetQuickDate("1y")'>1Y</button>
                     </div>
                     <div class="fmc-custom-date-wrap d-none d-lg-flex align-center gap-2">
                         <div class="fmc-date-input-box">
@@ -75,7 +76,7 @@
             </div>
         </div>
 
-        <MudTable Items="@_transactions" Hover="true" Elevation="0" Loading="@_loading" 
+        <MudTable @ref="_table" Items="@_transactions" Hover="true" Elevation="0" Loading="@_loading" 
                  OnRowClick="OnRowClick" T="TransactionDto" 
                  RowClassFunc="@((item, idx) => $"fmc-row-hover {(item.Amount > 0 ? "credit" : "debit")}")"
                  Filter="new Func<TransactionDto,bool>(FilterFunc1)" Class="fmc-premium-table">
@@ -132,10 +133,20 @@
                             }
                             <MudText Typo="Typo.body2" Style="font-weight:900;">@context!.Subscriber</MudText>
                         </div>
-                        @if (!string.IsNullOrEmpty(context.AccountNumber))
+                        @{
+                            var acc = context.AccountNumber;
+                            if (string.IsNullOrEmpty(acc) || acc == "N/A")
+                            {
+                                var subscriberName = context.Subscriber?.Replace(" (Bulk)", "");
+                                var u = _allUsers.FirstOrDefault(x => x.DisplayName.Equals(subscriberName, StringComparison.OrdinalIgnoreCase)
+                                                                   || x.UserName?.Equals(subscriberName, StringComparison.OrdinalIgnoreCase) == true);
+                                if (u != null) acc = u.AccountNumber;
+                            }
+                        }
+                        @if (!string.IsNullOrEmpty(acc))
                         {
                             <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;">
-                                @(context.AccountNumber == "BATCH_SUMMARY" ? "BATCH FORENSIC SUMMARY" : GetMaskedAccount(context.AccountNumber))
+                                @(acc == "BATCH_SUMMARY" ? "BATCH FORENSIC SUMMARY" : GetMaskedAccount(acc))
                             </MudText>
                         }
                     </div>
@@ -171,7 +182,7 @@
             <FooterContent>
             </FooterContent>
             <PagerContent>
-                @if (!_loading && _transactions.Any(FilterFunc1))
+                @if (!_loading && _transactions.Any(FilterFunc1) && _table != null && ((_table.CurrentPage + 1) * _table.RowsPerPage >= _table.GetFilteredItemsCount()))
                 {
                     <div class="fmc-end-of-stream-wrap" style="padding: 20px 0;">
                         <div class="fmc-end-indicator">
@@ -189,6 +200,7 @@
 </div>
 
 @code {
+    private MudTable<TransactionDto> _table = default!;
     private List<TransactionDto> _transactions = new();
     private string _searchString = "";
     private TransactionDto? _selectedItem;
@@ -198,12 +210,17 @@
     [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private ICurrentUserService CurrentUserService { get; set; } = default!;
+    [Inject] private AdminService AdminService { get; set; } = default!;
 
     private bool _loading = true;
+    private List<UserDto> _allUsers = new();
 
     protected override async Task OnInitializedAsync()
     {
         if (!RendererInfo.IsInteractive) return;
+        try {
+            _allUsers = await AdminService.GetUsersAsync();
+        } catch { }
         await LoadTransactions();
     }
 
@@ -309,6 +326,10 @@
                 break;
             case "30d":
                 _startDate = today.AddDays(-30);
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            case "1y":
+                _startDate = today.AddYears(-1);
                 _endDate = today.AddDays(1).AddTicks(-1);
                 break;
             default:

@@ -199,20 +199,37 @@
                     </MudTh>
                 </GroupHeaderTemplate>
                 <RowTemplate Context="staff">
-                    <MudTd>
+                    <MudTd Style="@(!staff.IsActive ? "opacity: 0.55;" : "")">
                         <div class="d-flex align-center">
-                            <MudAvatar Color="Color.Default" Class="mr-4 staff staff-avatar" Style="@($"background-color: {GetAvatarColor(staff.DisplayName)} !important; color: white; font-weight: 950; font-size: 0.85rem; width: 40px; height: 40px;")">@(GetInitials(staff))</MudAvatar>
+                            <div style="position: relative;">
+                                <MudAvatar Color="Color.Default" Class="@($"mr-4 staff staff-avatar fmc-avatar-{GetAvatarIndex(staff.DisplayName)}")" Style="@($"color: white; font-weight: 950; font-size: 0.85rem; width: 40px; height: 40px; {(!staff.IsActive ? "filter: grayscale(80%);" : "")}")">@(GetInitials(staff))</MudAvatar>
+                                @if (!staff.IsActive)
+                                {
+                                    <div style="position: absolute; bottom: 0; right: 12px; width: 11px; height: 11px; background: var(--mud-palette-error); border-radius: 50%; border: 2px solid var(--mud-palette-surface);" title="Account Suspended"></div>
+                                }
+                                else
+                                {
+                                    <div style="position: absolute; bottom: 0; right: 12px; width: 11px; height: 11px; background: var(--mud-palette-success); border-radius: 50%; border: 2px solid var(--mud-palette-surface);" title="Account Active"></div>
+                                }
+                            </div>
                             <div class="d-flex flex-column">
-                                <MudText Typo="Typo.body2" Class="fmc-staff-name">@staff.DisplayName</MudText>
+                                <div class="d-flex align-center gap-2">
+                                    <MudText Typo="Typo.body2" Class="fmc-staff-name">@staff.DisplayName</MudText>
+                                    @if (!staff.IsActive)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled"
+                                                 Style="height: 16px; font-size: 0.55rem; font-weight: 900; letter-spacing: 0.05em; padding: 0 6px; margin: 0; text-transform: uppercase;">SUSPENDED</MudChip>
+                                    }
+                                </div>
                                 <MudText Typo="Typo.caption" Class="fmc-staff-email">@staff.Email</MudText>
                             </div>
                         </div>
                     </MudTd>
-                    <MudTd>
+                    <MudTd Style="@(!staff.IsActive ? "opacity: 0.55;" : "")">
                         <MudText Typo="Typo.body2" Class="fmc-org-name">@(staff.Organization ?? "SYSTEM CORE")</MudText>
                         <MudText Typo="Typo.caption" Class="fmc-org-sub">Institutional Entity</MudText>
                     </MudTd>
-                    <MudTd>
+                    <MudTd Style="@(!staff.IsActive ? "opacity: 0.55;" : "")">
                         <span class="fmc-role-tag @(staff.Role == Roles.SuperAdmin ? "admin" : (staff.Role == Roles.CEO ? "ceo" : (staff.Role == Roles.Maker ? "maker" : "approver")))">@staff.Role</span>
                     </MudTd>
                     @if (_isCEOOrAdmin)
@@ -335,7 +352,7 @@
                             <div class="fmc-mobile-header pa-4">
                                 <div class="d-flex justify-space-between align-start">
                                     <div class="d-flex gap-3">
-                                        <MudAvatar Color="Color.Default" Style="@($"background-color: {GetAvatarColor(user.DisplayName)} !important; color: white; font-weight: 950;")">@(GetInitials(user))</MudAvatar>
+                                        <MudAvatar Color="Color.Default" Class="@($"fmc-avatar-{GetAvatarIndex(user.DisplayName)}")" Style="color: white; font-weight: 950;">@(GetInitials(user))</MudAvatar>
                                         <div class="d-flex flex-column">
                                             <div class="fmc-mobile-name-row">
                                                 <MudText Typo="Typo.body1" Inline="true" Style="font-weight:950; letter-spacing:-0.02em;">@user.DisplayName</MudText>
@@ -524,10 +541,26 @@
 
     private string GetAvatarColor(string seed)
     {
-        // Premium Institutional Slate/Indigo/Teal Palette
-        string[] colors = { "#6366f1", "#4f46e5", "#4338ca", "#0f172a", "#334155", "#0d9488" };
+        // Theme-aware palette using semi-transparent colors that work in both light and dark modes.
+        // These are HSL-tuned to remain legible against white text regardless of background.
+        string[] colors =
+        {
+            "#6366f1", // Indigo
+            "#8b5cf6", // Violet
+            "#0891b2", // Cyan
+            "#0d9488", // Teal
+            "#059669", // Emerald
+            "#d97706", // Amber
+            "#dc2626", // Red
+            "#7c3aed", // Purple
+        };
         var index = Math.Abs(seed.GetHashCode()) % colors.Length;
         return colors[index];
+    }
+
+    private int GetAvatarIndex(string seed)
+    {
+        return Math.Abs(seed.GetHashCode()) % 8;
     }
 
     private string GetInitials(UserDto user)

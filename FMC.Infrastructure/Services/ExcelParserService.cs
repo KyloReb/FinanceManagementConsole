@@ -62,10 +62,28 @@ public class ExcelParserService : IExcelParserService
                 var subscriber = worksheet.Cell(r, 1).GetValue<string>()?.Trim() ?? string.Empty;
                 var cardNumber = worksheet.Cell(r, 2).GetValue<string>()?.Trim() ?? string.Empty;
                 
+                // Skip completely empty rows
                 if (string.IsNullOrWhiteSpace(subscriber) && string.IsNullOrWhiteSpace(cardNumber))
                 {
                     continue;
                 }
+
+                // ── TOTALS ROW DETECTION ──────────────────────────────────────────────────
+                // Skip rows that look like summary/totals rows commonly added at the bottom
+                // of Excel sheets (e.g., "TOTAL", "SUM", "GRAND TOTAL", "SUBTOTAL").
+                // Also skip rows where there is no card number but an amount is present,
+                // which is another common totals-row pattern.
+                var subscriberUpper = subscriber.ToUpperInvariant();
+                bool isTotalsRow = subscriberUpper.Contains("TOTAL") 
+                                || subscriberUpper.Contains("SUM") 
+                                || subscriberUpper.Contains("GRAND") 
+                                || subscriberUpper.Contains("SUBTOTAL")
+                                || (string.IsNullOrWhiteSpace(cardNumber) && !string.IsNullOrWhiteSpace(subscriber));
+                if (isTotalsRow)
+                {
+                    continue;
+                }
+                // ─────────────────────────────────────────────────────────────────────────
 
                 decimal amount = 0;
                 string? validationError = null;

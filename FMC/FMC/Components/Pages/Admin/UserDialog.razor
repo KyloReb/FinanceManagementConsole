@@ -17,6 +17,48 @@
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="@_success" @bind-Errors="@_errors">
             <MudGrid Spacing="2">
+                @* ── ACCOUNT STATUS CARD (Edit mode only, shown at top for immediate context) ── *@
+                @if (User != null)
+                {
+                    <MudItem xs="12">
+                        <div style="border: 2px solid @(_model.IsActive ? "rgba(76, 175, 80, 0.4)" : "rgba(244, 67, 54, 0.4)"); border-radius: 14px; padding: 14px 16px; background: @(_model.IsActive ? "rgba(76, 175, 80, 0.05)" : "rgba(244, 67, 54, 0.05)"); transition: all 0.3s ease;">
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center gap-3">
+                                    <div style="position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: @(_model.IsActive ? "rgba(76,175,80,0.12)" : "rgba(244,67,54,0.12)"); border-radius: 50%;">
+                                        <MudIcon Icon="@(_model.IsActive ? Icons.Material.Filled.VerifiedUser : Icons.Material.Filled.PersonOff)" 
+                                                 Style="@($"color: {(_model.IsActive ? "var(--mud-palette-success)" : "var(--mud-palette-error)")}; font-size: 1.3rem;")" />
+                                        @if (_model.IsActive)
+                                        {
+                                            <div style="position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: var(--mud-palette-success); border-radius: 50%; border: 2px solid var(--mud-palette-surface); animation: pulse 2s infinite;"></div>
+                                        }
+                                        else
+                                        {
+                                            <div style="position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: var(--mud-palette-error); border-radius: 50%; border: 2px solid var(--mud-palette-surface);"></div>
+                                        }
+                                    </div>
+                                    <div>
+                                        <div class="d-flex align-center gap-2">
+                                            <MudText Style="font-weight: 900; font-size: 0.9rem;">Account Status</MudText>
+                                            <MudChip T="string" Size="Size.Small" 
+                                                     Color="@(_model.IsActive ? Color.Success : Color.Error)" 
+                                                     Variant="Variant.Filled"
+                                                     Style="height: 18px; font-size: 0.6rem; font-weight: 900; letter-spacing: 0.06em; padding: 0 8px; margin: 0; text-transform: uppercase;">
+                                                @(_model.IsActive ? "ACTIVE" : "SUSPENDED")
+                                            </MudChip>
+                                        </div>
+                                        <MudText Typo="Typo.caption" Style="opacity: 0.65; font-weight: 700;">
+                                            @(_model.IsActive ? "User can log in and access the system." : "Login blocked. Access is fully revoked.")
+                                        </MudText>
+                                    </div>
+                                </div>
+                                <MudSwitch @bind-Value="_model.IsActive" Color="Color.Success" 
+                                           Disabled="@(User != null && User.Role == Roles.SuperAdmin)" />
+                            </div>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="12"><MudDivider /></MudItem>
+                }
+
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="_model.FirstName" Label="First Name" 
                                   Variant="Variant.Outlined" Required="true" RequiredError="First name is required" />
@@ -98,11 +140,6 @@
                     }
                     .fmc-roles-select .mud-list-item { padding-top: 4px; padding-bottom: 4px; }
                 </style>
-                
-                <MudItem xs="12">
-                    <MudSwitch @bind-Value="_model.IsActive" Label="Account Active" Color="Color.Success" 
-                               Disabled="@(User != null && User.Role == Roles.SuperAdmin)" />
-                </MudItem>
             </MudGrid>
         </MudForm>
     </DialogContent>

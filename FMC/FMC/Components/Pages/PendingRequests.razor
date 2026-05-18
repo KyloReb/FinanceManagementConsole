@@ -119,8 +119,53 @@
     {
         if (_loading)
         {
-            <div class="d-flex justify-center pa-12">
-                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+            <div class="pa-6 w-100">
+                <!-- Skeleton Toolbar -->
+                <div class="d-flex align-center justify-space-between mb-6 px-2">
+                    <MudSkeleton Width="200px" Height="28px" Animation="Animation.Pulse" />
+                    <div class="d-flex gap-3">
+                        <MudSkeleton Width="280px" Height="40px" Animation="Animation.Pulse" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 12px;" />
+                    </div>
+                </div>
+                
+                <!-- Skeleton Table Header -->
+                <div class="d-flex mb-2 px-6 pb-4" style="border-bottom: 2px solid var(--mud-palette-divider);">
+                    <MudSkeleton Width="12%" Height="18px" Class="mr-4" />
+                    <MudSkeleton Width="35%" Height="18px" Class="mr-4" />
+                    <MudSkeleton Width="15%" Height="18px" Class="mr-4" />
+                    <MudSkeleton Width="15%" Height="18px" Class="mr-4" />
+                    <MudSkeleton Width="23%" Height="18px" />
+                </div>
+                
+                <!-- Skeleton Rows -->
+                @for (int i = 0; i < 6; i++)
+                {
+                    <div class="d-flex align-center px-6 py-4" style="border-bottom: 1px solid rgba(var(--mud-palette-divider-rgb), 0.3);">
+                        <div class="mr-4" style="width: 12%;">
+                            <MudSkeleton Width="60%" Height="20px" Class="mb-1" />
+                            <MudSkeleton Width="80%" Height="14px" />
+                        </div>
+                        <div class="mr-4" style="width: 35%;">
+                            <MudSkeleton Width="50%" Height="20px" Class="mb-1" />
+                            <MudSkeleton Width="30%" Height="14px" />
+                        </div>
+                        <div class="mr-4" style="width: 15%;">
+                            <div class="d-flex align-center">
+                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="24px" Height="24px" Class="mr-2" />
+                                <MudSkeleton Width="60%" Height="18px" />
+                            </div>
+                        </div>
+                        <div class="mr-4" style="width: 15%;">
+                            <MudSkeleton Width="70%" Height="24px" />
+                        </div>
+                        <div style="width: 23%;">
+                            <div class="d-flex gap-2">
+                                <MudSkeleton Width="100px" Height="32px" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 8px;" />
+                                <MudSkeleton Width="100px" Height="32px" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 8px;" />
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         }
         else if (!groups.Any())
@@ -269,16 +314,21 @@
                     <MudTd DataLabel="Action" @onclick:stopPropagation="true">
                         @if (status == "Pending" && _isApprover && context.Transactions.Any(t => t.MakerId != _currentUserId))
                         {
+                            var groupId = context.BatchId?.ToString() ?? context.Transactions.FirstOrDefault()?.Id.ToString();
+                            var isThisApproveProcessing = _processingGroupId == groupId && _processingIsApprove;
+                            var isThisRejectProcessing = _processingGroupId == groupId && !_processingIsApprove;
+                            var isAnyProcessing = _processingGroupId != null;
+
                             <div class="d-flex gap-2">
                                 <MudButton Variant="Variant.Filled" 
                                            Size="Size.Small" 
-                                           StartIcon="@Icons.Material.Filled.Check" 
+                                           StartIcon="@(isThisApproveProcessing ? null : Icons.Material.Filled.Check)" 
                                            OnClick="@(() => HandleGroupApprovalAsync(context, approve: true))" 
-                                           Disabled="_isProcessing"
-                                           Style="background-color: #2e7d32; color: #ffffff; border-radius: 8px; font-weight: 800; text-transform: none; opacity: 0.9; min-width: 120px;">
-                                    @if (_isProcessing)
+                                           Disabled="isAnyProcessing"
+                                           Style="background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; border-radius: 8px; font-weight: 800; text-transform: none; min-width: 120px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); border: none;">
+                                    @if (isThisApproveProcessing)
                                     {
-                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Color="Color.Surface" />
                                         <span>...</span>
                                     }
                                     else
@@ -286,14 +336,21 @@
                                         <span>@(context.BatchId.HasValue ? "Approve Batch" : "Approve")</span>
                                     }
                                 </MudButton>
-                                <MudButton Variant="Variant.Outlined" 
-                                           Color="Color.Error" 
+                                <MudButton Variant="Variant.Filled" 
                                            Size="Size.Small" 
-                                           StartIcon="@Icons.Material.Filled.Close" 
+                                           StartIcon="@(isThisRejectProcessing ? null : Icons.Material.Filled.Close)" 
                                            OnClick="@(() => HandleGroupApprovalAsync(context, approve: false))" 
-                                           Disabled="_isProcessing"
-                                           Style="border-radius: 8px; font-weight: 800; text-transform: none;">
-                                    @(context.BatchId.HasValue ? "Reject Batch" : "Reject")
+                                           Disabled="isAnyProcessing"
+                                           Style="background: linear-gradient(135deg, #dc2626, #ef4444); color: #ffffff; border-radius: 8px; font-weight: 800; text-transform: none; min-width: 110px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3); border: none;">
+                                    @if (isThisRejectProcessing)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Color="Color.Surface" />
+                                        <span>...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(context.BatchId.HasValue ? "Reject Batch" : "Reject")</span>
+                                    }
                                 </MudButton>
                             </div>
                         }
@@ -334,6 +391,17 @@
                     }
                 </ChildRowContent>
 
+                <NoRecordsContent>
+                    <div class="fmc-empty-state pt-16 pb-16" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; overflow: hidden; border: none; background: transparent !important;">
+                        <div class="fmc-empty-glow" style="position: absolute; width: 220px; height: 220px; background: radial-gradient(circle, rgba(var(--mud-palette-primary-rgb), 0.08) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1;"></div>
+                        <div class="mb-4" style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 50%; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 10px 25px rgba(var(--mud-palette-primary-rgb), 0.05);">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Style="font-size: 2.2rem; color: var(--mud-palette-primary);" />
+                        </div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; z-index: 2; color: var(--mud-palette-text-primary);">No Matching Transactions</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="max-width: 320px; line-height: 1.6; font-weight: 500; z-index: 2;">Your search filters did not yield any results. Try refining your keywords or expanding your date range query.</MudText>
+                    </div>
+                </NoRecordsContent>
+
                 <PagerContent>
                     <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" />
                 </PagerContent>
@@ -348,25 +416,26 @@
     :root { --fmc-font-premium: 'Inter', -apple-system, sans-serif; }
     /* Main Integrated Ledger Surfaces - Adaptive */
     .fmc-light-mode .fmc-integrated-ledger { 
-        background-color: #f1f5f9 !important;
-        border: 1px solid rgba(0, 0, 0, 0.08) !important;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
+        border: 1px solid rgba(148, 163, 184, 0.15) !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
     }
 
     .fmc-dark-mode .fmc-integrated-ledger { 
-        background-color: var(--mud-palette-surface) !important;
+        background: linear-gradient(145deg, var(--mud-palette-surface), rgba(20, 22, 30, 0.95)) !important;
         border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(12px);
     }
 
-    .fmc-integrated-ledger { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; background-color: var(--mud-palette-surface); }
+    .fmc-integrated-ledger { border-radius: 20px; overflow: hidden; }
     
-    .fmc-custom-tab-bar { display: flex; width: 100%; background: rgba(var(--mud-palette-primary-rgb), 0.04); height: 64px; border-bottom: 2px solid var(--mud-palette-divider); }
-    .fmc-tab-btn { flex: 1; border: none; background: transparent; color: var(--mud-palette-text-secondary); font-weight: 900; font-size: 0.75rem; letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; border-right: 1px solid rgba(var(--mud-palette-divider-rgb), 0.1); outline: none; }
+    .fmc-custom-tab-bar { display: flex; width: 100%; background: linear-gradient(90deg, rgba(var(--mud-palette-primary-rgb), 0.06), transparent); height: 64px; border-bottom: 1px solid rgba(var(--mud-palette-divider-rgb), 0.5); }
+    .fmc-tab-btn { flex: 1; border: none; background: transparent; color: var(--mud-palette-text-secondary); font-weight: 900; font-size: 0.75rem; letter-spacing: 0.1em; display: flex; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-right: 1px solid rgba(var(--mud-palette-divider-rgb), 0.1); outline: none; }
     .fmc-tab-btn:last-child { border-right: none; }
-    .fmc-tab-btn:hover { background: rgba(var(--mud-palette-primary-rgb), 0.02); color: var(--mud-palette-text-primary); }
-    .fmc-tab-btn.active { color: var(--mud-palette-primary); background: rgba(var(--mud-palette-primary-rgb), 0.06); position: relative; }
-    .fmc-tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: var(--mud-palette-primary); }
+    .fmc-tab-btn:hover { background: rgba(var(--mud-palette-primary-rgb), 0.03); color: var(--mud-palette-text-primary); text-shadow: 0 0 12px rgba(var(--mud-palette-primary-rgb), 0.2); }
+    .fmc-tab-btn.active { color: var(--mud-palette-primary); background: linear-gradient(180deg, transparent, rgba(var(--mud-palette-primary-rgb), 0.08)); position: relative; text-shadow: 0 0 16px rgba(var(--mud-palette-primary-rgb), 0.3); }
+    .fmc-tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--mud-palette-primary), var(--mud-palette-info)); border-radius: 4px 4px 0 0; }
     .fmc-tab-content { min-height: auto; background: transparent !important; }
     
     /* Native Compact Range Picker */
@@ -397,10 +466,11 @@
     .fmc-card-mono { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; background: rgba(var(--mud-palette-background-grey-rgb), 0.6); padding: 5px 10px; border-radius: 8px; opacity: 0.9; border: 1px solid var(--mud-palette-divider); color: var(--mud-palette-primary); }
     .fmc-empty-state { border: none; background: transparent !important; }
     
-    .fmc-enterprise-btn { border-radius: 12px !important; height: 44px !important; padding: 0 20px !important; font-weight: 800 !important; text-transform: none !important; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important; font-size: 0.85rem !important; box-shadow: none !important; border: 1px solid transparent !important; }
-    .fmc-enterprise-btn:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
-    .fmc-enterprise-btn.secondary { background-color: var(--mud-palette-surface) !important; border-color: var(--mud-palette-divider) !important; color: var(--mud-palette-text-primary) !important; }
-    .fmc-enterprise-btn.info { background-color: rgba(var(--mud-palette-info-rgb), 0.1) !important; color: var(--mud-palette-info) !important; border-color: rgba(var(--mud-palette-info-rgb), 0.2) !important; }
+    .fmc-enterprise-btn { border-radius: 12px !important; height: 44px !important; padding: 0 20px !important; font-weight: 800 !important; text-transform: none !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; font-size: 0.85rem !important; border: none !important; }
+    .fmc-enterprise-btn.mud-button-filled-primary { background: linear-gradient(135deg, var(--mud-palette-primary), #6366f1) !important; box-shadow: 0 4px 14px rgba(var(--mud-palette-primary-rgb), 0.35) !important; }
+    .fmc-enterprise-btn:hover { transform: translateY(-2px); filter: brightness(1.15); box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; }
+    .fmc-enterprise-btn.secondary { background: linear-gradient(135deg, rgba(var(--mud-palette-surface-rgb), 1), rgba(var(--mud-palette-surface-rgb), 0.8)) !important; border: 1px solid rgba(var(--mud-palette-text-primary-rgb), 0.1) !important; color: var(--mud-palette-text-primary) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
+    .fmc-enterprise-btn.info { background: linear-gradient(135deg, #0284c7, #38bdf8) !important; color: white !important; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important; }
 
     .cursor-pointer { cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
     .cursor-pointer:hover { background-color: rgba(var(--mud-palette-primary-rgb), 0.04) !important; transform: scale(1.002); }
@@ -524,7 +594,8 @@
 
     // UI State
     private bool _loading = true;
-    private bool _isProcessing = false;
+    private string? _processingGroupId = null;
+    private bool _processingIsApprove = false;
     private bool _showErrorOverlay = false;
     private string _errorTitle = "";
     private string _errorSubtext = "";
@@ -769,7 +840,8 @@
 
         try
         {
-            _isProcessing = true;
+            _processingGroupId = tx.Id.ToString();
+            _processingIsApprove = approve;
             StateHasChanged();
 
             var success = approve 
@@ -789,7 +861,7 @@
         }
         finally
         {
-            _isProcessing = false;
+            _processingGroupId = null;
             StateHasChanged();
         }
     }
@@ -810,7 +882,8 @@
 
         try
         {
-            _isProcessing = true;
+            _processingGroupId = group.BatchId?.ToString() ?? group.Transactions.FirstOrDefault()?.Id.ToString();
+            _processingIsApprove = approve;
             StateHasChanged();
 
             if (group.BatchId.HasValue)
@@ -822,13 +895,23 @@
                 }
                 else
                 {
-                    // Confirmation Prompt for Batch Rejection
-                    bool? confirm = await DialogService.ShowMessageBoxAsync(
-                        "Confirm Batch Rejection", 
-                        $"Are you sure you want to reject this entire batch of {group.Transactions.Count} requests?", 
-                        yesText: "Yes, Reject All", cancelText: "No, Cancel");
+                    string rejectMarkup = $@"
+                        <div class='d-flex flex-column align-center text-center pt-6 pb-2 px-2'>
+                            <div class='mb-4' style='background: rgba(239,68,68,0.1); border-radius: 50%; width:72px; height:72px; display:flex; align-items:center; justify-content:center; box-shadow: 0 0 20px rgba(239,68,68,0.2);'>
+                                <svg style='width:36px;height:36px;color:#ef4444;' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'></circle><line x1='15' y1='9' x2='9' y2='15'></line><line x1='9' y1='9' x2='15' y2='15'></line></svg>
+                            </div>
+                            <h3 style='font-weight:900;letter-spacing:0.05em;font-size:1.1rem;color:var(--mud-palette-text-primary);margin-bottom:8px;'>REJECT BATCH ALLOTMENT</h3>
+                            <p style='color:var(--mud-palette-text-secondary);font-size:0.85rem;line-height:1.6;max-width:280px;'>Are you sure you want to reject this entire batch of {group.Transactions.Count} requests? This action cannot be reversed.</p>
+                        </div>
+                    ";
+                    var rejectOptions = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, NoHeader = true };
+                    bool? confirm = await DialogService.ShowMessageBoxAsync(title: default, markupMessage: new MarkupString(rejectMarkup), yesText: "Confirm Reject", cancelText: "Go Back", options: rejectOptions);
                     
-                    if (confirm != true) return;
+                    if (confirm != true) 
+                    {
+                        _processingGroupId = null;
+                        return;
+                    }
 
                     // Require rejection reasoning for entire batches
                     var parameters = new DialogParameters { ["ContentText"] = "Enter rejection reason for this entire batch." };
@@ -860,7 +943,7 @@
         }
         finally
         {
-            _isProcessing = false;
+            _processingGroupId = null;
             StateHasChanged();
         }
     }

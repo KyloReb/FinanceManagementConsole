@@ -3,7 +3,7 @@
 @using FMC.Shared.Auth
 @using FMC.Shared.DTOs.Admin
 @using FMC.Components.Pages.Admin.Dialogs
-@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
 @inject OrganizationApiService OrgService
 @inject ThemeService ThemeService
 @inject ISnackbar Snackbar
@@ -203,11 +203,39 @@
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
-                        <div class="fmc-empty-state">
+                        <div class="fmc-empty-state premium-empty-state pa-8 d-flex flex-column align-center justify-center">
                             <div class="fmc-empty-glow"></div>
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-empty-icon" />
-                            <MudText Typo="Typo.h6" Class="fmc-empty-title">No matching forensic records</MudText>
-                            <MudText Typo="Typo.body2" Class="fmc-empty-subtitle">Your tactical query did not yield any results in the current stream.</MudText>
+                            
+                            <div class="fmc-scanner-container mb-4">
+                                <div class="fmc-scanner-ring ring-1"></div>
+                                <div class="fmc-scanner-ring ring-2"></div>
+                                <div class="fmc-scanner-line"></div>
+                                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-premium-empty-icon" />
+                            </div>
+
+                            <MudText Typo="Typo.h6" Class="fmc-empty-title fmc-gradient-text" Style="font-weight: 900; letter-spacing: -0.02em;">No Matching Forensic Traces</MudText>
+                            
+                            @if (!string.IsNullOrWhiteSpace(_searchString))
+                            {
+                                <MudText Typo="Typo.body2" Class="fmc-empty-subtitle px-4 py-2 mt-2 fmc-query-badge">
+                                    No records matched: <span class="fmc-query-highlight">"@_searchString"</span>
+                                </MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Class="fmc-empty-subtitle mt-2">No activities recorded within the selected parameters.</MudText>
+                            }
+
+                            <div class="mt-6">
+                                <MudButton Variant="Variant.Filled" 
+                                           Color="Color.Primary" 
+                                           StartIcon="@Icons.Material.Filled.SettingsBackupRestore" 
+                                           OnClick="ResetSearchFilters" 
+                                           Class="fmc-btn-premium-action px-6 py-2"
+                                           Style="border-radius: 12px; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em;">
+                                    RESET SEARCH FILTERS
+                                </MudButton>
+                            </div>
                         </div>
                     </NoRecordsContent>
                     <PagerContent>
@@ -227,50 +255,90 @@
         }
         else
         {
-            @* MOBILE FOrensIC DOSSIER LIST *@
-            <div class="d-flex flex-column gap-2 mb-10">
-                @foreach (var log in _searchResult.Items)
-                {
-                    <div class="fmc-audit-mobile-card" @onclick="@(() => ShowDetail(log))">
-                        <div class="fmc-mobile-top pa-3 d-flex justify-space-between align-center">
-                            <div class="d-flex align-center gap-2">
-                                @{
-                                    var isCredit = log.Action == "CREDIT";
-                                    var isDebit = log.Action == "DEBIT";
-                                    var colorClass = isCredit ? "success" : (isDebit ? "error" : "info");
-                                }
-                                <div class="fmc-audit-pulse @colorClass"></div>
-                                <MudText Style="font-weight:950; font-size:0.75rem; text-transform:uppercase;">@log.Action</MudText>
-                            </div>
-                            <div class="text-right d-flex flex-column">
-                                <MudText Style="font-weight:950; font-size:0.7rem;">@log.CreatedAt.ToLocalTime().ToString("HH:mm")</MudText>
-                                <MudText Style="font-size:0.55rem; opacity:0.6; font-weight:800; margin-top:-2px;">@log.CreatedAt.ToLocalTime().ToString("MM/dd")</MudText>
-                            </div>
-                        </div>
-                        <div class="fmc-mobile-mid px-3 pb-3 pt-1">
-                            <div class="d-flex justify-space-between align-end">
-                                <div class="flex-grow-1 mr-4 overflow-hidden">
-                                     <MudText Style="font-size:0.55rem; font-weight:900; opacity:0.5; letter-spacing:0.05em; text-transform:uppercase; display:block;">Context</MudText>
-                                     <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(log.EntityName ?? log.Organization ?? "System")</MudText>
-                                </div>
-                                <div class="text-right">
-                                    @if (log.Amount.HasValue)
-                                    {
-                                        <MudText Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:0.8rem;" 
-                                                 Color="@(isCredit ? Color.Success : Color.Error)">
-                                            @(isCredit ? "+" : "-")₱@log.Amount.Value.ToString("N0")
-                                        </MudText>
-                                    }
-                                    else
-                                    {
-                                         <MudText Style="font-size:0.7rem; font-weight:950; opacity:0.3;">TRACE ONLY</MudText>
-                                    }
-                                </div>
-                            </div>
-                        </div>
+            @if (!_searchResult.Items.Any(FilterFunc))
+            {
+                <div class="fmc-empty-state premium-empty-state pa-8 d-flex flex-column align-center justify-center">
+                    <div class="fmc-empty-glow"></div>
+                    
+                    <div class="fmc-scanner-container mb-4">
+                        <div class="fmc-scanner-ring ring-1"></div>
+                        <div class="fmc-scanner-ring ring-2"></div>
+                        <div class="fmc-scanner-line"></div>
+                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-premium-empty-icon" />
                     </div>
-                }
-            </div>
+
+                    <MudText Typo="Typo.h6" Class="fmc-empty-title fmc-gradient-text" Style="font-weight: 900; letter-spacing: -0.02em;">No Forensic Traces</MudText>
+                    
+                    @if (!string.IsNullOrWhiteSpace(_searchString))
+                    {
+                        <MudText Typo="Typo.body2" Class="fmc-empty-subtitle px-4 py-2 mt-2 fmc-query-badge">
+                            No records matched: <span class="fmc-query-highlight">"@_searchString"</span>
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="fmc-empty-subtitle mt-2">No activities recorded within the selected parameters.</MudText>
+                    }
+
+                    <div class="mt-6">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.SettingsBackupRestore" 
+                                   OnClick="ResetSearchFilters" 
+                                   Class="fmc-btn-premium-action px-6 py-2"
+                                   Style="border-radius: 12px; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em;">
+                                    RESET SEARCH FILTERS
+                        </MudButton>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @* MOBILE FOrensIC DOSSIER LIST *@
+                <div class="d-flex flex-column gap-2 mb-10">
+                    @foreach (var log in _searchResult.Items.Where(FilterFunc))
+                    {
+                        <div class="fmc-audit-mobile-card" @onclick="@(() => ShowDetail(log))">
+                            <div class="fmc-mobile-top pa-3 d-flex justify-space-between align-center">
+                                <div class="d-flex align-center gap-2">
+                                    @{
+                                        var isCredit = log.Action == "CREDIT";
+                                        var isDebit = log.Action == "DEBIT";
+                                        var colorClass = isCredit ? "success" : (isDebit ? "error" : "info");
+                                    }
+                                    <div class="fmc-audit-pulse @colorClass"></div>
+                                    <MudText Style="font-weight:950; font-size:0.75rem; text-transform:uppercase;">@log.Action</MudText>
+                                </div>
+                                <div class="text-right d-flex flex-column">
+                                    <MudText Style="font-weight:950; font-size:0.7rem;">@log.CreatedAt.ToLocalTime().ToString("HH:mm")</MudText>
+                                    <MudText Style="font-size:0.55rem; opacity:0.6; font-weight:800; margin-top:-2px;">@log.CreatedAt.ToLocalTime().ToString("MM/dd")</MudText>
+                                </div>
+                            </div>
+                            <div class="fmc-mobile-mid px-3 pb-3 pt-1">
+                                <div class="d-flex justify-space-between align-end">
+                                    <div class="flex-grow-1 mr-4 overflow-hidden">
+                                         <MudText Style="font-size:0.55rem; font-weight:900; opacity:0.5; letter-spacing:0.05em; text-transform:uppercase; display:block;">Context</MudText>
+                                         <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(log.EntityName ?? log.Organization ?? "System")</MudText>
+                                    </div>
+                                    <div class="text-right">
+                                        @if (log.Amount.HasValue)
+                                        {
+                                            <MudText Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:0.8rem;" 
+                                                     Color="@(isCredit ? Color.Success : Color.Error)">
+                                                @(isCredit ? "+" : "-")₱@log.Amount.Value.ToString("N0")
+                                            </MudText>
+                                        }
+                                        else
+                                        {
+                                             <MudText Style="font-size:0.7rem; font-weight:950; opacity:0.3;">TRACE ONLY</MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         }
     }
     </MudPaper>
@@ -419,22 +487,41 @@
         }
     }
 
+    private string GetActiveFilterString()
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_searchString)) parts.Add($"Query: '{_searchString.Trim()}'");
+        parts.Add($"Category: {(_query.Category?.ToUpper() ?? "ALL")}");
+        parts.Add($"Date: {_dateRange.Start:MM/dd/yyyy} to {(_dateRange.End ?? DateTime.Today):MM/dd/yyyy}");
+        return string.Join(" | ", parts);
+    }
+
     private async Task ExportExcel()
     {
-        var filteredData = _searchResult.Items.Where(FilterFunc).ToList();
+        var filteredData = _table?.FilteredItems?.ToList() ?? _searchResult.Items.Where(FilterFunc).ToList();
         if (!filteredData.Any()) return;
-        var bytes = ReportService.GenerateAuditExcel("Forensic Intelligence Log", filteredData);
+        var bytes = ReportService.GenerateAuditExcel("Forensic Intelligence Log", filteredData, GetActiveFilterString());
         await DownloadFile("AuditIntelligence.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         Snackbar.Add("Forensic log exported as Excel successfully.", Severity.Success);
     }
 
     private async Task ExportPdf()
     {
-        var filteredData = _searchResult.Items.Where(FilterFunc).ToList();
+        var filteredData = _table?.FilteredItems?.ToList() ?? _searchResult.Items.Where(FilterFunc).ToList();
         if (!filteredData.Any()) return;
-        var bytes = ReportService.GenerateAuditPdf("Forensic Intelligence Log", filteredData);
+        var bytes = ReportService.GenerateAuditPdf("Forensic Intelligence Log", filteredData, GetActiveFilterString());
         await DownloadFile("AuditIntelligence.pdf", bytes, "application/pdf");
         Snackbar.Add("Forensic log exported as PDF successfully.", Severity.Success);
+    }
+
+    private async Task ResetSearchFilters()
+    {
+        _searchString = "";
+        _query.Category = null;
+        var today = DateTime.Today;
+        _dateRange = new DateRange(today.AddDays(-7), today);
+        _activeDateRange = "7d";
+        await PerformSearch();
     }
 
     private async Task DownloadFile(string fileName, byte[] content, string contentType)

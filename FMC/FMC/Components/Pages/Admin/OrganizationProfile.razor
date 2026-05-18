@@ -3,6 +3,7 @@
 @using FMC.Shared.DTOs.Organization
 @using FMC.Shared.DTOs.User
 @using FMC.Services.Api
+@using FMC.Services
 @using FMC.Components.Dashboard
 @using MudBlazor
 @attribute [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")]
@@ -11,16 +12,125 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthProvider
+@inject IReportService ReportService
+@inject IJSRuntime JS
 
 <PageTitle>Subscriber Profile | FMC</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12">
     @if (_loading)
     {
-        <div class="d-flex flex-column align-center justify-center py-20">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">Retrieving subscriber ledger...</MudText>
+        <style>
+            .profile-skel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+            .fmc-skel { background: rgba(var(--mud-palette-primary-rgb), 0.08); border-radius: 8px; position: relative; overflow: hidden; }
+            .fmc-skel::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); animation: fmc-shimmer 1.5s infinite; }
+            .fmc-skel-line { height: 12px; margin-bottom: 8px; }
+            @@keyframes fmc-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        </style>
+        <div class="profile-skel-header">
+            <div class="d-flex align-center">
+                <div class="fmc-skel" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 16px;"></div>
+                <div class="fmc-skel" style="width: 50px; height: 50px; border-radius: 12px; margin-right: 16px;"></div>
+                <div>
+                    <div class="fmc-skel fmc-skel-line" style="width: 250px; height: 32px; border-radius: 8px;"></div>
+                    <div class="fmc-skel fmc-skel-line" style="width: 150px; height: 16px; border-radius: 4px; margin-top: 8px;"></div>
+                </div>
+            </div>
+            <div class="fmc-skel" style="width: 120px; height: 36px; border-radius: 10px;"></div>
         </div>
+
+        <MudGrid>
+            <MudItem xs="12" md="4" lg="3">
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 mb-6">
+                    <div class="fmc-skel fmc-skel-line mb-6" style="width: 60%; height: 16px;"></div>
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <div class="mb-4">
+                            <div class="fmc-skel fmc-skel-line" style="width: 40%; height: 10px; margin-bottom: 6px;"></div>
+                            <div class="fmc-skel fmc-skel-line" style="width: 80%; height: 18px;"></div>
+                        </div>
+                    }
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 mb-6">
+                    <div class="fmc-skel fmc-skel-line mb-6" style="width: 70%; height: 16px;"></div>
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <div class="d-flex align-center gap-3 mb-4">
+                            <div class="fmc-skel" style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;"></div>
+                            <div style="flex-grow: 1;">
+                                <div class="fmc-skel fmc-skel-line" style="width: 50%; height: 12px; margin-bottom: 4px;"></div>
+                                <div class="fmc-skel fmc-skel-line" style="width: 70%; height: 10px; margin-bottom: 4px;"></div>
+                                <div class="fmc-skel fmc-skel-line" style="width: 30%; height: 14px; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="8" lg="9">
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 mb-6" Style="height: 180px;">
+                    <div class="d-flex align-center justify-space-between mb-6">
+                        <div>
+                            <div class="fmc-skel fmc-skel-line" style="width: 100px; height: 12px;"></div>
+                            <div class="fmc-skel fmc-skel-line mt-2" style="width: 220px; height: 32px;"></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="fmc-skel" style="width: 100px; height: 36px; border-radius: 8px;"></div>
+                            <div class="fmc-skel" style="width: 80px; height: 36px; border-radius: 8px;"></div>
+                            <div class="fmc-skel" style="width: 80px; height: 36px; border-radius: 8px;"></div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-center gap-3 mb-4">
+                        <div style="flex-grow: 1;">
+                            <div class="fmc-skel fmc-skel-line" style="width: 50px; height: 10px;"></div>
+                            <div class="fmc-skel fmc-skel-line mt-1" style="width: 150px; height: 20px;"></div>
+                        </div>
+                        <div class="fmc-skel" style="width: 1px; height: 30px; background: var(--mud-palette-divider);"></div>
+                        <div style="flex-grow: 1;">
+                            <div class="fmc-skel fmc-skel-line" style="width: 80px; height: 10px;"></div>
+                            <div class="fmc-skel fmc-skel-line mt-1" style="width: 180px; height: 20px;"></div>
+                        </div>
+                    </div>
+                    <div class="fmc-skel" style="width: 100%; height: 6px; border-radius: 3px;"></div>
+                </MudPaper>
+
+                <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 mb-6">
+                    <div class="d-flex align-center justify-space-between mb-6">
+                        <div>
+                            <div class="fmc-skel fmc-skel-line" style="width: 180px; height: 20px;"></div>
+                            <div class="fmc-skel fmc-skel-line mt-1" style="width: 250px; height: 12px;"></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="fmc-skel" style="width: 110px; height: 36px; border-radius: 8px;"></div>
+                            <div class="fmc-skel" style="width: 110px; height: 36px; border-radius: 8px;"></div>
+                        </div>
+                    </div>
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <div class="d-flex align-center pa-4" style="border-bottom: 1px solid var(--mud-palette-divider); gap: 24px;">
+                            <div style="flex:1;" class="d-flex align-center gap-3">
+                                <div class="fmc-skel" style="width:4px; height:24px;"></div>
+                                <div style="flex:1;">
+                                    <div class="fmc-skel fmc-skel-line mb-2" style="width:70%;"></div>
+                                    <div class="fmc-skel fmc-skel-line" style="width:40%;"></div>
+                                </div>
+                            </div>
+                            <div style="flex:1;">
+                                <div class="fmc-skel fmc-skel-line mb-2" style="width:80%;"></div>
+                                <div class="fmc-skel fmc-skel-line" style="width:50%;"></div>
+                            </div>
+                            <div style="flex:1;" class="d-flex justify-center">
+                                <div class="fmc-skel" style="width: 80px; height: 20px; border-radius: 10px;"></div>
+                            </div>
+                            <div style="flex:1;" class="text-right">
+                                <div class="fmc-skel fmc-skel-line ml-auto" style="width:80px; height: 18px;"></div>
+                            </div>
+                        </div>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
     }
     else if (_org == null)
     {
@@ -228,12 +338,9 @@
                     </div>
                 }
 
-                @if (_isApprover)
-                {
-                    <div class="mb-6">
-                        <PendingApprovalQueue OrganizationId="Id" />
-                    </div>
-                }
+                <div class="mb-6">
+                    <PendingApprovalQueue OrganizationId="Id" />
+                </div>
 
                 @if (_org.Name != "Nationlink/Infoserve Inc.")
                 {
@@ -401,6 +508,33 @@
     .fmc-mini-dot.active { background: var(--mud-palette-success); }
     .fmc-mini-dot.inactive { background: var(--mud-palette-error); }
     .fmc-sidebar-user-item:hover .mud-typography { color: var(--mud-palette-primary) !important; }
+
+    /* Filter Toolbar */
+    .fmc-filter-toolbar {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .fmc-qd-group { background: rgba(var(--mud-palette-background-grey-rgb),0.6); border-radius: 10px; padding: 3px; }
+    .fmc-qd-btn {
+        padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer;
+        font-size: 0.72rem; font-weight: 900; letter-spacing: 0.04em;
+        background: transparent; color: var(--mud-palette-text-secondary);
+        transition: all 0.2s;
+    }
+    .fmc-qd-btn:hover { background: rgba(var(--mud-palette-primary-rgb),0.08); color: var(--mud-palette-primary); }
+    .fmc-qd-btn.active { background: var(--mud-palette-primary); color: #fff; box-shadow: 0 2px 8px rgba(var(--mud-palette-primary-rgb),0.3); }
+    .fmc-filter-divider { width: 1px; height: 28px; background: var(--mud-palette-divider); margin: 0 4px; }
+    .fmc-date-field { display: flex; flex-direction: column; gap: 2px; }
+    .fmc-date-label { font-size: 0.58rem; font-weight: 900; letter-spacing: 0.08em; color: var(--mud-palette-text-secondary); opacity: 0.6; }
+    .fmc-date-input {
+        border: 1px solid var(--mud-palette-divider); border-radius: 8px;
+        padding: 5px 10px; font-size: 0.78rem; font-weight: 600;
+        background: transparent; color: var(--mud-palette-text-primary);
+        outline: none; transition: border-color 0.2s;
+    }
+    .fmc-date-input:focus { border-color: var(--mud-palette-primary); }
 </style>
 
 @code {
@@ -414,20 +548,100 @@
 
     private bool _isBalanceVisible = true;
     private string _searchString = "";
+
+    // Filter toolbar state
+    private string _activeDateFilter = "all";
+    private string? _activeCategory = null;
+    private DateTime? _filterStart = null;
+    private DateTime? _filterEnd = null;
+
     private bool FilterFunc(UserDto user)
     {
-        if (string.IsNullOrWhiteSpace(_searchString))
-            return true;
-        if (user.DisplayName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
-            return true;
-        if (user.Role?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
-            return true;
-        return false;
+        // Text search
+        if (!string.IsNullOrWhiteSpace(_searchString))
+        {
+            if (user.DisplayName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) != true &&
+                user.Role?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) != true)
+                return false;
+        }
+        // Category filter
+        if (_activeCategory == "financial" && user.Balance == 0) return false;
+        if (_activeCategory == "security" && user.IsActive) return false;
+        // Date filter: based on CreatedAt
+        if (_filterStart.HasValue && user.CreatedAt < _filterStart.Value) return false;
+        if (_filterEnd.HasValue && user.CreatedAt > _filterEnd.Value.AddDays(1).AddTicks(-1)) return false;
+        return true;
     }
 
     private void ToggleBalanceVisibility()
     {
         _isBalanceVisible = !_isBalanceVisible;
+    }
+
+    private void SetCategory(string? category)
+    {
+        _activeCategory = category;
+    }
+
+    private void SetDateFilter(string key)
+    {
+        _activeDateFilter = key;
+        var today = DateTime.Today;
+        (_filterStart, _filterEnd) = key switch
+        {
+            "today" => ((DateTime?)today, (DateTime?)today),
+            "7d"    => (today.AddDays(-7), today),
+            "30d"   => (today.AddDays(-30), today),
+            "1y"    => (today.AddYears(-1), today),
+            _       => ((DateTime?)null, (DateTime?)null), // "all"
+        };
+    }
+
+    private void OnStartDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        { _filterStart = dt; _activeDateFilter = "custom"; }
+    }
+
+    private void OnEndDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        { _filterEnd = dt; _activeDateFilter = "custom"; }
+    }
+
+    private async Task ExportXls()
+    {
+        if (_org == null || !_cardholders.Any()) { Snackbar.Add("No cardholder data to export.", Severity.Warning); return; }
+        var data = _cardholders.Where(FilterFunc).ToList();
+        var filterLabel = BuildFilterLabel();
+        var bytes = ReportService.GenerateCardholderExcel(_org.Name, data, filterLabel);
+        await DownloadFile($"Cardholders_{_org.Name.Replace(" ","_")}_{DateTime.Now:yyyyMMdd}.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        Snackbar.Add("Cardholder ledger exported as Excel.", Severity.Success);
+    }
+
+    private async Task ExportPdf()
+    {
+        if (_org == null || !_cardholders.Any()) { Snackbar.Add("No cardholder data to export.", Severity.Warning); return; }
+        var data = _cardholders.Where(FilterFunc).ToList();
+        var filterLabel = BuildFilterLabel();
+        var bytes = ReportService.GenerateCardholderPdf(_org.Name, data, filterLabel);
+        await DownloadFile($"CardholderAudit_{_org.Name.Replace(" ","_")}_{DateTime.Now:yyyyMMdd}.pdf", bytes, "application/pdf");
+        Snackbar.Add("Cardholder audit report downloaded.", Severity.Success);
+    }
+
+    private string BuildFilterLabel()
+    {
+        if (_filterStart.HasValue && _filterEnd.HasValue)
+            return $"Registered: {_filterStart:MM/dd/yyyy} – {_filterEnd:MM/dd/yyyy}";
+        if (_filterStart.HasValue) return $"From: {_filterStart:MM/dd/yyyy}";
+        if (_filterEnd.HasValue)   return $"To: {_filterEnd:MM/dd/yyyy}";
+        return "All Records";
+    }
+
+    private async Task DownloadFile(string fileName, byte[] content, string contentType)
+    {
+        using var streamRef = new DotNetStreamReference(new MemoryStream(content));
+        await JS.InvokeVoidAsync("fmc_downloadFile", fileName, contentType, streamRef);
     }
 
     private bool _isMaker;

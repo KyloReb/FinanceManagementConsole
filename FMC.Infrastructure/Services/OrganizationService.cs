@@ -271,6 +271,7 @@ public class OrganizationService : IOrganizationService
                 IsActive = c.IsActive,
                 OrganizationId = c.OrganizationId,
                 Organization = c.Organization?.Name,
+                OrganizationAccountNumber = c.Organization?.AccountNumber ?? string.Empty,
                 AccountNumber = c.AccountNumber,
                 Balance = account?.Balance ?? 0,
                 Role = FMC.Shared.Auth.Roles.User,

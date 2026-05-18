@@ -14,48 +14,9 @@
                 <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">Forensic Reporting & Capital Analytics Hub</MudText>
             </div>
         </div>
-        <div class="d-flex gap-3">
-             <MudDateRangePicker Label="Reporting Period" @bind-DateRange="_dateRange" 
-                                 Variant="Variant.Outlined" Margin="Margin.Dense" 
-                                 DisplayMonths="1"
-                                 Class="fmc-report-picker d-none d-sm-flex" />
-             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" 
-                        OnClick="SimulateRefresh" Class="fmc-report-gen-btn">
-                 Generate Live Brief
-             </MudButton>
-        </div>
     </div>
 
-    @* ── INTELLIGENCE TELEMETRY ── *@
-    <MudGrid Spacing="3" Class="mb-8">
-        <MudItem xs="12" sm="4">
-            <div class="fmc-report-stat-card">
-                <div class="fmc-stat-icon-wrap primary"><MudIcon Icon="@Icons.Material.Filled.PieChart" /></div>
-                <div class="ml-4">
-                    <MudText Typo="Typo.overline" Class="fmc-stat-label">TOTAL VOLUME</MudText>
-                    <MudText Typo="Typo.h5" Class="fmc-stat-val">₱14.8M</MudText>
-                </div>
-            </div>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <div class="fmc-report-stat-card">
-                <div class="fmc-stat-icon-wrap success"><MudIcon Icon="@Icons.Material.Filled.TrendingUp" /></div>
-                <div class="ml-4">
-                    <MudText Typo="Typo.overline" Class="fmc-stat-label">NET ADJUSTMENT</MudText>
-                    <MudText Typo="Typo.h5" Class="fmc-stat-val success">+₱2.4M</MudText>
-                </div>
-            </div>
-        </MudItem>
-        <MudItem xs="12" sm="4">
-            <div class="fmc-report-stat-card">
-                <div class="fmc-stat-icon-wrap info"><MudIcon Icon="@Icons.Material.Filled.AccountBalance" /></div>
-                <div class="ml-4">
-                    <MudText Typo="Typo.overline" Class="fmc-stat-label">AUDIT CLEARANCE</MudText>
-                    <MudText Typo="Typo.h5" Class="fmc-stat-val">99.98%</MudText>
-                </div>
-            </div>
-        </MudItem>
-    </MudGrid>
+
 
     <MudGrid Spacing="3">
         @* ── REPORT INVENTORY ── *@
@@ -179,7 +140,6 @@
 </style>
 
 @code {
-    private DateRange _dateRange = new DateRange(DateTime.Now.Date.AddDays(-30), DateTime.Now.Date);
     private string _search = "";
     private double[] _chartData = { 64, 36 };
     private string[] _chartLabels = { "Institutional", "Operational" };
@@ -225,7 +185,5 @@
         _ => Color.Default
     };
 
-    private void SimulateRefresh() => Snackbar.Add("Regenerating live intelligence briefings...", Severity.Info);
-    
     private void Export(string format) => Snackbar.Add($"Preparing {format} export for download...", Severity.Success);
 }

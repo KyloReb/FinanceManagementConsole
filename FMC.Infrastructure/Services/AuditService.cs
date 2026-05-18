@@ -209,6 +209,9 @@ public class AuditService : IAuditService
         }
 
         var logs = await query.Take(count).ToListAsync();
+        var orgs = await _context.Organizations.IgnoreQueryFilters().ToListAsync();
+        var orgMap = orgs.ToDictionary(o => o.Id.ToString(), o => o.Name, StringComparer.OrdinalIgnoreCase);
+
         return logs.Select(log => new AuditLogDto
         {
             Id = log.Id,
@@ -220,7 +223,9 @@ public class AuditService : IAuditService
             CreatedAt = log.CreatedAt,
             Details = log.Details,
             IpAddress = log.IpAddress,
-            Device = log.Device
+            Device = log.Device,
+            UserId = log.UserId,
+            Organization = orgMap.TryGetValue(log.TenantId, out var orgName) ? orgName : "Corporate Liquidity"
         }).ToList();
     }
 
@@ -259,6 +264,9 @@ public class AuditService : IAuditService
             .Take(queryDto.PageSize)
             .ToListAsync();
 
+        var orgs = await _context.Organizations.IgnoreQueryFilters().ToListAsync();
+        var orgMap = orgs.ToDictionary(o => o.Id.ToString(), o => o.Name, StringComparer.OrdinalIgnoreCase);
+
         return new AuditLogSearchResultDto
         {
             TotalCount = total,
@@ -274,7 +282,8 @@ public class AuditService : IAuditService
                 Details = log.Details,
                 IpAddress = log.IpAddress,
                 Device = log.Device,
-                UserId = log.UserId
+                UserId = log.UserId,
+                Organization = orgMap.TryGetValue(log.TenantId, out var orgName) ? orgName : "Corporate Liquidity"
             }).ToList()
         };
     }

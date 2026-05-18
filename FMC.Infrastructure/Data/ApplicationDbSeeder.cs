@@ -191,6 +191,20 @@ public static class ApplicationDbSeeder
             }
         }
 
+        // 7. Backfill empty organization account numbers (skip admin org)
+        var allOrgs = await db.Organizations.IgnoreQueryFilters().ToListAsync();
+        foreach (var org in allOrgs)
+        {
+            if (org.Name.Contains("Nationlink")) continue;
+            if (string.IsNullOrWhiteSpace(org.AccountNumber) || org.AccountNumber == "N/A")
+            {
+                var rnd = new Random(org.Id.GetHashCode());
+                long r1 = rnd.Next(10000, 99999);
+                long r2 = rnd.Next(100000, 999999);
+                org.AccountNumber = "63641" + r1.ToString("D5") + r2.ToString("D6");
+            }
+        }
+
         await db.SaveChangesAsync();
     }
 }

@@ -12,10 +12,12 @@ namespace FMC.Services;
 /// </summary>
 public interface IReportService
 {
-    byte[] GenerateExcel(string title, IEnumerable<TransactionDto> transactions);
-    byte[] GeneratePdf(string title, IEnumerable<TransactionDto> transactions);
-    byte[] GenerateAuditExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs);
-    byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs);
+    byte[] GenerateExcel(string title, IEnumerable<TransactionDto> transactions, string? filterApplied = null);
+    byte[] GeneratePdf(string title, IEnumerable<TransactionDto> transactions, string? filterApplied = null);
+    byte[] GenerateAuditExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs, string? filterApplied = null);
+    byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs, string? filterApplied = null);
+    byte[] GenerateCardholderExcel(string orgName, IEnumerable<FMC.Shared.DTOs.User.UserDto> cardholders, string? filterApplied = null);
+    byte[] GenerateCardholderPdf(string orgName, IEnumerable<FMC.Shared.DTOs.User.UserDto> cardholders, string? filterApplied = null);
 }
 
 public class ReportService : IReportService
@@ -25,7 +27,7 @@ public class ReportService : IReportService
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public byte[] GenerateExcel(string title, IEnumerable<TransactionDto> transactions)
+    public byte[] GenerateExcel(string title, IEnumerable<TransactionDto> transactions, string? filterApplied = null)
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Transactions");
@@ -62,7 +64,7 @@ public class ReportService : IReportService
         return stream.ToArray();
     }
 
-    public byte[] GeneratePdf(string title, IEnumerable<TransactionDto> transactions)
+    public byte[] GeneratePdf(string title, IEnumerable<TransactionDto> transactions, string? filterApplied = null)
     {
         return Document.Create(container =>
         {
@@ -73,19 +75,44 @@ public class ReportService : IReportService
                 page.PageColor(Colors.White);
                 page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Helvetica"));
 
-                page.Header().Row(row =>
+                page.Header().Column(col =>
                 {
-                    row.RelativeItem().Column(col =>
+                    col.Item().AlignCenter().Column(innerCol =>
                     {
-                        col.Item().Text(title).FontSize(20).SemiBold().FontColor(Colors.Blue.Medium);
-                        col.Item().Text($"{DateTime.Now:MMMM dd, yyyy}").FontSize(10);
+                        var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "nlkLogo.png");
+                        if (!System.IO.File.Exists(logoPath))
+                            logoPath = @"c:\Users\Administrator\source\repos\FMC\FMC.Api\wwwroot\nlkLogo.png";
+
+                        if (System.IO.File.Exists(logoPath))
+                        {
+                            innerCol.Item().AlignCenter().Width(180).Image(logoPath);
+                        }
+
+                        innerCol.Item().PaddingTop(5).AlignCenter().Text("U/GF Vernida I Condominium, 120 Amorsolo St., Legaspi Village, Makati City").FontSize(8).FontColor(Colors.Grey.Darken1);
+                        innerCol.Item().AlignCenter().Text("Tel No. (02) 8713 6279 | Email: nl.admin@nationlink.ph").FontSize(8).FontColor(Colors.Grey.Darken1);
                     });
+
+                    col.Item().PaddingTop(10).BorderBottom(1.5f).BorderColor(Colors.Blue.Darken4);
                 });
 
-                page.Content().PaddingVertical(1, Unit.Centimetre).Table(table =>
+                page.Content().PaddingBottom(1, Unit.Centimetre).PaddingTop(0.5f, Unit.Centimetre).Column(contentCol =>
                 {
+                    contentCol.Item().PaddingBottom(15).AlignCenter().Column(innerCol =>
+                    {
+                        innerCol.Item().AlignCenter().Text(title).FontSize(22).SemiBold().FontColor(Colors.Blue.Darken3);
+                        if (!string.IsNullOrEmpty(filterApplied))
+                        {
+                            innerCol.Item().PaddingVertical(2).AlignCenter().Text($"Active Filters: {filterApplied}").FontSize(9).FontColor(Colors.Grey.Darken2).SemiBold();
+                        }
+                        innerCol.Item().AlignCenter().Text($"Generated: {DateTime.Now:MMMM dd, yyyy 'at' hh:mm:ss tt}").FontSize(10).FontColor(Colors.Grey.Medium);
+                        innerCol.Item().AlignCenter().Text("Finance Management Console - Official Settlement Report").FontSize(9).FontColor(Colors.Grey.Medium).Italic();
+                    });
+
+                    contentCol.Item().Table(table =>
+                    {
                     table.ColumnsDefinition(columns =>
                     {
+                        columns.ConstantColumn(30);
                         columns.RelativeColumn(2);
                         columns.RelativeColumn(3);
                         columns.RelativeColumn(3);
@@ -95,7 +122,8 @@ public class ReportService : IReportService
 
                     table.Header(header =>
                     {
-                        header.Cell().Element(HeaderStyle).Text("Date");
+                        header.Cell().Element(HeaderStyle).Text("#");
+                        header.Cell().Element(HeaderStyle).Text("Date / Time");
                         header.Cell().Element(HeaderStyle).Text("Cardholder");
                         header.Cell().Element(HeaderStyle).Text("Card Number");
                         header.Cell().Element(HeaderStyle).Text("Amount");
@@ -103,35 +131,46 @@ public class ReportService : IReportService
 
                         static IContainer HeaderStyle(IContainer container)
                         {
-                            return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5);
+                            return container.DefaultTextStyle(x => x.SemiBold().FontColor(Colors.White)).PaddingVertical(6).PaddingHorizontal(4).Background(Colors.Blue.Darken3);
                         }
                     });
 
+                    bool isEven = false;
+                    int index = 1;
                     foreach (var tx in transactions)
                     {
-                        table.Cell().Element(CellStyle).Text(tx.Date.ToString("MM/dd HH:mm"));
-                        table.Cell().Element(CellStyle).Text(tx.Subscriber);
-                        table.Cell().Element(CellStyle).Text(FinanceUtils.MaskCard(tx.AccountNumber ?? ""));
-                        table.Cell().Element(CellStyle).Text(tx.Amount.ToString("C"));
-                        table.Cell().Element(CellStyle).Text(tx.Status);
+                        var bgColor = isEven ? Colors.Grey.Lighten4 : Colors.White;
+                        
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(index.ToString("D2")).FontColor(Colors.Grey.Medium);
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Date.ToString("MM/dd/yyyy HH:mm:ss"));
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Subscriber);
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(FinanceUtils.MaskCard(tx.AccountNumber ?? ""));
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Amount.ToString("C2"));
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Status.ToUpper());
 
-                        static IContainer CellStyle(IContainer container)
+                        index++;
+                        isEven = !isEven;
+
+                        static IContainer CellStyle(IContainer container, string bg)
                         {
-                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten4).PaddingVertical(5);
+                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
                         }
                     }
+                });
                 });
 
                 page.Footer().AlignCenter().Text(x =>
                 {
                     x.Span("Page ");
                     x.CurrentPageNumber();
+                    x.Span(" of ");
+                    x.TotalPages();
                 });
             });
         }).GeneratePdf();
     }
 
-    public byte[] GenerateAuditExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs)
+    public byte[] GenerateAuditExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs, string? filterApplied = null)
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Audit Logs");
@@ -166,7 +205,7 @@ public class ReportService : IReportService
         return stream.ToArray();
     }
 
-    public byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs)
+    public byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs, string? filterApplied = null)
     {
         return Document.Create(container =>
         {
@@ -177,19 +216,44 @@ public class ReportService : IReportService
                 page.PageColor(Colors.White);
                 page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Helvetica"));
 
-                page.Header().Row(row =>
+                page.Header().Column(col =>
                 {
-                    row.RelativeItem().Column(col =>
+                    col.Item().AlignCenter().Column(innerCol =>
                     {
-                        col.Item().Text(title).FontSize(16).SemiBold().FontColor(Colors.Blue.Medium);
-                        col.Item().Text($"{DateTime.Now:MMMM dd, yyyy}").FontSize(9);
+                        var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "nlkLogo.png");
+                        if (!System.IO.File.Exists(logoPath))
+                            logoPath = @"c:\Users\Administrator\source\repos\FMC\FMC.Api\wwwroot\nlkLogo.png";
+
+                        if (System.IO.File.Exists(logoPath))
+                        {
+                            innerCol.Item().AlignCenter().Width(180).Image(logoPath);
+                        }
+
+                        innerCol.Item().PaddingTop(5).AlignCenter().Text("U/GF Vernida I Condominium, 120 Amorsolo St., Legaspi Village, Makati City").FontSize(8).FontColor(Colors.Grey.Darken1);
+                        innerCol.Item().AlignCenter().Text("Tel No. (02) 8713 6279 | Email: nl.admin@nationlink.ph").FontSize(8).FontColor(Colors.Grey.Darken1);
                     });
+
+                    col.Item().PaddingTop(10).BorderBottom(1.5f).BorderColor(Colors.Blue.Darken4);
                 });
 
-                page.Content().PaddingVertical(1, Unit.Centimetre).Table(table =>
+                page.Content().PaddingBottom(1, Unit.Centimetre).PaddingTop(0.5f, Unit.Centimetre).Column(contentCol =>
                 {
+                    contentCol.Item().PaddingBottom(15).AlignCenter().Column(innerCol =>
+                    {
+                        innerCol.Item().AlignCenter().Text(title).FontSize(22).SemiBold().FontColor(Colors.Blue.Darken3);
+                        if (!string.IsNullOrEmpty(filterApplied))
+                        {
+                            innerCol.Item().PaddingVertical(2).AlignCenter().Text($"Active Filters: {filterApplied}").FontSize(9).FontColor(Colors.Grey.Darken2).SemiBold();
+                        }
+                        innerCol.Item().AlignCenter().Text($"Generated: {DateTime.Now:MMMM dd, yyyy 'at' hh:mm:ss tt}").FontSize(10).FontColor(Colors.Grey.Medium);
+                        innerCol.Item().AlignCenter().Text("Finance Management Console - Official Audit Report").FontSize(9).FontColor(Colors.Grey.Medium).Italic();
+                    });
+
+                    contentCol.Item().Table(table =>
+                    {
                     table.ColumnsDefinition(columns =>
                     {
+                        columns.ConstantColumn(30);
                         columns.RelativeColumn(2);
                         columns.RelativeColumn(2);
                         columns.RelativeColumn(3);
@@ -199,7 +263,8 @@ public class ReportService : IReportService
 
                     table.Header(header =>
                     {
-                        header.Cell().Element(HeaderStyle).Text("Date");
+                        header.Cell().Element(HeaderStyle).Text("#");
+                        header.Cell().Element(HeaderStyle).Text("Date / Time");
                         header.Cell().Element(HeaderStyle).Text("Action");
                         header.Cell().Element(HeaderStyle).Text("Context");
                         header.Cell().Element(HeaderStyle).Text("Amount");
@@ -207,29 +272,164 @@ public class ReportService : IReportService
 
                         static IContainer HeaderStyle(IContainer container)
                         {
-                            return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5);
+                            return container.DefaultTextStyle(x => x.SemiBold().FontColor(Colors.White)).PaddingVertical(6).PaddingHorizontal(4).Background(Colors.Blue.Darken3);
                         }
                     });
 
+                    bool isEven = false;
+                    int index = 1;
                     foreach (var tx in logs)
                     {
-                        table.Cell().Element(CellStyle).Text(tx.CreatedAt.ToLocalTime().ToString("MM/dd HH:mm"));
-                        table.Cell().Element(CellStyle).Text(tx.Action);
-                        table.Cell().Element(CellStyle).Text(tx.EntityName ?? tx.Organization ?? "System");
-                        table.Cell().Element(CellStyle).Text(tx.Amount?.ToString("C") ?? "-");
-                        table.Cell().Element(CellStyle).Text(tx.Label ?? tx.Details);
+                        var bgColor = isEven ? Colors.Grey.Lighten4 : Colors.White;
+                        
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(index.ToString("D2")).FontColor(Colors.Grey.Medium);
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.CreatedAt.ToLocalTime().ToString("MM/dd/yyyy HH:mm:ss"));
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Action);
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.EntityName ?? tx.Organization ?? "System");
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Amount?.ToString("C2") ?? "-");
+                        table.Cell().Element(c => CellStyle(c, bgColor)).Text(tx.Label ?? tx.Details);
 
-                        static IContainer CellStyle(IContainer container)
+                        index++;
+                        isEven = !isEven;
+
+                        static IContainer CellStyle(IContainer container, string bg)
                         {
-                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten4).PaddingVertical(5);
+                            return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
                         }
                     }
+                });
                 });
 
                 page.Footer().AlignCenter().Text(x =>
                 {
                     x.Span("Page ");
                     x.CurrentPageNumber();
+                    x.Span(" of ");
+                    x.TotalPages();
+                });
+            });
+        }).GeneratePdf();
+    }
+
+    public byte[] GenerateCardholderExcel(string orgName, IEnumerable<FMC.Shared.DTOs.User.UserDto> cardholders, string? filterApplied = null)
+    {
+        using var workbook = new XLWorkbook();
+        var ws = workbook.Worksheets.Add("Cardholders");
+
+        ws.Cell(1, 1).Value = "Name";
+        ws.Cell(1, 2).Value = "Email";
+        ws.Cell(1, 3).Value = "Account Number";
+        ws.Cell(1, 4).Value = "Balance";
+        ws.Cell(1, 5).Value = "Status";
+        ws.Cell(1, 6).Value = "Registered";
+
+        var hRow = ws.Row(1);
+        hRow.Style.Font.Bold = true;
+        hRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
+
+        int row = 2;
+        foreach (var u in cardholders)
+        {
+            ws.Cell(row, 1).Value = u.DisplayName;
+            ws.Cell(row, 2).Value = u.Email;
+            ws.Cell(row, 3).Value = u.AccountNumber;
+            ws.Cell(row, 4).Value = (double)u.Balance;
+            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 5).Value = u.IsActive ? "Active" : "Suspended";
+            ws.Cell(row, 6).Value = u.CreatedAt.ToLocalTime().ToString("MM/dd/yyyy");
+            row++;
+        }
+        ws.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public byte[] GenerateCardholderPdf(string orgName, IEnumerable<FMC.Shared.DTOs.User.UserDto> cardholders, string? filterApplied = null)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Helvetica"));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Column(innerCol =>
+                    {
+                        var logoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "nlkLogo.png");
+                        if (!System.IO.File.Exists(logoPath))
+                            logoPath = @"c:\Users\Administrator\source\repos\FMC\FMC.Api\wwwroot\nlkLogo.png";
+                        if (System.IO.File.Exists(logoPath))
+                            innerCol.Item().AlignCenter().Width(180).Image(logoPath);
+                        innerCol.Item().PaddingTop(5).AlignCenter().Text("U/GF Vernida I Condominium, 120 Amorsolo St., Legaspi Village, Makati City").FontSize(8).FontColor(Colors.Grey.Darken1);
+                        innerCol.Item().AlignCenter().Text("Tel No. (02) 8713 6279 | Email: nl.admin@nationlink.ph").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    });
+                    col.Item().PaddingTop(10).BorderBottom(1.5f).BorderColor(Colors.Blue.Darken4);
+                });
+
+                page.Content().PaddingBottom(1, Unit.Centimetre).PaddingTop(0.5f, Unit.Centimetre).Column(contentCol =>
+                {
+                    contentCol.Item().PaddingBottom(15).AlignCenter().Column(innerCol =>
+                    {
+                        innerCol.Item().AlignCenter().Text($"Cardholder Ledger — {orgName}").FontSize(18).SemiBold().FontColor(Colors.Blue.Darken3);
+                        if (!string.IsNullOrEmpty(filterApplied))
+                            innerCol.Item().PaddingVertical(2).AlignCenter().Text($"Filter: {filterApplied}").FontSize(9).FontColor(Colors.Grey.Darken2).SemiBold();
+                        innerCol.Item().AlignCenter().Text($"Generated: {DateTime.Now:MMMM dd, yyyy 'at' hh:mm:ss tt}").FontSize(10).FontColor(Colors.Grey.Medium);
+                        innerCol.Item().AlignCenter().Text("Finance Management Console — Official Subscriber Ledger Report").FontSize(9).FontColor(Colors.Grey.Medium).Italic();
+                    });
+
+                    contentCol.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(cols =>
+                        {
+                            cols.ConstantColumn(30);
+                            cols.RelativeColumn(3);
+                            cols.RelativeColumn(4);
+                            cols.RelativeColumn(3);
+                            cols.RelativeColumn(2);
+                            cols.RelativeColumn(2);
+                            cols.RelativeColumn(2);
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Element(H).Text("#");
+                            header.Cell().Element(H).Text("Name");
+                            header.Cell().Element(H).Text("Email");
+                            header.Cell().Element(H).Text("Account No.");
+                            header.Cell().Element(H).Text("Balance");
+                            header.Cell().Element(H).Text("Status");
+                            header.Cell().Element(H).Text("Registered");
+                            static IContainer H(IContainer c) => c.DefaultTextStyle(x => x.SemiBold().FontColor(Colors.White)).PaddingVertical(6).PaddingHorizontal(4).Background(Colors.Blue.Darken3);
+                        });
+
+                        bool isEven = false;
+                        int idx = 1;
+                        foreach (var u in cardholders)
+                        {
+                            var bg = isEven ? Colors.Grey.Lighten4 : Colors.White;
+                            table.Cell().Element(c => C(c, bg)).Text(idx.ToString("D2")).FontColor(Colors.Grey.Medium);
+                            table.Cell().Element(c => C(c, bg)).Text(u.DisplayName);
+                            table.Cell().Element(c => C(c, bg)).Text(u.Email ?? "-");
+                            table.Cell().Element(c => C(c, bg)).Text(u.AccountNumber);
+                            table.Cell().Element(c => C(c, bg)).Text(u.Balance.ToString("C2"));
+                            table.Cell().Element(c => C(c, bg)).Text(u.IsActive ? "Active" : "Suspended");
+                            table.Cell().Element(c => C(c, bg)).Text(u.CreatedAt.ToLocalTime().ToString("MM/dd/yyyy"));
+                            idx++;
+                            isEven = !isEven;
+                            static IContainer C(IContainer c, string bg) => c.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
+                        }
+                    });
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("Page "); x.CurrentPageNumber(); x.Span(" of "); x.TotalPages();
                 });
             });
         }).GeneratePdf();

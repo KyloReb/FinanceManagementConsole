@@ -4,6 +4,8 @@
 @inject ISnackbar Snackbar
 @inject OrganizationApiService OrgService
 @inject AdminService AdminService
+@inject IJSRuntime JS
+@inject FMC.Services.IReportService ReportService
 
 <MudDialog Class="fmc-audit-dialog">
     <TitleContent>
@@ -69,21 +71,63 @@
             </MudGrid>
 
             @* ── LIQUIDITY FLOW DIAGRAM ── *@
-            @if (Log.Amount.HasValue && !Log.Action.Contains("BATCH") && (!Log.EntityName?.Contains("Bulk") ?? true))
+            @* ── LIQUIDITY FLOW DIAGRAM ── *@
+            @if (Log.Amount.HasValue)
             {
                 var actUpper = Log.Action?.ToUpper() ?? "";
-                var isCorporateToUser = actUpper.Contains("CREDIT") || actUpper.Contains("APPROV") || actUpper.Contains("ALLOT") || actUpper.Contains("DEPOSIT");
+                var isBatch = actUpper.Contains("BATCH") || (Log.EntityName?.Contains("Bulk") ?? false);
+                
+                bool isCorporateToUser;
+                if (Log.Label?.Contains("Credit MULTIPLE") == true)
+                {
+                    isCorporateToUser = true;
+                }
+                else if (Log.Label?.Contains("Debit MULTIPLE") == true)
+                {
+                    isCorporateToUser = false;
+                }
+                else
+                {
+                    var hasCreditKeyword = actUpper.Contains("CREDIT") 
+                                        || actUpper.Contains("APPROV") 
+                                        || actUpper.Contains("ALLOT") 
+                                        || actUpper.Contains("DEPOSIT") 
+                                        || actUpper.Contains("SUBMITTED") 
+                                        || (Log.Label?.ToUpper().Contains("CREDIT") ?? false)
+                                        || (Log.Label?.ToUpper().Contains("ALLOT") ?? false);
+                                        
+                    var hasDebitKeyword = actUpper.Contains("DEBIT") 
+                                       || (Log.Label?.ToUpper().Contains("DEBIT") ?? false) 
+                                       || (Log.Label?.ToUpper().Contains("CHARGE") ?? false);
+                                       
+                    isCorporateToUser = hasCreditKeyword || (isBatch && !hasDebitKeyword);
+                }
+
                 var absAmount = Math.Abs(Log.Amount.Value);
                 var orgIdentity = GetOrgIdentity();
                 var cardholderIdentity = GetCardNumber();
                 
-                var sourceName = isCorporateToUser ? _orgName : (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder");
-                var destName = isCorporateToUser ? (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder") : _orgName;
-                var sourceIcon = isCorporateToUser ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Wallet;
-                var destIcon = isCorporateToUser ? Icons.Material.Filled.Wallet : Icons.Material.Filled.AccountBalance;
+                var sourceName = isCorporateToUser 
+                    ? _orgName 
+                    : (isBatch ? "Multiple Cardholders" : (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder"));
+                    
+                var destName = isCorporateToUser 
+                    ? (isBatch ? "Multiple Cardholders" : (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder"))
+                    : _orgName;
+                    
+                var sourceIcon = isCorporateToUser 
+                    ? Icons.Material.Filled.AccountBalance 
+                    : (isBatch ? Icons.Material.Filled.People : Icons.Material.Filled.Wallet);
+                    
+                var destIcon = isCorporateToUser 
+                    ? (isBatch ? Icons.Material.Filled.People : Icons.Material.Filled.Wallet) 
+                    : Icons.Material.Filled.AccountBalance;
 
                 <div class="detail-section mb-6">
-                    <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
+                    <div class="mb-3">
+                        <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="display:block; font-style: italic;">This diagram visualizes the directional movement of funds between the corporate float and the subscriber wallet(s).</MudText>
+                    </div>
                     <div class="mt-2 pa-4 fmc-surface-box d-flex align-center justify-space-between" style="position:relative; overflow: hidden;">
                         
                         <!-- Source Node -->
@@ -99,10 +143,13 @@
                                 }
                                 else if (!isCorporateToUser)
                                 {
-                                    var sub = MaskAccount(_userAccountNumber);
-                                    if (sub != sourceName)
+                                    if (isBatch)
                                     {
-                                        <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@sub</MudText>
+                                        <MudText Style="font-size: 0.55rem; opacity: 0.5; font-weight: 700;">Consolidated Batch Wallets</MudText>
+                                    }
+                                    else if (!string.IsNullOrEmpty(_userAccountNumber) && _userAccountNumber != sourceName && _userAccountNumber != destName && _userAccountNumber != Log.EntityName?.Replace("Wallet: ", ""))
+                                    {
+                                        <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@MaskAccount(_userAccountNumber)</MudText>
                                     }
                                 }
                             </div>
@@ -113,7 +160,7 @@
                             <div class="fmc-flow-particle"></div>
                             <div class="fmc-flow-badge">
                                 <MudText Style="font-family:'JetBrains Mono',monospace; font-weight:900; font-size:0.75rem; color: var(--mud-palette-info);">
-                                    @absAmount.ToString("N2")
+                                    ₱@absAmount.ToString("N2")
                                 </MudText>
                             </div>
                         </div>
@@ -131,10 +178,13 @@
                                 }
                                 else if (isCorporateToUser)
                                 {
-                                    var sub = MaskAccount(_userAccountNumber);
-                                    if (sub != destName)
+                                    if (isBatch)
                                     {
-                                        <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@sub</MudText>
+                                        <MudText Style="font-size: 0.55rem; opacity: 0.5; font-weight: 700;">Consolidated Batch Wallets</MudText>
+                                    }
+                                    else if (!string.IsNullOrEmpty(_userAccountNumber) && _userAccountNumber != sourceName && _userAccountNumber != destName && _userAccountNumber != Log.EntityName?.Replace("Wallet: ", ""))
+                                    {
+                                        <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@MaskAccount(_userAccountNumber)</MudText>
                                     }
                                 }
                             </div>
@@ -226,8 +276,18 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Close" Color="Color.Default" Style="text-transform:none; font-weight:700; border-radius:10px;">Dismiss</MudButton>
-        <MudButton OnClick="CopyRef" Variant="Variant.Filled" Color="Color.Primary" 
-                   Style="text-transform:none; font-weight:700; border-radius:10px;">Copy Event ID</MudButton>
+        <MudButton OnClick="ExportDialogToPdf" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_isDownloadingPdf" 
+                   Style="text-transform:none; font-weight:700; border-radius:10px;">
+                @if (_isDownloadingPdf)
+                {
+                    <MudProgressCircular Class="ms-n1 mr-2" Size="Size.Small" Indeterminate="true" Color="Color.Surface" />
+                    <span>Generating...</span>
+                }
+                else
+                {
+                    <span>Download Report</span>
+                }
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -288,11 +348,14 @@
         _orgName = !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Corporate Liquidity";
         _userAccountNumber = GetCardNumber();
         
-        // Deep resolution: If we have an EntityName (e.g. "Wallet: Ava Gonzalez"), try to find the user's full identity
-        if (!string.IsNullOrWhiteSpace(Log.EntityName) && Log.EntityName.Contains(":"))
+        // Deep resolution: If we have an EntityName (e.g. "Wallet: Ava Gonzalez" or just "Ava Gonzalez"), try to find the user's full identity
+        if (!string.IsNullOrWhiteSpace(Log.EntityName))
         {
             try {
-                var targetName = Log.EntityName.Split(':').Last().Trim();
+                var targetName = Log.EntityName.Contains(":") 
+                    ? Log.EntityName.Split(':').Last().Trim() 
+                    : Log.EntityName.Trim();
+                    
                 var users = await AdminService.GetUsersAsync();
                 var user = users.FirstOrDefault(u => u.DisplayName.Equals(targetName, StringComparison.OrdinalIgnoreCase) 
                                                   || u.UserName?.Equals(targetName, StringComparison.OrdinalIgnoreCase) == true);
@@ -303,10 +366,15 @@
                         _orgName = user.Organization ?? _orgName;
                         
                     if (string.IsNullOrEmpty(_orgAccountNumber))
-                        _orgAccountNumber = user.OrganizationAccountNumber;
+                    {
+                        var orgs = await OrgService.GetOrganizationsAsync();
+                        var org = orgs.FirstOrDefault(o => o.Name.Equals(_orgName, StringComparison.OrdinalIgnoreCase));
+                        var orgIdStr = org?.Id.ToString() ?? user.OrganizationId?.ToString() ?? Guid.Empty.ToString();
+                        _orgAccountNumber = GetStableAccountNumber(orgIdStr, user.OrganizationAccountNumber);
+                    }
                         
                     if (string.IsNullOrEmpty(_userAccountNumber) || _userAccountNumber == targetName)
-                        _userAccountNumber = user.AccountNumber;
+                        _userAccountNumber = GetStableAccountNumber(user.Id, user.AccountNumber);
                 }
             } catch { }
         }
@@ -317,7 +385,10 @@
             try {
                 var orgs = await OrgService.GetOrganizationsAsync();
                 var org = orgs.FirstOrDefault(o => o.Name.Equals(_orgName, StringComparison.OrdinalIgnoreCase));
-                if (org != null) _orgAccountNumber = org.AccountNumber;
+                if (org != null)
+                {
+                    _orgAccountNumber = GetStableAccountNumber(org.Id.ToString(), org.AccountNumber);
+                }
             } catch { }
         }
     }
@@ -419,9 +490,34 @@
         return trimmed.Length > 0 ? trimmed.ToUpper()[0] : 'S';
     }
 
-    private void CopyRef()
+    private bool _isDownloadingPdf = false;
+    private async Task ExportDialogToPdf()
     {
-        Snackbar.Add("Event reference copied to clipboard", Severity.Info);
+        if (_isDownloadingPdf) return;
+        _isDownloadingPdf = true;
+        StateHasChanged();
+        
+        try
+        {
+            var title = "Forensic Event Trace Report";
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var fileName = $"FMC_EventTrace_{Log.Id.ToString().PadLeft(6, '0')}_{timestamp}.pdf";
+                
+            var bytes = await Task.Run(() => ReportService.GenerateAuditPdf(title, new List<FMC.Shared.DTOs.Admin.AuditLogDto> { Log }));
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JS.InvokeVoidAsync("fmc_downloadFile", fileName, "application/pdf", streamRef);
+            
+            Snackbar.Add("Forensic trace report downloaded successfully.", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to generate PDF report.", Severity.Error);
+        }
+        finally
+        {
+            _isDownloadingPdf = false;
+            StateHasChanged();
+        }
     }
 
     private string GetEventIcon(string action)
@@ -452,5 +548,14 @@
         public string? CardNumber { get; set; }
         public decimal Amount { get; set; }
         public string? Subscriber { get; set; }
+    }
+
+    private string GetStableAccountNumber(string id, string? currentAcct)
+    {
+        if (!string.IsNullOrWhiteSpace(currentAcct) && currentAcct != "N/A" && currentAcct.Length > 10) return currentAcct;
+        var rnd = new Random(id.GetHashCode());
+        long r1 = rnd.Next(10000, 99999);
+        long r2 = rnd.Next(100000, 999999);
+        return "63641" + r1.ToString("D5") + r2.ToString("D6");
     }
 }

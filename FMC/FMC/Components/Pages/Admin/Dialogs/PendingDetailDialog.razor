@@ -5,6 +5,9 @@
 @inject OrganizationApiService OrgService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject AdminService AdminService
+@inject IJSRuntime JS
+@inject FMC.Services.IReportService ReportService
 
 <MudDialog>
     <TitleContent>
@@ -99,14 +102,17 @@
                 var corporateName = "Corporate Liquidity";
                 var cardholderIdentity = GetMaskedAccount(Transaction.AccountNumber);
                 
-                var sourceName = isCorporateToUser ? _orgName : cardholderIdentity;
-                var destName = isCorporateToUser ? cardholderIdentity : _orgName;
+                var sourceName = isCorporateToUser ? _orgName : Transaction.Subscriber;
+                var destName = isCorporateToUser ? Transaction.Subscriber : _orgName;
                 var sourceIcon = isCorporateToUser ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Wallet;
                 var destIcon = isCorporateToUser ? Icons.Material.Filled.Wallet : Icons.Material.Filled.AccountBalance;
             }
 
             <div class="mt-6 mb-2">
-                <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
+                <div class="mb-3">
+                    <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="display:block; font-style: italic;">This diagram visualizes the directional movement of funds between the corporate float and the subscriber wallet(s).</MudText>
+                </div>
                 <div class="mt-2 pa-4 fmc-flow-surface d-flex align-center justify-space-between">
                     
                     <!-- Source Node -->
@@ -120,7 +126,7 @@
                             {
                                 <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@GetMaskedAccount(_orgAccountNumber)</MudText>
                             }
-                            else if (!isCorporateToUser)
+                            else if (!isCorporateToUser && !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "BATCH_SUMMARY" && Transaction.AccountNumber != "N/A")
                             {
                                 <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@cardholderIdentity</MudText>
                             }
@@ -148,7 +154,7 @@
                             {
                                 <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@GetMaskedAccount(_orgAccountNumber)</MudText>
                             }
-                            else if (isCorporateToUser)
+                            else if (isCorporateToUser && !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "BATCH_SUMMARY" && Transaction.AccountNumber != "N/A")
                             {
                                 <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@cardholderIdentity</MudText>
                             }
@@ -170,19 +176,29 @@
             @if (Transaction.SubTransactions != null && Transaction.SubTransactions.Any())
             {
                 <div class="mt-6">
-                    <div class="d-flex align-center gap-2 mb-3">
-                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
-                        <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
-                    </div>
-                    
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--mud-palette-divider); border-radius: 12px;">
-                        <MudTable Items="@Transaction.SubTransactions" Dense="true" Hover="true" Elevation="0" Style="background: transparent;">
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--mud-palette-divider); border-radius: 12px; background: rgba(var(--mud-palette-surface-rgb), 0.5);">
+                        <MudTable Items="@Transaction.SubTransactions" Filter="new Func<TransactionDto, bool>(FilterBatchItem)" Dense="true" Hover="true" Elevation="0" Style="background: transparent;">
+                            <ToolBarContent>
+                                <div class="d-flex align-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
+                                </div>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_batchSearchString" Placeholder="Search cardholder or account..." 
+                                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" 
+                                              Style="min-width: 320px; background: rgba(var(--mud-palette-surface-rgb), 0.7); border-radius: 8px; font-weight: 500;" />
+                            </ToolBarContent>
                             <HeaderContent>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; width: 40px;">#</MudTh>
                                 <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6;">CARDHOLDER</MudTh>
                                 <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: right;">AMOUNT</MudTh>
                                 <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: center;">STATUS</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="sub">
+                                <MudTd Style="opacity: 0.5; font-size: 0.75rem; font-family: 'Roboto Mono', monospace;">
+                                    @((Transaction.SubTransactions!.IndexOf(sub) + 1).ToString("D2"))
+                                </MudTd>
                                 <MudTd>
                                     <div class="d-flex flex-column">
                                         <MudText Typo="Typo.body2" Style="font-weight: 700; font-size: 0.8rem;">@sub.Subscriber</MudText>
@@ -202,6 +218,13 @@
                                     </MudChip>
                                 </MudTd>
                             </RowTemplate>
+                            <NoRecordsContent>
+                                <div class="d-flex flex-column align-center justify-center pa-6" style="opacity: 0.7;">
+                                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body2" Style="font-weight: 800;">No matching cardholders found</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Try adjusting your search keywords.</MudText>
+                                </div>
+                            </NoRecordsContent>
                         </MudTable>
                     </div>
                 </div>
@@ -249,6 +272,23 @@
             <MudButton OnClick="CloseDialog" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
             <MudSpacer />
             
+            <MudButton Variant="Variant.Text" 
+                       StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
+                       OnClick="ExportDialogToPdf" 
+                       Class="mr-2"
+                       Disabled="@_isDownloadingPdf"
+                       Style="font-weight: 800; text-transform: none; color: var(--mud-palette-info);">
+                @if (_isDownloadingPdf)
+                {
+                    <MudProgressCircular Class="ms-n1 mr-2" Size="Size.Small" Indeterminate="true" />
+                    <span>Generating...</span>
+                }
+                else
+                {
+                    <span>Download PDF</span>
+                }
+            </MudButton>
+
             <!-- Action Buttons Contextual to User Role and Status -->
         @if (Transaction.Status == "Pending")
         {
@@ -362,6 +402,8 @@
     
     private string _orgName = "Corporate Liquidity";
     private string _orgAccountNumber = "";
+    private string _batchSearchString = "";
+    private bool _isDownloadingPdf = false;
 
     #endregion
 
@@ -384,6 +426,54 @@
                 }
             } catch { }
         }
+
+        // Deep resolution for Corporate Liquidity fallback
+        if (_orgName == "Corporate Liquidity")
+        {
+            try {
+                var users = await AdminService.GetUsersAsync();
+                
+                if (Transaction.SubTransactions?.Any() == true)
+                {
+                    var firstSub = Transaction.SubTransactions.First();
+                    var user = users.FirstOrDefault(u => u.DisplayName == firstSub.Subscriber || u.UserName == firstSub.Subscriber);
+                    if (user != null && !string.IsNullOrEmpty(user.Organization))
+                    {
+                        _orgName = user.Organization;
+                        _orgAccountNumber = user.OrganizationAccountNumber;
+                    }
+                }
+                else
+                {
+                    var user = users.FirstOrDefault(u => u.DisplayName == Transaction.Subscriber || u.UserName == Transaction.Subscriber);
+                    if (user != null && !string.IsNullOrEmpty(user.Organization))
+                    {
+                        _orgName = user.Organization;
+                        _orgAccountNumber = user.OrganizationAccountNumber;
+                    }
+                }
+
+                if (_orgName != "Corporate Liquidity" && string.IsNullOrEmpty(_orgAccountNumber))
+                {
+                    var orgs = await OrgService.GetOrganizationsAsync();
+                    var orgMatch = orgs.FirstOrDefault(o => o.Name.Equals(_orgName, StringComparison.OrdinalIgnoreCase));
+                    if (orgMatch != null) _orgAccountNumber = orgMatch.AccountNumber;
+                }
+            } catch { }
+        }
+        
+        // If the transaction is missing its account number, hydrate it from the deep resolution cache
+        if (string.IsNullOrEmpty(Transaction.AccountNumber) || Transaction.AccountNumber == "N/A")
+        {
+            try {
+                var users = await AdminService.GetUsersAsync();
+                var user = users.FirstOrDefault(u => u.DisplayName == Transaction.Subscriber || u.UserName == Transaction.Subscriber);
+                if (user != null)
+                {
+                    Transaction.AccountNumber = user.AccountNumber;
+                }
+            } catch { }
+        }
     }
 
     #endregion
@@ -398,6 +488,49 @@
         _showFullAccount = !_showFullAccount;
     }
 
+    private bool FilterBatchItem(TransactionDto sub)
+    {
+        if (string.IsNullOrWhiteSpace(_batchSearchString)) return true;
+        if (sub.Subscriber?.Contains(_batchSearchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (sub.AccountNumber?.Contains(_batchSearchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        return false;
+    }
+
+    private async Task ExportDialogToPdf()
+    {
+        if (_isDownloadingPdf) return;
+        _isDownloadingPdf = true;
+        StateHasChanged();
+        
+        try
+        {
+            var isBatch = Transaction.SubTransactions?.Any() == true;
+            var listToExport = isBatch ? Transaction.SubTransactions! : new List<TransactionDto> { Transaction };
+                
+            var title = isBatch ? "Batch Breakdown Report" : "Forensic Settlement Detail";
+            
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var fileName = isBatch 
+                ? $"FMC_BatchBreakdown_{Transaction.Id.ToString()[..8]}_{timestamp}.pdf"
+                : $"FMC_SettlementDetail_{Transaction.Id.ToString()[..8]}_{timestamp}.pdf";
+                
+            var bytes = await Task.Run(() => ReportService.GeneratePdf(title, listToExport));
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JS.InvokeVoidAsync("fmc_downloadFile", fileName, "application/pdf", streamRef);
+            
+            Snackbar.Add("Forensic report downloaded successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Failed to generate PDF report.", Severity.Error);
+        }
+        finally
+        {
+            _isDownloadingPdf = false;
+            StateHasChanged();
+        }
+    }
+
     /// <summary>
     /// Masks the account number leaving only the first 6 and last 4 digits visible.
     /// </summary>
@@ -406,6 +539,7 @@
     private string GetMaskedAccount(string? account)
     {
         if (string.IsNullOrEmpty(account)) return "N/A";
+        if (account == "BATCH_SUMMARY") return "BATCH SUMMARY";
         if (_showFullAccount) return account;
         if (account.Length <= 10) return account; // Too short to effectively mask the middle
 

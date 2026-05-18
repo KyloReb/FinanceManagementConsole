@@ -1,96 +1,287 @@
 @using FMC.Shared.DTOs
+@using FMC.Shared.DTOs.Admin
 @using FMC.Shared.Auth
+@using FMC.Components.Pages.Admin.Dialogs
 @inject OrganizationApiService OrgService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthProvider
+@using FMC.Services
+@inject IReportService ReportService
+@inject IJSRuntime JS
+
+<style>
+    /* ── Temporal Filter ── */
+    .fmc-orchestration-row { display: flex; width: 100%; gap: 12px 6px; align-items: center; flex-wrap: wrap; padding: 12px 24px; border-bottom: 1px solid var(--mud-palette-divider); background: var(--mud-palette-surface); }
+    .fmc-temporal-filter { display: flex; align-items: center; background: rgba(var(--mud-palette-primary-rgb), 0.06); backdrop-filter: blur(8px); border-radius: 10px; padding: 2px; width: fit-content; flex-shrink: 0; }
+    .fmc-date-group { display: flex; gap: 1px; background: rgba(0,0,0,0.06); padding: 1px; border-radius: 6px; }
+    .fmc-date-btn { padding: 4px 6px; border-radius: 5px; font-size: 0.55rem; font-weight: 950; letter-spacing: 0.05em; color: var(--mud-palette-text-secondary); transition: all 0.2s ease; border: none; background: transparent; white-space: nowrap; }
+    .fmc-date-btn.active { background: var(--mud-palette-primary); color: white; box-shadow: 0 2px 8px rgba(var(--mud-palette-primary-rgb), 0.3); }
+
+    .fmc-date-input-box { display: flex; flex-direction: column; padding: 0 8px; }
+    .fmc-date-label { font-size: 0.45rem; font-weight: 950; opacity: 0.6; letter-spacing: 0.1em; margin-bottom: -1px; }
+    .fmc-raw-date { background: transparent; border: none; font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 800; color: var(--mud-palette-text-primary); outline: none; cursor: pointer; color-scheme: dark; }
+    .fmc-date-sep { width: 1px; height: 18px; background: var(--mud-palette-divider); opacity: 0.5; }
+
+    /* ── Action Toolbar ── */
+    .fmc-action-toolbar { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: nowrap; }
+    .fmc-premium-action { display: flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 10px; backdrop-filter: blur(8px); color: var(--mud-palette-text-primary); font-size: 0.55rem; font-weight: 950; letter-spacing: 0.05em; transition: all 0.3s ease; cursor: pointer; border: 1px solid var(--mud-palette-divider); background: rgba(var(--mud-palette-surface-rgb), 0.4); white-space: nowrap; flex-shrink: 0; }
+    .fmc-premium-action:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+    .fmc-premium-action.excel:hover { border-color: var(--mud-palette-success) !important; color: var(--mud-palette-success) !important; background: rgba(var(--mud-palette-success-rgb), 0.05); }
+    .fmc-premium-action.pdf:hover { border-color: var(--mud-palette-error) !important; color: var(--mud-palette-error) !important; background: rgba(var(--mud-palette-error-rgb), 0.05); }
+
+    @@media (max-width: 600px) {
+        .fmc-orchestration-row { flex-direction: column; }
+        .fmc-temporal-filter { width: 100%; justify-content: space-between; }
+        .fmc-action-toolbar { width: 100%; }
+    }
+
+    /* Ledger Bar */
+    .fmc-ledger-bar { width: 4px; height: 28px; border-radius: 2px; }
+    ::deep .mud-table-row:hover .fmc-ledger-bar { background-color: var(--mud-palette-primary) !important; transform: scaleY(1.2); transition: all 0.2s; }
+
+    /* Skeleton Loaders */
+    .fmc-skel { background: rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 4px; position: relative; overflow: hidden; }
+    .fmc-skel::after { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: fmc-shimmer 1.5s infinite; }
+    .fmc-skel-line { height: 12px; margin-bottom: 8px; }
+    .fmc-skel-pill { height: 24px; width: 80px; border-radius: 12px; }
+    @@keyframes fmc-shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+    /* Empty & Stream End */
+    .fmc-empty-state { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; overflow: hidden; }
+    .fmc-empty-glow { position: absolute; width: 300px; height: 300px; background: radial-gradient(circle, rgba(var(--mud-palette-primary-rgb), 0.1) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+    .fmc-premium-empty-icon { font-size: 3rem !important; color: var(--mud-palette-primary); z-index: 3; }
+    
+    .fmc-end-indicator { display: flex; align-items: center; justify-content: center; gap: 20px; opacity: 0.5; }
+    .fmc-end-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--mud-palette-divider), transparent); max-width: 100px; }
+    .fmc-end-text { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 950; letter-spacing: 0.3em; color: var(--mud-palette-text-secondary); }
+    
+    ::deep .mud-table-row { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+    ::deep .mud-table-row:hover { background: rgba(var(--mud-palette-primary-rgb), 0.05) !important; transform: translateX(6px) !important; }
+</style>
 
 <MudPaper Elevation="0" Class="fmc-glass-surface mb-6">
     <div class="fmc-header-area pa-6" style="border-bottom: 1px solid var(--mud-palette-divider);">
-        <div class="d-flex align-center">
-            <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                <MudIcon Icon="@Icons.Material.Filled.PendingActions" />
-            </div>
-            <div>
-                <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Transaction Approval Queue</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">Transactions awaiting verification before commitment</MudText>
+        <div class="d-flex align-center justify-space-between">
+            <div class="d-flex align-center">
+                <div class="fmc-header-icon mr-4" style="background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <MudIcon Icon="@Icons.Material.Filled.History" />
+                </div>
+                <div>
+                    <div class="d-flex align-center gap-2">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Organization Audit Logs</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text"
+                                 Style="font-weight: 950; font-size: 0.65rem; border: 1px solid rgba(var(--mud-palette-info-rgb),0.3);">
+                            @_searchResult.TotalCount RECORDS
+                        </MudChip>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Complete historical ledger of forensic traces and system events</MudText>
+                </div>
             </div>
         </div>
     </div>
 
+    @* ── ORCHESTRATION TOOLBAR ── *@
+    <div class="fmc-orchestration-row">
+        <div class="fmc-temporal-filter">
+            <div class="fmc-date-group mr-3">
+                <button class="fmc-date-btn @(_activeCategory == null ? "active" : "")" @onclick='() => SetCategory(null)'>ALL CAT</button>
+                <button class="fmc-date-btn @(_activeCategory == "financial" ? "active" : "")" @onclick='() => SetCategory("financial")'>FINANCIAL</button>
+                <button class="fmc-date-btn @(_activeCategory == "security" ? "active" : "")" @onclick='() => SetCategory("security")'>SECURITY</button>
+            </div>
+            <div class="fmc-date-group mr-3">
+                <button class="fmc-date-btn @(_activeDateFilter == "all" ? "active" : "")" @onclick='() => SetDateFilter("all")'>ALL</button>
+                <button class="fmc-date-btn @(_activeDateFilter == "today" ? "active" : "")" @onclick='() => SetDateFilter("today")'>TODAY</button>
+                <button class="fmc-date-btn @(_activeDateFilter == "7d" ? "active" : "")" @onclick='() => SetDateFilter("7d")'>7D</button>
+                <button class="fmc-date-btn @(_activeDateFilter == "30d" ? "active" : "")" @onclick='() => SetDateFilter("30d")'>30D</button>
+                <button class="fmc-date-btn @(_activeDateFilter == "1y" ? "active" : "")" @onclick='() => SetDateFilter("1y")'>1Y</button>
+            </div>
+            <div class="fmc-custom-date-wrap d-none d-lg-flex align-center gap-2">
+                <div class="fmc-date-input-box">
+                    <span class="fmc-date-label">START DATE</span>
+                    <input type="date" value="@(_filterStart?.ToString("yyyy-MM-dd"))" @onchange='(e) => OnStartDateChanged(e)' class="fmc-raw-date" />
+                </div>
+                <div class="fmc-date-sep"></div>
+                <div class="fmc-date-input-box">
+                    <span class="fmc-date-label">END DATE</span>
+                    <input type="date" value="@(_filterEnd?.ToString("yyyy-MM-dd"))" @onchange='(e) => OnEndDateChanged(e)' class="fmc-raw-date" />
+                </div>
+            </div>
+        </div>
+
+        <div class="fmc-action-toolbar ml-3">
+            <button class="fmc-premium-action excel" @onclick="ExportXls">
+                <MudIcon Icon="@Icons.Custom.FileFormats.FileExcel" Size="Size.Small" Class="mr-2" />
+                <span>XLS EXPORT</span>
+            </button>
+            <button class="fmc-premium-action pdf" @onclick="ExportPdf">
+                <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" Class="mr-2" />
+                <span>PDF AUDIT</span>
+            </button>
+        </div>
+    </div>
+
     <div class="fmc-content-body pa-0">
-        @if (_loading)
-        {
-            <div class="d-flex justify-center pa-10">
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-            </div>
-        }
-        else if (!_pendingTransactions.Any())
-        {
-            <div class="pa-10 d-flex flex-column align-center mud-text-secondary">
-                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Class="mb-2" />
-                <MudText>Clear! No transactions currently pending.</MudText>
-            </div>
-        }
-        else
-        {
-            <MudTable Items="@_pendingTransactions" Hover="true" Breakpoint="Breakpoint.None" Elevation="0" Class="fmc-premium-table">
+        <MudTable @ref="_table" Items="@_searchResult.Items" Loading="@_loading" Hover="true" Breakpoint="Breakpoint.None" Elevation="0"
+                  HorizontalScrollbar="true"
+                  RowClassFunc="@((item, idx) => $"fmc-row-hover {(item.Action == "CREDIT" ? "credit" : (item.Action == "DEBIT" ? "debit" : "info"))}")"
+                  OnRowClick="@((TableRowClickEventArgs<AuditLogDto> args) => ShowDetail(args.Item))"
+                  Class="fmc-premium-table" Dense="false" RowsPerPage="10">
+            <LoadingContent>
+                @for (int i = 0; i < 8; i++)
+                {
+                    <div class="d-flex align-center pa-4 px-6" style="border-bottom: 1px solid var(--mud-palette-divider); gap: 24px;">
+                        <div style="flex:1;" class="d-flex align-center gap-3">
+                            <div class="fmc-skel" style="width:4px; height:24px;"></div>
+                            <div style="flex:1;">
+                                <div class="fmc-skel fmc-skel-line mb-2" style="width:70%;"></div>
+                                <div class="fmc-skel fmc-skel-line" style="width:40%;"></div>
+                            </div>
+                        </div>
+                        <div style="flex:1;">
+                            <div class="fmc-skel fmc-skel-line mb-2" style="width:80%;"></div>
+                            <div class="fmc-skel fmc-skel-line" style="width:50%;"></div>
+                        </div>
+                        <div style="flex:1;" class="d-flex justify-center">
+                            <div class="fmc-skel fmc-skel-pill"></div>
+                        </div>
+                        <div style="flex:1;" class="text-right">
+                            <div class="fmc-skel fmc-skel-line ml-auto" style="width:80px; height: 18px;"></div>
+                        </div>
+                    </div>
+                }
+            </LoadingContent>
+            <NoRecordsContent>
+                <div class="fmc-empty-state pa-8 d-flex flex-column align-center justify-center">
+                    <div class="fmc-empty-glow"></div>
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-premium-empty-icon mb-4" />
+                    <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.02em;">No Matching Forensic Traces</MudText>
+                    <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">No activities recorded within the selected parameters.</MudText>
+                </div>
+            </NoRecordsContent>
                 <HeaderContent>
-                    <MudTh>DATE</MudTh>
-                    <MudTh>USER ACCOUNT</MudTh>
-                    <MudTh>MAKER</MudTh>
-                    <MudTh Style="text-align: right;">AMOUNT</MudTh>
-                    @if (_canApprove)
-                    {
-                        <MudTh Style="text-align: right;">ACTIONS</MudTh>
-                    }
+                    <MudTh>TIMESTAMP</MudTh>
+                    <MudTh>ACTION TYPE</MudTh>
+                    <MudTh>CONTEXT / ACTOR</MudTh>
+                    <MudTh Style="text-align: right;">MAGNITUDE</MudTh>
+                    <MudTh>TELEMETRY</MudTh>
                 </HeaderContent>
-                <RowTemplate Context="tx">
-                    <MudTd DataLabel="Date">
-                        <div class="d-flex align-center gap-2">
-                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mud-text-secondary" />
-                            <MudText Typo="Typo.body2" Style="font-weight: 600;">@tx.Date.ToString("MMM dd, HH:mm")</MudText>
+                <RowTemplate Context="log">
+                    @{
+                        var actUpper = log.Action?.ToUpper() ?? "";
+                        var isCredit = actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
+                        var isDebit = actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED");
+                        var isSecurity = actUpper.Contains("LOGIN") || actUpper.Contains("AUTH") || actUpper.Contains("PASSWORD_RESET");
+                        var isNeutral = actUpper.Contains("LOGOUT") || actUpper.Contains("VIEW") || actUpper.Contains("READ");
+                        
+                        var color = isCredit ? Color.Success : 
+                                    (isDebit ? Color.Error : 
+                                    (isSecurity ? Color.Info : 
+                                    (isNeutral ? Color.Default : Color.Info)));
+
+                        var icon = isCredit ? Icons.Material.Filled.AddCircle : 
+                                   (isDebit ? Icons.Material.Filled.RemoveCircle : 
+                                   (isSecurity ? Icons.Material.Filled.Shield : 
+                                   (isNeutral ? Icons.Material.Filled.ExitToApp : Icons.Material.Filled.Hub)));
+                    }
+                    <MudTd>
+                        <div class="d-flex align-center gap-3">
+                            <div class="fmc-ledger-bar" style="background: var(--mud-palette-divider);"></div>
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@log.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@log.CreatedAt.ToLocalTime().ToString("HH:mm:ss")</MudText>
+                            </div>
                         </div>
                     </MudTd>
-                    <MudTd DataLabel="Account">
-                        <MudText Typo="Typo.body2" Style="font-weight: 700; color: var(--mud-palette-text-primary);">@tx.Label</MudText>
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="letter-spacing: 0.05em;">REF: @tx.Id.ToString().Substring(0, 8).ToUpper()</MudText>
+                    <MudTd>
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@icon" Color="@color" Size="Size.Small" />
+                            <MudText Color="@color" Style="font-weight:900; letter-spacing:0.04em; font-size:0.7rem; text-transform:uppercase;">@log.Action</MudText>
+                        </div>
                     </MudTd>
-                    <MudTd DataLabel="Maker">
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text" Style="font-weight: 700;">@tx.MakerName</MudChip>
+                    <MudTd>
+                        <div class="d-flex flex-column">
+                            <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(log.EntityName ?? log.Organization ?? "System Boundary")</MudText>
+                            @if (!string.IsNullOrEmpty(log.Label))
+                            {
+                                <MudText Typo="Typo.caption" Style="font-size:0.6rem; opacity:0.6; font-weight:700;" Class="text-truncate">@log.Label</MudText>
+                            }
+                        </div>
                     </MudTd>
-                    <MudTd DataLabel="Amount" Style="text-align: right;">
-                        <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(tx.Amount < 0 ? Color.Error : Color.Success)">
-                            @(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("C")
-                        </MudText>
+                    <MudTd Style="text-align:right">
+                        @if (log.Amount.HasValue)
+                        {
+                            <MudText Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:1.15rem;" 
+                                     Color="@(isCredit ? Color.Success : Color.Error)">
+                                @(isCredit ? "+" : "-")₱@log.Amount.Value.ToString("N2")
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-disabled" Style="font-weight:900; font-size:0.65rem;">N/A</MudText>
+                        }
                     </MudTd>
-                    @if (_canApprove)
-                    {
-                        <MudTd Style="text-align: right;">
-                            <div class="d-flex align-center justify-end gap-2">
-                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" Class="fmc-action-btn" Style="padding: 4px 12px !important; border-radius: 8px !important;" OnClick="@(() => Reject(tx.Id))">Reject</MudButton>
-                                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" Class="fmc-action-btn" Style="color: white !important; padding: 4px 12px !important; border-radius: 8px !important;" OnClick="@(() => Approve(tx.Id))">Approve</MudButton>
-                            </div>
-                        </MudTd>
-                    }
+                    <MudTd>
+                        <div class="d-flex flex-column">
+                            <MudText Style="font-size:0.65rem; font-family:'JetBrains Mono',monospace; font-weight:700;">@log.IpAddress</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size:0.55rem; opacity:0.6; font-weight:800;" Class="text-truncate">@log.Device</MudText>
+                        </div>
+                    </MudTd>
                 </RowTemplate>
+                <PagerContent>
+                    @if (!_loading && _searchResult.Items.Any() && _table != null)
+                    {
+                        var isLastPage = ((_table.CurrentPage + 1) * _table.RowsPerPage) >= _searchResult.Items.Count;
+                        if (isLastPage)
+                        {
+                            <div class="fmc-end-of-stream-wrap" style="padding: 20px 0;">
+                                <div class="fmc-end-indicator">
+                                    <div class="fmc-end-line"></div>
+                                    <span class="fmc-end-text">END OF FORENSIC AUDIT STREAM</span>
+                                    <div class="fmc-end-line"></div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="fmc-end-of-stream-wrap" style="padding: 20px 0;">
+                                <div class="fmc-end-indicator">
+                                    <div class="fmc-end-line" style="background: linear-gradient(90deg, transparent, var(--mud-palette-info), transparent);"></div>
+                                    <span class="fmc-end-text" style="color: var(--mud-palette-info);">MORE FORENSIC TRACES AVAILABLE</span>
+                                    <div class="fmc-end-line" style="background: linear-gradient(90deg, transparent, var(--mud-palette-info), transparent);"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    <MudTablePager PageSizeOptions="new int[]{5, 10, 25, 50}" RowsPerPageString="Rows per page:" />
+                </PagerContent>
             </MudTable>
-        }
     </div>
 </MudPaper>
 
 @code {
     [Parameter] public Guid OrganizationId { get; set; }
     
-    private List<TransactionDto> _pendingTransactions = new();
+    private MudTable<AuditLogDto> _table = default!;
+    private AuditLogSearchResultDto _searchResult = new();
     private bool _loading = true;
-    private bool _canApprove = false;
+
+    // Filter toolbar state
+    private string _activeDateFilter = "all";
+    private string? _activeCategory = null;
+    private DateTime? _filterStart = null;
+    private DateTime? _filterEnd = null;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthProvider.GetAuthenticationStateAsync();
-        _canApprove = authState.User.IsInRole(Roles.Approver);
         await LoadDataAsync();
+    }
+
+    private void ShowDetail(AuditLogDto log)
+    {
+        var parameters = new DialogParameters<AuditDetailDialog> { { x => x.Log, log } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        DialogService.ShowAsync<AuditDetailDialog>("Forensic Data Trace", parameters, options);
     }
 
     private async Task LoadDataAsync()
@@ -100,12 +291,21 @@
         {
             if (OrganizationId != Guid.Empty)
             {
-                _pendingTransactions = await OrgService.GetPendingTransactionsAsync(OrganizationId);
+                var query = new AuditLogQueryDto
+                {
+                    TenantId = OrganizationId.ToString(),
+                    Category = _activeCategory,
+                    FromDate = _filterStart,
+                    ToDate = _filterEnd?.AddDays(1).AddTicks(-1), // End of the day
+                    PageSize = 500
+                };
+                
+                _searchResult = await OrgService.SearchAuditLogsAsync(query);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error loading queue: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error loading logs: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -113,29 +313,80 @@
         }
     }
 
-    private async Task Approve(Guid id)
+    private async Task SetCategory(string? category)
     {
-        var success = await OrgService.ApproveTransactionAsync(id);
-        if (success)
+        _activeCategory = category;
+        await LoadDataAsync();
+    }
+
+    private async Task SetDateFilter(string key)
+    {
+        _activeDateFilter = key;
+        var today = DateTime.Today;
+        (_filterStart, _filterEnd) = key switch
         {
-            Snackbar.Add("Transaction Approved and Committed.", Severity.Success);
+            "today" => ((DateTime?)today, (DateTime?)today),
+            "7d"    => (today.AddDays(-7), today),
+            "30d"   => (today.AddDays(-30), today),
+            "1y"    => (today.AddYears(-1), today),
+            _       => ((DateTime?)null, (DateTime?)null),
+        };
+        await LoadDataAsync();
+    }
+
+    private async Task OnStartDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        { 
+            _filterStart = dt; 
+            _activeDateFilter = "custom"; 
             await LoadDataAsync();
-        }
-        else
-        {
-            Snackbar.Add("Approval Denied: Possible self-approval violation or system error.", Severity.Error);
         }
     }
 
-    private async Task Reject(Guid id)
+    private async Task OnEndDateChanged(ChangeEventArgs e)
     {
-        // Simple prompt for reason
-        var reason = "Manual Rejection by Approver";
-        var success = await OrgService.RejectTransactionAsync(id, reason);
-        if (success)
-        {
-            Snackbar.Add("Transaction Rejected.", Severity.Warning);
-            await LoadDataAsync();
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        { 
+            _filterEnd = dt; 
+            _activeDateFilter = "custom"; 
+            await LoadDataAsync(); 
         }
+    }
+
+    private async Task ExportXls()
+    {
+        if (!_searchResult.Items.Any()) { Snackbar.Add("No data to export.", Severity.Warning); return; }
+        var filterLabel = BuildFilterLabel();
+        var bytes = ReportService.GenerateAuditExcel("Organization Audit Logs", _searchResult.Items, filterLabel);
+        await DownloadFile($"OrgAuditLogs_{DateTime.Now:yyyyMMdd}.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        Snackbar.Add("Exported as Excel.", Severity.Success);
+    }
+
+    private async Task ExportPdf()
+    {
+        if (!_searchResult.Items.Any()) { Snackbar.Add("No data to export.", Severity.Warning); return; }
+        var filterLabel = BuildFilterLabel();
+        var bytes = ReportService.GenerateAuditPdf("Organization Audit Logs", _searchResult.Items, filterLabel);
+        await DownloadFile($"OrgAuditLogs_{DateTime.Now:yyyyMMdd}.pdf", bytes, "application/pdf");
+        Snackbar.Add("Exported as PDF.", Severity.Success);
+    }
+
+    private string BuildFilterLabel()
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(_activeCategory)) parts.Add($"Category: {_activeCategory.ToUpper()}");
+        
+        if (_filterStart.HasValue && _filterEnd.HasValue) parts.Add($"Date: {_filterStart:MM/dd/yyyy} – {_filterEnd:MM/dd/yyyy}");
+        else if (_filterStart.HasValue) parts.Add($"Date: From {_filterStart:MM/dd/yyyy}");
+        else if (_filterEnd.HasValue) parts.Add($"Date: To {_filterEnd:MM/dd/yyyy}");
+
+        return parts.Any() ? string.Join(" | ", parts) : "All Audit Logs";
+    }
+
+    private async Task DownloadFile(string fileName, byte[] content, string contentType)
+    {
+        using var streamRef = new DotNetStreamReference(new MemoryStream(content));
+        await JS.InvokeVoidAsync("fmc_downloadFile", fileName, contentType, streamRef);
     }
 }

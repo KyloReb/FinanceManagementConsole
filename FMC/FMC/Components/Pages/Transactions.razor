@@ -396,15 +396,36 @@
         }
     }
 
+    private string GetActiveFilterString()
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_searchString)) parts.Add($"Query: '{_searchString.Trim()}'");
+        if (_startDate.HasValue || _endDate.HasValue)
+        {
+            var startStr = _startDate?.ToString("MM/dd/yyyy") ?? "Any";
+            var endStr = _endDate?.ToString("MM/dd/yyyy") ?? "Any";
+            parts.Add($"Date: {startStr} to {endStr}");
+        }
+        else
+        {
+            parts.Add("Date: ALL");
+        }
+        return string.Join(" | ", parts);
+    }
+
     private async Task ExportExcel()
     {
-        var bytes = ReportService.GenerateExcel("Fiscal Transaction Ledger", _transactions);
+        var filteredData = _table?.FilteredItems?.ToList() ?? _transactions.Where(FilterFunc1).ToList();
+        if (!filteredData.Any()) return;
+        var bytes = ReportService.GenerateExcel("Fiscal Transaction Ledger", filteredData, GetActiveFilterString());
         await DownloadFile("Transactions.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     private async Task ExportPdf()
     {
-        var bytes = ReportService.GeneratePdf("Forensic Settlement History", _transactions);
+        var filteredData = _table?.FilteredItems?.ToList() ?? _transactions.Where(FilterFunc1).ToList();
+        if (!filteredData.Any()) return;
+        var bytes = ReportService.GeneratePdf("Forensic Settlement History", filteredData, GetActiveFilterString());
         await DownloadFile("Transactions.pdf", bytes, "application/pdf");
     }
 

@@ -285,9 +285,9 @@
     display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 8px;
     font-weight: 900; font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;
 }
-.fmc-status-badge.successful, .fmc-status-badge.approved { background: rgba(var(--mud-palette-success-rgb), 0.12); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
-.fmc-status-badge.pending { background: rgba(var(--mud-palette-warning-rgb), 0.12); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
-.fmc-status-badge.error, .fmc-status-badge.failed, .fmc-status-badge.rejected { background: rgba(var(--mud-palette-error-rgb), 0.12); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
+.fmc-status-badge.successful, .fmc-status-badge.approved, .fmc-status-badge.completed { background: rgba(var(--mud-palette-success-rgb), 0.12); color: var(--mud-palette-success); border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2); }
+.fmc-status-badge.pending, .fmc-status-badge.mixed { background: rgba(var(--mud-palette-warning-rgb), 0.12); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
+.fmc-status-badge.error, .fmc-status-badge.failed, .fmc-status-badge.rejected, .fmc-status-badge.cancelled { background: rgba(var(--mud-palette-error-rgb), 0.12); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
 
 /* ── Premium Empty State & End of Stream ── */
 .fmc-empty-state { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; overflow: hidden; }
@@ -312,4 +312,142 @@
     .fmc-orchestration-row { flex-direction: column; }
     .fmc-action-toolbar { margin-left: 0 !important; }
     .fmc-premium-action { padding: 12px; }
+}
+
+/* Premium Symmetrical Centered Tooltip for Transaction Table Rows */
+::deep .mud-table-row {
+    position: relative !important;
+    z-index: 1 !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+::deep .mud-table-row:hover {
+    z-index: 10 !important;
+}
+
+::deep .fmc-row-tooltip {
+    position: absolute !important;
+    bottom: 115% !important;
+    left: 50% !important;
+    width: 320px !important;
+    background: #12121a !important; 
+    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
+    border-radius: 12px !important;
+    padding: 14px !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+    backdrop-filter: blur(25px) saturate(120%) !important;
+    color: var(--mud-palette-text-primary) !important;
+    z-index: 100 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateX(-50%) translateY(8px) scale(0.97) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    pointer-events: none !important; 
+    text-align: left !important;
+}
+
+html:not(.dark) ::deep .fmc-row-tooltip {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
+}
+html:not(.dark) ::deep .tooltip-val {
+    color: #0f172a !important;
+}
+html:not(.dark) ::deep .tooltip-lbl {
+    color: #64748b !important;
+}
+
+::deep .mud-table-row:hover .fmc-row-tooltip {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateX(-50%) translateY(0) scale(1) !important;
+}
+
+/* Downward positioning override for first three items to prevent layout clipping */
+::deep .mud-table-row:nth-of-type(-n+3) .fmc-row-tooltip {
+    bottom: auto !important;
+    top: 115% !important;
+    transform: translateX(-50%) translateY(-8px) scale(0.97) !important;
+}
+::deep .mud-table-row:nth-of-type(-n+3):hover .fmc-row-tooltip {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateX(-50%) translateY(0) scale(1) !important;
+}
+
+/* Tooltip Internal Structure */
+::deep .fmc-row-tooltip .tooltip-header {
+    font-size: 0.58rem !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.08em !important;
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+    opacity: 0.8 !important;
+}
+::deep .fmc-row-tooltip .tooltip-header.credit { color: #10b981 !important; }
+::deep .fmc-row-tooltip .tooltip-header.debit { color: #f43f5e !important; }
+::deep .fmc-row-tooltip .tooltip-header.info { color: #818cf8 !important; }
+::deep .fmc-row-tooltip .tooltip-header.warning { color: #f59e0b !important; }
+
+::deep .fmc-row-tooltip .tooltip-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+}
+::deep .fmc-row-tooltip .tooltip-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 0.72rem !important;
+}
+::deep .fmc-row-tooltip .tooltip-lbl {
+    font-weight: 550 !important;
+    color: rgba(255, 255, 255, 0.38) !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.02em !important;
+}
+::deep .fmc-row-tooltip .tooltip-val {
+    font-weight: 750 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-align: right !important;
+}
+::deep .fmc-row-tooltip .tooltip-val.mono {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.68rem !important;
+}
+::deep .fmc-row-tooltip .tooltip-val.highlighted-val {
+    font-weight: 950 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.76rem !important;
+    color: #ffffff !important;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.12) !important;
+}
+html:not(.dark) ::deep .fmc-row-tooltip .tooltip-val.highlighted-val {
+    color: #000000 !important;
+    text-shadow: none !important;
+}
+::deep .fmc-row-tooltip .tooltip-val.credit { color: #10b981 !important; }
+::deep .fmc-row-tooltip .tooltip-val.debit { color: #f43f5e !important; }
+::deep .fmc-row-tooltip .tooltip-val.info { color: #818cf8 !important; }
+::deep .fmc-row-tooltip .tooltip-val.warning { color: #f59e0b !important; }
+
+::deep .fmc-row-tooltip .tooltip-footer {
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    font-size: 0.58rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.05em !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-transform: uppercase !important;
+}
+html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
+    border-top-color: rgba(0, 0, 0, 0.06) !important;
+    color: rgba(0, 0, 0, 0.4) !important;
 }

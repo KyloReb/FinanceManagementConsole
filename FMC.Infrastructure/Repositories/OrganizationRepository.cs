@@ -189,8 +189,8 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.Transactions
             .IgnoreQueryFilters()
-            .Where(t => t.OrganizationId == organizationId && t.Date >= fromDate)
-            .OrderByDescending(t => t.Date)
+            .Where(t => t.OrganizationId == organizationId && (t.Date >= fromDate || (t.ActionDate != null && t.ActionDate >= fromDate)))
+            .OrderByDescending(t => t.ActionDate ?? t.Date)
             .ToListAsync(ct);
     }
 
@@ -209,7 +209,7 @@ public class OrganizationRepository : IOrganizationRepository
         var query = _context.Transactions.IgnoreQueryFilters().Where(t => t.OrganizationId == organizationId);
         if (!string.IsNullOrEmpty(status)) query = query.Where(t => t.Status == status);
         
-        return await query.OrderByDescending(t => t.Date).Take(count).ToListAsync(ct);
+        return await query.OrderByDescending(t => t.ActionDate ?? t.Date).Take(count).ToListAsync(ct);
     }
 
     public async Task<IEnumerable<Transaction>> GetTransactionsByBatchIdAsync(Guid batchId, CancellationToken ct = default)

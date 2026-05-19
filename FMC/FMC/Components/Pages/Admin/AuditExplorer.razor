@@ -14,6 +14,175 @@
 
 <PageTitle>Audit Intelligence | FMC</PageTitle>
 
+<style>
+    /* Absolute Symmetrical Centered Forensic Tooltip - Bypassing Blazor Isolation & CSS Caching */
+    .fmc-premium-table .mud-table-row {
+        position: relative !important;
+        z-index: 1 !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    }
+    
+    .fmc-premium-table .mud-table-row:hover {
+        z-index: 10 !important; /* Lifts the hovered row above all sibling columns and cells but keeps it safely behind modal dialogs (z-index: 1400+) */
+    }
+    
+    .fmc-premium-table .fmc-row-tooltip {
+        position: absolute !important;
+        bottom: 115% !important;
+        left: 50% !important;
+        width: 320px !important;
+        background: #12121a !important; /* Solid Premium Dark Background in Dark Mode */
+        border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
+        border-radius: 12px !important;
+        padding: 14px !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+        backdrop-filter: blur(25px) saturate(120%) !important;
+        color: var(--mud-palette-text-primary) !important;
+        z-index: 100 !important; /* Stays at the top of the row's children but below modal dialog overlays */
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateX(-50%) translateY(8px) scale(0.97) !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        pointer-events: none !important; /* CRITICAL: Allows mouse to pass through the tooltip to break hover trap */
+        text-align: left !important;
+    }
+
+    /* Opaque Background for Light Mode - Checked strictly against html class */
+    html:not(.dark) .fmc-premium-table .fmc-row-tooltip {
+        background: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
+    }
+    html:not(.dark) .fmc-premium-table .tooltip-val {
+        color: #0f172a !important;
+    }
+    html:not(.dark) .fmc-premium-table .tooltip-lbl {
+        color: #64748b !important;
+    }
+
+    .fmc-premium-table .mud-table-row:hover .fmc-row-tooltip {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(-50%) translateY(0) scale(1) !important;
+    }
+
+    /* Downward positioning override for first three rows to prevent layout clipping */
+    .fmc-premium-table .mud-table-row:nth-of-type(-n+3) .fmc-row-tooltip {
+        bottom: auto !important;
+        top: 115% !important;
+        transform: translateX(-50%) translateY(-8px) scale(0.97) !important;
+    }
+    .fmc-premium-table .mud-table-row:nth-of-type(-n+3):hover .fmc-row-tooltip {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(-50%) translateY(0) scale(1) !important;
+    }
+
+    /* High-Fidelity Ledger Bar Styles */
+    .fmc-premium-table .fmc-ledger-bar { 
+        width: 4px !important; 
+        height: 24px !important; 
+        border-radius: 4px !important; 
+        background-color: var(--mud-palette-divider) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; 
+        display: inline-block !important;
+    }
+    .fmc-premium-table .fmc-ledger-bar.credit { background-color: #10b981 !important; }
+    .fmc-premium-table .fmc-ledger-bar.debit { background-color: #f43f5e !important; }
+    .fmc-premium-table .fmc-ledger-bar.security { background-color: #818cf8 !important; }
+    .fmc-premium-table .fmc-ledger-bar.neutral { background-color: #9ca3af !important; }
+    
+    html:not(.dark) .fmc-premium-table .fmc-ledger-bar.credit { background-color: #059669 !important; }
+    html:not(.dark) .fmc-premium-table .fmc-ledger-bar.debit { background-color: #d90429 !important; }
+    html:not(.dark) .fmc-premium-table .fmc-ledger-bar.security { background-color: #3b82f6 !important; }
+    html:not(.dark) .fmc-premium-table .fmc-ledger-bar.neutral { background-color: #4b5563 !important; }
+
+    .fmc-premium-table .mud-table-row:hover .fmc-ledger-bar { 
+        transform: scaleY(1.3) scaleX(1.5) !important; 
+    }
+
+    /* Completely strip out left cell borders to ensure the vertical white line is gone */
+    .fmc-premium-table td {
+        border-left: none !important;
+    }
+
+    /* Tooltip Internal Structure */
+    .fmc-row-tooltip .tooltip-header {
+        font-size: 0.58rem !important;
+        font-weight: 950 !important;
+        letter-spacing: 0.08em !important;
+        display: flex !important;
+        align-items: center !important;
+        margin-bottom: 8px !important;
+        opacity: 0.8 !important;
+    }
+    .fmc-row-tooltip .tooltip-header.credit { color: #10b981 !important; }
+    .fmc-row-tooltip .tooltip-header.debit { color: #f43f5e !important; }
+    .fmc-row-tooltip .tooltip-header.security { color: #818cf8 !important; }
+    .fmc-row-tooltip .tooltip-header.neutral { color: #9ca3af !important; }
+
+    .fmc-row-tooltip .tooltip-body {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 5px !important;
+    }
+    .fmc-row-tooltip .tooltip-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 0.72rem !important;
+    }
+    .fmc-row-tooltip .tooltip-lbl {
+        font-weight: 550 !important;
+        color: rgba(255, 255, 255, 0.38) !important;
+        font-size: 0.68rem !important;
+        letter-spacing: 0.02em !important;
+    }
+    .fmc-row-tooltip .tooltip-val {
+        font-weight: 750 !important;
+        color: rgba(255, 255, 255, 0.9) !important;
+        text-align: right !important;
+    }
+    .fmc-row-tooltip .tooltip-val.mono {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.68rem !important;
+    }
+    .fmc-row-tooltip .tooltip-val.highlighted-val {
+        font-weight: 950 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.76rem !important;
+        color: #ffffff !important;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.12) !important;
+    }
+    html:not(.dark) .fmc-row-tooltip .tooltip-val.highlighted-val {
+        color: #000000 !important;
+        text-shadow: none !important;
+    }
+    .fmc-row-tooltip .tooltip-val.credit { color: #10b981 !important; }
+    .fmc-row-tooltip .tooltip-val.debit { color: #f43f5e !important; }
+    .fmc-row-tooltip .tooltip-val.security { color: #818cf8 !important; }
+    .fmc-row-tooltip .tooltip-val.neutral { color: #9ca3af !important; }
+
+    .fmc-row-tooltip .tooltip-footer {
+        margin-top: 8px !important;
+        padding-top: 8px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        font-size: 0.58rem !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.05em !important;
+        color: rgba(255, 255, 255, 0.35) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-transform: uppercase !important;
+    }
+    html:not(.dark) .fmc-row-tooltip .tooltip-footer {
+        border-top-color: rgba(0, 0, 0, 0.06) !important;
+        color: rgba(0, 0, 0, 0.4) !important;
+    }
+</style>
+
 <div class="fmc-ledger-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12">
     @* PLATINUM HEADER AREA *@
@@ -106,7 +275,7 @@
         {
         @* DESKTOP ANALYTICS TABLE *@
         <MudTable @ref="_table" Items="@_searchResult.Items" Hover="true" Elevation="0" Loading="@_loading" 
-                 OnRowClick="@((TableRowClickEventArgs<AuditLogDto> args) => ShowDetail(args.Item))" T="AuditLogDto" 
+                 OnRowClick="@((TableRowClickEventArgs<AuditLogDto> args) => { if (args.Item != null) ShowDetail(args.Item); })" T="AuditLogDto" 
                  RowClassFunc="@((item, idx) => $"fmc-row-hover {(item.Action == "CREDIT" ? "credit" : (item.Action == "DEBIT" ? "debit" : "info"))}")"
                  Filter="new Func<AuditLogDto,bool>(FilterFunc)" Class="fmc-premium-table">
                     <LoadingContent>
@@ -143,24 +312,76 @@
                     <RowTemplate>
                         @{
                             var actUpper = context.Action?.ToUpper() ?? "";
-                            var isCredit = actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
-                            var isDebit = actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED");
-                            var isSecurity = actUpper.Contains("LOGIN") || actUpper.Contains("AUTH") || actUpper.Contains("PASSWORD_RESET");
+                            var isApproved = actUpper == "TRANSACTION_APPROVED" || actUpper == "BATCH_APPROVED" || actUpper == "APPROVE" || actUpper == "APPROVAL_SUCCESS";
+                            var isBatchSubmit = actUpper == "BATCH_SUBMITTED";
+                            var isBatchCancel = actUpper == "BATCH_CANCELLED";
+                            
+                            var isCredit = isApproved || actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
+                            var isDebit = isBatchCancel || actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED") || actUpper == "BATCH_REJECTED";
+                            var isSecurity = isBatchSubmit || actUpper.Contains("LOGIN") || actUpper.Contains("AUTH") || actUpper.Contains("PASSWORD_RESET");
                             var isNeutral = actUpper.Contains("LOGOUT") || actUpper.Contains("VIEW") || actUpper.Contains("READ");
                             
-                            var color = isCredit ? Color.Success : 
+                            var color = isApproved ? Color.Success : 
+                                        (isBatchSubmit ? Color.Info : 
+                                        (isBatchCancel ? Color.Error : 
+                                        (isCredit ? Color.Success : 
                                         (isDebit ? Color.Error : 
                                         (isSecurity ? Color.Info : 
-                                        (isNeutral ? Color.Default : Color.Info)));
+                                        (isNeutral ? Color.Default : Color.Info))))));
 
-                            var icon = isCredit ? Icons.Material.Filled.AddCircle : 
+                            var icon = isApproved ? Icons.Material.Filled.CheckCircle : 
+                                       (isBatchSubmit ? Icons.Material.Filled.Backup : 
+                                       (isBatchCancel ? Icons.Material.Filled.Cancel : 
+                                       (isCredit ? Icons.Material.Filled.AddCircle : 
                                        (isDebit ? Icons.Material.Filled.RemoveCircle : 
                                        (isSecurity ? Icons.Material.Filled.Shield : 
-                                       (isNeutral ? Icons.Material.Filled.ExitToApp : Icons.Material.Filled.Hub)));
+                                       (isNeutral ? Icons.Material.Filled.ExitToApp : Icons.Material.Filled.Hub))))));
                         }
                         <MudTd>
+                            <!-- Premium Floating Forensic Tooltip -->
+                            <div class="fmc-row-tooltip">
+                                <div class="tooltip-header @(isCredit ? "credit" : (isDebit ? "debit" : (isSecurity ? "security" : "neutral")))">
+                                    <MudIcon Icon="@icon" Size="Size.Small" Class="mr-1" />
+                                    <span>FORENSIC TELEMETRY STREAM</span>
+                                </div>
+                                <div class="tooltip-body">
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-lbl">OPERATION:</span>
+                                        <span class="tooltip-val @(isCredit ? "credit" : (isDebit ? "debit" : (isSecurity ? "security" : "neutral")))">@FormatAction(context.Action)</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-lbl">CONTEXT / ACTOR:</span>
+                                        <span class="tooltip-val">@(string.IsNullOrWhiteSpace(context.EntityName) || context.EntityName == "N/A" ? (context.Organization ?? "System Core Gateway") : context.EntityName)</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-lbl">TELEMETRY ENDPOINT:</span>
+                                        <span class="tooltip-val mono">@(context.IpAddress ?? "::1 (Local Loopback)")</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-lbl">PLATFORM CONSOLE:</span>
+                                        <span class="tooltip-val">@(context.Label ?? "FMC Secure Terminal")</span>
+                                    </div>
+                                    <div class="tooltip-row" style="margin-top: 4px; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 4px;">
+                                        <span class="tooltip-lbl">SESSION AUDITOR:</span>
+                                        <span class="tooltip-val">@(context.PerformedBy ?? "System Root")</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-lbl">MAGNITUDE VALUE:</span>
+                                        <span class="tooltip-val mono highlighted-val">@(context.Amount.HasValue ? $"₱{context.Amount.Value:N2}" : "NOT APPLICABLE")</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-lbl">ISO TIMESTAMP:</span>
+                                        <span class="tooltip-val mono highlighted-val">@context.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                    </div>
+                                </div>
+                                <div class="tooltip-footer">
+                                    <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small" Class="mr-1" style="font-size: 0.6rem;" />
+                                    <span>CLICK ROW FOR FULL EVENT LEDGER TRACE</span>
+                                </div>
+                            </div>
+
                             <div class="d-flex align-center gap-3">
-                                <div class="fmc-ledger-bar" style="background: var(--mud-palette-divider);"></div>
+                                <div class="fmc-ledger-bar @(isCredit ? "credit" : (isDebit ? "debit" : (isSecurity ? "security" : "neutral")))"></div>
                                 <div class="d-flex flex-column">
                                     <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@context!.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudText>
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@context!.CreatedAt.ToLocalTime().ToString("HH:mm:ss")</MudText>
@@ -170,12 +391,12 @@
                         <MudTd>
                             <div class="d-flex align-center gap-2">
                                 <MudIcon Icon="@icon" Color="@color" Size="Size.Small" />
-                                <MudText Color="@color" Style="font-weight:900; letter-spacing:0.04em; font-size:0.7rem; text-transform:uppercase;">@context.Action</MudText>
+                                <MudText Color="@color" Style="font-weight:900; letter-spacing:0.04em; font-size:0.7rem;">@FormatAction(context.Action)</MudText>
                             </div>
                         </MudTd>
                         <MudTd>
                             <div class="d-flex flex-column">
-                                <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(context.EntityName ?? context.Organization ?? "System Boundary")</MudText>
+                                <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(string.IsNullOrWhiteSpace(context.EntityName) || context.EntityName == "N/A" ? (context.Organization ?? "System Boundary") : context.EntityName)</MudText>
                                 @if (!string.IsNullOrEmpty(context.Label))
                                 {
                                     <MudText Typo="Typo.caption" Style="font-size:0.6rem; opacity:0.6; font-weight:700;" Class="text-truncate">@context.Label</MudText>
@@ -302,12 +523,17 @@
                             <div class="fmc-mobile-top pa-3 d-flex justify-space-between align-center">
                                 <div class="d-flex align-center gap-2">
                                     @{
-                                        var isCredit = log.Action == "CREDIT";
-                                        var isDebit = log.Action == "DEBIT";
+                                        var actUpper = log.Action?.ToUpper() ?? "";
+                                        var isApproved = actUpper == "TRANSACTION_APPROVED" || actUpper == "BATCH_APPROVED" || actUpper == "APPROVE" || actUpper == "APPROVAL_SUCCESS";
+                                        var isBatchSubmit = actUpper == "BATCH_SUBMITTED";
+                                        var isBatchCancel = actUpper == "BATCH_CANCELLED";
+                                        
+                                        var isCredit = isApproved || actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
+                                        var isDebit = isBatchCancel || actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED") || actUpper == "BATCH_REJECTED";
                                         var colorClass = isCredit ? "success" : (isDebit ? "error" : "info");
                                     }
                                     <div class="fmc-audit-pulse @colorClass"></div>
-                                    <MudText Style="font-weight:950; font-size:0.75rem; text-transform:uppercase;">@log.Action</MudText>
+                                    <MudText Style="font-weight:950; font-size:0.75rem;">@FormatAction(log.Action)</MudText>
                                 </div>
                                 <div class="text-right d-flex flex-column">
                                     <MudText Style="font-weight:950; font-size:0.7rem;">@log.CreatedAt.ToLocalTime().ToString("HH:mm")</MudText>
@@ -318,7 +544,7 @@
                                 <div class="d-flex justify-space-between align-end">
                                     <div class="flex-grow-1 mr-4 overflow-hidden">
                                          <MudText Style="font-size:0.55rem; font-weight:900; opacity:0.5; letter-spacing:0.05em; text-transform:uppercase; display:block;">Context</MudText>
-                                         <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(log.EntityName ?? log.Organization ?? "System")</MudText>
+                                         <MudText Style="font-weight:800; font-size:0.75rem;" Class="text-truncate">@(string.IsNullOrWhiteSpace(log.EntityName) || log.EntityName == "N/A" ? (log.Organization ?? "System") : log.EntityName)</MudText>
                                     </div>
                                     <div class="text-right">
                                         @if (log.Amount.HasValue)
@@ -528,5 +754,24 @@
     {
         using var streamRef = new DotNetStreamReference(new MemoryStream(content));
         await JS.InvokeVoidAsync("fmc_downloadFile", fileName, contentType, streamRef);
+    }
+
+    private string FormatAction(string? action)
+    {
+        if (string.IsNullOrEmpty(action)) return string.Empty;
+        var upper = action.ToUpperInvariant();
+        return upper switch
+        {
+            "TRANSACTION_APPROVED" => "Transaction Approved",
+            "BATCH_SUBMITTED" => "Batch Submitted",
+            "BATCH_CANCELLED" => "Batch Cancelled",
+            "BATCH_REJECTED" => "Batch Rejected",
+            "TRANSACTION_REJECTED" => "Transaction Rejected",
+            "SYNC_LIMIT" => "Sync Limit",
+            "WALLET_ADJUSTED" => "Wallet Adjusted",
+            "EXHAUSTION_WARNING" => "Exhaustion Warning",
+            "APPROVAL_SUCCESS" => "Approval Success",
+            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(action.Replace("_", " ").ToLower())
+        };
     }
 }

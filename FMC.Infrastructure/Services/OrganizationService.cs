@@ -28,6 +28,7 @@ public class OrganizationService : IOrganizationService
     private readonly IIdentityService _identityService;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<OrganizationService> _logger;
+    private readonly ICacheService _cacheService;
 
     public OrganizationService(
         IOrganizationRepository repository,
@@ -37,7 +38,8 @@ public class OrganizationService : IOrganizationService
         IIdentityService identityService,
         ICurrentUserService currentUserService,
         ISystemAlertService alertService,
-        ILogger<OrganizationService> logger)
+        ILogger<OrganizationService> logger,
+        ICacheService cacheService)
     {
         _repository = repository;
         _auditService = auditService;
@@ -47,19 +49,28 @@ public class OrganizationService : IOrganizationService
         _currentUserService = currentUserService;
         _alertService = alertService;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     /// <inheritdoc />
     public async Task<IEnumerable<OrganizationDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        string cacheKey = "OrganizationService_GetAll";
+        var cached = await _cacheService.GetAsync<IEnumerable<OrganizationDto>>(cacheKey);
+        if (cached != null) return cached;
+
         var summaries = await _repository.GetAllWithStatsAsync(cancellationToken);
         
-        return summaries.Select(s => MapToDto(
+        var result = summaries.Select(s => MapToDto(
             s.Org, 
             s.UserCount, 
             s.CeoName, 
             s.OrgBalance + s.UserBalanceSum, 
             s.UserBalanceSum));
+
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+
+        return result;
     }
 
     /// <inheritdoc />
@@ -357,7 +368,7 @@ public class OrganizationService : IOrganizationService
         await _auditService.RecordFinancialEventAsync(
             amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED", 
             org.Id, 
-            "N/A", 
+            org.Name, 
             Math.Abs(amount), 
             $"{auditDescription} — Impact: {(amount > 0 ? "Institutional Capital Increased" : "Institutional Capital Reduced")}", 
             performedBy, 
@@ -436,14 +447,10 @@ public class OrganizationService : IOrganizationService
         var orgAcc = org?.AccountNumber ?? "N/A";
         var userAcc = cardholder?.AccountNumber ?? (await _identityService.GetUserByIdAsync(userId.ToString()))?.AccountNumber ?? "N/A";
 
-        var accountingNote = amount >= 0 
-            ? $"Debit Subscriber [{orgAcc}] ➔ Credit Cardholder [{userAcc}]"
-            : $"Debit Cardholder [{userAcc}] ➔ Credit Subscriber [{orgAcc}]";
-            
         var transaction = new Transaction
         {
             Id = Guid.NewGuid(),
-            Label = (label ?? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request")) + $" — {accountingNote}",
+            Label = string.IsNullOrWhiteSpace(label) ? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request") : label,
             Amount = amount,
             Date = DateTime.UtcNow,
             Category = "Subscriber Allotment",
@@ -458,14 +465,14 @@ public class OrganizationService : IOrganizationService
 
         // 4. Trace the forensic audit event for Initiation
         var auditAction = amount >= 0 ? "CREDIT" : "DEBIT";
-        var auditDetail = label ?? (amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request");
+        var auditDetail = string.IsNullOrWhiteSpace(label) ? (amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request") : label;
 
         await _auditService.RecordFinancialEventAsync(
             "INITIATE_" + auditAction, 
             orgId ?? Guid.Empty, 
             $"{firstName} {lastName}".Trim(), 
             Math.Abs(amount), 
-            $"{auditDetail} — {accountingNote}", 
+            auditDetail, 
             performedBy,
             null,
             orgId?.ToString()
@@ -494,10 +501,25 @@ public class OrganizationService : IOrganizationService
         var transaction = await _repository.GetTransactionByIdAsync(transactionId, cancellationToken);
         if (transaction == null || transaction.Status != "Pending") throw new ApplicationException("Transaction not found or already processed.");
 
+        var targetAccount = await _repository.GetAccountByIdAsync(transaction.AccountId);
+        var targetName = targetAccount?.Name;
+        if (string.IsNullOrEmpty(targetName))
+        {
+            var resolvedUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
+            if (resolvedUser != null)
+            {
+                targetName = $"Wallet: {resolvedUser.FirstName} {resolvedUser.LastName}".Trim();
+            }
+            else
+            {
+                targetName = "N/A";
+            }
+        }
+
         // 2. Mutual Exclusion (4-Eyes Principle): Maker cannot be Approver
         if (transaction.MakerId == approverId)
         {
-            await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, "N/A", transaction.Amount, "4-Eyes Violation: Maker tried to approve own request.", approverId, null, transaction.TenantId);
+            await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, targetName, transaction.Amount, "4-Eyes Violation: Maker tried to approve own request.", approverId, null, transaction.TenantId);
             throw new ApplicationException("Four-Eyes Policy: You cannot approve transactions you initiated.");
         }
 
@@ -508,7 +530,7 @@ public class OrganizationService : IOrganizationService
         
         if (approver == null || (!sameOrg && !_currentUserService.IsSuperAdmin))
         {
-            await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, "N/A", transaction.Amount, "Residency Violation: Approver belongs to different organization.", approverId, null, transaction.TenantId);
+            await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, targetName, transaction.Amount, "Residency Violation: Approver belongs to different organization.", approverId, null, transaction.TenantId);
             throw new ApplicationException("Organizational Security: You can only approve transactions for your own organization.");
         }
 
@@ -532,18 +554,22 @@ public class OrganizationService : IOrganizationService
         transaction.ApproverId = approverId;
         transaction.ActionDate = DateTime.UtcNow;
 
-        // Semantic Update: Ensure the label reflects the final settlement flow with explicit account numbers
         var org = await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken);
-        var orgAcc = org?.AccountNumber ?? "N/A";
         var targetUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
-        var userAcc = targetUser?.AccountNumber ?? "N/A";
-
-        var accountingNote = transaction.Amount >= 0 
-            ? $"Debit Subscriber [{orgAcc}] ➔ Credit Cardholder [{userAcc}]"
-            : $"Debit Cardholder [{userAcc}] ➔ Credit Subscriber [{orgAcc}]";
         
-        // Update the label to include the finalized flow if it's not already perfectly represented
-        transaction.Label = $"{transaction.Label.Split(" — ")[0]} — {accountingNote}";
+        string mask(string? acc) => string.IsNullOrEmpty(acc) ? "N/A" : (acc.Length < 10 ? acc : $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}");
+        var orgAcc = mask(org?.AccountNumber);
+        var userAcc = mask(targetUser?.AccountNumber);
+        var orgName = org?.Name ?? "Unknown";
+        var userName = targetUser != null ? $"{targetUser.FirstName} {targetUser.LastName}".Trim() : "Unknown";
+        var amountStr = $"₱{Math.Abs(transaction.Amount):N2}";
+        
+        var conciseNote = transaction.Amount >= 0 
+            ? $"Mother Account ({orgName} - {orgAcc}) Debited by {amountStr} to Credit Cardholder ({userName} - {userAcc})"
+            : $"Cardholder ({userName} - {userAcc}) Debited by {amountStr} to Credit Mother Account ({orgName} - {orgAcc})";
+            
+        // Append concise descriptive note to core label
+        transaction.Label = $"{transaction.Label.Split(" — ")[0]} — {conciseNote}";
         
         await _repository.SaveChangesAsync(cancellationToken);
 
@@ -555,7 +581,7 @@ public class OrganizationService : IOrganizationService
                 transaction.OrganizationId.Value, 
                 userAccount.Name, 
                 transaction.Amount, 
-                $"{transaction.Label} — {accountingNote}", 
+                transaction.Label, 
                 approverId, 
                 approver?.Email, 
                 transaction.OrganizationId.Value.ToString());
@@ -570,6 +596,8 @@ public class OrganizationService : IOrganizationService
         _logger.LogInformation("[OrganizationService] Transaction {Id} APPROVED by {ApproverId}. Amount settled.", 
             transactionId, approverId);
 
+        await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
+
         return true;
     }
 
@@ -582,6 +610,21 @@ public class OrganizationService : IOrganizationService
         var transaction = await _repository.GetTransactionByIdAsync(transactionId, cancellationToken);
         if (transaction == null || transaction.Status != "Pending") return false;
 
+        var targetAccount = await _repository.GetAccountByIdAsync(transaction.AccountId);
+        var targetName = targetAccount?.Name;
+        if (string.IsNullOrEmpty(targetName))
+        {
+            var resolvedUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
+            if (resolvedUser != null)
+            {
+                targetName = $"Wallet: {resolvedUser.FirstName} {resolvedUser.LastName}".Trim();
+            }
+            else
+            {
+                targetName = "N/A";
+            }
+        }
+
         transaction.Status = "Rejected";
         transaction.ApproverId = approverId;
         transaction.ActionDate = DateTime.UtcNow;
@@ -592,7 +635,7 @@ public class OrganizationService : IOrganizationService
             await _auditService.RecordFinancialEventAsync(
                 "REJECTED", 
                 transaction.OrganizationId ?? Guid.Empty, 
-                "N/A", 
+                targetName, 
                 Math.Abs(transaction.Amount), 
                 $"Transaction Rejected: {reason}", 
                 approverId,
@@ -602,6 +645,9 @@ public class OrganizationService : IOrganizationService
         }
 
         await _repository.SaveChangesAsync(cancellationToken);
+        
+        await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
+        
         return true;
     }
 
@@ -781,13 +827,28 @@ public class OrganizationService : IOrganizationService
             return false;
         }
 
+        var targetAccount = await _repository.GetAccountByIdAsync(transaction.AccountId);
+        var targetName = targetAccount?.Name;
+        if (string.IsNullOrEmpty(targetName))
+        {
+            var resolvedUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
+            if (resolvedUser != null)
+            {
+                targetName = $"Wallet: {resolvedUser.FirstName} {resolvedUser.LastName}".Trim();
+            }
+            else
+            {
+                targetName = "N/A";
+            }
+        }
+
         transaction.Status = "Cancelled";
         transaction.ActionDate = DateTime.UtcNow;
 
         await _auditService.RecordFinancialEventAsync(
             "CANCELLED", 
             transaction.OrganizationId ?? Guid.Empty, 
-            "N/A", 
+            targetName, 
             Math.Abs(transaction.Amount), 
             "Transaction Cancelled by Maker", 
             makerId,
@@ -796,6 +857,7 @@ public class OrganizationService : IOrganizationService
         );
 
         await _repository.SaveChangesAsync(cancellationToken);
+        await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
         return true;
     }
 
@@ -836,6 +898,8 @@ public class OrganizationService : IOrganizationService
         // Notify stakeholders of the consolidated cancellation
         await _publisher.Publish(new BatchCancelledEvent(orgId, batchId, makerId), cancellationToken);
 
+        await ClearTransactionCacheAsync(orgId);
+
         return true;
     }
 
@@ -849,6 +913,16 @@ public class OrganizationService : IOrganizationService
             return Enumerable.Empty<FMC.Shared.DTOs.TransactionDto>();
         }
 
+        // 2. Redis cache check — short TTL since transactions are volatile
+        var cacheKey = $"org-txns:{organizationId}:{status ?? "all"}:{count}";
+        var cached = await _cacheService.GetAsync<List<FMC.Shared.DTOs.TransactionDto>>(cacheKey);
+        if (cached is not null)
+        {
+            _logger.LogDebug("[Cache-Hit] GetOrganizationTransactionsAsync — {Key}", cacheKey);
+            return cached;
+        }
+
+        // 3. Resolve from database
         var transactions = await _repository.GetOrganizationTransactionsAsync(organizationId, status, count, cancellationToken);
 
         var result = new List<FMC.Shared.DTOs.TransactionDto>();
@@ -899,6 +973,11 @@ public class OrganizationService : IOrganizationService
                 BatchId = t.BatchId
             });
         }
+
+        // 4. Store in Redis — 30s TTL to keep data fresh without hammering the DB
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromSeconds(30));
+        _logger.LogDebug("[Cache-Set] GetOrganizationTransactionsAsync — {Key} ({Count} records)", cacheKey, result.Count);
+
         return result;
     }
 
@@ -1078,22 +1157,28 @@ public class OrganizationService : IOrganizationService
         await _publisher.Publish(new BatchApprovedEvent(orgId, batchId, approverId), cancellationToken);
 
         var approver = await _identityService.GetUserByIdAsync(approverId);
+        
+        string mask(string? acc) => string.IsNullOrEmpty(acc) ? "N/A" : (acc.Length < 10 ? acc : $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}");
         var org = await _repository.GetByIdAsync(orgId, cancellationToken);
-        var orgAcc = org?.AccountNumber ?? "N/A";
+        var orgAcc = mask(org?.AccountNumber);
+        var orgName = org?.Name ?? "Unknown";
+        var amountStr = $"₱{Math.Abs(totalAmount):N2}";
 
-        var accountingNote = totalAmount >= 0 
-            ? $"Debit Subscriber [{orgAcc}] ➔ Credit MULTIPLE"
-            : $"Debit MULTIPLE ➔ Credit Subscriber [{orgAcc}]";
-
+        var conciseNote = totalAmount >= 0 
+            ? $"Mother Account ({orgName} - {orgAcc}) Debited by {amountStr} to Credit Multiple Cardholders"
+            : $"Multiple Cardholders Debited by {amountStr} to Credit Mother Account ({orgName} - {orgAcc})";
+            
         await _auditService.RecordFinancialEventAsync(
             "BATCH_APPROVED", 
             orgId, 
             $"{pendingTransactions.Count} Cardholders (Bulk)", 
             Math.Abs(totalAmount), 
-            $"{label.Split(" — ")[0]} — {accountingNote}", 
+            $"{label.Split(" — ")[0]} — {conciseNote}", 
             approverId, 
             approver?.Email, 
             orgId.ToString());
+
+        await ClearTransactionCacheAsync(orgId);
 
         return true;
     }
@@ -1131,6 +1216,8 @@ public class OrganizationService : IOrganizationService
         // Notify stakeholders of the consolidated rejection
         await _publisher.Publish(new BatchRejectedEvent(orgId, batchId, approverId, reason), cancellationToken);
 
+        await ClearTransactionCacheAsync(orgId);
+
         return true;
     }
 
@@ -1154,8 +1241,67 @@ public class OrganizationService : IOrganizationService
 
         _logger.LogInformation("[OrganizationService] Synchronized Wallet Limit for Org {OrgName} to {NewLimit:C}", org.Name, totalLiquidity);
         
-        await _auditService.RecordFinancialEventAsync("SYNC_LIMIT", organizationId, "N/A", totalLiquidity, "Capacity Reset", "System", null, organizationId.ToString());
+        await _auditService.RecordFinancialEventAsync("SYNC_LIMIT", organizationId, org.Name, totalLiquidity, "Capacity Reset", "System", null, organizationId.ToString());
         
         return true;
+    }
+
+    private async Task ClearTransactionCacheAsync(Guid organizationId)
+    {
+        var statuses = new[] { "all", "Pending", "Approved", "Successful", "Rejected" };
+        var counts = new[] { 50, 2000 };
+
+        foreach (var status in statuses)
+        {
+            foreach (var count in counts)
+            {
+                var key = $"org-txns:{organizationId}:{status}:{count}";
+                try
+                {
+                    await _cacheService.RemoveAsync(key);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to remove cache key {Key}", key);
+                }
+            }
+        }
+
+        // Invalidate recent audit logs cache keys for this organization and globally
+        var auditCounts = new[] { 10, 20, 50, 100, 500 };
+        var auditCategories = new[] { "all", "financial" };
+        foreach (var count in auditCounts)
+        {
+            foreach (var cat in auditCategories)
+            {
+                var keys = new[] { $"RecentAuditLogs_{count}_{cat}_{organizationId}", $"RecentAuditLogs_{count}_{cat}_all" };
+                foreach (var key in keys)
+                {
+                    try
+                    {
+                        await _cacheService.RemoveAsync(key);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to remove audit cache key {Key}", key);
+                    }
+                }
+            }
+        }
+
+        // Invalidate recent global transactions cache keys
+        var recentCounts = new[] { 5, 8, 10, 50, 100, 200 };
+        foreach (var rCount in recentCounts)
+        {
+            var key = $"RecentTransactions_{rCount}";
+            try
+            {
+                await _cacheService.RemoveAsync(key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to remove recent transactions cache key {Key}", key);
+            }
+        }
     }
 }

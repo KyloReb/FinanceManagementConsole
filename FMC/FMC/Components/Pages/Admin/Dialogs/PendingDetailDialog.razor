@@ -27,7 +27,7 @@
                     <MudText Typo="Typo.h5" Class="fmc-financial-mono" Color="@(Transaction.Amount < 0 ? Color.Error : Color.Success)">
                         @Transaction.Amount.ToString("C")
                     </MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">ESTABLISHED @Transaction.Date.ToString("MMM dd, yyyy HH:mm")</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">ESTABLISHED @Transaction.Date.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</MudText>
                 </div>
                 <MudChip T="string" Color="@GetStatusColor(Transaction.Status)" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 900;">
                     @Transaction.Status.ToUpper()
@@ -64,7 +64,28 @@
                 <!-- Transaction Description -->
                 <MudItem xs="12">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">DESCRIPTION / LABEL</MudText>
-                    <MudText Typo="Typo.body2">@Transaction.Label</MudText>
+                    <MudText Typo="Typo.body2">
+                        @if (!string.IsNullOrWhiteSpace(Transaction.Label))
+                        {
+                            @Transaction.Label
+                        }
+                        else
+                        {
+                            var maskAcc = (string? acc) => string.IsNullOrEmpty(acc) ? "N/A" : (acc.Length < 10 ? acc : $"{acc[..6]}{"******"}{acc[^4..]}");
+                            var orgPart  = $"Mother Account ({_orgName} - {maskAcc(_orgAccountNumber)})";
+                            var userPart = $"Cardholder ({Transaction.Subscriber} - {maskAcc(Transaction.AccountNumber)})";
+                            var amtStr   = $"₱{Math.Abs(Transaction.Amount):N2}";
+                            if (Transaction.Amount >= 0)
+                            {
+                                @($"{orgPart} Debited by {amtStr} to Credit {userPart}")
+                            }
+                            else
+                            {
+                                @($"{userPart} Debited by {amtStr} to Credit {orgPart}")
+                            }
+                        }
+                    </MudText>
+
                 </MudItem>
                 
                 <!-- Maker and Reference Details -->
@@ -87,9 +108,16 @@
                         </MudText>
                     </MudItem>
                     <MudItem xs="6">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">COMPLETION TIMESTAMP</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @(Transaction.Status switch {
+                                "Approved" or "Successful" => "APPROVED TIMESTAMP",
+                                "Rejected" => "REJECTED TIMESTAMP",
+                                "Cancelled" => "CANCELLED TIMESTAMP",
+                                _ => "COMPLETION TIMESTAMP"
+                            })
+                        </MudText>
                         <MudText Typo="Typo.body2" Style="font-weight: 700;">
-                            @(Transaction.ActionDate?.ToString("MMM dd, yyyy HH:mm") ?? "N/A")
+                            @(Transaction.ActionDate?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "N/A")
                         </MudText>
                     </MudItem>
                 }
@@ -719,7 +747,9 @@
 
                     if (success)
                     {
-                        ShowSuccessOverlay("DECISION LOGGED", "Transaction has been rejected and archived.", isRejection: true);
+                        // Close the dialog immediately — let the page-level overlay show the rejection feedback
+                        MudDialog.Close(DialogResult.Ok(true));
+                        return;
                     }
                 }
                 else 

@@ -102,7 +102,7 @@
 .fmc-desktop-table { display: block; }
 .fmc-mobile-cards  { display: none; }
 
-@@media (max-width: 960px) {
+@media (max-width: 960px) {
     .fmc-audit-header-inner { flex-direction: column; align-items: flex-start !important; gap: 16px; width: 100%; }
     .fmc-audit-title { flex-direction: row; align-items: center; justify-content: flex-start !important; width: 100%; gap: 0; }
     .fmc-audit-controls { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
@@ -263,7 +263,7 @@
 }
 
 /* ── Mobile & Sidebar Overrides ── */
-@@media (max-width: 600px) or (min-width: 960px) {
+@media (max-width: 600px) or (min-width: 960px) {
     .fmc-audit-item   { padding: 12px 14px 12px 20px; gap: 10px; }
     .fmc-audit-entity-compact { max-width: 100%; font-size: 0.75rem !important; line-height: 1.2; font-weight: 800; }
     .fmc-audit-actor  { font-size: 0.65rem; }
@@ -278,6 +278,7 @@
     word-break: break-word;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin: 2px 0;
@@ -461,6 +462,7 @@
     cursor: crosshair;
     z-index: 10;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 /* Floating scrub tooltip */
@@ -479,7 +481,7 @@
     text-align: center;
     animation: tip-pop 0.1s ease;
 }
-@@keyframes tip-pop {
+@keyframes tip-pop {
     from { opacity: 0; transform: translateX(-50%) scale(0.9); }
     to   { opacity: 1; transform: translateX(-50%) scale(1); }
 }
@@ -632,7 +634,7 @@
     animation: fmc-rotation 1s infinite linear;
 }
 
-@@keyframes fmc-rotation {
+@keyframes fmc-rotation {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
@@ -686,4 +688,153 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+/* Premium Symmetrical Centered Tooltip & Overflow Overrides for Home Dashboard Activity Log */
+.fmc-audit-surface {
+    overflow: visible !important;
+}
+.fmc-audit-scroll-area {
+    overflow: visible !important;
+}
+.fmc-audit-list {
+    overflow: visible !important;
+}
+
+.fmc-audit-item {
+    position: relative !important;
+    z-index: 1 !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.fmc-audit-item:hover {
+    z-index: 10 !important; /* Lifts the hovered item above sibling entries */
+}
+
+::deep .fmc-audit-item .fmc-row-tooltip {
+    position: absolute !important;
+    bottom: 115% !important;
+    left: 50% !important;
+    width: 320px !important;
+    background: #12121a !important; /* Solid Premium Dark Background in Dark Mode */
+    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
+    border-radius: 12px !important;
+    padding: 14px !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+    backdrop-filter: blur(25px) saturate(120%) !important;
+    color: var(--mud-palette-text-primary) !important;
+    z-index: 100 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateX(-50%) translateY(8px) scale(0.97) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    pointer-events: none !important; /* CRITICAL: Allows mouse to pass through the tooltip to break hover trap */
+    text-align: left !important;
+}
+
+/* Opaque Background for Light Mode - Checked strictly against html class */
+html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
+}
+html:not(.dark) ::deep .fmc-audit-item .tooltip-val {
+    color: #0f172a !important;
+}
+html:not(.dark) ::deep .fmc-audit-item .tooltip-lbl {
+    color: #64748b !important;
+}
+
+::deep .fmc-audit-item:hover .fmc-row-tooltip {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateX(-50%) translateY(0) scale(1) !important;
+}
+
+/* Downward positioning override for first three items to prevent layout clipping */
+::deep .fmc-audit-item:nth-of-type(-n+3) .fmc-row-tooltip {
+    bottom: auto !important;
+    top: 115% !important;
+    transform: translateX(-50%) translateY(-8px) scale(0.97) !important;
+}
+::deep .fmc-audit-item:nth-of-type(-n+3):hover .fmc-row-tooltip {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateX(-50%) translateY(0) scale(1) !important;
+}
+
+/* Tooltip Internal Structure */
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-header {
+    font-size: 0.58rem !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.08em !important;
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+    opacity: 0.8 !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-header.credit { color: #10b981 !important; }
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-header.debit { color: #f43f5e !important; }
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-header.info { color: #818cf8 !important; }
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-header.warning { color: #f59e0b !important; }
+
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 0.72rem !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-lbl {
+    font-weight: 550 !important;
+    color: rgba(255, 255, 255, 0.38) !important;
+    font-size: 0.68rem !important;
+    letter-spacing: 0.02em !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val {
+    font-weight: 750 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-align: right !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.mono {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.68rem !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.highlighted-val {
+    font-weight: 950 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.76rem !important;
+    color: #ffffff !important;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.12) !important;
+}
+html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.highlighted-val {
+    color: #000000 !important;
+    text-shadow: none !important;
+}
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.credit { color: #10b981 !important; }
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.debit { color: #f43f5e !important; }
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.info { color: #818cf8 !important; }
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-val.warning { color: #f59e0b !important; }
+
+::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    font-size: 0.58rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.05em !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-transform: uppercase !important;
+}
+html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
+    border-top-color: rgba(0, 0, 0, 0.06) !important;
+    color: rgba(0, 0, 0, 0.4) !important;
 }

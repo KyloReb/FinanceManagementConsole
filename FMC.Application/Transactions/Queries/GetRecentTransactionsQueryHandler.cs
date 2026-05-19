@@ -9,17 +9,23 @@ namespace FMC.Application.Transactions.Queries;
 public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransactionsQuery, List<TransactionDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICacheService _cache;
 
-    public GetRecentTransactionsQueryHandler(IApplicationDbContext context)
+    public GetRecentTransactionsQueryHandler(IApplicationDbContext context, ICacheService cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     public async Task<List<TransactionDto>> Handle(GetRecentTransactionsQuery request, CancellationToken cancellationToken)
     {
+        string cacheKey = $"RecentTransactions_{request.Count}";
+        var cached = await _cache.GetAsync<List<TransactionDto>>(cacheKey);
+        if (cached != null) return cached;
+
         var transactions = await _context.Transactions
             .AsNoTracking()
-            .OrderByDescending(t => t.Date)
+            .OrderByDescending(t => t.ActionDate ?? t.Date)
             .Take(request.Count)
             .ToListAsync(cancellationToken);
 
@@ -29,6 +35,7 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
             string subscriber = "System Node";
             string? accountNumber = null;
             string? makerName = "System";
+            string? approverName = null;
 
             // Resolve Subscriber by TenantId (can be UserId, OrgId, or CardholderId)
             var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id.ToString() == t.TenantId, cancellationToken);
@@ -62,6 +69,13 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
                 if (maker != null) makerName = $"{maker.FirstName} {maker.LastName}";
             }
 
+            // Resolve Approver
+            if (!string.IsNullOrEmpty(t.ApproverId))
+            {
+                var approver = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.ApproverId, cancellationToken);
+                if (approver != null) approverName = $"{approver.FirstName} {approver.LastName}";
+            }
+
             result.Add(new TransactionDto
             {
                 Id = t.Id,
@@ -75,9 +89,14 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
                 Status = string.IsNullOrWhiteSpace(t.Status) ? "Successful" : t.Status,
                 MakerName = makerName,
                 MakerId = t.MakerId,
-                OrganizationId = t.OrganizationId
+                OrganizationId = t.OrganizationId,
+                ActionDate = t.ActionDate,
+                RejectionReason = t.RejectionReason,
+                ApproverName = approverName
             });
         }
+
+        await _cache.SetAsync(cacheKey, result, TimeSpan.FromMinutes(2));
 
         return result;
     }

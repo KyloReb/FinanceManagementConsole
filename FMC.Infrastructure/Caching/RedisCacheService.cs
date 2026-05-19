@@ -5,7 +5,8 @@ using Microsoft.Extensions.Caching.Distributed;
 namespace FMC.Infrastructure.Caching;
 
 /// <summary>
-/// Implementation of ICacheService using ASP.NET Core IDistributedCache (Redis).
+/// Implementation of ICacheService using ASP.NET Core IDistributedCache (
+/// ).
 /// </summary>
 public class RedisCacheService : ICacheService
 {

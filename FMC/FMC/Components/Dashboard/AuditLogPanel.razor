@@ -27,9 +27,9 @@
         <MudText Typo="Typo.caption" Style="font-weight:900; opacity: 0.6; letter-spacing: 0.05em;">LATEST ACTIVITY</MudText>
     </div>
 
-    <div class="fmc-audit-scroll-area">
-        @if (Loading)
-        {
+    @if (Loading)
+    {
+        <div class="fmc-audit-scroll-area">
             <div class="fmc-audit-skel-list">
                 @for (int i = 0; i < 6; i++)
                 {
@@ -49,29 +49,48 @@
                     </div>
                 }
             </div>
-        }
-        else if (!Logs.Any())
-        {
+        </div>
+    }
+    else if (!Logs.Any())
+    {
+        <div class="fmc-audit-scroll-area">
             <div class="pa-12 d-flex flex-column align-center mud-text-secondary">
                 <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Large" Style="opacity:0.3;" />
                 <MudText Class="mt-2">No activity history found.</MudText>
             </div>
-        }
-        else
-        {
+        </div>
+    }
+    else
+    {
+        <div class="fmc-audit-scroll-area">
             <div class="fmc-audit-list">
-                @foreach (var log in Logs.Take(10))
+                @foreach (var log in Logs.Skip((_currentPage - 1) * _pageSize).Take(_pageSize))
                 {
                     var act = log.Action?.ToUpper() ?? "UNKNOWN";
-                    var isCredit = act == "CREDIT" || act == "TRANSACTION_APPROVED" || act == "WALLET_ADJUSTED";
-                    var isDebit  = act == "DEBIT"  || act == "REJECTED";
-                    var clr = isCredit ? "credit" : isDebit ? "debit" : act.Contains("LOGIN") ? "info" : "warning";
+                    var isApproved = act == "TRANSACTION_APPROVED" || act == "BATCH_APPROVED" || act == "APPROVE" || act == "APPROVAL_SUCCESS";
+                    var isBatchSubmit = act == "BATCH_SUBMITTED";
+                    var isBatchCancel = act == "BATCH_CANCELLED";
+
+                    var isCredit = isApproved || act == "CREDIT" || act == "WALLET_ADJUSTED" || (act.Contains("SUCCESS") && !act.Contains("DEBIT") && !act.Contains("LOGIN"));
+                    var isDebit = isBatchCancel || act == "DEBIT" || act == "REJECTED" || act == "BATCH_REJECTED" || act.Contains("FAILED");
+                    var isSecurity = isBatchSubmit || act.Contains("LOGIN") || act.Contains("AUTH") || act.Contains("SECURITY");
+                    
+                    var clr = isApproved ? "credit" :
+                              (isBatchSubmit ? "info" :
+                              (isBatchCancel ? "debit" :
+                              (isCredit ? "credit" : 
+                              (isDebit ? "debit" : 
+                              (isSecurity ? "info" : "warning")))));
+
+                    var icon = isApproved ? Icons.Material.Filled.CheckCircle :
+                               (isBatchSubmit ? Icons.Material.Filled.Backup :
+                               (isBatchCancel ? Icons.Material.Filled.Cancel :
+                               (isCredit ? Icons.Material.Filled.AddCircle : 
+                               (isDebit ? Icons.Material.Filled.RemoveCircle : 
+                               (isSecurity ? Icons.Material.Filled.Shield : Icons.Material.Filled.Hub)))));
+                    
                     var localTime = log.CreatedAt.ToLocalTime();
                     var capturedLog = log;
-                    
-                    var icon = isCredit ? Icons.Material.Filled.AddCircle : 
-                               (isDebit ? Icons.Material.Filled.RemoveCircle : 
-                               (clr == "info" ? Icons.Material.Filled.Shield : Icons.Material.Filled.Hub));
 
                     <div class="fmc-audit-item @clr fmc-audit-item-clickable"
                          @onclick="@(() => OpenDetail(capturedLog))">
@@ -85,11 +104,11 @@
                             <div class="tooltip-body">
                                 <div class="tooltip-row">
                                     <span class="tooltip-lbl">OPERATION:</span>
-                                    <span class="tooltip-val @clr" style="text-transform: uppercase;">@log.Action</span>
+                                    <span class="tooltip-val @clr">@FormatAction(log.Action)</span>
                                 </div>
                                 <div class="tooltip-row">
                                     <span class="tooltip-lbl">CONTEXT / ACTOR:</span>
-                                    <span class="tooltip-val">@(log.EntityName ?? log.Organization ?? "System Core Gateway")</span>
+                                    <span class="tooltip-val">@(string.IsNullOrWhiteSpace(log.EntityName) || log.EntityName == "N/A" ? (log.Organization ?? "System Core Gateway") : log.EntityName)</span>
                                 </div>
                                 <div class="tooltip-row">
                                     <span class="tooltip-lbl">TELEMETRY ENDPOINT:</span>
@@ -105,11 +124,11 @@
                                 </div>
                                 <div class="tooltip-row">
                                     <span class="tooltip-lbl">MAGNITUDE VALUE:</span>
-                                    <span class="tooltip-val mono">@(log.Amount.HasValue ? $"₱{log.Amount.Value:N2}" : "NOT APPLICABLE")</span>
+                                    <span class="tooltip-val mono highlighted-val">@(log.Amount.HasValue ? $"₱{log.Amount.Value:N2}" : "NOT APPLICABLE")</span>
                                 </div>
                                 <div class="tooltip-row">
                                     <span class="tooltip-lbl">ISO TIMESTAMP:</span>
-                                    <span class="tooltip-val mono">@log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                    <span class="tooltip-val mono highlighted-val">@log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
                                 </div>
                             </div>
                             <div class="tooltip-footer">
@@ -124,9 +143,9 @@
                                 <span class="fmc-audit-amt @clr">
                                     @(log.Amount > 0 ? (isCredit ? "+" : isDebit ? "-" : "") + log.Amount?.ToString("N2") : "SYSTEM")
                                 </span>
-                                <span class="fmc-audit-badge @clr">@act.Replace("_", " ")</span>
+                                <span class="fmc-audit-badge @clr">@FormatAction(log.Action)</span>
                             </div>
-                            <MudText Typo="Typo.body2" Class="fmc-audit-entity-compact">@log.EntityName</MudText>
+                            <MudText Typo="Typo.body2" Class="fmc-audit-entity-compact">@(string.IsNullOrWhiteSpace(log.EntityName) || log.EntityName == "N/A" ? (log.Organization ?? "System Boundary") : log.EntityName)</MudText>
                             @if (!string.IsNullOrEmpty(log.Label))
                             {
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary d-block" Style="font-size: 0.6rem; font-weight: 700; line-height: 1.1; margin-top: 2px;">@log.Label</MudText>
@@ -142,27 +161,54 @@
                     </div>
                 }
             </div>
-            <div class="fmc-audit-footer">
-                <MudButton Variant="Variant.Text" 
-                           Color="Color.Primary" 
-                           FullWidth="true" 
-                           Style="text-transform:none; font-weight:800; padding: 12px 0;"
-                           Href="/admin/audit">
-                    View Full Audit Trail
-                </MudButton>
+        </div>
+
+        <div class="fmc-pagination-bar px-4 py-3 d-flex align-center justify-space-between">
+            <div class="d-flex align-center gap-2">
+                <span class="fmc-pagination-lbl">Rows per page:</span>
+                <select class="fmc-pagination-select" @value="_pageSize" @onchange="OnPageSizeChanged">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
             </div>
-        }
-    </div>
+            <div class="d-flex align-center gap-1">
+                <button class="fmc-pager-btn" disabled="@(_currentPage <= 1)" @onclick="FirstPage" title="First Page">
+                    <MudIcon Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small" />
+                </button>
+                <button class="fmc-pager-btn" disabled="@(_currentPage <= 1)" @onclick="PrevPage" title="Previous Page">
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" />
+                </button>
+                <span class="fmc-pagination-info px-2">@_currentPage / @Math.Max(1, (int)Math.Ceiling((double)Logs.Count / _pageSize))</span>
+                <button class="fmc-pager-btn" disabled="@(_currentPage >= Math.Ceiling((double)Logs.Count / _pageSize))" @onclick="NextPage" title="Next Page">
+                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                </button>
+                <button class="fmc-pager-btn" disabled="@(_currentPage >= Math.Ceiling((double)Logs.Count / _pageSize))" @onclick="LastPage" title="Last Page">
+                    <MudIcon Icon="@Icons.Material.Filled.LastPage" Size="Size.Small" />
+                </button>
+            </div>
+        </div>
+
+        <div class="fmc-audit-footer">
+            <MudButton Variant="Variant.Text" 
+                       Color="Color.Primary" 
+                       FullWidth="true" 
+                       Style="text-transform:none; font-weight:800; padding: 12px 0;"
+                       Href="/admin/audit">
+                View Full Audit Trail
+            </MudButton>
+        </div>
+    }
 </div>
 
 <style>
-    .fmc-audit-surface { background: var(--mud-palette-surface); border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+    .fmc-audit-surface { background: var(--mud-palette-surface); border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: visible !important; height: 100%; display: flex; flex-direction: column; }
     .fmc-audit-header { padding: 20px 24px; border-bottom: 1px solid var(--mud-palette-divider); background: rgba(var(--mud-palette-primary-rgb), 0.02); }
     .fmc-audit-title { display: flex; align-items: center; }
     .fmc-audit-icon { width: 32px; height: 32px; background: rgba(var(--mud-palette-info-rgb), 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
     .fmc-audit-section-label { padding: 12px 24px; background: var(--mud-palette-background-grey); border-bottom: 1px solid var(--mud-palette-divider); }
-    .fmc-audit-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
-    .fmc-audit-list { padding: 0; overflow-x: hidden; }
+    .fmc-audit-scroll-area { flex: 1; overflow-y: auto !important; min-height: 0; }
+    .fmc-audit-list { padding: 0; overflow: visible; }
     
     /* Premium Floating Forensic Tooltip for System Activity Log */
     .fmc-audit-item {
@@ -261,20 +307,34 @@
         font-size: 0.72rem !important;
     }
     .fmc-row-tooltip .tooltip-lbl {
-        font-weight: 800 !important;
-        color: rgba(255, 255, 255, 0.45) !important;
+        font-weight: 550 !important;
+        color: rgba(255, 255, 255, 0.38) !important;
+        font-size: 0.68rem !important;
+        letter-spacing: 0.02em !important;
     }
     html:not(.dark) .fmc-row-tooltip .tooltip-lbl {
         color: #64748b !important;
+        font-weight: 550 !important;
     }
     .fmc-row-tooltip .tooltip-val {
-        font-weight: 800 !important;
-        color: rgba(255, 255, 255, 0.95) !important;
+        font-weight: 750 !important;
+        color: rgba(255, 255, 255, 0.9) !important;
         text-align: right !important;
     }
     .fmc-row-tooltip .tooltip-val.mono {
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 0.68rem !important;
+    }
+    .fmc-row-tooltip .tooltip-val.highlighted-val {
+        font-weight: 950 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.76rem !important;
+        color: #ffffff !important;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.12) !important;
+    }
+    html:not(.dark) .fmc-row-tooltip .tooltip-val.highlighted-val {
+        color: #000000 !important;
+        text-shadow: none !important;
     }
     .fmc-row-tooltip .tooltip-val.credit { color: #10b981 !important; }
     .fmc-row-tooltip .tooltip-val.debit { color: #f43f5e !important; }
@@ -336,12 +396,105 @@
     .fmc-audit-skel-badge { height: 16px; width: 80px; border-radius: 4px; }
     .fmc-audit-skel-entity { height: 12px; width: 60%; }
     .fmc-audit-skel-meta  { height: 9px; border-radius: 4px; }
+
+    /* Pagination Styles */
+    .fmc-pagination-bar {
+        border-top: 1px solid var(--mud-palette-divider);
+        background: rgba(var(--mud-palette-primary-rgb), 0.01);
+    }
+    .fmc-pagination-lbl {
+        font-size: 0.7rem;
+        font-weight: 700;
+        opacity: 0.6;
+    }
+    .fmc-pagination-select {
+        background: var(--mud-palette-background-grey);
+        color: var(--mud-palette-text-primary);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 6px;
+        padding: 2px 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        outline: none;
+        cursor: pointer;
+    }
+    .fmc-pagination-select option {
+        background-color: var(--mud-palette-surface) !important;
+        color: var(--mud-palette-text-primary) !important;
+    }
+    .fmc-pager-btn {
+        background: var(--mud-palette-background-grey);
+        color: var(--mud-palette-text-primary);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 6px;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-center: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .fmc-pager-btn:hover:not(:disabled) {
+        background: var(--mud-palette-action-default-hover);
+    }
+    .fmc-pager-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    .fmc-pagination-info {
+        font-size: 0.7rem;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+    }
 </style>
 
 @code {
     [Parameter] public List<AuditLogDto> Logs { get; set; } = new();
     [Parameter] public bool Loading { get; set; }
     [Parameter] public EventCallback OnRefresh { get; set; }
+
+    private int _currentPage = 1;
+    private int _pageSize = 10;
+
+    protected override void OnParametersSet()
+    {
+        var maxPage = (int)Math.Ceiling((double)Logs.Count / _pageSize);
+        if (_currentPage > maxPage)
+        {
+            _currentPage = Math.Max(1, maxPage);
+        }
+    }
+
+    private void OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var size))
+        {
+            _pageSize = size;
+            _currentPage = 1;
+        }
+    }
+
+    private void FirstPage()
+    {
+        _currentPage = 1;
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 1) _currentPage--;
+    }
+
+    private void NextPage()
+    {
+        var maxPage = Math.Ceiling((double)Logs.Count / _pageSize);
+        if (_currentPage < maxPage) _currentPage++;
+    }
+
+    private void LastPage()
+    {
+        _currentPage = Math.Max(1, (int)Math.Ceiling((double)Logs.Count / _pageSize));
+    }
 
     private async Task OpenDetail(AuditLogDto log)
     {
@@ -354,5 +507,24 @@
             CloseOnEscapeKey = true
         };
         await DialogService.ShowAsync<AuditDetailDialog>("Forensic Event Trace", parameters, options);
+    }
+
+    private string FormatAction(string? action)
+    {
+        if (string.IsNullOrEmpty(action)) return string.Empty;
+        var upper = action.ToUpperInvariant();
+        return upper switch
+        {
+            "TRANSACTION_APPROVED" => "Transaction Approved",
+            "BATCH_SUBMITTED" => "Batch Submitted",
+            "BATCH_CANCELLED" => "Batch Cancelled",
+            "BATCH_REJECTED" => "Batch Rejected",
+            "TRANSACTION_REJECTED" => "Transaction Rejected",
+            "SYNC_LIMIT" => "Sync Limit",
+            "WALLET_ADJUSTED" => "Wallet Adjusted",
+            "EXHAUSTION_WARNING" => "Exhaustion Warning",
+            "APPROVAL_SUCCESS" => "Approval Success",
+            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(action.Replace("_", " ").ToLower())
+        };
     }
 }

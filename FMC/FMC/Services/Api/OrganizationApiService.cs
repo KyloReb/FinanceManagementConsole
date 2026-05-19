@@ -25,7 +25,7 @@ public class OrganizationApiService
     /// </summary>
     public async Task<List<OrganizationDto>> GetOrganizationsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<OrganizationDto>>("api/organizations") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<OrganizationDto>>($"api/organizations?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public class OrganizationApiService
     /// </summary>
     public async Task<OrganizationDto?> GetByIdAsync(Guid id)
     {
-        var response = await _httpClient.GetAsync($"api/organizations/{id}");
+        var response = await _httpClient.GetAsync($"api/organizations/{id}?_t={DateTime.UtcNow.Ticks}");
         if (!response.IsSuccessStatusCode) return null;
 
         return await response.Content.ReadFromJsonAsync<OrganizationDto>();
@@ -76,7 +76,7 @@ public class OrganizationApiService
     /// </summary>
     public async Task<List<FMC.Shared.DTOs.User.UserDto>> GetUsersAsync(Guid id)
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.User.UserDto>>($"api/organizations/{id}/users") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.User.UserDto>>($"api/organizations/{id}/users?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<bool> AdjustBalanceAsync(Guid id, decimal amount, string label)
@@ -106,7 +106,7 @@ public class OrganizationApiService
     /// </summary>
     public async Task<OrganizationDashboardMetricsDto?> GetOrganizationMetricsAsync(Guid organizationId)
     {
-        var response = await _httpClient.GetAsync($"api/organizations/{organizationId}/dashboard-metrics");
+        var response = await _httpClient.GetAsync($"api/organizations/{organizationId}/dashboard-metrics?_t={DateTime.UtcNow.Ticks}");
         if (!response.IsSuccessStatusCode) return null;
         
         return await response.Content.ReadFromJsonAsync<OrganizationDashboardMetricsDto>();
@@ -117,7 +117,7 @@ public class OrganizationApiService
     /// </summary>
     public async Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetRecentAuditLogsAsync(int count = 20, string? category = null)
     {
-        string url = $"api/audit/logs?count={count}";
+        string url = $"api/audit/logs?count={count}&_t={DateTime.UtcNow.Ticks}";
         if (!string.IsNullOrEmpty(category)) url += $"&category={category}";
         
         return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.AuditLogDto>>(url) ?? new();
@@ -131,12 +131,12 @@ public class OrganizationApiService
 
     public async Task<List<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetActiveAlertsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>("api/alerts/active") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>($"api/alerts/active?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<int> GetUnresolvedAlertCountAsync()
     {
-        return await _httpClient.GetFromJsonAsync<int>("api/alerts/count");
+        return await _httpClient.GetFromJsonAsync<int>($"api/alerts/count?_t={DateTime.UtcNow.Ticks}");
     }
 
     public async Task<bool> ResolveAlertAsync(long id)
@@ -147,7 +147,7 @@ public class OrganizationApiService
 
     public async Task<List<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>("api/users/workflow-alerts") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>($"api/users/workflow-alerts?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ public class OrganizationApiService
     /// </summary>
     public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid orgId, string? status = null, int count = 50)
     {
-        string url = $"api/users/organizations/{orgId}/transactions?count={count}";
+        string url = $"api/users/organizations/{orgId}/transactions?count={count}&_t={DateTime.UtcNow.Ticks}";
         if (!string.IsNullOrEmpty(status)) url += $"&status={status}";
         
         return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>(url) ?? new();
@@ -223,12 +223,12 @@ public class OrganizationApiService
 
     public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetPendingTransactionsAsync(Guid orgId)
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/pending-transactions") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/pending-transactions?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetTodayTransactionsAsync(Guid orgId)
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/today-transactions") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/today-transactions?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     /// <summary>

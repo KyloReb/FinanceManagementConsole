@@ -64,7 +64,7 @@
                 <MudItem xs="6">
                     <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Target Context</MudText>
                     <div class="mt-2">
-                        <MudText Style="font-weight:800; font-size:0.9rem;">@(Log.EntityName ?? Log.Organization ?? "Global Infrastructure")</MudText>
+                        <MudText Style="font-weight:800; font-size:0.9rem;">@(string.IsNullOrWhiteSpace(Log.EntityName) || Log.EntityName == "N/A" ? (Log.Organization ?? "Global Infrastructure") : Log.EntityName)</MudText>
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Tenant / Entity</MudText>
                     </div>
                 </MudItem>
@@ -107,12 +107,16 @@
                 var orgIdentity = GetOrgIdentity();
                 var cardholderIdentity = GetCardNumber();
                 
+                var targetName = string.IsNullOrWhiteSpace(Log.EntityName) || Log.EntityName == "N/A"
+                    ? "Cardholder"
+                    : Log.EntityName.Replace("Wallet: ", "");
+                
                 var sourceName = isCorporateToUser 
                     ? _orgName 
-                    : (isBatch ? "Multiple Cardholders" : (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder"));
+                    : (isBatch ? "Multiple Cardholders" : targetName);
                     
                 var destName = isCorporateToUser 
-                    ? (isBatch ? "Multiple Cardholders" : (Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder"))
+                    ? (isBatch ? "Multiple Cardholders" : targetName)
                     : _orgName;
                     
                 var sourceIcon = isCorporateToUser 
@@ -194,7 +198,7 @@
             }
 
             @* ── BATCH BREAKDOWN (Forensic Detail) ── *@
-            @if (Log.Action == "BATCH_SUBMITTED" || (Log.Amount.HasValue && Log.EntityName.Contains("Bulk")))
+            @if (Log.Action == "BATCH_SUBMITTED" || (Log.Amount.HasValue && Log.EntityName?.Contains("Bulk") == true))
             {
                 <div class="detail-section mb-6">
                     <div class="d-flex align-center gap-2 mb-3">
@@ -203,7 +207,7 @@
                     </div>
                     
                     <div class="fmc-breakdown-surface">
-                        @if (TryGetBatchData(out var batchData))
+                        @if (TryGetBatchData(out var batchData) && batchData?.Items != null)
                         {
                             <MudTable Items="@batchData.Items" Dense="true" Hover="true" Elevation="0" Style="background: transparent;">
                                 <HeaderContent>
@@ -457,7 +461,7 @@
 
     private string GetCardNumber()
     {
-        if (TryGetBatchData(out var batchData) && batchData.Items.Any())
+        if (TryGetBatchData(out var batchData) && batchData?.Items != null && batchData.Items.Any())
         {
             return MaskAccount(batchData.Items.First().CardNumber);
         }
@@ -482,7 +486,8 @@
                 return MaskAccount(Log.Label);
         }
             
-        return Log.EntityName?.Replace("Wallet: ", "") ?? "Cardholder"; 
+        var name = Log.EntityName?.Replace("Wallet: ", "");
+        return string.IsNullOrWhiteSpace(name) || name == "N/A" ? "Cardholder" : name; 
     }
 
     private string GetOrgIdentity()

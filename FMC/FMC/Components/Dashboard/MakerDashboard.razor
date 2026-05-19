@@ -785,14 +785,35 @@
 
     private IEnumerable<TransactionGroup> GroupTransactions(IEnumerable<TransactionDto> txs)
     {
-        return txs.GroupBy(t => t.BatchId ?? Guid.Empty)
+        var result = new List<TransactionGroup>();
+
+        // Group only true batch transactions together; individual transactions each get their own group
+        var batchGroups = txs
+            .Where(t => t.BatchId.HasValue && t.BatchId != Guid.Empty)
+            .GroupBy(t => t.BatchId!.Value)
             .Select(g => new TransactionGroup
             {
-                BatchId = g.Key == Guid.Empty ? null : g.Key,
+                BatchId = g.Key,
                 Transactions = g.ToList(),
                 TotalAmount = g.Sum(t => t.Amount),
-                IsBatch = g.Key != Guid.Empty
+                IsBatch = true
             });
+
+        var individualGroups = txs
+            .Where(t => !t.BatchId.HasValue || t.BatchId == Guid.Empty)
+            .Select(t => new TransactionGroup
+            {
+                BatchId = null,
+                Transactions = new List<TransactionDto> { t },
+                TotalAmount = t.Amount,
+                IsBatch = false
+            });
+
+        // Merge: individual first (most recent at top), then batches
+        result.AddRange(individualGroups);
+        result.AddRange(batchGroups);
+
+        return result.OrderByDescending(g => g.Transactions.First().Date);
     }
 
     private async Task HandleBatchApproval(Guid batchId, bool approve)

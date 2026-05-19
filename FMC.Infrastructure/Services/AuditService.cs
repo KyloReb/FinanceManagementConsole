@@ -14,13 +14,15 @@ public class AuditService : IAuditService
     private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
     private readonly ISystemAlertService _alertService;
     private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
+    private readonly ICacheService _cacheService;
 
-    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager, ISystemAlertService alertService, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
+    public AuditService(IApplicationDbContext context, Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager, ISystemAlertService alertService, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor, ICacheService cacheService)
     {
         _context = context;
         _userManager = userManager;
         _alertService = alertService;
         _httpContextAccessor = httpContextAccessor;
+        _cacheService = cacheService;
     }
 
     private string GetDeviceName(string? ua)
@@ -196,6 +198,10 @@ public class AuditService : IAuditService
 
     public async Task<List<AuditLogDto>> GetRecentLogsAsync(int count = 20, string? category = null, string? tenantId = null)
     {
+        string cacheKey = $"RecentAuditLogs_{count}_{category ?? "all"}_{tenantId ?? "all"}";
+        var cached = await _cacheService.GetAsync<List<AuditLogDto>>(cacheKey);
+        if (cached != null) return cached;
+
         IQueryable<AuditLog> query = _context.AuditLogs.IgnoreQueryFilters().OrderByDescending(a => a.CreatedAt);
 
         if (!string.IsNullOrEmpty(tenantId))
@@ -212,21 +218,50 @@ public class AuditService : IAuditService
         var orgs = await _context.Organizations.IgnoreQueryFilters().ToListAsync();
         var orgMap = orgs.ToDictionary(o => o.Id.ToString(), o => o.Name, StringComparer.OrdinalIgnoreCase);
 
-        return logs.Select(log => new AuditLogDto
+        // Resolve Guid/UserNames in PerformedBy to actual DisplayNames
+        var performerIds = logs.Select(l => l.PerformedBy).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+        var userMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (performerIds.Any())
         {
-            Id = log.Id,
-            Action = log.Action,
-            EntityName = log.EntityName,
-            Amount = log.Amount,
-            Label = log.Label,
-            PerformedBy = log.PerformedBy,
-            CreatedAt = log.CreatedAt,
-            Details = log.Details,
-            IpAddress = log.IpAddress,
-            Device = log.Device,
-            UserId = log.UserId,
-            Organization = orgMap.TryGetValue(log.TenantId, out var orgName) ? orgName : "Corporate Liquidity"
+            var matchedUsers = await _userManager.Users
+                .Where(u => performerIds.Contains(u.Id) || performerIds.Contains(u.UserName))
+                .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName })
+                .ToListAsync();
+            foreach (var u in matchedUsers)
+            {
+                var name = $"{u.FirstName} {u.LastName}".Trim();
+                if (string.IsNullOrEmpty(name)) name = u.UserName ?? u.Id;
+                userMap[u.Id] = name;
+                if (u.UserName != null) userMap[u.UserName] = name;
+            }
+        }
+
+        var result = logs.Select(log => {
+            string? perf = log.PerformedBy;
+            if (!string.IsNullOrEmpty(perf) && userMap.TryGetValue(perf, out var resolvedName))
+            {
+                perf = resolvedName;
+            }
+            return new AuditLogDto
+            {
+                Id = log.Id,
+                Action = log.Action,
+                EntityName = log.EntityName,
+                Amount = log.Amount,
+                Label = log.Label,
+                PerformedBy = perf,
+                CreatedAt = log.CreatedAt,
+                Details = log.Details,
+                IpAddress = log.IpAddress,
+                Device = log.Device,
+                UserId = log.UserId,
+                Organization = orgMap.TryGetValue(log.TenantId, out var orgName) ? orgName : "Corporate Liquidity"
+            };
         }).ToList();
+
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(2));
+
+        return result;
     }
 
     public async Task<AuditLogSearchResultDto> SearchLogsAsync(AuditLogQueryDto queryDto)
@@ -267,24 +302,51 @@ public class AuditService : IAuditService
         var orgs = await _context.Organizations.IgnoreQueryFilters().ToListAsync();
         var orgMap = orgs.ToDictionary(o => o.Id.ToString(), o => o.Name, StringComparer.OrdinalIgnoreCase);
 
-        return new AuditLogSearchResultDto
+        // Resolve performer display names
+        var performerIds = logs.Select(l => l.PerformedBy).Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
+        var userMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (performerIds.Any())
+        {
+            var matchedUsers = await _userManager.Users
+                .Where(u => performerIds.Contains(u.Id) || performerIds.Contains(u.UserName))
+                .Select(u => new { u.Id, u.UserName, u.FirstName, u.LastName })
+                .ToListAsync();
+            foreach (var u in matchedUsers)
+            {
+                var name = $"{u.FirstName} {u.LastName}".Trim();
+                if (string.IsNullOrEmpty(name)) name = u.UserName ?? u.Id;
+                userMap[u.Id] = name;
+                if (u.UserName != null) userMap[u.UserName] = name;
+            }
+        }
+
+        var result = new AuditLogSearchResultDto
         {
             TotalCount = total,
-            Items = logs.Select(log => new AuditLogDto
-            {
-                Id = log.Id,
-                Action = log.Action,
-                EntityName = log.EntityName,
-                Amount = log.Amount,
-                Label = log.Label,
-                PerformedBy = log.PerformedBy,
-                CreatedAt = log.CreatedAt,
-                Details = log.Details,
-                IpAddress = log.IpAddress,
-                Device = log.Device,
-                UserId = log.UserId,
-                Organization = orgMap.TryGetValue(log.TenantId, out var orgName) ? orgName : "Corporate Liquidity"
+            Items = logs.Select(log => {
+                string? perf = log.PerformedBy;
+                if (!string.IsNullOrEmpty(perf) && userMap.TryGetValue(perf, out var resolvedName))
+                {
+                    perf = resolvedName;
+                }
+                return new AuditLogDto
+                {
+                    Id = log.Id,
+                    Action = log.Action,
+                    EntityName = log.EntityName,
+                    Amount = log.Amount,
+                    Label = log.Label,
+                    PerformedBy = perf,
+                    CreatedAt = log.CreatedAt,
+                    Details = log.Details,
+                    IpAddress = log.IpAddress,
+                    Device = log.Device,
+                    UserId = log.UserId,
+                    Organization = orgMap.TryGetValue(log.TenantId, out var orgName) ? orgName : "Corporate Liquidity"
+                };
             }).ToList()
         };
+
+        return result;
     }
 }

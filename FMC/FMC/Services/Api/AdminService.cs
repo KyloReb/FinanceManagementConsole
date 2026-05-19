@@ -15,17 +15,17 @@ public class AdminService
 
     public async Task<List<UserDto>> GetUsersAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<UserDto>>("api/users") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<UserDto>>($"api/users?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<UserDto?> GetUserAsync(string id)
     {
-        return await _httpClient.GetFromJsonAsync<UserDto>($"api/users/{id}");
+        return await _httpClient.GetFromJsonAsync<UserDto>($"api/users/{id}?_t={DateTime.UtcNow.Ticks}");
     }
 
     public async Task<List<TransactionDto>> GetUserTransactionsAsync(string id, int count = 10)
     {
-        return await _httpClient.GetFromJsonAsync<List<TransactionDto>>($"api/users/{id}/transactions?count={count}") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<TransactionDto>>($"api/users/{id}/transactions?count={count}&_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<(bool Succeeded, string? Error)> CreateUserAsync(CreateUserDto request)
@@ -54,24 +54,24 @@ public class AdminService
 
     public async Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetAuthLogsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.AuditLogDto>>("api/audit/auth-logs") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.AuditLogDto>>($"api/audit/auth-logs?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<List<FMC.Shared.DTOs.Admin.DocumentationDto>> GetDocsListAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.DocumentationDto>>("api/documentation/list") ?? new();
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.DocumentationDto>>($"api/documentation/list?_t={DateTime.UtcNow.Ticks}") ?? new();
     }
 
     public async Task<FMC.Shared.DTOs.Admin.DocumentationDto?> GetDocAsync(string fileName)
     {
-        return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.DocumentationDto>($"api/documentation/{fileName}");
+        return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.DocumentationDto>($"api/documentation/{fileName}?_t={DateTime.UtcNow.Ticks}");
     }
 
     public async Task<FMC.Shared.DTOs.Admin.SystemHealthDto?> GetSystemHealthPulseAsync()
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.SystemHealthDto>("api/system/health-pulse");
+            return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.SystemHealthDto>($"api/system/health-pulse?_t={DateTime.UtcNow.Ticks}");
         }
         catch
         {

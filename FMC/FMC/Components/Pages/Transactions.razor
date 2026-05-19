@@ -116,11 +116,63 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd>
+                    <!-- Premium Floating Forensic Tooltip -->
+                    @{
+                        var isCredit = context!.Amount > 0;
+                        var isDebit = context.Amount < 0;
+                        var isNeutral = context.Amount == 0;
+                        var icon = isCredit ? Icons.Material.Filled.AddCircle : (isDebit ? Icons.Material.Filled.RemoveCircle : Icons.Material.Filled.Info);
+                        var severityClass = isCredit ? "credit" : (isDebit ? "debit" : "neutral");
+                    }
+                    <div class="fmc-row-tooltip">
+                        <div class="tooltip-header @severityClass">
+                            <MudIcon Icon="@icon" Size="Size.Small" Class="mr-1" />
+                            <span>TRANSACTION TELEMETRY</span>
+                        </div>
+                        <div class="tooltip-body">
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">TYPE / CATEGORY:</span>
+                                <span class="tooltip-val @severityClass" style="text-transform: uppercase;">@context.Category</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">SUBSCRIBER:</span>
+                                <span class="tooltip-val">@(context.Subscriber ?? "N/A")</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">ACCOUNT REFERENCE:</span>
+                                <span class="tooltip-val mono">@(context.AccountNumber ?? "N/A")</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">INITIATING MAKER:</span>
+                                <span class="tooltip-val">@(context.MakerName ?? "System")</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">MAGNITUDE VALUE:</span>
+                                <span class="tooltip-val highlighted-val @severityClass">₱@Math.Abs(context.Amount).ToString("N2")</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">ISO TIMESTAMP:</span>
+                                <span class="tooltip-val highlighted-val">@context.Date.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                            </div>
+                            <div class="tooltip-row">
+                                <span class="tooltip-lbl">SYSTEM LABEL:</span>
+                                <span class="tooltip-val">@(context.Label ?? "FMC Settlement")</span>
+                            </div>
+                        </div>
+                        <div class="tooltip-footer">
+                            <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small" Class="mr-1" style="font-size: 0.6rem;" />
+                            <span>CLICK ROW FOR FULL EVENT LEDGER TRACE</span>
+                        </div>
+                    </div>
+
                     <div class="d-flex align-center gap-3">
                         <div class="fmc-ledger-bar" style="background: var(--mud-palette-divider);"></div>
+                        @{
+                            var displayTime = (context!.ActionDate ?? context!.Date).ToLocalTime();
+                        }
                         <div class="d-flex flex-column">
-                            <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@context!.Date.ToLocalTime().ToString("MMM dd, yyyy")</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@context!.Date.ToLocalTime().ToString("HH:mm:ss")</MudText>
+                            <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@displayTime.ToString("MMM dd, yyyy")</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@displayTime.ToString("HH:mm:ss")</MudText>
                         </div>
                     </div>
                 </MudTd>
@@ -248,7 +300,7 @@
 
             foreach (var group in bulkGroups)
             {
-                var rep = group.OrderByDescending(x => x.Date).First();
+                var rep = group.OrderByDescending(x => x.ActionDate ?? x.Date).First();
                 var count = group.Count();
                 var allStatuses = group.Select(b => b.Status).Distinct().ToList();
                 var batchStatus = allStatuses.Count == 1
@@ -275,12 +327,14 @@
                     Status         = batchStatus,
                     OrganizationId = rep.OrganizationId,
                     AccountNumber  = "BATCH_SUMMARY",
-                    SubTransactions = group.ToList()
+                    SubTransactions = group.ToList(),
+                    ActionDate     = rep.ActionDate,
+                    RejectionReason = rep.RejectionReason
                 });
             }
 
             processed.AddRange(individuals);
-            _transactions = processed.OrderByDescending(t => t.Date).ToList();
+            _transactions = processed.OrderByDescending(t => t.ActionDate ?? t.Date).ToList();
             
             // Initial filter application
             ApplyTemporalFilter();
@@ -363,8 +417,9 @@
         if (transaction == null) return false;
         
         // Date Range Filtering
-        if (_startDate.HasValue && transaction.Date < _startDate.Value) return false;
-        if (_endDate.HasValue && transaction.Date > _endDate.Value) return false;
+        var effectiveDate = transaction.ActionDate ?? transaction.Date;
+        if (_startDate.HasValue && effectiveDate < _startDate.Value) return false;
+        if (_endDate.HasValue && effectiveDate > _endDate.Value) return false;
 
         return FilterFunc(transaction, _searchString);
     }
@@ -437,9 +492,11 @@
 
     private string GetStatusIcon(string status) => status?.ToLower() switch
     {
-        "successful" or "approved" => Icons.Material.Filled.CheckCircle,
+        "successful" or "approved" or "completed" => Icons.Material.Filled.CheckCircle,
         "pending" => Icons.Material.Filled.AccessTimeFilled,
+        "mixed" => Icons.Material.Filled.Flaky,
         "error" or "failed" or "rejected" => Icons.Material.Filled.Error,
+        "cancelled" => Icons.Material.Filled.Cancel,
         _ => Icons.Material.Filled.Help
     };
 

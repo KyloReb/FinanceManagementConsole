@@ -173,7 +173,7 @@
 ::deep .mud-table-row {
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
     cursor: pointer;
-    position: relative;
+    position: relative !important;
 }
 ::deep .mud-table-row:nth-of-type(even) {
     background: rgba(var(--mud-palette-primary-rgb), 0.015) !important;
@@ -216,9 +216,9 @@ body:not(.mud-dark) .fmc-row-tooltip {
 .fmc-row-tooltip {
     position: absolute;
     bottom: 115%; /* Default upward position for rows 4+ */
-    left: 20px;
+    left: 50%; /* Center horizontally relative to the entire table row */
     width: 320px;
-    background: rgba(var(--mud-palette-surface-rgb), 0.96) !important;
+    background: var(--mud-palette-surface) !important; /* Solid theme surface guarantees 100% opacity in both light/dark modes */
     border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
     border-radius: 12px;
     padding: 14px;
@@ -228,7 +228,7 @@ body:not(.mud-dark) .fmc-row-tooltip {
     z-index: 999;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(8px) scale(0.97);
+    transform: translateX(-50%) translateY(8px) scale(0.97);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     text-align: left;
@@ -236,19 +236,19 @@ body:not(.mud-dark) .fmc-row-tooltip {
 ::deep .mud-table-row:hover .fmc-row-tooltip {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1) !important;
 }
 
 /* Smart Positional Tooltip Overrides for Top Rows - Prevents Top Card Clipping! */
 ::deep .mud-table-row:nth-of-type(-n+3) .fmc-row-tooltip {
     bottom: auto;
     top: 115%; /* Downward position for the first three rows */
-    transform: translateY(-8px) scale(0.97);
+    transform: translateX(-50%) translateY(-8px) scale(0.97);
 }
 ::deep .mud-table-row:nth-of-type(-n+3):hover .fmc-row-tooltip {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1) !important;
 }
 
 .tooltip-header {

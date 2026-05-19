@@ -68,9 +68,56 @@
                     var clr = isCredit ? "credit" : isDebit ? "debit" : act.Contains("LOGIN") ? "info" : "warning";
                     var localTime = log.CreatedAt.ToLocalTime();
                     var capturedLog = log;
+                    
+                    var icon = isCredit ? Icons.Material.Filled.AddCircle : 
+                               (isDebit ? Icons.Material.Filled.RemoveCircle : 
+                               (clr == "info" ? Icons.Material.Filled.Shield : Icons.Material.Filled.Hub));
+
                     <div class="fmc-audit-item @clr fmc-audit-item-clickable"
-                         @onclick="@(() => OpenDetail(capturedLog))"
-                         title="Click to view full details">
+                         @onclick="@(() => OpenDetail(capturedLog))">
+                        
+                        <!-- Premium Floating Forensic Tooltip -->
+                        <div class="fmc-row-tooltip">
+                            <div class="tooltip-header @clr">
+                                <MudIcon Icon="@icon" Size="Size.Small" Class="mr-1" />
+                                <span>FORENSIC TELEMETRY STREAM</span>
+                            </div>
+                            <div class="tooltip-body">
+                                <div class="tooltip-row">
+                                    <span class="tooltip-lbl">OPERATION:</span>
+                                    <span class="tooltip-val @clr" style="text-transform: uppercase;">@log.Action</span>
+                                </div>
+                                <div class="tooltip-row">
+                                    <span class="tooltip-lbl">CONTEXT / ACTOR:</span>
+                                    <span class="tooltip-val">@(log.EntityName ?? log.Organization ?? "System Core Gateway")</span>
+                                </div>
+                                <div class="tooltip-row">
+                                    <span class="tooltip-lbl">TELEMETRY ENDPOINT:</span>
+                                    <span class="tooltip-val mono">@(log.IpAddress ?? "::1 (Local Loopback)")</span>
+                                </div>
+                                <div class="tooltip-row">
+                                    <span class="tooltip-lbl">PLATFORM CONSOLE:</span>
+                                    <span class="tooltip-val">@(log.Label ?? "FMC Secure Terminal")</span>
+                                </div>
+                                <div class="tooltip-row" style="margin-top: 4px; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 4px;">
+                                    <span class="tooltip-lbl">SESSION AUDITOR:</span>
+                                    <span class="tooltip-val">@(log.PerformedBy ?? "System Root")</span>
+                                </div>
+                                <div class="tooltip-row">
+                                    <span class="tooltip-lbl">MAGNITUDE VALUE:</span>
+                                    <span class="tooltip-val mono">@(log.Amount.HasValue ? $"₱{log.Amount.Value:N2}" : "NOT APPLICABLE")</span>
+                                </div>
+                                <div class="tooltip-row">
+                                    <span class="tooltip-lbl">ISO TIMESTAMP:</span>
+                                    <span class="tooltip-val mono">@log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                </div>
+                            </div>
+                            <div class="tooltip-footer">
+                                <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small" Class="mr-1" style="font-size: 0.6rem;" />
+                                <span>CLICK ROW FOR FULL EVENT LEDGER TRACE</span>
+                            </div>
+                        </div>
+
                         <div class="fmc-audit-indicator"></div>
                         <div class="fmc-audit-body-content">
                             <div class="d-flex justify-space-between align-center mb-1">
@@ -116,11 +163,142 @@
     .fmc-audit-section-label { padding: 12px 24px; background: var(--mud-palette-background-grey); border-bottom: 1px solid var(--mud-palette-divider); }
     .fmc-audit-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
     .fmc-audit-list { padding: 0; overflow-x: hidden; }
-    .fmc-audit-item { padding: 16px 24px; border-bottom: 1px solid var(--mud-palette-divider); display: flex; gap: 16px; transition: background 0.15s, transform 0.12s; position: relative; width: 100%; box-sizing: border-box; }
+    
+    /* Premium Floating Forensic Tooltip for System Activity Log */
+    .fmc-audit-item {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        display: flex;
+        gap: 16px;
+        position: relative !important;
+        width: 100%;
+        box-sizing: border-box;
+        z-index: 1 !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    }
     .fmc-audit-item:last-child { border-bottom: none; }
     .fmc-audit-item-clickable { cursor: pointer; }
-    .fmc-audit-item-clickable:hover { background: var(--mud-palette-action-default-hover); transform: translateX(2px); }
+    .fmc-audit-item-clickable:hover { background: var(--mud-palette-action-default-hover); transform: translateX(2px); z-index: 10 !important; }
     .fmc-audit-item-clickable:active { opacity: 0.85; transform: translateX(0); }
+
+    .fmc-audit-item .fmc-row-tooltip {
+        position: absolute !important;
+        bottom: 115% !important;
+        left: 50% !important;
+        width: 320px !important;
+        background: #12121a !important; /* Solid Premium Dark Background in Dark Mode */
+        border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
+        border-radius: 12px !important;
+        padding: 14px !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+        backdrop-filter: blur(25px) saturate(120%) !important;
+        color: var(--mud-palette-text-primary) !important;
+        z-index: 100 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateX(-50%) translateY(8px) scale(0.97) !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        pointer-events: none !important; /* Breaks hover trap */
+        text-align: left !important;
+    }
+
+    /* Opaque Background for Light Mode - Checked strictly against html class */
+    html:not(.dark) .fmc-audit-item .fmc-row-tooltip {
+        background: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
+    }
+    html:not(.dark) .fmc-audit-item .tooltip-val {
+        color: #0f172a !important;
+    }
+    html:not(.dark) .fmc-audit-item .tooltip-lbl {
+        color: #64748b !important;
+    }
+
+    .fmc-audit-item:hover .fmc-row-tooltip {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(-50%) translateY(0) scale(1) !important;
+    }
+
+    /* Downward positioning override for first rows to prevent layout clipping at the top of the feed */
+    .fmc-audit-item:nth-of-type(-n+2) .fmc-row-tooltip {
+        bottom: auto !important;
+        top: 115% !important;
+        transform: translateX(-50%) translateY(-8px) scale(0.97) !important;
+    }
+    .fmc-audit-item:nth-of-type(-n+2):hover .fmc-row-tooltip {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateX(-50%) translateY(0) scale(1) !important;
+    }
+
+    /* Tooltip Internal Structure */
+    .fmc-row-tooltip .tooltip-header {
+        font-size: 0.58rem !important;
+        font-weight: 950 !important;
+        letter-spacing: 0.08em !important;
+        display: flex !important;
+        align-items: center !important;
+        margin-bottom: 8px !important;
+        opacity: 0.8 !important;
+    }
+    .fmc-row-tooltip .tooltip-header.credit { color: #10b981 !important; }
+    .fmc-row-tooltip .tooltip-header.debit { color: #f43f5e !important; }
+    .fmc-row-tooltip .tooltip-header.info { color: #3b82f6 !important; }
+    .fmc-row-tooltip .tooltip-header.warning { color: #f59e0b !important; }
+
+    .fmc-row-tooltip .tooltip-body {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 5px !important;
+    }
+    .fmc-row-tooltip .tooltip-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 0.72rem !important;
+    }
+    .fmc-row-tooltip .tooltip-lbl {
+        font-weight: 800 !important;
+        color: rgba(255, 255, 255, 0.45) !important;
+    }
+    html:not(.dark) .fmc-row-tooltip .tooltip-lbl {
+        color: #64748b !important;
+    }
+    .fmc-row-tooltip .tooltip-val {
+        font-weight: 800 !important;
+        color: rgba(255, 255, 255, 0.95) !important;
+        text-align: right !important;
+    }
+    .fmc-row-tooltip .tooltip-val.mono {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.68rem !important;
+    }
+    .fmc-row-tooltip .tooltip-val.credit { color: #10b981 !important; }
+    .fmc-row-tooltip .tooltip-val.debit { color: #f43f5e !important; }
+    .fmc-row-tooltip .tooltip-val.info { color: #3b82f6 !important; }
+    .fmc-row-tooltip .tooltip-val.warning { color: #f59e0b !important; }
+
+    .fmc-row-tooltip .tooltip-footer {
+        margin-top: 8px !important;
+        padding-top: 8px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        font-size: 0.58rem !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.05em !important;
+        color: rgba(255, 255, 255, 0.35) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-transform: uppercase !important;
+    }
+    html:not(.dark) .fmc-row-tooltip .tooltip-footer {
+        border-top-color: rgba(0, 0, 0, 0.06) !important;
+        color: rgba(0, 0, 0, 0.4) !important;
+    }
+
     .fmc-audit-indicator { width: 4px; border-radius: 2px; position: absolute; left: 0; top: 12px; bottom: 12px; }
     .fmc-audit-item.credit .fmc-audit-indicator { background: var(--mud-palette-success); }
     .fmc-audit-item.debit .fmc-audit-indicator { background: var(--mud-palette-error); }

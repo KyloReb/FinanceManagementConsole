@@ -99,7 +99,6 @@
             @{
                 var isCorporateToUser = Transaction.Amount > 0; // Credit to user
                 var absAmount = Math.Abs(Transaction.Amount);
-                var corporateName = "Corporate Liquidity";
                 var cardholderIdentity = GetMaskedAccount(Transaction.AccountNumber);
                 
                 var sourceName = isCorporateToUser ? _orgName : Transaction.Subscriber;
@@ -520,7 +519,7 @@
             
             Snackbar.Add("Forensic report downloaded successfully.", Severity.Success);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             Snackbar.Add("Failed to generate PDF report.", Severity.Error);
         }

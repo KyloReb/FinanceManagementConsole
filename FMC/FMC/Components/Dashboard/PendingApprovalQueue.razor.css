@@ -203,26 +203,17 @@ body:not(.mud-dark) .fmc-row-tooltip {
     --fmc-neutral-color: #4b5563; /* Deep Charcoal Slate */
 }
 
-/* Row Border Indicators - Applied strictly to first-child cell to prevent continuous vertical line collapse */
-::deep .mud-table-row.fmc-row-hover td:first-child {
-    border-left: 3px solid transparent !important;
-    transition: border-color 0.25s ease;
-}
-::deep .mud-table-row.fmc-row-hover.credit td:first-child { border-left-color: var(--fmc-credit-color) !important; }
-::deep .mud-table-row.fmc-row-hover.debit td:first-child { border-left-color: var(--fmc-debit-color) !important; }
-::deep .mud-table-row.fmc-row-hover.info td:first-child { border-left-color: var(--fmc-security-color) !important; }
-
 /* Premium Floating Forensic Tooltip */
-.fmc-row-tooltip {
+::deep .fmc-row-tooltip {
     position: absolute;
     bottom: 115%; /* Default upward position for rows 4+ */
     left: 50%; /* Center horizontally relative to the entire table row */
     width: 320px;
-    background: var(--mud-palette-surface) !important; /* Solid theme surface guarantees 100% opacity in both light/dark modes */
+    background: #12121a !important; /* Rich solid opaque dark background matches UI and prevents transparency bleed */
     border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
     border-radius: 12px;
     padding: 14px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
     backdrop-filter: blur(25px) saturate(120%);
     color: var(--mud-palette-text-primary) !important;
     z-index: 999;
@@ -233,6 +224,14 @@ body:not(.mud-dark) .fmc-row-tooltip {
     pointer-events: none;
     text-align: left;
 }
+
+/* Pristine Solid Background for Light Mode */
+html:not(.mud-dark) ::deep .fmc-row-tooltip,
+body:not(.mud-dark) ::deep .fmc-row-tooltip {
+    background: #ffffff !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
+}
+
 ::deep .mud-table-row:hover .fmc-row-tooltip {
     opacity: 1;
     visibility: visible;
@@ -330,17 +329,18 @@ body:not(.mud-dark) .fmc-row-tooltip {
 }
 
 /* Ledger Bar */
-.fmc-ledger-bar { 
+::deep .fmc-ledger-bar { 
     width: 4px; 
     height: 24px; 
     border-radius: 4px; 
     background-color: var(--mud-palette-divider);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+    display: inline-block;
 }
-.fmc-ledger-bar.credit { background-color: var(--fmc-credit-color) !important; }
-.fmc-ledger-bar.debit { background-color: var(--fmc-debit-color) !important; }
-.fmc-ledger-bar.security { background-color: var(--fmc-security-color) !important; }
-.fmc-ledger-bar.neutral { background-color: var(--fmc-neutral-color) !important; }
+::deep .fmc-ledger-bar.credit { background-color: var(--fmc-credit-color) !important; }
+::deep .fmc-ledger-bar.debit { background-color: var(--fmc-debit-color) !important; }
+::deep .fmc-ledger-bar.security { background-color: var(--fmc-security-color) !important; }
+::deep .fmc-ledger-bar.neutral { background-color: var(--fmc-neutral-color) !important; }
 ::deep .mud-table-row:hover .fmc-ledger-bar { transform: scaleY(1.3) scaleX(1.5); }
 
 /* Skeleton Loaders */

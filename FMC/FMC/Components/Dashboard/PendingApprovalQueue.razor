@@ -19,7 +19,7 @@
     }
     
     .fmc-premium-table .mud-table-row:hover {
-        z-index: 9999 !important; /* Lifts the hovered row above all sibling columns and cells */
+        z-index: 10 !important; /* Lifts the hovered row above all sibling columns and cells but keeps it safely behind modal dialogs (z-index: 1400+) */
     }
     
     .fmc-premium-table .fmc-row-tooltip {
@@ -34,7 +34,7 @@
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
         backdrop-filter: blur(25px) saturate(120%) !important;
         color: var(--mud-palette-text-primary) !important;
-        z-index: 99999 !important; /* Stays at the absolute top of the row's children */
+        z-index: 100 !important; /* Stays at the top of the row's children but below modal dialog overlays */
         opacity: 0 !important;
         visibility: hidden !important;
         transform: translateX(-50%) translateY(8px) scale(0.97) !important;

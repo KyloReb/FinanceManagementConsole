@@ -342,21 +342,38 @@
     private string _orgName = "";
     private string _orgAccountNumber = "";
     private string _userAccountNumber = "";
+    private string _resolvedActorName = "";
 
     protected override async Task OnInitializedAsync()
     {
         _orgName = !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Corporate Liquidity";
         _userAccountNumber = GetCardNumber();
         
+        List<FMC.Shared.DTOs.User.UserDto>? users = null;
+        try
+        {
+            users = await AdminService.GetUsersAsync();
+        }
+        catch { }
+
+        // Dynamic Resolution: Lookup the actor's actual DisplayName by their PerformedBy UserId Guid
+        if (users != null && !string.IsNullOrWhiteSpace(Log.PerformedBy) && Guid.TryParse(Log.PerformedBy, out _))
+        {
+            var actor = users.FirstOrDefault(u => u.Id.Equals(Log.PerformedBy, StringComparison.OrdinalIgnoreCase));
+            if (actor != null)
+            {
+                _resolvedActorName = actor.DisplayName;
+            }
+        }
+        
         // Deep resolution: If we have an EntityName (e.g. "Wallet: Ava Gonzalez" or just "Ava Gonzalez"), try to find the user's full identity
-        if (!string.IsNullOrWhiteSpace(Log.EntityName))
+        if (users != null && !string.IsNullOrWhiteSpace(Log.EntityName))
         {
             try {
                 var targetName = Log.EntityName.Contains(":") 
                     ? Log.EntityName.Split(':').Last().Trim() 
                     : Log.EntityName.Trim();
                     
-                var users = await AdminService.GetUsersAsync();
                 var user = users.FirstOrDefault(u => u.DisplayName.Equals(targetName, StringComparison.OrdinalIgnoreCase) 
                                                   || u.UserName?.Equals(targetName, StringComparison.OrdinalIgnoreCase) == true);
                 
@@ -397,6 +414,8 @@
 
     private string GetFriendlyName()
     {
+        if (!string.IsNullOrWhiteSpace(_resolvedActorName)) return _resolvedActorName;
+
         // Prioritize actual UserName from the system, fallback to PerformedBy if it's not a Guid
         if (!string.IsNullOrWhiteSpace(Log.UserName) && Log.UserName != "Unknown") return Log.UserName;
         

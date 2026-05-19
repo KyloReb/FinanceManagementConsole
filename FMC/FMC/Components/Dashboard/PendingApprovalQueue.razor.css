@@ -184,28 +184,47 @@
     transform: translateY(-2px) scale(1.002) !important;
 }
 
+/* Custom Premium Colors - Elegant Non-Flat Designer Tones */
+.fmc-premium-table, .fmc-row-tooltip {
+    --fmc-credit-color: #10b981; /* Premium Emerald Mint */
+    --fmc-debit-color: #f43f5e; /* Premium Rose Crimson */
+    --fmc-security-color: #818cf8; /* Modern Indigo Violet */
+    --fmc-neutral-color: #9ca3af; /* Sleek Silver Slate */
+}
+
+/* Light Mode Swaps */
+html:not(.mud-dark) .fmc-premium-table,
+body:not(.mud-dark) .fmc-premium-table,
+html:not(.mud-dark) .fmc-row-tooltip,
+body:not(.mud-dark) .fmc-row-tooltip {
+    --fmc-credit-color: #059669; /* Deep Emerald */
+    --fmc-debit-color: #d90429; /* Rich Crimson Rose */
+    --fmc-security-color: #3b82f6; /* Modern Blue Sapphire */
+    --fmc-neutral-color: #4b5563; /* Deep Charcoal Slate */
+}
+
 /* Row Border Indicators - Applied strictly to first-child cell to prevent continuous vertical line collapse */
 ::deep .mud-table-row.fmc-row-hover td:first-child {
     border-left: 3px solid transparent !important;
     transition: border-color 0.25s ease;
 }
-::deep .mud-table-row.fmc-row-hover.credit td:first-child { border-left-color: var(--mud-palette-success) !important; }
-::deep .mud-table-row.fmc-row-hover.debit td:first-child { border-left-color: var(--mud-palette-error) !important; }
-::deep .mud-table-row.fmc-row-hover.info td:first-child { border-left-color: var(--mud-palette-info) !important; }
+::deep .mud-table-row.fmc-row-hover.credit td:first-child { border-left-color: var(--fmc-credit-color) !important; }
+::deep .mud-table-row.fmc-row-hover.debit td:first-child { border-left-color: var(--fmc-debit-color) !important; }
+::deep .mud-table-row.fmc-row-hover.info td:first-child { border-left-color: var(--fmc-security-color) !important; }
 
 /* Premium Floating Forensic Tooltip */
 .fmc-row-tooltip {
     position: absolute;
-    bottom: 115%;
+    bottom: 115%; /* Default upward position for rows 4+ */
     left: 20px;
     width: 320px;
-    background: rgba(18, 18, 26, 0.95);
-    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25);
+    background: rgba(var(--mud-palette-surface-rgb), 0.96) !important;
+    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
     border-radius: 12px;
     padding: 14px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15);
-    backdrop-filter: blur(20px);
-    color: var(--mud-palette-text-primary);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.15) !important;
+    backdrop-filter: blur(25px) saturate(120%);
+    color: var(--mud-palette-text-primary) !important;
     z-index: 999;
     opacity: 0;
     visibility: hidden;
@@ -220,6 +239,18 @@
     transform: translateY(0) scale(1);
 }
 
+/* Smart Positional Tooltip Overrides for Top Rows - Prevents Top Card Clipping! */
+::deep .mud-table-row:nth-of-type(-n+3) .fmc-row-tooltip {
+    bottom: auto;
+    top: 115%; /* Downward position for the first three rows */
+    transform: translateY(-8px) scale(0.97);
+}
+::deep .mud-table-row:nth-of-type(-n+3):hover .fmc-row-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
 .tooltip-header {
     display: flex;
     align-items: center;
@@ -228,13 +259,13 @@
     font-weight: 950;
     letter-spacing: 0.12em;
     padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(var(--mud-palette-text-primary-rgb), 0.08) !important;
     margin-bottom: 10px;
 }
-.tooltip-header.credit { color: var(--mud-palette-success); text-shadow: 0 0 10px rgba(var(--mud-palette-success-rgb), 0.2); }
-.tooltip-header.debit { color: var(--mud-palette-error); text-shadow: 0 0 10px rgba(var(--mud-palette-error-rgb), 0.2); }
-.tooltip-header.security { color: var(--mud-palette-info); text-shadow: 0 0 10px rgba(var(--mud-palette-info-rgb), 0.2); }
-.tooltip-header.neutral { color: var(--mud-palette-text-secondary); }
+.tooltip-header.credit { color: var(--fmc-credit-color) !important; text-shadow: 0 0 10px rgba(16, 185, 129, 0.15); }
+.tooltip-header.debit { color: var(--fmc-debit-color) !important; text-shadow: 0 0 10px rgba(244, 63, 94, 0.15); }
+.tooltip-header.security { color: var(--fmc-security-color) !important; text-shadow: 0 0 10px rgba(129, 140, 248, 0.15); }
+.tooltip-header.neutral { color: var(--fmc-neutral-color) !important; }
 
 .tooltip-body {
     display: flex;
@@ -264,10 +295,10 @@
 .tooltip-val.mono {
     font-family: 'JetBrains Mono', monospace;
 }
-.tooltip-val.credit { color: var(--mud-palette-success); font-weight: 900; }
-.tooltip-val.debit { color: var(--mud-palette-error); font-weight: 900; }
-.tooltip-val.security { color: var(--mud-palette-info); font-weight: 900; }
-.tooltip-val.neutral { color: var(--mud-palette-text-secondary); font-weight: 900; }
+.tooltip-val.credit { color: var(--fmc-credit-color) !important; font-weight: 900; }
+.tooltip-val.debit { color: var(--fmc-debit-color) !important; font-weight: 900; }
+.tooltip-val.security { color: var(--fmc-security-color) !important; font-weight: 900; }
+.tooltip-val.neutral { color: var(--fmc-neutral-color) !important; font-weight: 900; }
 
 .tooltip-footer {
     display: flex;
@@ -281,7 +312,7 @@
     opacity: 0.8;
     margin-top: 12px;
     padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(var(--mud-palette-text-primary-rgb), 0.05) !important;
 }
 
 /* Refresh Button Animation */
@@ -306,10 +337,10 @@
     background-color: var(--mud-palette-divider);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
 }
-.fmc-ledger-bar.credit { background-color: var(--mud-palette-success) !important; }
-.fmc-ledger-bar.debit { background-color: var(--mud-palette-error) !important; }
-.fmc-ledger-bar.security { background-color: var(--mud-palette-info) !important; }
-.fmc-ledger-bar.neutral { background-color: var(--mud-palette-text-secondary) !important; }
+.fmc-ledger-bar.credit { background-color: var(--fmc-credit-color) !important; }
+.fmc-ledger-bar.debit { background-color: var(--fmc-debit-color) !important; }
+.fmc-ledger-bar.security { background-color: var(--fmc-security-color) !important; }
+.fmc-ledger-bar.neutral { background-color: var(--fmc-neutral-color) !important; }
 ::deep .mud-table-row:hover .fmc-ledger-bar { transform: scaleY(1.3) scaleX(1.5); }
 
 /* Skeleton Loaders */
@@ -327,6 +358,12 @@
 .fmc-end-indicator { display: flex; align-items: center; justify-content: center; gap: 20px; opacity: 0.5; }
 .fmc-end-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--mud-palette-divider), transparent); max-width: 100px; }
 .fmc-end-text { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 950; letter-spacing: 0.3em; color: var(--mud-palette-text-secondary); }
+
+/* Custom Premium Icon & Text Colors mapped from helper colorClass */
+.fmc-icon-credit, .fmc-text-credit { color: var(--fmc-credit-color) !important; }
+.fmc-icon-debit, .fmc-text-debit { color: var(--fmc-debit-color) !important; }
+.fmc-icon-security, .fmc-text-security { color: var(--fmc-security-color) !important; }
+.fmc-icon-neutral, .fmc-text-neutral { color: var(--fmc-neutral-color) !important; }
 
 /* Force hide all horizontal table scrollbars */
 ::deep .mud-table-container {

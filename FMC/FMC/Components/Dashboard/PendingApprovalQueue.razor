@@ -126,6 +126,10 @@
                         var isSecurity = actUpper.Contains("LOGIN") || actUpper.Contains("AUTH") || actUpper.Contains("PASSWORD_RESET");
                         var isNeutral = actUpper.Contains("LOGOUT") || actUpper.Contains("VIEW") || actUpper.Contains("READ");
                         
+                        var colorClass = isCredit ? "credit" : 
+                                         (isDebit ? "debit" : 
+                                         (isSecurity ? "security" : "neutral"));
+
                         var color = isCredit ? Color.Success : 
                                     (isDebit ? Color.Error : 
                                     (isSecurity ? Color.Info : 
@@ -185,8 +189,8 @@
                     </MudTd>
                     <MudTd>
                         <div class="d-flex align-center gap-2">
-                            <MudIcon Icon="@icon" Color="@color" Size="Size.Small" />
-                            <MudText Color="@color" Style="font-weight:900; letter-spacing:0.04em; font-size:0.7rem; text-transform:uppercase;">@log.Action</MudText>
+                            <MudIcon Icon="@icon" Class="@($"fmc-icon-{colorClass}")" Size="Size.Small" />
+                            <MudText Class="@($"fmc-text-{colorClass}")" Style="font-weight:900; letter-spacing:0.04em; font-size:0.7rem; text-transform:uppercase;">@log.Action</MudText>
                         </div>
                     </MudTd>
                     <MudTd Style="max-width: 140px; min-width: 120px;">
@@ -205,8 +209,7 @@
                     <MudTd Style="text-align:right">
                         @if (log.Amount.HasValue)
                         {
-                            <MudText Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:1.15rem;" 
-                                     Color="@(isCredit ? Color.Success : Color.Error)">
+                            <MudText Class="@($"fmc-text-{colorClass}")" Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:1.15rem;">
                                 @(isCredit ? "+" : "-")₱@log.Amount.Value.ToString("N2")
                             </MudText>
                         }

@@ -141,7 +141,7 @@ public static class ApplicationDbSeeder
                     var account = new Account
                     {
                         Id = Guid.NewGuid(),
-                        Name = $"Wallet: {fn} {ln}",
+                        Name = $"{fn} {ln}",
                         Balance = 0,
                         TenantId = cardholder.Id.ToString(), // Link to Cardholder ID
                         OrganizationId = org.Id
@@ -158,9 +158,9 @@ public static class ApplicationDbSeeder
                         db.Cardholders.Update(cardholder);
 
                         var account = await db.Accounts.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.TenantId == cardholder.Id.ToString());
-                        if (account != null && account.Name.StartsWith("Wallet:"))
+                        if (account != null)
                         {
-                            account.Name = $"Wallet: {fn} {ln}";
+                            account.Name = $"{fn} {ln}";
                             db.Accounts.Update(account);
                         }
                     }

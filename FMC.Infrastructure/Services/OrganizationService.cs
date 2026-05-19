@@ -421,7 +421,7 @@ public class OrganizationService : IOrganizationService
             account = new Account
             {
                 Id = Guid.NewGuid(),
-                Name = $"Wallet: {firstName} {lastName}",
+                Name = $"{firstName} {lastName}",
                 Balance = 0,
                 TenantId = tenantId,
                 OrganizationId = orgId

@@ -36,12 +36,13 @@
                 @if (!context.User.IsInRole(Roles.SuperAdmin))
                 {
                     var ceoOrg = _organizations.FirstOrDefault();
-                    var walletBalance = ceoOrg?.WalletLimit ?? 0; // Authorized operational capacity
-                    var balanceUsed   = ceoOrg?.Usage ?? 0;
-                    var currentBal    = walletBalance - balanceUsed;
-                    var usedPct       = walletBalance > 0 ? (balanceUsed / walletBalance) * 100m : 0m;
-                    var remainPct     = 100m - usedPct;
-                    var balColor      = usedPct >= 80m ? Color.Error : (usedPct >= 60m ? Color.Warning : Color.Success);
+                    var walletLimit   = ceoOrg?.WalletLimit ?? 0;              // Authorized ceiling
+                    var totalBalance  = ceoOrg?.TotalBalance ?? 0;             // Aggregate cash (org + users)
+                    var balanceUsed   = ceoOrg?.Usage ?? 0;                    // Distributed to cardholders
+                    var currentBal    = totalBalance - balanceUsed;            // Actual mother-account cash
+                    var usedPct       = walletLimit > 0 ? (balanceUsed / walletLimit) * 100m : 0m;
+                    var remainPct     = walletLimit > 0 ? (currentBal / walletLimit) * 100m : 0m; // Cash as % of limit
+                    var balColor      = remainPct <= 20m ? Color.Error : (remainPct <= 40m ? Color.Warning : Color.Success);
 
                     @* CEO: Wallet Balance — total credited by SuperAdmin *@
                     <MudItem xs="12" sm="4">
@@ -49,7 +50,7 @@
                             <div class="fmc-card-content">
                                 <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET LIMIT</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
-                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@walletBalance.ToString("C0")</MudText>
+                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@walletLimit.ToString("C0")</MudText>
                                 </div>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Authorized operational capacity</MudText>
                             </div>

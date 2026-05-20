@@ -36,8 +36,7 @@
                 @if (!context.User.IsInRole(Roles.SuperAdmin))
                 {
                     var ceoOrg = _organizations.FirstOrDefault();
-                    var walletBalance = ceoOrg?.WalletLimit ?? (ceoOrg?.TotalBalance ?? 0); // Using TotalBalance safely fallback
-                    walletBalance = ceoOrg?.TotalBalance ?? 0; // Total credited 
+                    var walletBalance = ceoOrg?.WalletLimit ?? 0; // Authorized operational capacity
                     var balanceUsed   = ceoOrg?.Usage ?? 0;
                     var currentBal    = walletBalance - balanceUsed;
                     var usedPct       = walletBalance > 0 ? (balanceUsed / walletBalance) * 100m : 0m;
@@ -48,11 +47,11 @@
                     <MudItem xs="12" sm="4">
                         <div class="fmc-glass-card">
                             <div class="fmc-card-content">
-                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET BALANCE</MudText>
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET LIMIT</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
                                     <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@walletBalance.ToString("C0")</MudText>
                                 </div>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Total credited by admin</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Authorized operational capacity</MudText>
                             </div>
                             <div class="fmc-card-icon-bg primary"><MudIcon Icon="@Icons.Material.Filled.Wallet" /></div>
                             <div class="fmc-card-progress primary"></div>
@@ -85,7 +84,7 @@
                                 <div class="d-flex align-end gap-2 mt-1">
                                     <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val" Color="Color.Info">@balanceUsed.ToString("C0")</MudText>
                                 </div>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">@usedPct.ToString("F1")% of wallet allocated</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">@usedPct.ToString("F1")% of limit allocated</MudText>
                             </div>
                             <div class="fmc-card-icon-bg info"><MudIcon Icon="@Icons.Material.Filled.Payments" /></div>
                             <div class="fmc-card-progress info"></div>
@@ -130,8 +129,8 @@
                                                 @* Summary Risk Status *@
                                                 @if (!_auditLoading && GetFilteredSubscribers().Any())
                                                 {
-                                                    var criticalCount = GetFilteredSubscribers().Count(o => o.TotalBalance > 0 && (o.Usage / o.TotalBalance) >= 0.9m);
-                                                    var warnCount     = GetFilteredSubscribers().Count(o => o.TotalBalance > 0 && (o.Usage / o.TotalBalance) >= 0.7m && (o.Usage / o.TotalBalance) < 0.9m);
+                                                    var criticalCount = GetFilteredSubscribers().Count(o => o.WalletLimit > 0 && (o.Usage / o.WalletLimit) >= 0.9m);
+                                                    var warnCount     = GetFilteredSubscribers().Count(o => o.WalletLimit > 0 && (o.Usage / o.WalletLimit) >= 0.7m && (o.Usage / o.WalletLimit) < 0.9m);
                                                     
                                                     <div class="d-flex align-center gap-1 ml-1">
                                                         @if (criticalCount > 0) { <span class="fmc-status-dot critical" title="@criticalCount CRITICAL"></span> }
@@ -227,8 +226,8 @@
                                 var sorted = GetFilteredSubscribers()
                                     .Select(o => new {
                                         Org       = o,
-                                        UsedPct   = o.TotalBalance > 0 ? (double)(o.Usage / o.TotalBalance) * 100 : 0,
-                                        Remaining = Math.Max(0, o.TotalBalance - o.Usage),
+                                        UsedPct   = o.WalletLimit > 0 ? (double)(o.Usage / o.WalletLimit) * 100 : 0,
+                                        Remaining = Math.Max(0, o.TotalBalance - o.Usage),  // Actual mother-account cash
                                         IsRecent  = HasRecentCredit(o)
                                     });
 
@@ -340,7 +339,7 @@
                                                     <div class="d-flex justify-space-between mb-1 mt-4">
                                                         <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱0</MudText>
                                                         <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.5; font-weight: 800;">← drag to explore →</MudText>
-                                                        <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱@item.Org.TotalBalance.ToString("N0")</MudText>
+                                                        <MudText Typo="Typo.caption" Style="font-size: 0.55rem; opacity: 0.4;">₱@item.Org.WalletLimit.ToString("N0")</MudText>
                                                     </div>
 
                                                     @* Scrubber wrapper: gauge fill behind, invisible range input on top *@
@@ -374,7 +373,7 @@
                                                         <input type="range" min="0" max="100" step="0.1"
                                                                value="@(_scrubPositions.GetValueOrDefault(capturedId, pct).ToString("F1"))"
                                                                class="fmc-gauge-scrubber"
-                                                               @oninput="@((e) => OnGaugeScrub(e, capturedId, item.Org.TotalBalance))"
+                                                               @oninput="@((e) => OnGaugeScrub(e, capturedId, item.Org.WalletLimit))"
                                                                @onmouseenter="@(() => _scrubActive[capturedId] = true)"
                                                                @onmouseleave="@(() => { _scrubActive[capturedId] = false; _scrubPositions[capturedId] = pct; })" />
 
@@ -382,7 +381,7 @@
                                                         @if (_scrubActive.GetValueOrDefault(capturedId))
                                                         {
                                                             var sp = _scrubPositions.GetValueOrDefault(capturedId, pct);
-                                                            var sa = _scrubAmounts.GetValueOrDefault(capturedId, (decimal)(pct / 100.0) * item.Org.TotalBalance);
+                                                            var sa = _scrubAmounts.GetValueOrDefault(capturedId, (decimal)(pct / 100.0) * item.Org.WalletLimit);
                                                             var tipLeft = Math.Max(8, Math.Min(sp, 88)); // clamp so tip doesn't go off edge
                                                             var isAboveReal = sp > pct;
                                                             <div class="fmc-scrub-tip" style="left: @tipLeft.ToString("F1")%;">
@@ -410,7 +409,7 @@
                                                         <div class="text-right">
                                                             <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Wallet Limit</MudText>
                                                             <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;">
-                                                                @item.Org.TotalBalance.ToString("N0")
+                                                                @item.Org.WalletLimit.ToString("N0")
                                                             </MudText>
                                                         </div>
                                                     </div>

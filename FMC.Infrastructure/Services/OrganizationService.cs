@@ -117,6 +117,7 @@ public class OrganizationService : IOrganizationService
         await _repository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Created organization '{Name}' with Id: {Id}", entity.Name, entity.Id);
+        await _cacheService.RemoveAsync("OrganizationService_GetAll");
         return MapToDto(entity);
     }
 
@@ -163,6 +164,7 @@ public class OrganizationService : IOrganizationService
         await _repository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("[OrganizationService] Updated organization Id: {Id} and synchronized leadership roles.", org.Id);
+        await _cacheService.RemoveAsync("OrganizationService_GetAll");
         return true;
     }
 
@@ -380,6 +382,7 @@ public class OrganizationService : IOrganizationService
         _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
             org.Id, amount, newBalance);
 
+        await ClearTransactionCacheAsync(organizationId);
         return true;
     }
 
@@ -1242,12 +1245,17 @@ public class OrganizationService : IOrganizationService
         _logger.LogInformation("[OrganizationService] Synchronized Wallet Limit for Org {OrgName} to {NewLimit:C}", org.Name, totalLiquidity);
         
         await _auditService.RecordFinancialEventAsync("SYNC_LIMIT", organizationId, org.Name, totalLiquidity, "Capacity Reset", "System", null, organizationId.ToString());
-        
+
+        await ClearTransactionCacheAsync(organizationId);
         return true;
     }
 
     private async Task ClearTransactionCacheAsync(Guid organizationId)
     {
+        // ── Always evict the organization list cache so balances/limits are fresh ──
+        try { await _cacheService.RemoveAsync("OrganizationService_GetAll"); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Failed to remove OrganizationService_GetAll cache"); }
+
         var statuses = new[] { "all", "Pending", "Approved", "Successful", "Rejected" };
         var counts = new[] { 50, 2000 };
 

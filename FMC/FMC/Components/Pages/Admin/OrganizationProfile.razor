@@ -145,19 +145,19 @@
         RenderFragment liquidityCard = @<MudPaper Elevation="0" Class="fmc-glass-surface pa-6 pa-md-8 accent-primary w-100">
              <div class="d-flex flex-column gap-6">
                 @{
-                    var totalLimit = _org.TotalBalance;
+                    var totalLimit = _org.WalletLimit;           // Authorized liquidity ceiling
                     var cardholderBalances = _cardholders?.Sum(u => u.Balance) ?? 0;
-                    // Fix: Usage represents active deployment; negative values (debt) are shown as zero utilization
+                    // Usage = active cardholder deployment; negative values shown as zero
                     var usage = Math.Max(0, cardholderBalances); 
-                    var disposableBalance = totalLimit - cardholderBalances; // Keep raw for actual wallet calculation
+                    var disposableBalance = _org.TotalBalance - cardholderBalances; // Actual mother-account cash
                     var hasLimit = totalLimit > 0;
                     var usagePct = hasLimit ? (double)(usage / totalLimit) * 100.0 : 0;
                 }
 
-                 @* TOP ROW: WALLET BALANCE + ACTIONS *@
+                 @* TOP ROW: WALLET LIMIT + ACTIONS *@
                 <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-4">
                     <div>
-                        <MudText Typo="Typo.subtitle2" Class="fmc-section-label">WALLET BALANCE</MudText>
+                        <MudText Typo="Typo.subtitle2" Class="fmc-section-label">WALLET LIMIT</MudText>
                         <div class="d-flex align-center gap-3 mt-1">
                             @if (_isBalanceVisible)
                             {

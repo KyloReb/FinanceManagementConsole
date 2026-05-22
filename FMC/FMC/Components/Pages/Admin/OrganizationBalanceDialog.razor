@@ -30,7 +30,7 @@
             <div class="mb-8 pa-4 fmc-sync-feature d-flex align-center justify-space-between">
                 <div>
                     <MudText Typo="Typo.caption" Style="font-weight: 900; letter-spacing: 0.1em; color: var(--mud-palette-info);">CAPACITY MANAGEMENT</MudText>
-                    <MudText Typo="Typo.body2" Style="opacity: 0.7; font-size: 0.8rem;">Align Wallet Limit with Current Balance</MudText>
+                    <MudText Typo="Typo.body2" Style="opacity: 0.7; font-size: 0.8rem;">Reset wallet to available cash and clear usage</MudText>
                 </div>
                 <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small" 
                            StartIcon="@Icons.Material.Filled.Sync" OnClick="HandleSyncLimitAsync"
@@ -116,7 +116,7 @@
 
         <MudMessageBox @ref="_mbox" Title="Capacity Synchronization" CancelText="Cancel">
             <MessageContent>
-                Are you sure you want to align the Wallet Limit with the current actual balance? This action updates the institutional liquidity ceiling.
+                Reset wallet balance to the mother-account cash on hand and clear usage for a new period? Cardholder ledger balances are not changed.
             </MessageContent>
             <YesButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Info" Class="px-6" Style="text-transform:none; font-weight:800; border-radius:10px;">Sync Now</MudButton>
@@ -402,7 +402,7 @@
                 if (success)
                 {
                     OrgService.NotifyDataChanged();
-                    ShowSuccessOverlay("CAPACITY SYNCHRONIZED", "Wallet Limit successfully aligned with current actual balance.");
+                    ShowSuccessOverlay("WALLET RESET", "Wallet balance updated to available cash. Usage cleared for the new period.");
                 }
             }
             catch (Exception ex)

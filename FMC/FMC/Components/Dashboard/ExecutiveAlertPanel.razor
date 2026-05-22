@@ -429,8 +429,8 @@
     private const decimal CriticalBalanceThreshold = 100_000m;
     private const double HighUtilizationThreshold  = 80.0;
 
-    private static decimal GetOrgBalance(OrganizationDto o) => o.TotalBalance - o.Usage;
-    private static double GetUtilizationPct(OrganizationDto o) => o.TotalBalance <= 0 ? 0 : (double)(o.Usage / o.TotalBalance) * 100.0;
+    private static decimal GetOrgBalance(OrganizationDto o) => o.RemainingBalance;
+    private static double GetUtilizationPct(OrganizationDto o) => o.WalletLimit <= 0 ? 0 : (double)(o.Usage / o.WalletLimit) * 100.0;
 
     private List<OrganizationDto> ZeroBalanceTenants        => Organizations.Where(o => GetOrgBalance(o) <= 0 && o.IsActive).ToList();
     private List<OrganizationDto> LowBalanceTenants         => Organizations.Where(o => o.IsActive && GetOrgBalance(o) > 0 && GetOrgBalance(o) <= CriticalBalanceThreshold).ToList();

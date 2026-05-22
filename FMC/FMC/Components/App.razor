@@ -56,6 +56,35 @@
             }
         };
 
+        window.secureCookieHelper = {
+            setSecureCookie: async function (token, rememberMe) {
+                try {
+                    const response = await fetch('/api/local-auth/set-token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ token: token, rememberMe: rememberMe })
+                    });
+                    return response.ok;
+                } catch (e) {
+                    console.error("[CookieHelper] Failed to set secure token cookie:", e);
+                    return false;
+                }
+            },
+            deleteSecureCookie: async function () {
+                try {
+                    const response = await fetch('/api/local-auth/clear-token', {
+                        method: 'POST'
+                    });
+                    return response.ok;
+                } catch (e) {
+                    console.error("[CookieHelper] Failed to clear secure token cookie:", e);
+                    return false;
+                }
+            }
+        };
+
         window.clipboardHelper = {
             copyText: function(text) {
                 navigator.clipboard.writeText(text);

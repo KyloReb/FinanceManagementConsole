@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.RateLimiting;
 using FMC.Infrastructure.Authentication;
 using FMC.Infrastructure.Data;
 using FMC.Domain.Entities;
@@ -33,6 +34,32 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
+
+// 1. CORS Configuration (P1 #4)
+var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() 
+                     ?? new[] { "https://localhost:7027" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FmcCorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
+// 2. Rate Limiting Configuration (P1 #5)
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("AuthPolicy", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 5; // Allow max 5 login/auth attempts
+        limiterOptions.Window = TimeSpan.FromMinutes(1); // per minute
+        limiterOptions.QueueLimit = 0; // Reject immediately if exceeded
+    });
+});
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
     options.MinimumSameSitePolicy = SameSiteMode.Lax;
@@ -289,12 +316,20 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-// Always enable Swagger during this architectural transition phase
-app.UseSwagger();
-app.UseSwaggerUI();
+// 3. Hide Swagger behind Development Environment Check (P2 #7)
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseStaticFiles();
 app.UseHttpsRedirection();
+
+// 4. Inject CORS and Rate Limiting into HTTP Pipeline (before authentication/authorization)
+app.UseCors("FmcCorsPolicy");
+app.UseRateLimiter();
+
 app.UseCookiePolicy();
 
 app.UseAuthentication();

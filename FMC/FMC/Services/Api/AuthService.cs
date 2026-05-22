@@ -32,11 +32,8 @@ public class AuthService
         var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
         if (result != null)
         {
-            await _js.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
-            
-            // Set a cookie for the server to read during pre-rendering
-            var cookieExpiryDays = loginRequest.RememberMe ? 30 : 1;
-            await _js.InvokeVoidAsync("cookieHelper.setCookie", "authToken", result.Token, cookieExpiryDays, true, "Lax");
+            // Securely set the HttpOnly cookie on the local domain using our secure API endpoint
+            await _js.InvokeVoidAsync("secureCookieHelper.setSecureCookie", result.Token, loginRequest.RememberMe);
 
             ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
         }
@@ -74,8 +71,7 @@ public class AuthService
     public async Task Logout(string userId)
     {
         await _httpClient.PostAsync($"api/auth/logout?userId={userId}", null);
-        await _js.InvokeVoidAsync("localStorage.removeItem", "authToken");
-        await _js.InvokeVoidAsync("cookieHelper.deleteCookie", "authToken");
+        await _js.InvokeVoidAsync("secureCookieHelper.deleteSecureCookie");
         ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsLoggedOut();
     }
 

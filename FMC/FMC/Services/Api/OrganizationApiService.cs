@@ -278,11 +278,12 @@ public class OrganizationApiService
     }
 
     /// <summary>
-    /// SuperAdmin Endpoint: Synchronizes the organization's wallet limit with its current actual balance.
+    /// SuperAdmin Endpoint: Resets wallet balance to mother-account cash and clears usage for a new period.
     /// </summary>
     public async Task<bool> SyncLimitAsync(Guid id)
     {
         var response = await _httpClient.PostAsync($"api/organizations/{id}/sync-limit", null);
+        if (response.IsSuccessStatusCode) NotifyDataChanged();
         return response.IsSuccessStatusCode;
     }
 }

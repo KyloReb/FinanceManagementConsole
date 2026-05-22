@@ -14,9 +14,8 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject IReportService ReportService
 @inject IJSRuntime JS
-
+<div class="fmc-profile-viewport">
 <PageTitle>Subscriber Profile | FMC</PageTitle>
-
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-12">
     @if (_loading)
     {
@@ -142,83 +141,98 @@
     }
     else
     {
-        RenderFragment liquidityCard = @<MudPaper Elevation="0" Class="fmc-glass-surface pa-6 pa-md-8 accent-primary w-100">
-             <div class="d-flex flex-column gap-6">
-                @{
-                    var totalLimit = _org.WalletLimit;           // Authorized liquidity ceiling
-                    var cardholderBalances = _cardholders?.Sum(u => u.Balance) ?? 0;
-                    // Usage = active cardholder deployment; negative values shown as zero
-                    var usage = Math.Max(0, cardholderBalances); 
-                    var disposableBalance = _org.TotalBalance - cardholderBalances; // Actual mother-account cash
-                    var hasLimit = totalLimit > 0;
-                    var usagePct = hasLimit ? (double)(usage / totalLimit) * 100.0 : 0;
-                }
-
-                 @* TOP ROW: WALLET LIMIT + ACTIONS *@
-                <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-4">
-                    <div>
-                        <MudText Typo="Typo.subtitle2" Class="fmc-section-label">WALLET LIMIT</MudText>
-                        <div class="d-flex align-center gap-3 mt-1">
-                            @if (_isBalanceVisible)
-                            {
-                                <MudText Class="fmc-balance-val fmc-money">@totalLimit.ToString("C")</MudText>
-                            }
-                            else
-                            {
-                                <MudText Class="fmc-balance-val fmc-money mud-text-secondary" Style="letter-spacing: 0.1em; padding-top:4px;">••••••••</MudText>
-                            }
-                            <MudTooltip Text="@(_isBalanceVisible ? "Hide Balance" : "Show Balance")">
-                                <MudIconButton Icon="@(_isBalanceVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
-                                               OnClick="ToggleBalanceVisibility" Size="Size.Small" Class="mud-text-secondary" />
-                            </MudTooltip>
-                        </div>
+        @if (_showSyncSuccess)
+        {
+            <div class="fmc-premium-notification success">
+                <div class="fmc-notification-glow"></div>
+                <div class="fmc-notification-content">
+                    <div class="fmc-notification-icon-container">
+                        <MudIcon Icon="@Icons.Material.Filled.Verified" Class="fmc-notification-icon" />
                     </div>
-                    <div class="d-flex align-center flex-wrap gap-2" style="z-index: 2;">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sync" 
-                                   OnClick="HandleSyncLimitAsync" Class="fmc-action-btn">SYNC LIMIT</MudButton>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.RemoveCircleOutline" 
-                                   OnClick="@(() => OpenOrgBalanceDialog(false))" Class="fmc-action-btn">DEBIT</MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AddCircleOutline" 
-                                   OnClick="@(() => OpenOrgBalanceDialog(true))" Class="fmc-action-btn" Style="color: white !important;">CREDIT</MudButton>
+                    <div class="fmc-notification-text-wrap">
+                        <MudText Typo="Typo.subtitle2" Class="fmc-notification-title">Sync Complete</MudText>
+                        <MudText Typo="Typo.caption" Class="fmc-notification-msg">Wallet balance reset to available mother-account cash. Usage cleared for the new period.</MudText>
                     </div>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Class="fmc-notification-close" OnClick="@(() => _showSyncSuccess = false)" Size="Size.Small" />
                 </div>
-
-                @* BOTTOM ROW: USAGE AND TOTAL LIMIT *@
-                <div class="fmc-liquidity-matrix">
-                    <div class="fmc-matrix-item">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">USAGE</MudText>
-                        <div class="d-flex align-center gap-3">
-                            <MudText Typo="Typo.h6" Class="fmc-money">@usage.ToString("C0")</MudText>
-                            @if (hasLimit)
-                            {
-                                <span class="fmc-util-pill @(usagePct >= 90 ? "critical" : usagePct >= 80 ? "warning" : "normal")">
-                                    @usagePct.ToString("F1")%
-                                </span>
-                            }
-                        </div>
-                    </div>
-                    <div class="fmc-matrix-divider"></div>
-                    <div class="fmc-matrix-item">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">CURRENT BALANCE</MudText>
-                        <MudText Typo="Typo.h6" Class="fmc-money">@disposableBalance.ToString("C")</MudText>
-                    </div>
-                          @* UTILIZATION BAR *@
-                <div class="fmc-full-util-wrap mt-2">
-                    <div class="fmc-full-util-bar">
-                        <div class="fmc-full-util-fill @(usagePct >= 95 ? "critical" : usagePct >= 80 ? "warning" : "normal")" 
-                              style="width: @(Math.Min(usagePct, 100).ToString("F0"))%;"></div>
-                    </div>
-                </div>
-            </div>          </div>
-
-            <div class="fmc-watermark-icon">
-                <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
             </div>
-       </MudPaper>;
+        }
+
+            var totalLimit = _org.WalletLimit;           // Authorized liquidity ceiling
+            // Usage = active cardholder deployment; negative values shown as zero
+            var usage = Math.Max(0, _org.Usage); 
+            var disposableBalance = _org.RemainingBalance;
+            var hasLimit = totalLimit > 0;
+            var usagePct = hasLimit ? (double)(usage / totalLimit) * 100.0 : 0;
+
+            RenderFragment liquidityCard = @<MudPaper Elevation="0" Class="fmc-glass-surface pa-6 pa-md-8 accent-primary w-100">
+                 <div class="d-flex flex-column gap-6">
+                     @* TOP ROW: WALLET LIMIT + ACTIONS *@
+                     <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between gap-4">
+                         <div>
+                             <MudText Typo="Typo.subtitle2" Class="fmc-section-label">WALLET BALANCE</MudText>
+                             <div class="d-flex align-center gap-3 mt-1">
+                                 @if (_isBalanceVisible)
+                                 {
+                                     <MudText Class="fmc-balance-val fmc-money">@totalLimit.ToString("C")</MudText>
+                                 }
+                                 else
+                                 {
+                                     <MudText Class="fmc-balance-val fmc-money mud-text-secondary" Style="letter-spacing: 0.1em; padding-top:4px;">••••••••</MudText>
+                                 }
+                                 <MudTooltip Text="@(_isBalanceVisible ? "Hide Balance" : "Show Balance")">
+                                     <MudIconButton Icon="@(_isBalanceVisible ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
+                                                    OnClick="ToggleBalanceVisibility" Size="Size.Small" Class="mud-text-secondary" />
+                                 </MudTooltip>
+                             </div>
+                         </div>
+                         <div class="fmc-profile-actions-row" style="z-index: 2;">
+                             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" 
+                                        OnClick="HandleSyncLimitAsync" Class="fmc-action-btn fmc-btn-sync">SYNC LIMIT</MudButton>
+                             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.RemoveCircleOutline" 
+                                        OnClick="@(() => OpenOrgBalanceDialog(false))" Class="fmc-action-btn fmc-btn-debit">DEBIT</MudButton>
+                             <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.AddCircleOutline" 
+                                        OnClick="@(() => OpenOrgBalanceDialog(true))" Class="fmc-action-btn fmc-btn-credit">CREDIT</MudButton>
+                         </div>
+                     </div>
+
+                     @* BOTTOM ROW: USAGE AND TOTAL LIMIT *@
+                     <div class="fmc-liquidity-matrix">
+                         <div class="fmc-matrix-item">
+                             <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">USAGE</MudText>
+                             <div class="d-flex align-center gap-3">
+                                 <MudText Typo="Typo.h6" Class="fmc-money">@usage.ToString("C0")</MudText>
+                                 @if (hasLimit)
+                                 {
+                                     <span class="fmc-util-pill @(usagePct >= 90 ? "critical" : usagePct >= 80 ? "warning" : "normal")">
+                                         @usagePct.ToString("F1")%
+                                     </span>
+                                 }
+                             </div>
+                         </div>
+                         <div class="fmc-matrix-divider"></div>
+                         <div class="fmc-matrix-item">
+                             <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:800;">REMAINING BALANCE</MudText>
+                             <MudText Typo="Typo.h6" Class="fmc-money">@disposableBalance.ToString("C")</MudText>
+                         </div>
+                         @* UTILIZATION BAR *@
+                         <div class="fmc-full-util-wrap mt-2">
+                             <div class="fmc-full-util-bar">
+                                 <div class="fmc-full-util-fill @(usagePct >= 95 ? "critical" : usagePct >= 80 ? "warning" : "normal")" 
+                                       style="width: @(Math.Min(usagePct, 100).ToString("F0"))%;"></div>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+
+                 <div class="fmc-watermark-icon">
+                     <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
+                 </div>
+            </MudPaper>;
 
         <MudMessageBox @ref="_mbox" Title="Capacity Synchronization" CancelText="Cancel">
             <MessageContent>
-                Are you sure you want to align the Wallet Limit with the current actual balance for this organization? This action updates the institutional liquidity ceiling.
+                Reset wallet balance to mother-account cash on hand and clear usage for a new period? Cardholder ledger balances are not changed.
             </MessageContent>
             <YesButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Info" Class="px-6" Style="text-transform:none; font-weight:800; border-radius:10px;">Confirm Sync</MudButton>
@@ -339,7 +353,7 @@
                 }
 
                 <div class="mb-6">
-                    <PendingApprovalQueue OrganizationId="Id" />
+                    <PendingApprovalQueue OrganizationId="Id" OrganizationName="@_org?.Name" />
                 </div>
 
                 @if (_org.Name != "Nationlink/Infoserve Inc.")
@@ -422,120 +436,9 @@
        </MudGrid>
     }
 </MudContainer>
+</div>
 
-<style>
-    .fmc-glass-surface { 
-        border-radius: 20px; border: 1px solid var(--mud-palette-divider); 
-        background: var(--mud-palette-surface); position: relative; overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-    }
-    .fmc-glass-surface.accent-primary { border-top: 4px solid var(--mud-palette-primary); }
-    .fmc-glass-surface.accent-info { border-top: 4px solid var(--mud-palette-info); }
-
-    .fmc-org-icon {
-        width: 64px; height: 64px; border-radius: 16px;
-        background: rgba(var(--mud-palette-primary-rgb), 0.1);
-        display: flex; align-items: center; justify-content: center;
-        border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.2);
-        flex-shrink: 0;
-    }
-
-    .fmc-section-label { letter-spacing: 0.12em; opacity: 0.5; font-weight: 800; font-size: 0.65rem; text-transform: uppercase; }
-    
-    .fmc-watermark-icon {
-        position: absolute; right: -20px; bottom: -20px; opacity: 0.05; 
-        font-size: 8rem !important; transform: rotate(-10deg); pointer-events: none;
-    }
-
-
-    .fmc-premium-table .mud-table-head .mud-th { font-weight: 800; letter-spacing: 0.05em; font-size: 0.65rem; color: var(--mud-palette-text-secondary); }
-    .fmc-premium-table .mud-table-row { transition: background-color 0.15s; }
-    .fmc-premium-table .mud-table-row:hover { background-color: var(--mud-palette-action-default-hover) !important; }
-
-    .fmc-hover-user:hover {
-        background-color: rgba(var(--mud-palette-primary-rgb), 0.05);
-        color: var(--mud-palette-primary) !important;
-    }
-
-    .fmc-hover-user:hover .mud-typography {
-        color: var(--mud-palette-primary) !important;
-    }
-
-    .fmc-status-indicator { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; gap: 8px; border: 1px solid transparent; }
-    .fmc-status-indicator.active { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); border-color: rgba(var(--mud-palette-success-rgb), 0.2); }
-    .fmc-status-indicator.suspended { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border-color: rgba(var(--mud-palette-error-rgb), 0.2); }
-
-    .fmc-balance-val {
-        font-size: clamp(2rem, 4vw, 3rem) !important;
-        line-height: 1.1;
-    }
-
-    .fmc-mobile-scroll::-webkit-scrollbar { width: 4px; }
-    .fmc-mobile-scroll::-webkit-scrollbar-thumb { background: var(--mud-palette-divider); border-radius: 4px; }
-
-    .fmc-mobile-user-card {
-        border-radius: 12px; 
-        background: rgba(var(--mud-palette-surface), 0.5); 
-        border: 1px solid var(--mud-palette-divider);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.01);
-    }
-
-    .fmc-action-btn { font-weight: 900 !important; letter-spacing: 0.05em !important; border-radius: 12px !important; padding: 8px 20px !important; }
-
-    .fmc-liquidity-matrix { display: flex; align-items: center; gap: 32px; background: rgba(var(--mud-palette-background-grey-rgb), 0.5); padding: 16px 24px; border-radius: 16px; border: 1px solid var(--mud-palette-divider); flex-wrap: wrap; }
-    .fmc-matrix-item { display: flex; flex-direction: column; }
-    .fmc-matrix-divider { width: 1px; height: 32px; background: var(--mud-palette-divider); }
-    
-    .fmc-util-pill { font-size: 0.6rem; font-weight: 950; padding: 2px 8px; border-radius: 4px; border: 1px solid transparent; }
-    .fmc-util-pill.normal { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); border-color: rgba(var(--mud-palette-primary-rgb), 0.2); }
-    .fmc-util-pill.warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); border-color: rgba(var(--mud-palette-warning-rgb), 0.2); }
-    .fmc-util-pill.critical { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); border-color: rgba(var(--mud-palette-error-rgb), 0.2); }
-
-    .fmc-full-util-wrap { width: 100%; }
-    .fmc-full-util-bar { height: 6px; background: var(--mud-palette-background-grey); border-radius: 3px; overflow: hidden; border: 1px solid var(--mud-palette-divider); }
-    .fmc-full-util-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
-    .fmc-full-util-fill.normal { background: var(--mud-palette-primary); }
-    .fmc-full-util-fill.warning { background: var(--mud-palette-warning); }
-    .fmc-full-util-fill.critical { background: var(--mud-palette-error); animation: fmc-full-pulse 1.5s infinite; }
-
-    @@keyframes fmc-full-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-
-    @@media (max-width: 600px) {
-        .fmc-liquidity-matrix { gap: 16px; padding: 12px; }
-        .fmc-matrix-divider { display: none; }
-    }
-    .fmc-mini-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-    .fmc-mini-dot.active { background: var(--mud-palette-success); }
-    .fmc-mini-dot.inactive { background: var(--mud-palette-error); }
-    .fmc-sidebar-user-item:hover .mud-typography { color: var(--mud-palette-primary) !important; }
-
-    /* Filter Toolbar */
-    .fmc-filter-toolbar {
-        background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider);
-        border-radius: 14px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    }
-    .fmc-qd-group { background: rgba(var(--mud-palette-background-grey-rgb),0.6); border-radius: 10px; padding: 3px; }
-    .fmc-qd-btn {
-        padding: 5px 12px; border-radius: 8px; border: none; cursor: pointer;
-        font-size: 0.72rem; font-weight: 900; letter-spacing: 0.04em;
-        background: transparent; color: var(--mud-palette-text-secondary);
-        transition: all 0.2s;
-    }
-    .fmc-qd-btn:hover { background: rgba(var(--mud-palette-primary-rgb),0.08); color: var(--mud-palette-primary); }
-    .fmc-qd-btn.active { background: var(--mud-palette-primary); color: #fff; box-shadow: 0 2px 8px rgba(var(--mud-palette-primary-rgb),0.3); }
-    .fmc-filter-divider { width: 1px; height: 28px; background: var(--mud-palette-divider); margin: 0 4px; }
-    .fmc-date-field { display: flex; flex-direction: column; gap: 2px; }
-    .fmc-date-label { font-size: 0.58rem; font-weight: 900; letter-spacing: 0.08em; color: var(--mud-palette-text-secondary); opacity: 0.6; }
-    .fmc-date-input {
-        border: 1px solid var(--mud-palette-divider); border-radius: 8px;
-        padding: 5px 10px; font-size: 0.78rem; font-weight: 600;
-        background: transparent; color: var(--mud-palette-text-primary);
-        outline: none; transition: border-color 0.2s;
-    }
-    .fmc-date-input:focus { border-color: var(--mud-palette-primary); }
-</style>
+@* Styles isolated to OrganizationProfile.razor.css *@
 
 @code {
     [Parameter] public Guid Id { get; set; }
@@ -548,6 +451,7 @@
 
     private bool _isBalanceVisible = true;
     private string _searchString = "";
+    private bool _showSyncSuccess = false;
 
     // Filter toolbar state
     private string _activeDateFilter = "all";
@@ -747,8 +651,16 @@
                 var success = await OrganizationService.SyncLimitAsync(Id);
                 if (success)
                 {
-                    Snackbar.Add("Wallet Limit successfully synchronized.", Severity.Info);
+                    _showSyncSuccess = true;
+                    StateHasChanged();
                     await LoadProfileDataAsync();
+                    
+                    // Auto fade out toast after 4.5 seconds
+                    _ = Task.Delay(4500).ContinueWith(_ =>
+                    {
+                        _showSyncSuccess = false;
+                        InvokeAsync(StateHasChanged);
+                    });
                 }
             }
             catch (Exception ex)

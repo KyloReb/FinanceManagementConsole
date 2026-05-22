@@ -48,8 +48,15 @@ public class Organization : BaseEntity
 
     /// <summary>
     /// The maximum operational float or credit limit for the organization's collective wallet.
+    /// Updated on mother-account credits and on sync-limit (daily reset).
     /// </summary>
     public decimal WalletLimit { get; set; } = 1000000;
+
+    /// <summary>
+    /// Cardholder balance total captured at the last sync-limit reset.
+    /// Displayed usage = current cardholder sum minus this baseline (0 right after sync).
+    /// </summary>
+    public decimal UsageBaseline { get; set; }
 
     /// <summary>
     /// Soft-Deletion chronological footprint.

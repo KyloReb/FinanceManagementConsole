@@ -6,6 +6,9 @@ using FMC.Services.Api;
 using FMC.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -108,8 +111,24 @@ app.UseHttpsRedirection();
 app.UseCookiePolicy();
 app.UseStaticFiles();
 
+// 1. Secure HTTP Headers Middleware (CSP, Clickjacking, MIME-Sniffing)
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Content-Security-Policy", 
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self' https://localhost:7026;");
+    await next();
+});
+
 // Custom Middleware to bridge the authToken cookie to the HttpContext.User
-// and prevent browser history caching of sensitive views
+// and prevent browser history caching of sensitive views (with cryptographically secure JWT signature verification)
 app.Use(async (context, next) =>
 {
     context.Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
@@ -121,22 +140,42 @@ app.Use(async (context, next) =>
     {
         try
         {
-            var parts = token.Split('.');
-            if (parts.Length > 1)
+            var config = context.RequestServices.GetRequiredService<IConfiguration>();
+            var secret = config["JwtSettings:Secret"] ?? throw new InvalidOperationException("JWT Secret is missing.");
+            var issuer = config["JwtSettings:Issuer"] ?? "FMC.Api";
+            var audience = config["JwtSettings:Audience"] ?? "FMC.UI";
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var validationParameters = new TokenValidationParameters
             {
-                var payload = parts[1].Replace('-', '+').Replace('_', '/');
-                while (payload.Length % 4 != 0) payload += "=";
-                var jsonBytes = Convert.FromBase64String(payload);
-                var claimsDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
-                if (claimsDict != null)
-                {
-                    var claims = claimsDict.Select(kvp => new System.Security.Claims.Claim(kvp.Key, kvp.Value.ToString()!));
-                    var identity = new System.Security.Claims.ClaimsIdentity(claims, "CookieBridge");
-                    context.User = new System.Security.Claims.ClaimsPrincipal(identity);
-                }
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = issuer,
+                ValidAudience = audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+                ClockSkew = TimeSpan.Zero
+            };
+
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+            
+            var claims = principal.Claims.ToList();
+            var normalizedClaims = new List<System.Security.Claims.Claim>();
+            foreach (var claim in claims)
+            {
+                var key = claim.Type;
+                if (key == "role" || key == System.Security.Claims.ClaimTypes.Role) normalizedClaims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, claim.Value));
+                else if (key == "unique_name" || key == "name" || key == System.Security.Claims.ClaimTypes.Name) normalizedClaims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, claim.Value));
+                else if (key == "sub" || key == System.Security.Claims.ClaimTypes.NameIdentifier) normalizedClaims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, claim.Value));
+                else if (key == "email" || key == System.Security.Claims.ClaimTypes.Email) normalizedClaims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, claim.Value));
+                else normalizedClaims.Add(new System.Security.Claims.Claim(key, claim.Value));
             }
+
+            var identity = new System.Security.Claims.ClaimsIdentity(normalizedClaims, "CookieBridge");
+            context.User = new System.Security.Claims.ClaimsPrincipal(identity);
         }
-        catch { }
+        catch { /* Invalid signature, expired token, etc. - fall back to anonymous context safely */ }
     }
     await next();
 });
@@ -146,6 +185,27 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+// Minimal API endpoints for managing the HttpOnly secure token cookies securely from client-side requests
+app.MapPost("/api/local-auth/set-token", async (HttpContext httpContext, TokenSetRequest request) =>
+{
+    var cookieOptions = new CookieOptions
+    {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Lax,
+        Expires = request.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : DateTimeOffset.UtcNow.AddDays(1)
+    };
+    httpContext.Response.Cookies.Append("authToken", request.Token, cookieOptions);
+    return Results.Ok();
+});
+
+app.MapPost("/api/local-auth/clear-token", (HttpContext httpContext) =>
+{
+    httpContext.Response.Cookies.Delete("authToken");
+    return Results.Ok();
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
@@ -154,3 +214,5 @@ app.MapRazorComponents<App>()
 #endregion
 
 app.Run();
+
+public record TokenSetRequest(string Token, bool RememberMe);

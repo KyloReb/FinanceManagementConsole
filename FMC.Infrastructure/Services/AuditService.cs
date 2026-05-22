@@ -1,6 +1,7 @@
 using FMC.Application.Interfaces;
 using FMC.Domain.Entities;
 using FMC.Shared.DTOs.Admin;
+using FMC.Shared.Time;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -163,7 +164,7 @@ public class AuditService : IAuditService
                     ? user.OrganizationInfo.Name 
                     : (!string.IsNullOrWhiteSpace(user?.Organization) ? user.Organization : (user != null ? "N/A" : "Guest/System")),
                 Details = log.Details,
-                CreatedAt = log.CreatedAt
+                CreatedAt = NormalizeCreatedAt(log.CreatedAt)
             });
         }
         return dtos;
@@ -176,6 +177,13 @@ public class AuditService : IAuditService
         var rawUserAgent = _httpContextAccessor.HttpContext?.Request?.Headers["User-Agent"].ToString();
         var resolvedDevice = string.IsNullOrEmpty(rawUserAgent) ? "System Initiated" : GetDeviceName(rawUserAgent);
 
+        var recordedAt = FmcDateTime.UtcNow;
+        var enrichedDetails = string.IsNullOrWhiteSpace(details)
+            ? FinancialAuditFormatter.WithRecordedAt(label)
+            : details.Contains("Recorded:", StringComparison.OrdinalIgnoreCase)
+                ? details
+                : FinancialAuditFormatter.WithRecordedAt(details, recordedAt);
+
         var log = new AuditLog
         {
             Action = action,
@@ -185,8 +193,9 @@ public class AuditService : IAuditService
             Amount = amount,
             Label = label,
             PerformedBy = performedBy,
-            Details = details,
-            CreatedAt = DateTime.UtcNow,
+            UserId = Guid.TryParse(performedBy, out _) ? performedBy : null,
+            Details = enrichedDetails,
+            CreatedAt = recordedAt,
             TenantId = tenantId ?? "FINANCIAL",
             IpAddress = rawIp,
             Device = resolvedDevice
@@ -195,6 +204,8 @@ public class AuditService : IAuditService
         _context.AuditLogs.Add(log);
         await _context.SaveChangesAsync();
     }
+
+    private static DateTime NormalizeCreatedAt(DateTime createdAt) => FmcDateTime.EnsureUtc(createdAt);
 
     public async Task<List<AuditLogDto>> GetRecentLogsAsync(int count = 20, string? category = null, string? tenantId = null)
     {
@@ -250,7 +261,7 @@ public class AuditService : IAuditService
                 Amount = log.Amount,
                 Label = log.Label,
                 PerformedBy = perf,
-                CreatedAt = log.CreatedAt,
+                CreatedAt = NormalizeCreatedAt(log.CreatedAt),
                 Details = log.Details,
                 IpAddress = log.IpAddress,
                 Device = log.Device,
@@ -337,7 +348,7 @@ public class AuditService : IAuditService
                     Amount = log.Amount,
                     Label = log.Label,
                     PerformedBy = perf,
-                    CreatedAt = log.CreatedAt,
+                    CreatedAt = NormalizeCreatedAt(log.CreatedAt),
                     Details = log.Details,
                     IpAddress = log.IpAddress,
                     Device = log.Device,

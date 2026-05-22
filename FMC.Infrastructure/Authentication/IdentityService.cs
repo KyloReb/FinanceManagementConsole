@@ -129,7 +129,7 @@ public class IdentityService : IIdentityService
         if (user == null || string.IsNullOrEmpty(user.Email)) 
             return null;
 
-        var otp = new Random().Next(100000, 999999).ToString();
+        var otp = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         var cacheKey = $"fp_otp_{user.Id}";
         await _cacheService.SetAsync(cacheKey, otp, TimeSpan.FromMinutes(10));
 

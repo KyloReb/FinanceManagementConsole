@@ -20,7 +20,7 @@
                 </div>
                 <div>
                     <div class="d-flex align-center gap-2">
-                        <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">Organization Audit Logs</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: -0.01em;">@(!string.IsNullOrEmpty(OrganizationName) ? $"{OrganizationName} — Audit Logs" : "Organization Audit Logs")</MudText>
                         <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text"
                                  Style="font-weight: 950; font-size: 0.65rem; border: 1px solid rgba(var(--mud-palette-info-rgb),0.3);">
                             @_searchResult.TotalCount RECORDS
@@ -171,7 +171,7 @@
                                 </div>
                                 <div class="tooltip-row">
                                     <span class="tooltip-lbl">ISO TIMESTAMP:</span>
-                                    <span class="tooltip-val mono">@log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                    <span class="tooltip-val mono">@log.CreatedAt.ToDisplayString("yyyy-MM-dd HH:mm:ss.fff")</span>
                                 </div>
                             </div>
                             <div class="tooltip-footer">
@@ -183,8 +183,8 @@
                         <div class="d-flex align-center gap-3">
                             <div class="fmc-ledger-bar @(isCredit ? "credit" : (isDebit ? "debit" : (isSecurity ? "security" : "neutral")))"></div>
                             <div class="d-flex flex-column">
-                                <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@log.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@log.CreatedAt.ToLocalTime().ToString("HH:mm:ss")</MudText>
+                                <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@log.CreatedAt.ToDisplayString("MMM dd, yyyy")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@log.CreatedAt.ToDisplayString("HH:mm:ss")</MudText>
                             </div>
                         </div>
                     </MudTd>
@@ -259,6 +259,7 @@
 
 @code {
     [Parameter] public Guid OrganizationId { get; set; }
+    [Parameter] public string? OrganizationName { get; set; }
     
     private MudTable<AuditLogDto> _table = default!;
     private AuditLogSearchResultDto _searchResult = new();
@@ -356,8 +357,10 @@
     {
         if (!_searchResult.Items.Any()) { Snackbar.Add("No data to export.", Severity.Warning); return; }
         var filterLabel = BuildFilterLabel();
-        var bytes = ReportService.GenerateAuditExcel("Organization Audit Logs", _searchResult.Items, filterLabel);
-        await DownloadFile($"OrgAuditLogs_{DateTime.Now:yyyyMMdd}.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        var reportTitle = !string.IsNullOrEmpty(OrganizationName) ? $"{OrganizationName} — Audit Logs" : "Organization Audit Logs";
+        var safeOrgName = (OrganizationName ?? "Org").Replace(" ", "_").Replace("/", "-");
+        var bytes = ReportService.GenerateAuditExcel(reportTitle, _searchResult.Items, filterLabel);
+        await DownloadFile($"{safeOrgName}_AuditLogs_{DateTime.Now:yyyyMMdd}.xlsx", bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         Snackbar.Add("Exported as Excel.", Severity.Success);
     }
 
@@ -365,8 +368,10 @@
     {
         if (!_searchResult.Items.Any()) { Snackbar.Add("No data to export.", Severity.Warning); return; }
         var filterLabel = BuildFilterLabel();
-        var bytes = ReportService.GenerateAuditPdf("Organization Audit Logs", _searchResult.Items, filterLabel);
-        await DownloadFile($"OrgAuditLogs_{DateTime.Now:yyyyMMdd}.pdf", bytes, "application/pdf");
+        var reportTitle = !string.IsNullOrEmpty(OrganizationName) ? $"{OrganizationName} — Audit Logs" : "Organization Audit Logs";
+        var safeOrgName = (OrganizationName ?? "Org").Replace(" ", "_").Replace("/", "-");
+        var bytes = ReportService.GenerateAuditPdf(reportTitle, _searchResult.Items, filterLabel);
+        await DownloadFile($"{safeOrgName}_AuditLogs_{DateTime.Now:yyyyMMdd}.pdf", bytes, "application/pdf");
         Snackbar.Add("Exported as PDF.", Severity.Success);
     }
 

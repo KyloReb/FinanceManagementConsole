@@ -240,8 +240,7 @@ public class OrganizationsController : ControllerBase
     }
     
     /// <summary>
-    /// SuperAdmin Endpoint: Synchronizes the Organization's Wallet Limit to match its current total liquidity.
-    /// This effectively "resets" the capacity to the current balance.
+    /// SuperAdmin Endpoint: Resets wallet balance to mother-account cash and clears usage for a new period.
     /// </summary>
     /// <param name="id">The unique identifier of the organization.</param>
     /// <response code="200">Limit successfully synchronized.</response>

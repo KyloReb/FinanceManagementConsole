@@ -371,7 +371,7 @@
                                     </div>
                                     <div class="tooltip-row">
                                         <span class="tooltip-lbl">ISO TIMESTAMP:</span>
-                                        <span class="tooltip-val mono highlighted-val">@context.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                        <span class="tooltip-val mono highlighted-val">@context.CreatedAt.ToDisplayString("yyyy-MM-dd HH:mm:ss.fff")</span>
                                     </div>
                                 </div>
                                 <div class="tooltip-footer">
@@ -383,8 +383,8 @@
                             <div class="d-flex align-center gap-3">
                                 <div class="fmc-ledger-bar @(isCredit ? "credit" : (isDebit ? "debit" : (isSecurity ? "security" : "neutral")))"></div>
                                 <div class="d-flex flex-column">
-                                    <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@context!.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@context!.CreatedAt.ToLocalTime().ToString("HH:mm:ss")</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight:900; letter-spacing: -0.02em;">@context!.CreatedAt.ToDisplayString("MMM dd, yyyy")</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 700; opacity: 0.6;">@context!.CreatedAt.ToDisplayString("HH:mm:ss")</MudText>
                                 </div>
                             </div>
                         </MudTd>
@@ -536,8 +536,8 @@
                                     <MudText Style="font-weight:950; font-size:0.75rem;">@FormatAction(log.Action)</MudText>
                                 </div>
                                 <div class="text-right d-flex flex-column">
-                                    <MudText Style="font-weight:950; font-size:0.7rem;">@log.CreatedAt.ToLocalTime().ToString("HH:mm")</MudText>
-                                    <MudText Style="font-size:0.55rem; opacity:0.6; font-weight:800; margin-top:-2px;">@log.CreatedAt.ToLocalTime().ToString("MM/dd")</MudText>
+                                    <MudText Style="font-weight:950; font-size:0.7rem;">@log.CreatedAt.ToDisplayString("HH:mm")</MudText>
+                                    <MudText Style="font-size:0.55rem; opacity:0.6; font-weight:800; margin-top:-2px;">@log.CreatedAt.ToDisplayString("MM/dd")</MudText>
                                 </div>
                             </div>
                             <div class="fmc-mobile-mid px-3 pb-3 pt-1">

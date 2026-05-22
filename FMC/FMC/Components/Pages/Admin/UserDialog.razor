@@ -5,9 +5,10 @@
 @inject AdminService AdminService
 @inject OrganizationApiService OrganizationService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject AuthenticationStateProvider AuthStateProvider
 
-<MudDialog>
+<MudDialog Class="fmc-theme-dialog">
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@(User == null ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)" Class="mr-3 mb-n1" />
@@ -15,6 +16,26 @@
         </MudText>
     </TitleContent>
     <DialogContent>
+        @if (_showSuccessOverlay || _showErrorOverlay)
+        {
+            <div class="fmc-success-overlay @(_showErrorOverlay ? "fmc-error-overlay" : "")">
+                <div class="fmc-success-inner">
+                    <div class="fmc-success-icon-container @(_showErrorOverlay ? "fmc-error-icon" : "")">
+                        <div class="fmc-glow-pulse"></div>
+                        <MudIcon Icon="@(_showErrorOverlay ? Icons.Material.Filled.Error : Icons.Material.Filled.Verified)" Class="fmc-success-icon" Style="color: inherit;" />
+                    </div>
+                    <MudText Typo="Typo.h5" Class="fmc-success-text" Style="@(_showErrorOverlay ? "color:#ef5350;" : "")">@(_showErrorOverlay ? _errorTitle : _successTitle)</MudText>
+                    <MudText Typo="Typo.body1" Class="fmc-success-subtext">@(_showErrorOverlay ? _errorMessage : _successMessage)</MudText>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="@(_showErrorOverlay ? Color.Error : Color.Success)"
+                               OnClick="DismissOverlay"
+                               Style="margin-top:24px; text-transform:none; font-weight:800; border-radius:12px; height:48px; min-width:160px;">
+                        @(_showErrorOverlay ? "Dismiss" : "Done")
+                    </MudButton>
+                </div>
+            </div>
+        }
         <MudForm @ref="_form" @bind-IsValid="@_success" @bind-Errors="@_errors">
             <MudGrid Spacing="2">
                 @* ── ACCOUNT STATUS CARD (Edit mode only, shown at top for immediate context) ── *@
@@ -142,10 +163,78 @@
                 </style>
             </MudGrid>
         </MudForm>
+
+        <style>
+            .fmc-theme-dialog {
+                position: relative !important;
+                overflow: hidden !important;
+            }
+            .fmc-theme-dialog .mud-dialog-content {
+                position: static !important;
+            }
+            .fmc-success-overlay {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(15, 23, 42, 0.45);
+                backdrop-filter: blur(10px);
+                z-index: 2000;
+                animation: fmc-fade-in 0.18s ease both;
+            }
+            .fmc-success-inner {
+                width: min(420px, calc(100% - 32px));
+                background: var(--mud-palette-surface) !important;
+                border: 1px solid var(--mud-palette-divider);
+                border-radius: 20px;
+                padding: 32px 24px;
+                text-align: center;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+                animation: fmc-modal-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+                position: relative;
+                overflow: hidden;
+            }
+            .fmc-success-icon-container{
+                width: 72px;
+                height: 72px;
+                border-radius: 24px;
+                margin: 0 auto 18px auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(46,125,50,0.12);
+                color: #2e7d32;
+                position: relative;
+            }
+            .fmc-error-icon{
+                background: rgba(239,68,68,0.12);
+                color: #ef4444;
+            }
+            .fmc-success-icon{ font-size: 2.8rem !important; }
+            .fmc-success-text{ font-weight: 950 !important; letter-spacing: 0.03em !important; margin-bottom: 8px !important; }
+            .fmc-success-subtext{ opacity: 0.72; max-width: 420px; margin: 0 auto; line-height: 1.6; }
+            .fmc-glow-pulse{
+                position:absolute;
+                inset:-4px;
+                border-radius: 28px;
+                opacity: 0;
+                animation: fmc-pulse-ring 2s cubic-bezier(0.24,0,0.38,1) infinite;
+                border: 2px solid currentColor;
+            }
+            @@keyframes fmc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+            @@keyframes fmc-modal-pop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            @@keyframes fmc-pulse-ring { 0% { transform: scale(0.98); opacity: 0.7; } 50% { transform: scale(1.10); opacity: 0; } 100% { transform: scale(0.98); opacity: 0; } }
+        </style>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(_isLoading || !_success)">
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(_isLoading || !_success || _showSuccessOverlay || _showErrorOverlay)">
             @if (_isLoading)
             {
                 <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -173,10 +262,18 @@
     private string _password = "";
     private string _selectedRole = Roles.Maker;
     private bool _isCEO = false;
+    private bool _isSuperAdmin = false;
 
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+
+    private bool _showSuccessOverlay;
+    private bool _showErrorOverlay;
+    private string _successTitle = "Account Security Provisioned";
+    private string _successMessage = "";
+    private string _errorTitle = "Provisioning Action Failed";
+    private string _errorMessage = "";
 
     private void TogglePasswordVisibility()
     {
@@ -199,6 +296,7 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         _isCEO = user.IsInRole(Roles.CEO);
+        _isSuperAdmin = user.IsInRole(Roles.SuperAdmin);
 
         try
         {
@@ -241,6 +339,15 @@
         await _form.ValidateAsync();
         if (!_form.IsValid) return;
 
+        // SuperAdmin and CEO must pass security verification before committing account changes.
+        if ((_isSuperAdmin || _isCEO) && !_showSuccessOverlay && !_showErrorOverlay)
+        {
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+            var secDialog = await DialogService.ShowAsync<SecurityVerificationDialog>("Security Verification", options);
+            var secResult = await secDialog.Result;
+            if (secResult is null || secResult.Canceled) return;
+        }
+
         _isLoading = true;
         try
         {
@@ -279,21 +386,39 @@
 
             if (result.Succeeded)
             {
-                Snackbar.Add(User == null ? "User created successfully" : "User updated successfully", Severity.Success);
-                MudDialog.Close(DialogResult.Ok(true));
+                _successMessage = User == null
+                    ? $"Account created securely for {_model.FirstName} {_model.LastName}."
+                    : $"Account changes saved securely for {_model.FirstName} {_model.LastName}.";
+                _showSuccessOverlay = true;
+                StateHasChanged();
             }
             else
             {
-                Snackbar.Add(result.Error ?? "Failed to process request.", Severity.Error);
+                _errorMessage = result.Error ?? "Unable to process this request. Please try again.";
+                _showErrorOverlay = true;
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            _errorMessage = ex.Message;
+            _showErrorOverlay = true;
         }
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private void DismissOverlay()
+    {
+        if (_showSuccessOverlay)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            _showErrorOverlay = false;
+            StateHasChanged();
         }
     }
 

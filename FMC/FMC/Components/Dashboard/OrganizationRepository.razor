@@ -158,8 +158,8 @@
                         </div>
                         <div class="mobile-detail-group">
                             <MudText Typo="Typo.caption" Class="mud-text-secondary">BALANCE</MudText>
-                            <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(org.TotalBalance - org.Usage < 100000 ? Color.Error : Color.Default)">
-                                @((org.TotalBalance - org.Usage).ToString("C0"))
+                            <MudText Style="font-weight:900; font-family:'JetBrains Mono',monospace;" Color="@(org.RemainingBalance < 100000 ? Color.Error : Color.Default)">
+                                @(org.RemainingBalance.ToString("C0"))
                             </MudText>
                         </div>
                         <div class="mobile-action-group ml-auto">

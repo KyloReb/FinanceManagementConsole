@@ -59,8 +59,8 @@ public class AlertsController : ControllerBase
             var orgs = await _orgService.GetAllAsync();
             foreach (var org in orgs.Where(o => o.Name != null && !o.Name.Contains("Nationlink", StringComparison.OrdinalIgnoreCase)))
             {
-                var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
-                var orgBalance = org.TotalBalance - org.Usage;
+                var usedPct = org.WalletLimit > 0 ? (org.Usage / org.WalletLimit) * 100m : 0m;
+                var orgBalance = org.RemainingBalance;
 
                 if (usedPct >= 80m || orgBalance <= 100_000m)
                 {
@@ -76,8 +76,8 @@ public class AlertsController : ControllerBase
                 var org = await _orgService.GetByIdAsync(orgId);
                 if (org != null)
                 {
-                    var usedPct = org.TotalBalance > 0 ? (org.Usage / org.TotalBalance) * 100m : 0m;
-                    var orgBalance = org.TotalBalance - org.Usage;
+                    var usedPct = org.WalletLimit > 0 ? (org.Usage / org.WalletLimit) * 100m : 0m;
+                    var orgBalance = org.RemainingBalance;
                     if (usedPct >= 80m || orgBalance <= 100_000m)
                     {
                         AddDynamicAlert(dtos, org, usedPct, orgBalance);

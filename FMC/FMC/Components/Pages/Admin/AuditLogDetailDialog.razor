@@ -32,7 +32,7 @@
                     </MudChip>
                     <MudText Typo="Typo.caption" Style="font-weight:700; opacity:0.65;">
                         <MudIcon Icon="@Icons.Material.Filled.AccessTime" Style="font-size:0.75rem; vertical-align:middle; margin-right:3px;" />
-                        @Log.CreatedAt.ToLocalTime().ToString("dddd, MMM dd yyyy — HH:mm:ss")
+                        @Log.CreatedAt.ToDisplayString("dddd, MMM dd yyyy — HH:mm:ss")
                     </MudText>
                 </div>
 
@@ -235,7 +235,7 @@
         sb.AppendLine();
         sb.AppendLine("───────────────────────── EVENT ─────────────────────────");
         sb.AppendLine($"Action       : {Log.Action}");
-        sb.AppendLine($"Timestamp    : {Log.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"Timestamp    : {Log.CreatedAt.ToDisplayString("yyyy-MM-dd HH:mm:ss")}");
         if (Log.Amount.HasValue)
             sb.AppendLine($"Amount       : {(_isCredit ? "+" : _isDebit ? "−" : "")}{Log.Amount?.ToString("N2")}");
         sb.AppendLine();

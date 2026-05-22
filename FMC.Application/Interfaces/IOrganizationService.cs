@@ -119,7 +119,7 @@ public interface IOrganizationService
     Task<IEnumerable<FMC.Shared.DTOs.Admin.SystemAlertDto>> GetWorkflowAlertsAsync(Guid organizationId, string userId, string role, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// SuperAdmin Endpoint: Synchronizes the Organization's Wallet Limit to match its current total liquidity.
+    /// SuperAdmin Endpoint: Resets wallet balance to mother-account cash and clears usage for a new period.
     /// This effectively "resets" the capacity to the current balance.
     /// </summary>
     Task<bool> SyncOrganizationLimitAsync(Guid organizationId, CancellationToken cancellationToken = default);

@@ -4,6 +4,7 @@ using FMC.Domain.Entities;
 using FMC.Infrastructure.Data;
 using FMC.Shared.DTOs.Organization;
 using FMC.Shared.DTOs.User;
+using FMC.Shared.Time;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -62,10 +63,10 @@ public class OrganizationService : IOrganizationService
         var summaries = await _repository.GetAllWithStatsAsync(cancellationToken);
         
         var result = summaries.Select(s => MapToDto(
-            s.Org, 
-            s.UserCount, 
-            s.CeoName, 
-            s.OrgBalance + s.UserBalanceSum, 
+            s.Org,
+            s.UserCount,
+            s.CeoName,
+            s.OrgBalance,
             s.UserBalanceSum));
 
         await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
@@ -85,7 +86,7 @@ public class OrganizationService : IOrganizationService
         
         string? ceoName = await ResolveCeoNameAsync(org, cancellationToken);
 
-        return MapToDto(org, userCount, ceoName, orgBalance + totalUsage, totalUsage);
+        return MapToDto(org, userCount, ceoName, orgBalance, totalUsage);
     }
 
     /// <inheritdoc />
@@ -110,7 +111,7 @@ public class OrganizationService : IOrganizationService
             WalletLimit = dto.WalletLimit,
             IsDeleted = false,
             TenantId = "SYSTEM", // Will be tenant-scoped in Phase 5 cleanup
-            AccountNumber = "63641" + new Random().NextInt64(10000000000, 99999999999).ToString()
+            AccountNumber = "63641" + System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000000, 1000000000).ToString() + System.Security.Cryptography.RandomNumberGenerator.GetInt32(10, 100).ToString()
         };
 
         await _repository.AddAsync(entity, cancellationToken);
@@ -321,6 +322,12 @@ public class OrganizationService : IOrganizationService
             await _repository.SaveChangesAsync(cancellationToken);
         }
 
+        var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
+        var formerMotherBalance = await _ledgerService.GetBalanceAsync(account.Id, cancellationToken);
+        var formerWallet = org.WalletLimit;
+        var formerUsage = Math.Max(0, userBalanceSum - org.UsageBaseline);
+        var formerRemaining = formerMotherBalance;
+
         // 3. Operational Ledger Execution
         if (amount > 0)
         {
@@ -363,24 +370,47 @@ public class OrganizationService : IOrganizationService
             );
         }
 
-        // 6. Audit Trail & Notifications
-        var performedByEmail = (await _identityService.GetUserByIdAsync(performedBy))?.Email;
+        // 6. Align displayed wallet with mother-account ledger, then audit
+        await SyncWalletLimitToMotherAccountAsync(org, organizationId, cancellationToken);
+
+        var newWallet = org.WalletLimit;
+        var newUsage = formerUsage;
+        var newRemaining = newBalance;
+        var performedByUser = await _identityService.GetUserByIdAsync(performedBy);
+        var performedByEmail = performedByUser?.Email;
+        var performedByLabel = performedByEmail ?? performedByUser?.DisplayName ?? performedBy;
         var auditDescription = label ?? (amount > 0 ? "System-wide Wallet Funding" : "System-wide Wallet Withdrawal");
-        
+        var auditDetails = FinancialAuditFormatter.MotherAccountAdjustment(
+            formerWallet,
+            formerUsage,
+            formerRemaining,
+            formerMotherBalance,
+            amount,
+            newBalance,
+            newWallet,
+            newUsage,
+            newRemaining,
+            transaction.Id,
+            auditDescription,
+            performedByEmail,
+            org.AccountNumber);
+
         await _auditService.RecordFinancialEventAsync(
-            amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED", 
-            org.Id, 
-            org.Name, 
-            Math.Abs(amount), 
-            $"{auditDescription} — Impact: {(amount > 0 ? "Institutional Capital Increased" : "Institutional Capital Reduced")}", 
-            performedBy, 
-            performedByEmail);
+            amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED",
+            org.Id,
+            org.Name,
+            Math.Abs(amount),
+            $"{auditDescription} — Mother {formerMotherBalance:C} → {newBalance:C}, Wallet {formerWallet:C} → {newWallet:C}",
+            performedByLabel,
+            auditDetails,
+            organizationId.ToString());
 
         var adjustmentId = Guid.NewGuid();
         await _publisher.Publish(new WalletAdjustedEvent(adjustmentId, org.Id, amount, newBalance, label ?? "Administrative Adjustment"), cancellationToken);
 
-        _logger.LogInformation("[OrganizationService] Successfully adjusted balance for Tenant {Id} by {Amount}. New Balance: {NewBalance}", 
-            org.Id, amount, newBalance);
+        _logger.LogInformation(
+            "[OrganizationService] Mother account adjusted for {OrgName} by {Amount:C}. {Details}",
+            org.Name, amount, auditDetails);
 
         await ClearTransactionCacheAsync(organizationId);
         return true;
@@ -799,22 +829,40 @@ public class OrganizationService : IOrganizationService
         return user?.DisplayName;
     }
 
-    private static OrganizationDto MapToDto(Organization org, int userCount = 0, string? ceoName = null, decimal totalBalance = 0, decimal usage = 0) => new()
+    private static OrganizationDto MapToDto(Organization org, int userCount = 0, string? ceoName = null, decimal orgBalance = 0, decimal userBalanceSum = 0)
     {
-        Id = org.Id,
-        Name = org.Name,
-        Description = org.Description,
-        IsActive = org.IsActive,
-        CreatedAt = org.CreatedAt,
-        UpdatedAt = org.UpdatedAt,
-        UserCount = userCount,
-        CeoName = ceoName,
-        TotalBalance = totalBalance,
-        Usage = usage,
-        ChiefExecutiveId = org.ChiefExecutiveId,
-        WalletLimit = org.WalletLimit,
-        AccountNumber = org.AccountNumber
-    };
+        var usage = Math.Max(0, userBalanceSum - org.UsageBaseline);
+        return new()
+        {
+            Id = org.Id,
+            Name = org.Name,
+            Description = org.Description,
+            IsActive = org.IsActive,
+            CreatedAt = org.CreatedAt,
+            UpdatedAt = org.UpdatedAt,
+            UserCount = userCount,
+            CeoName = ceoName,
+            TotalBalance = orgBalance + userBalanceSum,
+            Usage = usage,
+            RemainingBalance = orgBalance,
+            ChiefExecutiveId = org.ChiefExecutiveId,
+            WalletLimit = org.WalletLimit,
+            AccountNumber = org.AccountNumber
+        };
+    }
+
+    /// <summary>
+    /// Keeps displayed wallet balance aligned with the live mother-account ledger balance.
+    /// </summary>
+    private async Task SyncWalletLimitToMotherAccountAsync(Organization org, Guid organizationId, CancellationToken cancellationToken)
+    {
+        var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
+        org.WalletLimit = orgBalance;
+        org.UpdatedAt = DateTime.UtcNow;
+        _repository.Update(org);
+        await _repository.SaveChangesAsync(cancellationToken);
+        await _cacheService.RemoveAsync("OrganizationService_GetAll");
+    }
 
     /// <inheritdoc />
     public async Task<bool> CancelTransactionAsync(Guid transactionId, string makerId, CancellationToken cancellationToken = default)
@@ -1066,8 +1114,8 @@ public class OrganizationService : IOrganizationService
                     var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
                     var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
 
-                    var total = orgBalance + userBalanceSum;
-                    var usedPct = total > 0 ? (userBalanceSum / total) * 100m : 0m;
+                    var displayedUsage = Math.Max(0, userBalanceSum - org.UsageBaseline);
+                    var usedPct = org.WalletLimit > 0 ? (displayedUsage / org.WalletLimit) * 100m : 0m;
 
                     if (orgBalance <= 100_000m || usedPct >= 80m)
                     {
@@ -1230,22 +1278,52 @@ public class OrganizationService : IOrganizationService
         var org = await _repository.GetByIdAsync(organizationId, cancellationToken);
         if (org == null) return false;
 
-        // Calculate total liquidity: Org Wallet Balance + Sum of all User Balances
         var orgBalance = await _repository.GetOrganizationBalanceAsync(organizationId, cancellationToken);
         var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
-        
-        var totalLiquidity = orgBalance + userBalanceSum;
 
-        org.WalletLimit = totalLiquidity;
+        var formerWallet = org.WalletLimit;
+        var formerUsage = Math.Max(0, userBalanceSum - org.UsageBaseline);
+        var formerRemaining = orgBalance;
+
+        // Daily-style reset: wallet = mother-account cash; usage counter cleared for the new period.
+        org.WalletLimit = orgBalance;
+        org.UsageBaseline = userBalanceSum;
         org.UpdatedAt = DateTime.UtcNow;
 
         _repository.Update(org);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("[OrganizationService] Synchronized Wallet Limit for Org {OrgName} to {NewLimit:C}", org.Name, totalLiquidity);
-        
-        await _auditService.RecordFinancialEventAsync("SYNC_LIMIT", organizationId, org.Name, totalLiquidity, "Capacity Reset", "System", null, organizationId.ToString());
+        var newWallet = orgBalance;
+        var newUsage = 0m;
+        var newRemaining = orgBalance;
 
+        var performedById = _currentUserService.UserId ?? "System";
+        var performedByUser = await _identityService.GetUserByIdAsync(performedById);
+        var performedByLabel = performedByUser?.Email ?? performedByUser?.DisplayName ?? performedById;
+        var auditDetails = FinancialAuditFormatter.SyncLimitReset(
+            formerWallet,
+            formerUsage,
+            formerRemaining,
+            newWallet,
+            newUsage,
+            newRemaining,
+            performedByLabel);
+
+        _logger.LogInformation(
+            "[OrganizationService] Sync limit reset for Org {OrgName}. {AuditDetails}",
+            org.Name, auditDetails);
+
+        await _auditService.RecordFinancialEventAsync(
+            "SYNC_LIMIT",
+            organizationId,
+            org.Name,
+            newWallet,
+            $"Daily wallet reset — Wallet {formerWallet:C} → {newWallet:C}, Usage {formerUsage:C} → {newUsage:C}",
+            performedByLabel,
+            auditDetails,
+            organizationId.ToString());
+
+        await _cacheService.RemoveAsync("OrganizationService_GetAll");
         await ClearTransactionCacheAsync(organizationId);
         return true;
     }

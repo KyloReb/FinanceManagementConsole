@@ -251,3 +251,134 @@ graph TD
 *   **FMC.Api**: The public gateway. Handles HTTP requests, authentication middleware, and maps incoming data to Application commands.
 *   **FMC Web (Blazor)**: The administrative interface. A premium, reactive dashboard built with MudBlazor that consumes the API.
 *   **FMC.Shared**: A lightweight project containing DTOs (Data Transfer Objects) and constants shared across both the client-side UI and the server-side API.
+
+---
+
+## 9. Security Hardening & Ledger Access Controls
+
+To protect ledger integrity and prevent unauthorized modifications, the following advanced security controls are enforced:
+
+### 🍪 BFF (Backend-For-Frontend) secure token cookies
+* The `authToken` is never stored in `localStorage` or client-accessible cookies, mitigating XSS-based token theft.
+* On login, the Blazor Server invokes backend endpoints `/api/local-auth/set-token` and `/api/local-auth/clear-token` to set a secure `HttpOnly`, `Secure`, `SameSite=Lax` cookie. 
+* JavaScript cannot inspect or access this cookie; it is parsed solely by the server during pre-rendering and WebSocket circuit initializations.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Browser as Browser Client
+    participant BFF as Blazor BFF Endpoint
+    participant StateProv as ApiAuthenticationStateProvider
+
+    Browser->>BFF: POST /api/local-auth/set-token
+    Note over BFF: Set-Cookie authToken HttpOnly Secure SameSite=Lax
+    BFF-->>Browser: 200 OK + Set-Cookie Header
+    Browser->>StateProv: Blazor SignalR circuit initializes
+    StateProv->>StateProv: Read authToken from HttpContext.Request.Cookies
+    StateProv->>StateProv: JwtSecurityTokenHandler.ValidateToken
+    alt Signature Valid and Token Not Expired
+        StateProv-->>Browser: Authenticated - Role resolved
+    else Invalid Signature or Expired
+        StateProv-->>Browser: Anonymous - access denied
+    end
+```
+
+### 🔑 Cryptographic JWT Signature Verification
+* All APIs and the Blazor cookie bridge validate the signature of incoming JWT tokens cryptographically.
+* Decoupled symmetric verification uses the shared key (`JwtSettings:Secret`) with strict validation parameters for `Issuer`, `Audience`, `Lifetime`, and `SignatureKey`. Any token tampering instantly invalidates the session and defaults the request principal to Anonymous.
+
+```mermaid
+flowchart LR
+    A["authToken Cookie\nfrom HTTP Request"] --> B
+
+    subgraph VALIDATE ["🔑 JwtSecurityTokenHandler.ValidateToken"]
+        B["Parse JWT Header + Payload + Signature"]
+        B --> C{"ValidateIssuer\n== 'FMC.Api'?"}
+        C -- No --> FAIL
+        C -- Yes --> D{"ValidateAudience\n== 'FMC.UI'?"}
+        D -- No --> FAIL
+        D -- Yes --> E{"ValidateLifetime\n(ClockSkew = 0)?"}
+        E -- No --> FAIL
+        E -- Yes --> F{"ValidateIssuerSigningKey\nHMAC-SHA256 (Secret)?"}
+        F -- No --> FAIL
+        F -- Yes --> PASS
+    end
+
+    FAIL["❌ Invalid Token\ncontext.User = Anonymous\nNo data access granted"]
+    PASS["✅ Valid Token\nClaims extracted and normalized\ncontext.User populated"]
+```
+
+> [!CAUTION]
+> **Tamper Detection**: If an attacker modifies any part of the JWT (e.g., elevating their `role` claim to `SuperAdmin`), the HMAC-SHA256 signature will fail verification, and the session is immediately treated as anonymous.
+
+---
+
+### 🛡️ CORS Boundary Restrictions
+* The FMC API strictly rejects cross-origin resource sharing from unauthorized domains.
+* Permitted UI clients are dynamically fetched from the configuration layer:
+  ```json
+  "CorsSettings": {
+    "AllowedOrigins": [ "https://localhost:7027" ]
+  }
+  ```
+
+```mermaid
+flowchart TD
+    A[HTTP Request arrives at FMC.Api] --> B{Origin header\npresent?}
+
+    B -- No --> C[No CORS check needed\nServer-to-server calls allowed]
+
+    B -- Yes --> D{Origin matches\nAllowedOrigins list?}
+
+    D -- Yes --> E[CORS Headers Injected\nAccess-Control-Allow-Origin set\nAccess-Control-Allow-Credentials true]
+    E --> F[Request proceeds to\nAuthentication and Controller]
+
+    D -- No --> G[CORS Policy Rejection\nNo Access-Control headers set\nBrowser blocks the response]
+
+    CONFIG[Config: CorsSettings:AllowedOrigins\nSet in appsettings.json\nExample: localhost:7027 or production domain] --> D
+```
+
+> [!NOTE]
+> **Credential Support**: `AllowCredentials()` is enabled on the CORS policy to allow the browser to transmit the `authToken` cookie cross-site during authorized API calls from the Blazor frontend.
+
+---
+
+### ⏳ Brute Force Rate Limiting
+* All identity and credentials endpoints in the API (`AuthController`) are protected using native **Fixed Window Rate Limiting** (`AuthPolicy`).
+* Max limits are restricted to **5 attempts per minute**. Violations are dropped immediately with a `429 Too Many Requests` code.
+
+```mermaid
+flowchart LR
+    A["Client Request\nPOST /api/auth/login"] --> B
+
+    subgraph RL ["⏳ Fixed Window Rate Limiter — AuthPolicy"]
+        B["Requests in\ncurrent 60s window?"] -- "≤ 5" --> C["✅ Permit: Pass to handler"]
+        B -- "> 5" --> D["❌ Reject: 429 Too Many Requests\nQueue limit = 0\nDropped immediately"]
+    end
+
+    C --> E["Login / Password Reset\nlogic executes"]
+    D --> F["Request terminates\nNo DB, cache, or\nidentity queries run"]
+```
+
+---
+
+### 🎲 Non-Deterministic Cryptographic Entropy
+* All generation flows for system secrets, verification keys, account suffixes, and One-Time Passwords (OTPs) use `System.Security.Cryptography.RandomNumberGenerator.GetInt32` to eliminate mathematical predictability and secure the ledger.
+
+```mermaid
+flowchart TD
+    subgraph OLD ["❌ Previous: Predictable (System.Random)"]
+        A1["new Random().Next(100000, 999999)"]
+        A1 --> A2["Seeded by system clock\n— predictable if timing is known"]
+    end
+
+    subgraph NEW ["✅ Current: Cryptographic (RandomNumberGenerator)"]
+        B1["RandomNumberGenerator.GetInt32(100000, 1000000)"]
+        B1 --> B2["Seeded by OS entropy pool\n— non-deterministic, unguessable"]
+    end
+
+    NEW --> C1["OTP: Used in ForgotPassword flow\n10-minute TTL cached securely"]
+    NEW --> C2["Account Number: 'ACCOUNT_PREFIX'\n+ RNG suffix pair appended\n— globally unique per org creation"]
+
+    OLD -.->|"Replaced"| NEW
+```

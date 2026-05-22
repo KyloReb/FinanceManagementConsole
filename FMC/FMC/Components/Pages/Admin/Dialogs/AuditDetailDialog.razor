@@ -25,7 +25,7 @@
                 <div class="d-flex justify-space-between align-center mt-2 pa-4 fmc-highlight-box">
                     <div>
                         <MudText Style="font-weight:900; font-size:1.1rem; color: var(--mud-palette-primary);">@Log.Action</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Log.CreatedAt.ToLocalTime().ToString("MMMM dd, yyyy 'at' HH:mm:ss.fff")</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@Log.CreatedAt.ToDisplayString("MMMM dd, yyyy 'at' HH:mm:ss.fff")</MudText>
                     </div>
                     @if (Log.Amount.HasValue)
                     {

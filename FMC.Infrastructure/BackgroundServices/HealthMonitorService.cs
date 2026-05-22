@@ -35,7 +35,7 @@ public class HealthMonitorService : BackgroundService
 
                     foreach (var org in orgs)
                     {
-                        var remainingBalance = org.TotalBalance - org.Usage;
+                        var remainingBalance = org.RemainingBalance;
 
                         // Business Rule: Active tenants must have positive liquidity
                         if (remainingBalance <= 0 && org.IsActive)

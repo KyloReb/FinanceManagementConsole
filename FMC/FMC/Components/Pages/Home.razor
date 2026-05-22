@@ -39,30 +39,46 @@
                     var walletLimit   = ceoOrg?.WalletLimit ?? 0;              // Authorized ceiling
                     var totalBalance  = ceoOrg?.TotalBalance ?? 0;             // Aggregate cash (org + users)
                     var balanceUsed   = ceoOrg?.Usage ?? 0;                    // Distributed to cardholders
-                    var currentBal    = totalBalance - balanceUsed;            // Actual mother-account cash
+                    var currentBal    = ceoOrg?.RemainingBalance ?? 0;         // Mother-account cash
                     var usedPct       = walletLimit > 0 ? (balanceUsed / walletLimit) * 100m : 0m;
                     var remainPct     = walletLimit > 0 ? (currentBal / walletLimit) * 100m : 0m; // Cash as % of limit
                     var balColor      = remainPct <= 20m ? Color.Error : (remainPct <= 40m ? Color.Warning : Color.Success);
 
-                    @* CEO: Wallet Balance — total credited by SuperAdmin *@
+                    @* CEO: Wallet Balance — authorized capacity *@
                     <MudItem xs="12" sm="4">
                         <div class="fmc-glass-card">
                             <div class="fmc-card-content">
-                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET LIMIT</MudText>
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">WALLET BALANCE</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
-                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">@walletLimit.ToString("C0")</MudText>
+                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val">
+                                        @walletLimit.ToString("C0")
+                                    </MudText>
                                 </div>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Authorized operational capacity</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">Authorized wallet capacity</MudText>
                             </div>
                             <div class="fmc-card-icon-bg primary"><MudIcon Icon="@Icons.Material.Filled.Wallet" /></div>
                             <div class="fmc-card-progress primary"></div>
                         </div>
                     </MudItem>
-                    @* CEO: Current Balance — remaining available *@
+                    @* CEO: Usage — distributed to cardholders *@
                     <MudItem xs="12" sm="4">
                         <div class="fmc-glass-card">
                             <div class="fmc-card-content">
-                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">CURRENT BALANCE</MudText>
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">USAGE</MudText>
+                                <div class="d-flex align-end gap-2 mt-1">
+                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val" Color="Color.Info">@balanceUsed.ToString("C0")</MudText>
+                                </div>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">@usedPct.ToString("F1")% of balance allocated</MudText>
+                            </div>
+                            <div class="fmc-card-icon-bg info"><MudIcon Icon="@Icons.Material.Filled.Payments" /></div>
+                            <div class="fmc-card-progress info"></div>
+                        </div>
+                    </MudItem>
+                    @* CEO: Remaining Balance — remaining available *@
+                    <MudItem xs="12" sm="4">
+                        <div class="fmc-glass-card">
+                            <div class="fmc-card-content">
+                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">REMAINING BALANCE</MudText>
                                 <div class="d-flex align-end gap-2 mt-1">
                                     <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val" Color="@balColor">
                                         @currentBal.ToString("C0")
@@ -75,20 +91,6 @@
                             </div>
                             <div class="fmc-card-icon-bg success"><MudIcon Icon="@Icons.Material.Filled.AccountBalance" /></div>
                             <div class="fmc-card-progress success"></div>
-                        </div>
-                    </MudItem>
-                    @* CEO: Balance Used — distributed to cardholders *@
-                    <MudItem xs="12" sm="4">
-                        <div class="fmc-glass-card">
-                            <div class="fmc-card-content">
-                                <MudText Typo="Typo.subtitle2" Class="fmc-card-label">BALANCE USED</MudText>
-                                <div class="d-flex align-end gap-2 mt-1">
-                                    <MudText Typo="Typo.h4" Class="fmc-kpi-val fmc-responsive-val" Color="Color.Info">@balanceUsed.ToString("C0")</MudText>
-                                </div>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700;">@usedPct.ToString("F1")% of limit allocated</MudText>
-                            </div>
-                            <div class="fmc-card-icon-bg info"><MudIcon Icon="@Icons.Material.Filled.Payments" /></div>
-                            <div class="fmc-card-progress info"></div>
                         </div>
                     </MudItem>
                 }
@@ -228,7 +230,7 @@
                                     .Select(o => new {
                                         Org       = o,
                                         UsedPct   = o.WalletLimit > 0 ? (double)(o.Usage / o.WalletLimit) * 100 : 0,
-                                        Remaining = Math.Max(0, o.TotalBalance - o.Usage),  // Actual mother-account cash
+                                        Remaining = Math.Max(0, o.RemainingBalance),
                                         IsRecent  = HasRecentCredit(o)
                                     });
 
@@ -249,12 +251,18 @@
                                     {
                                         var wIdx       = wi++;
                                         var pct        = item.UsedPct;
-                                        var isCritical = pct >= 90;
-                                        var isWarning  = pct >= 70 && pct < 90;
+                                        var isDepleted = item.Remaining <= 0;
+                                        var isLowFunds = !isDepleted && item.Remaining < 1000;
+                                        var isCritical = pct >= 90 || isDepleted;
+                                        var isWarning  = (pct >= 70 && pct < 90) || isLowFunds;
                                         var tierColor  = isCritical ? "var(--mud-palette-error)"
-                                                       : isWarning  ? "var(--mud-palette-warning)"
-                                                                    : "var(--mud-palette-success)";
-                                        var tierLabel  = isCritical ? "CRITICAL" : isWarning ? "WARNING" : "HEALTHY";
+                                                        : isWarning  ? "var(--mud-palette-warning)"
+                                                                     : "var(--mud-palette-success)";
+                                        var tierLabel  = isDepleted ? "DEPLETED"
+                                                        : isLowFunds ? "LOW FUNDS"
+                                                        : isCritical ? "CRITICAL"
+                                                        : isWarning  ? "WARNING"
+                                                                     : "HEALTHY";
                                         var capturedId = item.Org.Id; // capture for lambda closures
 
                                         <div class="fmc-health-card @(isCritical ? "fmc-health-critical" : isWarning ? "fmc-health-warn" : "")">
@@ -268,7 +276,7 @@
                                                     <div style="min-width: 0;">
                                                         <div class="d-flex align-center gap-2 flex-wrap">
                                                             <MudText Typo="Typo.body2" Style="font-weight: 900; line-height: 1.2;">@item.Org.Name</MudText>
-                                                            <span class="fmc-tier-badge tier-@(tierLabel.ToLower())">@tierLabel</span>
+                                                            <span class="fmc-tier-badge tier-@(tierLabel.ToLower().Replace(" ", "-"))">@tierLabel</span>
                                                             @if (item.IsRecent)
                                                             {
                                                                 <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Style="font-size:0.6rem;height:18px;margin-left:4px;">Recently Credited</MudChip>
@@ -393,10 +401,10 @@
                                                         }
                                                     </div>
 
-                                                    @* ── Row 3: Spent | Remaining | Limit ── *@
+                                                    @* ── Row 3: Usage | Remaining | Wallet Balance ── *@
                                                     <div class="d-flex justify-space-between mt-3">
                                                         <div>
-                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Spent</MudText>
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Usage</MudText>
                                                             <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace; color: var(--mud-palette-error);">
                                                                 @item.Org.Usage.ToString("N0")
                                                             </MudText>
@@ -408,7 +416,7 @@
                                                             </MudText>
                                                         </div>
                                                         <div class="text-right">
-                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Wallet Limit</MudText>
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Wallet Balance</MudText>
                                                             <MudText Typo="Typo.body2" Style="font-weight: 900; font-family: 'JetBrains Mono', monospace;">
                                                                 @item.Org.WalletLimit.ToString("N0")
                                                             </MudText>
@@ -632,7 +640,7 @@
                                                    (isDebit ? Icons.Material.Filled.Error : 
                                                    (isSecurity ? Icons.Material.Filled.Security : Icons.Material.Filled.Info)))));
                                         
-                                        var localTime = log.CreatedAt.ToLocalTime();
+                                        var localTime = log.CreatedAt.ToDisplayTime();
                                         var capturedLog = log;
                                         <div class="fmc-audit-item @clr fmc-audit-item-clickable"
                                              @onclick="@(() => OpenAuditLogDialog(capturedLog))">
@@ -670,7 +678,7 @@
                                                     </div>
                                                     <div class="tooltip-row">
                                                         <span class="tooltip-lbl">ISO TIMESTAMP:</span>
-                                                        <span class="tooltip-val mono highlighted-val">@log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                                        <span class="tooltip-val mono highlighted-val">@log.CreatedAt.ToDisplayString("yyyy-MM-dd HH:mm:ss.fff")</span>
                                                     </div>
                                                 </div>
                                                 <div class="tooltip-footer">
@@ -1087,7 +1095,7 @@
         {
             query = query.Where(o => o.Name.Contains(_walletSearchQuery, StringComparison.OrdinalIgnoreCase));
         }
-        return query.OrderByDescending(o => o.TotalBalance - o.Usage).Take(_walletPageSize);
+        return query.OrderByDescending(o => o.RemainingBalance).Take(_walletPageSize);
     }
 
     private bool HasRecentCredit(OrganizationDto org)
@@ -1116,18 +1124,18 @@
     {
         _topSubscribers = _organizations
             .Where(o => o.Name != "Nationlink/Infoserve Inc.")
-            .OrderByDescending(o => o.TotalBalance - o.Usage)
+            .OrderByDescending(o => o.RemainingBalance)
             .Take(7)
             .ToList();
         
         if (_topSubscribers.Any())
         {
-            _pieData = _topSubscribers.Select(o => (double)Math.Max(0, o.TotalBalance - o.Usage)).ToArray();
+            _pieData = _topSubscribers.Select(o => (double)Math.Max(0, o.RemainingBalance)).ToArray();
             _pieLabels = _topSubscribers.Select(o => o.Name.Length > 15 ? o.Name.Substring(0, 13) + ".." : o.Name).ToArray();
             _lineChartSeries = new List<ChartSeries<double>> { new ChartSeries<double> { Name = "Liquidity", Data = _pieData } };
 
             var usageData = _topSubscribers.Select(o => (double)o.Usage).ToArray();
-            var remainingData = _topSubscribers.Select(o => (double)Math.Max(0, o.TotalBalance - o.Usage)).ToArray();
+            var remainingData = _topSubscribers.Select(o => (double)Math.Max(0, o.RemainingBalance)).ToArray();
             
             _utilizationSeries = new List<ChartSeries<double>>
             {

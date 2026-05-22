@@ -89,7 +89,7 @@
                                (isDebit ? Icons.Material.Filled.RemoveCircle : 
                                (isSecurity ? Icons.Material.Filled.Shield : Icons.Material.Filled.Hub)))));
                     
-                    var localTime = log.CreatedAt.ToLocalTime();
+                    var localTime = log.CreatedAt.ToDisplayTime();
                     var capturedLog = log;
 
                     <div class="fmc-audit-item @clr fmc-audit-item-clickable"
@@ -127,8 +127,8 @@
                                     <span class="tooltip-val mono highlighted-val">@(log.Amount.HasValue ? $"₱{log.Amount.Value:N2}" : "NOT APPLICABLE")</span>
                                 </div>
                                 <div class="tooltip-row">
-                                    <span class="tooltip-lbl">ISO TIMESTAMP:</span>
-                                    <span class="tooltip-val mono highlighted-val">@log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")</span>
+                                    <span class="tooltip-lbl">TIMESTAMP (PHT):</span>
+                                    <span class="tooltip-val mono highlighted-val">@log.CreatedAt.ToDisplayString("yyyy-MM-dd HH:mm:ss.fff")</span>
                                 </div>
                             </div>
                             <div class="tooltip-footer">

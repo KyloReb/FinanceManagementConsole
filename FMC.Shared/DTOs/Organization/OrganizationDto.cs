@@ -30,9 +30,14 @@ public class OrganizationDto
     public decimal TotalBalance { get; set; }
 
     /// <summary>
-    /// Total amount of money that has been distributed into affiliated user's personal accounts.
+    /// Amount allocated to cardholders since the last sync-limit reset.
     /// </summary>
     public decimal Usage { get; set; }
+
+    /// <summary>
+    /// Cash available in the organization mother account (not yet deployed to cardholders).
+    /// </summary>
+    public decimal RemainingBalance { get; set; }
 
     /// <summary>Total number of users affiliated with this organization.</summary>
     public int UserCount { get; set; }

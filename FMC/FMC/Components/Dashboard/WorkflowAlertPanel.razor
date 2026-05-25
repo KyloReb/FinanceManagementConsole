@@ -29,12 +29,69 @@
         border-bottom: 1px solid var(--mud-palette-divider); transition: background 0.2s;
         position: relative; flex-wrap: wrap;
     }
-    @@media (max-width: 600px) {
-        .fmc-alert-row-hub { flex-direction: column; align-items: flex-start; gap: 12px; }
-        .fmc-alert-actions-hub { align-self: flex-end; width: 100%; justify-content: flex-end; }
+    @@media (min-width: 601px) {
+        .fmc-alert-row-hub:last-child { border-bottom: none; }
     }
-    .fmc-alert-row-hub:last-child { border-bottom: none; }
     .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
+    @@media (max-width: 600px) {
+        .fmc-alert-list-hub {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 8px;
+        }
+        .fmc-alert-row-hub {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 10px;
+            border: 1px solid var(--mud-palette-divider);
+            border-radius: 10px;
+            border-bottom: 1px solid var(--mud-palette-divider);
+            min-height: auto;
+            word-break: break-word;
+            overflow: hidden;
+        }
+        .fmc-alert-row-hub .d-flex.align-center {
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .fmc-alert-row-hub:last-child { border-bottom: 1px solid var(--mud-palette-divider); }
+        .fmc-alert-actions-hub {
+            align-self: flex-end;
+            width: 100%;
+            justify-content: flex-end;
+        }
+        .fmc-alert-actions-hub .mud-button {
+            font-size: 0.6rem !important;
+            height: 26px !important;
+            padding: 0 8px !important;
+            min-width: 0 !important;
+        }
+        .fmc-alert-tag-hub {
+            font-size: 0.45rem;
+            padding: 1px 5px;
+        }
+        .fmc-alert-entity-title {
+            font-size: 0.7rem;
+        }
+        .fmc-alert-content-hub > .mud-typography-caption {
+            font-size: 0.55rem !important;
+        }
+        .fmc-alert-header-area {
+            padding: 10px 14px;
+        }
+        .fmc-alert-header-area .mud-typography-subtitle1 {
+            font-size: 0.85rem !important;
+        }
+        .fmc-alert-header-area .mud-typography-caption {
+            font-size: 0.6rem !important;
+        }
+        .fmc-alert-hub-icon {
+            width: 28px;
+            height: 28px;
+        }
+    }
     
     .fmc-alert-indicator-hub { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
     .fmc-alert-indicator-hub.critical { background: var(--mud-palette-error); }

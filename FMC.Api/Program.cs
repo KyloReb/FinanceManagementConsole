@@ -63,7 +63,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
     options.MinimumSameSitePolicy = SameSiteMode.Lax;
-    options.Secure = CookieSecurePolicy.Always;
+    options.Secure = CookieSecurePolicy.SameAsRequest;
     options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
 });
 // Caching Configuration
@@ -126,7 +126,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
@@ -324,7 +324,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // 4. Inject CORS and Rate Limiting into HTTP Pipeline (before authentication/authorization)
 app.UseCors("FmcCorsPolicy");

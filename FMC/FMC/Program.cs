@@ -54,14 +54,14 @@ builder.Services.AddAuthentication(options =>
     options.DefaultScheme = "FMC_Local_Scheme";
 }).AddCookie("FMC_Local_Scheme", options =>
 {
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.LoginPath = "/login";
 });
 
 builder.Services.AddAntiforgery(options =>
 {
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
 });
 #endregion
 
@@ -75,7 +75,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
     options.MinimumSameSitePolicy = SameSiteMode.Lax;
-    options.Secure = CookieSecurePolicy.Always;
+    options.Secure = CookieSecurePolicy.SameAsRequest;
     options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
 });
 #endregion
@@ -107,25 +107,31 @@ else
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCookiePolicy();
 app.UseStaticFiles();
 
 // 1. Secure HTTP Headers Middleware (CSP, Clickjacking, MIME-Sniffing)
-app.Use(async (context, next) =>
+if (!app.Environment.IsDevelopment())
 {
-    context.Response.Headers.Append("X-Frame-Options", "DENY");
-    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-    context.Response.Headers.Append("Content-Security-Policy", 
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src 'self' https://fonts.gstatic.com; " +
-        "img-src 'self' data:; " +
-        "connect-src 'self' https://localhost:7026;");
-    await next();
-});
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Append("X-Frame-Options", "DENY");
+        context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+        context.Response.Headers.Append("Content-Security-Policy", 
+            "default-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "img-src 'self' data:; " +
+            "connect-src 'self' http://localhost:7026 https://localhost:7026 http://localhost:7027 http://172.31.0.152:7027 ws://localhost:7031 wss://localhost:7031;");
+        await next();
+    });
+}
 
 // Custom Middleware to bridge the authToken cookie to the HttpContext.User
 // and prevent browser history caching of sensitive views (with cryptographically secure JWT signature verification)
@@ -192,7 +198,7 @@ app.MapPost("/api/local-auth/set-token", async (HttpContext httpContext, TokenSe
     var cookieOptions = new CookieOptions
     {
         HttpOnly = true,
-        Secure = true,
+        Secure = httpContext.Request.IsHttps,
         SameSite = SameSiteMode.Lax,
         Expires = request.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : DateTimeOffset.UtcNow.AddDays(1)
     };

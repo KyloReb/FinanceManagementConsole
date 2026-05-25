@@ -40,6 +40,8 @@
 
     @if (_loading)
     {
+        @if (!_isMobile)
+        {
         @* ── ADMINISTRATIVE ACCESS MATRIX SKELETON ── *@
         <div class="fmc-acc-surface mb-10">
             <div class="pa-6 d-flex align-center justify-space-between fmc-staff-surface" style="border-bottom: 1px solid var(--mud-palette-divider);">
@@ -133,6 +135,103 @@
                 <div class="fmc-page-skel" style="width:80px;height:32px;border-radius:8px;"></div>
             </div>
         </div>
+        }
+        else
+        {
+            <div class="fmc-mobile-loading">
+                @* Staff section skeleton *@
+                <div class="fmc-acc-mobile-section mb-4">
+                    <div class="fmc-mobile-section-header" style="opacity:0.5;">
+                        <div class="d-flex align-center gap-3" style="padding:8px 12px;">
+                            <div class="fmc-page-skel" style="width:24px;height:24px;border-radius:6px;"></div>
+                            <div class="fmc-page-skel" style="width:180px;height:14px;"></div>
+                            <div class="fmc-page-skel" style="width:24px;height:16px;border-radius:8px;"></div>
+                        </div>
+                    </div>
+                    @for (int i = 0; i < 2; i++)
+                    {
+                        <div class="fmc-acc-mobile-card mb-2" style="opacity:@(1 - i * 0.2);">
+                            <div class="pa-3">
+                                <div class="d-flex align-center gap-3">
+                                    <div class="fmc-page-skel" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;"></div>
+                                    <div style="flex:1;">
+                                        <div class="fmc-page-skel" style="width:65%;height:11px;margin-bottom:4px;"></div>
+                                        <div class="fmc-page-skel" style="width:45%;height:9px;"></div>
+                                    </div>
+                                    <div class="fmc-page-skel" style="width:50px;height:18px;border-radius:4px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @* Legend skeleton *@
+                <div class="d-flex align-center justify-center gap-4 mb-4 pa-3 fmc-legend-panel flex-wrap">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <div class="d-flex align-center gap-2">
+                            <div class="fmc-page-skel" style="width:8px;height:8px;border-radius:50%;"></div>
+                            <div class="fmc-page-skel" style="width:100px;height:8px;"></div>
+                        </div>
+                    }
+                </div>
+
+                @* Cardholder section skeleton *@
+                <div class="fmc-acc-mobile-section">
+                    <div class="d-flex align-center justify-space-between mb-3">
+                        <div class="fmc-page-skel" style="width:160px;height:14px;"></div>
+                        <div class="fmc-page-skel" style="width:70px;height:10px;"></div>
+                    </div>
+                    <div class="fmc-mobile-search mb-3">
+                        <div class="fmc-page-skel" style="width:100%;height:36px;border-radius:8px;"></div>
+                    </div>
+                    @* Rows-per-page skeleton *@
+                    <div class="d-flex justify-space-between align-center mb-2 px-1">
+                        <div class="d-flex gap-1">
+                            <div class="fmc-page-skel" style="width:24px;height:18px;border-radius:4px;"></div>
+                            <div class="fmc-page-skel" style="width:24px;height:18px;border-radius:4px;"></div>
+                            <div class="fmc-page-skel" style="width:24px;height:18px;border-radius:4px;"></div>
+                            <div class="fmc-page-skel" style="width:24px;height:18px;border-radius:4px;"></div>
+                        </div>
+                        <div class="fmc-page-skel" style="width:80px;height:8px;"></div>
+                        <div class="d-flex gap-2">
+                            <div class="fmc-page-skel" style="width:24px;height:24px;border-radius:50%;"></div>
+                            <div class="fmc-page-skel" style="width:24px;height:24px;border-radius:50%;"></div>
+                        </div>
+                    </div>
+                    @for (int i = 0; i < 3; i++)
+                    {
+                        <div class="fmc-acc-mobile-card mb-2" style="opacity:@(1 - i * 0.2);">
+                            <div class="fmc-mobile-header pa-4">
+                                <div class="d-flex justify-space-between align-start">
+                                    <div class="d-flex gap-3" style="flex:1;">
+                                        <div class="fmc-page-skel" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;"></div>
+                                        <div style="flex:1;">
+                                            <div class="fmc-page-skel" style="width:55%;height:12px;margin-bottom:4px;"></div>
+                                            <div class="fmc-page-skel" style="width:70%;height:9px;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="fmc-page-skel" style="width:70px;height:14px;margin-bottom:2px;"></div>
+                                        <div class="fmc-page-skel" style="width:40px;height:8px;margin-left:auto;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="fmc-mobile-body px-4 py-3">
+                                <div class="d-flex justify-space-between align-center mb-2">
+                                    <div class="fmc-page-skel" style="width:80px;height:8px;"></div>
+                                    <div class="fmc-page-skel" style="width:100px;height:8px;"></div>
+                                </div>
+                                <div class="d-flex justify-space-between align-center">
+                                    <div class="fmc-page-skel" style="width:70px;height:8px;"></div>
+                                    <div class="fmc-page-skel" style="width:60px;height:16px;border-radius:4px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
     else
     {
@@ -145,10 +244,11 @@
                     <MudText Typo="Typo.h6" Style="font-family: 'Outfit', sans-serif; font-weight: 900; letter-spacing: -0.01em;">ADMINISTRATIVE ACCESS MATRIX</MudText>
                 </div>
                 <div style="width: 320px;">
-                    <MudTextField @bind-Value="_staffSearchString" Placeholder="Filter staff accounts..." 
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.FilterList" 
-                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-acc-input"
-                                  Clearable="true" Immediate="true" />
+                    <div class="fmc-search-pill">
+                        <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="fmc-search-pill-icon" />
+                        <input type="text" class="fmc-search-pill-input" placeholder="Filter staff accounts..." 
+                               value="@_staffSearchString" @oninput="OnStaffSearchChanged" />
+                    </div>
                 </div>
             </div>
             <MudTable @ref="_staffTable" Items="@FilteredStaff" Hover="true" Elevation="0" Class="fmc-acc-table"
@@ -277,10 +377,11 @@
                         <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.01em;">REGISTERED CARDHOLDER REGISTRY</MudText>
                     </div>
                     <div style="width: 320px;">
-                        <MudTextField @bind-Value="_searchString" Placeholder="Search cardholders..." 
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-acc-input"
-                                      Clearable="true" Immediate="true" />
+                        <div class="fmc-search-pill">
+                            <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
+                            <input type="text" class="fmc-search-pill-input" placeholder="Search cardholders..." 
+                                   value="@_searchString" @oninput="OnSearchChanged" />
+                        </div>
                     </div>
                 </div>
                 <MudTable Items="@FilteredCardholders" Hover="true" Elevation="0" Class="fmc-acc-table" HorizontalScrollbar="true"
@@ -341,47 +442,210 @@
     }
     else
     {
-            @* MOBILE CARDHOLDER VIEW (Staff views are usually desktop-focused for admins) *@
-            @if (!_isSuperAdmin)
+        @* ── MOBILE PREMIUM EXPERIENCE ── *@
+
+        @if (_isCEOOrAdmin)
+        {
+            <div class="mb-3">
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" 
+                           Size="Size.Large" FullWidth="true" Class="fmc-acc-action-btn" OnClick="OpenCreateUserDialog">CREATE NEW ACCOUNT</MudButton>
+            </div>
+        }
+
+        @* ── STAFF SECTION ── *@
+        <div class="fmc-acc-mobile-section mb-4">
+            <div class="fmc-mobile-section-header cursor-pointer" @onclick="ToggleStaffSection">
+                <div class="d-flex align-center gap-3">
+                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Style="color: var(--fmc-accent-staff);" />
+                    <MudText Typo="Typo.subtitle2" Style="font-weight: 900;">ADMINISTRATIVE ACCESS MATRIX</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
+                             Style="height: 18px; font-size: 0.5rem; padding: 0 6px;">@FilteredStaff.Count()</MudChip>
+                </div>
+                <MudIcon Icon="@(_mobileStaffExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+            </div>
+            @if (_mobileStaffExpanded)
             {
-                <div class="d-flex flex-column gap-3">
-                    <MudText Typo="Typo.subtitle2" Class="fmc-acc-card-label ml-2">CARDHOLDER REGISTRY</MudText>
-                    @foreach (var user in FilteredCardholders)
+                <div class="fmc-mobile-search my-3">
+                    <div class="fmc-search-pill">
+                        <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="fmc-search-pill-icon" />
+                        <input type="text" class="fmc-search-pill-input" placeholder="Filter staff accounts..." 
+                               value="@_staffSearchString" @oninput="OnStaffSearchChanged" />
+                    </div>
+                </div>
+                @foreach (var orgGroup in FilteredStaff.GroupBy(s => s.Organization ?? "SYSTEM CORE").OrderBy(g => g.Key))
+                {
+                    <MudText Typo="Typo.caption" Class="fmc-mobile-org-header">@orgGroup.Key.ToUpper()</MudText>
+                    @foreach (var staff in orgGroup)
                     {
-                        <div class="fmc-acc-mobile-card cursor-pointer" @onclick="@(() => Navigation.NavigateTo($"/profile/{user.Id}"))">
-                            <div class="fmc-mobile-header pa-4">
+                        <div class="fmc-acc-mobile-card cursor-pointer mb-2" @onclick="@(() => Navigation.NavigateTo($"/profile/{staff.Id}"))">
+                            <div class="pa-3">
                                 <div class="d-flex justify-space-between align-start">
-                                    <div class="d-flex gap-3">
-                                        <MudAvatar Color="Color.Default" Class="@($"fmc-avatar-{GetAvatarIndex(user.DisplayName)}")" Style="color: white; font-weight: 950;">@(GetInitials(user))</MudAvatar>
-                                        <div class="d-flex flex-column">
-                                            <div class="fmc-mobile-name-row">
-                                                <MudText Typo="Typo.body1" Inline="true" Style="font-weight:950; letter-spacing:-0.02em;">@user.DisplayName</MudText>
-                                                <div class="fmc-status-dot @GetStatusClass(user) s-mobile"></div>
+                                    <div class="d-flex gap-3 flex-grow-1" style="min-width:0;">
+                                        <div style="position: relative;">
+                                            <MudAvatar Color="Color.Default" Class="@($"fmc-avatar-{GetAvatarIndex(staff.DisplayName)}")" Style="color: white; font-weight: 950; width: 36px; height: 36px; font-size:0.75rem;">@(GetInitials(staff))</MudAvatar>
+                                            <div style="position: absolute; bottom: 0; right: 0; width: 9px; height: 9px; background: @(staff.IsActive ? "var(--mud-palette-success)" : "var(--mud-palette-error)"); border-radius: 50%; border: 2px solid var(--mud-palette-surface);"></div>
+                                        </div>
+                                        <div class="d-flex flex-column" style="min-width:0;">
+                                            <div class="d-flex align-center gap-2">
+                                                <MudText Typo="Typo.body2" Style="font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@staff.DisplayName</MudText>
+                                                @if (!staff.IsActive)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled"
+                                                             Style="height: 14px; font-size:0.45rem; padding: 0 4px; flex-shrink:0;">SUSPENDED</MudChip>
+                                                }
                                             </div>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary fmc-mobile-acc-number">@(MaskCard(user.AccountNumber))</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.6rem !important;">@staff.Email</MudText>
                                         </div>
                                     </div>
-                                    <div class="text-right d-flex flex-column align-end">
-                                        <MudText Typo="Typo.body1" Class="fmc-money" Style="color: var(--mud-palette-info); font-size:1rem;">₱@user.Balance.ToString("N0")</MudText>
-                                        <MudText Typo="Typo.caption" Style="font-size:0.55rem; font-weight:950; opacity:0.5; letter-spacing:0.05em;">BALANCE</MudText>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="fmc-mobile-body px-4 py-3">
-                                <div class="d-flex justify-space-between align-center mb-2">
-                                    <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; letter-spacing:0.05em;">ORGANIZATION</MudText>
-                                    <MudText Typo="Typo.caption" Style="font-weight:900; color: var(--mud-palette-text-primary);">@(user.Organization ?? "INDIVIDUAL")</MudText>
-                                </div>
-                                <div class="d-flex justify-space-between align-center">
-                                    <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; letter-spacing:0.05em;">IDENTITY ROLE</MudText>
-                                    <span class="fmc-role-tag s-small @(user.Role == Roles.SuperAdmin ? "admin" : (user.Role == Roles.CEO ? "ceo" : "user"))">@user.Role</span>
+                                    <span class="fmc-role-tag s-small @(staff.Role == Roles.SuperAdmin ? "admin" : (staff.Role == Roles.CEO ? "ceo" : (staff.Role == Roles.Maker ? "maker" : "approver")))" style="flex-shrink:0;">@staff.Role</span>
                                 </div>
                             </div>
                         </div>
                     }
+                }
+            }
+        </div>
+
+        @* ── LEGEND PANEL ── *@
+        @if (!_isSuperAdmin)
+        {
+            <div class="d-flex align-center justify-center gap-4 mb-4 pa-3 fmc-legend-panel flex-wrap">
+                <div class="d-flex align-center gap-2">
+                    <div class="fmc-status-dot active"></div>
+                    <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8; font-size:0.55rem;">REGISTERED / ACTIVE</MudText>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    <div class="fmc-status-dot dormant"></div>
+                    <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8; font-size:0.55rem;">INACTIVE / DORMANT</MudText>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    <div class="fmc-status-dot suspended"></div>
+                    <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8; font-size:0.55rem;">BLOCKED / SUSPENDED</MudText>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    <div class="fmc-status-dot uninitialized"></div>
+                    <MudText Typo="Typo.caption" Style="font-weight: 800; opacity: 0.8; font-size:0.55rem;">NEW ACCOUNT PENDING</MudText>
+                </div>
+            </div>
+        }
+
+        @* ── CARDHOLDER SECTION ── *@
+        @if (!_isSuperAdmin)
+        {
+            var pageSizes = new[] { 5, 10, 20, 0 };
+            <div class="fmc-acc-mobile-section">
+            <div class="d-flex align-center justify-space-between mb-3">
+                <MudText Typo="Typo.subtitle2" Style="font-weight: 900;">CARDHOLDER REGISTRY</MudText>
+                <MudText Typo="Typo.caption" Style="opacity:0.6; font-size:0.6rem;">@FilteredCardholders.Count() registered</MudText>
+            </div>
+
+            <div class="fmc-mobile-search mb-3">
+                <div class="fmc-search-pill">
+                    <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
+                    <input type="text" class="fmc-search-pill-input" placeholder="Search cardholders..." 
+                           value="@_searchString" @oninput="OnSearchChanged" />
+                </div>
+            </div>
+
+            @{
+                var totalCardholders = FilteredCardholders.Count();
+                var pageSize = _mobilePageSize == 0 ? totalCardholders : _mobilePageSize;
+                var totalPages = pageSize == 0 ? 1 : ((totalCardholders - 1) / pageSize) + 1;
+                var pagedCardholders = FilteredCardholders.Skip(_mobileCardholderPage * pageSize).Take(pageSize).ToList();
+                var showingStart = totalCardholders == 0 ? 0 : _mobileCardholderPage * pageSize + 1;
+                var showingEnd = pageSize == 0 ? totalCardholders : Math.Min((_mobileCardholderPage + 1) * pageSize, totalCardholders);
+            }
+
+            <div class="d-flex justify-space-between align-center mb-2 px-1">
+                <div class="d-flex align-center gap-1" style="font-size:0.5rem;">
+                    @foreach (var sz in pageSizes)
+                    {
+                        var label = sz == 0 ? "All" : sz.ToString();
+                        var isActive = (_mobilePageSize == sz);
+                        <button @onclick="() => { _mobilePageSize = sz; _mobileCardholderPage = 0; }"
+                                style="padding: 2px 6px; border-radius: 4px; border: 1px solid var(--mud-palette-divider); background: @(isActive ? "var(--mud-palette-primary)" : "transparent"); color: @(isActive ? "white" : "var(--mud-palette-text-primary)"); font-weight: 900; font-size:0.5rem; cursor:pointer;">@label</button>
+                    }
+                </div>
+                <MudText Typo="Typo.caption" Style="font-size:0.5rem; opacity:0.5;">
+                    @if (totalCardholders > 0 && pageSize > 0) { <text>@showingStart–@showingEnd of @totalCardholders</text> }
+                </MudText>
+                @if (totalCardholders > pageSize && pageSize > 0)
+                {
+                    <div class="d-flex gap-2">
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" 
+                                       Disabled="@(_mobileCardholderPage <= 0)"
+                                       OnClick="@(() => { if (_mobileCardholderPage > 0) { _mobileCardholderPage--; } })"
+                                       Style="width:24px;height:24px;" />
+                        <MudText Typo="Typo.caption" Style="font-size:0.5rem; opacity:0.5; align-self:center;">
+                            @(_mobileCardholderPage + 1) / @totalPages
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" 
+                                       Disabled="@(_mobileCardholderPage >= totalPages - 1)"
+                                       OnClick="@(() => { if (_mobileCardholderPage < totalPages - 1) { _mobileCardholderPage++; } })"
+                                       Style="width:24px;height:24px;" />
+                    </div>
+                }
+            </div>
+
+            @foreach (var user in pagedCardholders)
+            {
+                <div class="fmc-acc-mobile-card cursor-pointer mb-2" @onclick="@(() => Navigation.NavigateTo($"/profile/{user.Id}"))">
+                    <div class="fmc-mobile-header pa-4">
+                        <div class="d-flex justify-space-between align-start">
+                            <div class="d-flex gap-3" style="min-width:0; flex:1;">
+                                <MudAvatar Color="Color.Default" Class="@($"fmc-avatar-{GetAvatarIndex(user.DisplayName)}")" Style="color: white; font-weight: 950; width: 36px; height: 36px; font-size:0.75rem; flex-shrink:0;">@(GetInitials(user))</MudAvatar>
+                                <div class="d-flex flex-column" style="min-width:0;">
+                                    <div class="fmc-mobile-name-row">
+                                        <MudText Typo="Typo.body1" Inline="true" Style="font-weight:950; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@user.DisplayName</MudText>
+                                        <div class="fmc-status-dot @GetStatusClass(user) s-mobile"></div>
+                                    </div>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary fmc-mobile-acc-number">@(MaskCard(user.AccountNumber))</MudText>
+                                </div>
+                            </div>
+                            <div class="text-right d-flex flex-column align-end" style="flex-shrink:0;">
+                                <MudText Typo="Typo.body1" Class="fmc-money" Style="color: var(--mud-palette-info); font-size:0.95rem;">₱@user.Balance.ToString("N0")</MudText>
+                                <MudText Typo="Typo.caption" Style="font-size:0.5rem; font-weight:950; opacity:0.5; letter-spacing:0.05em;">BALANCE</MudText>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fmc-mobile-body px-4 py-3">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; letter-spacing:0.05em;">ORGANIZATION</MudText>
+                            <MudText Typo="Typo.caption" Style="font-weight:900; color: var(--mud-palette-text-primary);">@(user.Organization ?? "INDIVIDUAL")</MudText>
+                        </div>
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.caption" Style="font-weight:900; opacity:0.5; letter-spacing:0.05em;">IDENTITY ROLE</MudText>
+                            <span class="fmc-role-tag s-small @(user.Role == Roles.SuperAdmin ? "admin" : (user.Role == Roles.CEO ? "ceo" : "user"))">@user.Role</span>
+                        </div>
+                    </div>
                 </div>
             }
+
+            @if (totalCardholders > pageSize)
+            {
+                <div class="fmc-mobile-pagination mt-3">
+                    <div class="d-flex justify-center align-center gap-3">
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@(_mobileCardholderPage <= 0)"
+                                       OnClick="@(() => { if (_mobileCardholderPage > 0) { _mobileCardholderPage--; } })"
+                                       Variant="Variant.Outlined" Size="Size.Small" />
+                        <MudText Typo="Typo.caption" Style="font-size:0.6rem; font-weight:800;">@(_mobileCardholderPage + 1) / @totalPages</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_mobileCardholderPage >= totalPages - 1)"
+                                       OnClick="@(() => { if (_mobileCardholderPage < totalPages - 1) { _mobileCardholderPage++; } })"
+                                       Variant="Variant.Outlined" Size="Size.Small" />
+                    </div>
+                </div>
+            }
+
+            @if (totalCardholders == 0 && !string.IsNullOrWhiteSpace(_searchString))
+            {
+                <div class="d-flex flex-column align-center py-6">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Style="font-size:2rem; opacity:0.3;" />
+                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">No cardholders match your search</MudText>
+                </div>
+            }
+        </div>
         }
+    }
     }
 </MudContainer>
 </div>
@@ -397,6 +661,9 @@
     private bool _canAdjust = false;
     private bool _isMobile = false;
     private bool _isSuperAdmin = false;
+    private bool _mobileStaffExpanded = true;
+    private int _mobileCardholderPage = 0;
+    private int _mobilePageSize = 10;
     
     private TableGroupDefinition<UserDto> _staffGroupDefinition = new()
     {
@@ -408,6 +675,27 @@
 
     private bool IsOrgExpanded(string? org) => 
         _expandedGroups.Contains(org ?? "SYSTEM CORE");
+
+    private void ToggleStaffSection() 
+    {
+        _mobileStaffExpanded = !_mobileStaffExpanded;
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        _searchString = e.Value?.ToString() ?? "";
+        _mobileCardholderPage = 0;
+    }
+
+    private void OnStaffSearchChanged(ChangeEventArgs e)
+    {
+        _staffSearchString = e.Value?.ToString() ?? "";
+    }
+
+    private void ResetCardholderPage()
+    {
+        _mobileCardholderPage = 0;
+    }
 
     private async Task ToggleGroup(TableGroupData<object, UserDto> context)
     {

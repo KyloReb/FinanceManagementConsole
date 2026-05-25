@@ -838,3 +838,191 @@ html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
     border-top-color: rgba(0, 0, 0, 0.06) !important;
     color: rgba(0, 0, 0, 0.4) !important;
 }
+
+/* ── Mobile Wallet Health Section ── */
+@media (max-width: 600px) {
+    .fmc-main-surface.pa-8 {
+        padding: 12px !important;
+    }
+    .fmc-wallet-header-row {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+    }
+    .fmc-wallet-header-row .fmc-header-title-group {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .fmc-wallet-header-row .fmc-header-controls {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    .fmc-wallet-header-row .fmc-header-controls .fmc-wallet-search-wrapper {
+        flex: 1 1 100%;
+        max-width: none;
+        width: 100%;
+    }
+    .fmc-wallet-health-list {
+        max-height: none;
+        overflow-y: visible;
+        padding: 8px 0;
+        margin: 0;
+    }
+    .fmc-health-card {
+        padding: 10px;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .fmc-health-row1 {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 6px;
+    }
+    .fmc-health-row1 > div:first-child {
+        flex: 1 1 auto !important;
+        min-width: 0;
+    }
+    .fmc-health-avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        font-size: 0.6rem;
+        flex-shrink: 0;
+    }
+    .fmc-tier-badge {
+        font-size: 0.45rem;
+        padding: 1px 6px;
+    }
+    .fmc-org-name-mobile {
+        font-size: 0.8rem !important;
+    }
+    .fmc-health-actions {
+        width: 100%;
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .fmc-health-actions > div:first-child {
+        margin-right: auto;
+    }
+    .fmc-action-btn-mobile {
+        width: 26px !important;
+        height: 26px !important;
+        padding: 0 !important;
+        flex-shrink: 0;
+    }
+    .fmc-action-btn-mobile .mud-icon-root {
+        font-size: 1rem !important;
+    }
+    .fmc-gauge-wrapper {
+        padding-top: 28px;
+        margin-top: 2px;
+    }
+    .fmc-gauge-track {
+        height: 8px;
+    }
+    .fmc-gauge-marker {
+        top: -2px;
+        bottom: -2px;
+    }
+    .fmc-gauge-scrubber {
+        height: 24px;
+    }
+    .fmc-scrub-tip-pct {
+        font-size: 0.55rem;
+    }
+    .fmc-scrub-tip-amt {
+        font-size: 0.65rem;
+    }
+    .fmc-wallet-search-wrapper {
+        width: auto;
+        flex: 1;
+    }
+    .fmc-wallet-search-input {
+        padding: 6px 10px 6px 32px;
+        font-size: 0.65rem;
+    }
+    .fmc-filter-toolbar {
+        flex-wrap: nowrap;
+        gap: 4px;
+        padding: 4px 0;
+        overflow-x: auto;
+    }
+    .fmc-filter-chip {
+        height: 26px;
+        padding: 0 6px;
+        font-size: 0.48rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .fmc-filter-chip .mud-icon-root {
+        font-size: 0.65rem !important;
+    }
+    .fmc-mobile-sort-select {
+        flex: 1 1 100%;
+        min-width: 0;
+        font-size: 0.75rem;
+    }
+    .fmc-mobile-sort-select .mud-input-control-input-container {
+        font-size: 0.75rem;
+    }
+    .fmc-mobile-filter-row {
+        flex-wrap: wrap;
+    }
+    .fmc-mobile-filter-row .fmc-mobile-sort-select {
+        flex: 1 1 100%;
+    }
+    .fmc-subtitle {
+        font-size: 0.6rem !important;
+    }
+    .fmc-hero-text {
+        font-size: 1.1rem !important;
+    }
+    .fmc-health-card .d-flex.justify-space-between.mt-3 {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .fmc-health-card .d-flex.justify-space-between.mt-3 > div {
+        flex: 1 1 30%;
+        min-width: 0;
+    }
+    .fmc-glass-card {
+        padding: 10px;
+    }
+    .fmc-glass-card .fmc-card-label {
+        font-size: 0.45rem;
+    }
+    .fmc-glass-card .fmc-kpi-val {
+        font-size: 0.65rem !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    .fmc-glass-card .mud-typography-caption {
+        font-size: 0.5rem !important;
+    }
+    .fmc-glass-card .fmc-card-progress {
+        height: 3px;
+    }
+    .fmc-glass-card .fmc-responsive-val {
+        font-size: 0.65rem !important;
+    }
+    .fmc-glass-card .d-flex.align-end {
+        overflow: hidden;
+    }
+}
+
+@media (min-width: 601px) and (max-width: 960px) {
+    .fmc-main-surface.pa-8 {
+        padding: 24px !important;
+    }
+    .fmc-wallet-health-list {
+        max-height: none;
+        overflow-y: visible;
+    }
+    .fmc-wallet-search-wrapper {
+        width: 180px;
+    }
+}

@@ -211,13 +211,11 @@
                 </div>
 
                 <div class="fmc-identity-search ml-auto" style="min-width: 320px; max-width: 400px;">
-                    <MudTextField @bind-Value="_searchString" 
-                                  Placeholder="Filter by Action, Context, or Label..." 
-                                  Adornment="Adornment.Start" 
-                                  AdornmentIcon="@Icons.Material.Filled.Search" 
-                                  Variant="Variant.Outlined" 
-                                  Margin="Margin.Dense"
-                                  Immediate="true" />
+                    <div class="fmc-search-pill">
+                        <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
+                        <input type="text" class="fmc-search-pill-input" placeholder="Filter by Action, Context, or Label..." 
+                               value="@_searchString" @oninput="OnSearchChanged" />
+                    </div>
                 </div>
             </div>
 
@@ -236,7 +234,7 @@
                         <button class="fmc-date-btn @(_activeDateRange == "30d" ? "active" : "")" @onclick='() => SetQuickDate("30d")'>30D</button>
                         <button class="fmc-date-btn @(_activeDateRange == "1y" ? "active" : "")" @onclick='() => SetQuickDate("1y")'>1Y</button>
                     </div>
-                    <div class="fmc-custom-date-wrap d-none d-lg-flex align-center gap-2">
+                    <div class="fmc-custom-date-wrap">
                         <div class="fmc-date-input-box">
                             <span class="fmc-date-label">START DATE</span>
                             <input type="date" value="@(_dateRange.Start?.ToString("yyyy-MM-dd"))" @onchange='(e) => UpdateDate(e, true)' class="fmc-raw-date" />
@@ -264,10 +262,63 @@
 
     @if (_loading)
     {
-        <div class="d-flex flex-column align-center justify-center py-20">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">Scanning forensic clusters...</MudText>
-        </div>
+        @if (!_isMobile)
+        {
+            @* Desktop skeleton rows matching table layout *@
+            @for (int i = 0; i < 8; i++)
+            {
+                <div class="d-flex align-center pa-4 px-6" style="border-bottom: 1px solid var(--mud-palette-divider); gap: 24px;">
+                    <div style="flex:1;" class="d-flex align-center gap-3">
+                        <div class="fmc-skel" style="width:4px; height:24px;"></div>
+                        <div style="flex:1;">
+                            <div class="fmc-skel fmc-skel-line mb-2" style="width:70%;"></div>
+                            <div class="fmc-skel fmc-skel-line" style="width:40%;"></div>
+                        </div>
+                    </div>
+                    <div style="flex:1;">
+                        <div class="fmc-skel fmc-skel-line mb-2" style="width:80%;"></div>
+                        <div class="fmc-skel fmc-skel-line" style="width:50%;"></div>
+                    </div>
+                    <div style="flex:1;" class="d-flex justify-center">
+                        <div class="fmc-skel fmc-skel-pill"></div>
+                    </div>
+                    <div style="flex:1;" class="text-right">
+                        <div class="fmc-skel fmc-skel-line ml-auto" style="width:80px; height: 18px;"></div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="fmc-mobile-loading" style="padding:8px;">
+                @for (int i = 0; i < 4; i++)
+                {
+                    <div class="fmc-audit-mobile-card" style="opacity:@(1 - i * 0.2);">
+                        <div class="fmc-mobile-top pa-3 d-flex justify-space-between align-center">
+                            <div class="d-flex align-center gap-2">
+                                <div class="fmc-page-skel" style="width:8px;height:8px;border-radius:50%;"></div>
+                                <div class="fmc-page-skel" style="width:140px;height:12px;"></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="fmc-page-skel" style="width:50px;height:10px;margin-bottom:2px;"></div>
+                                <div class="fmc-page-skel" style="width:40px;height:8px;margin-left:auto;"></div>
+                            </div>
+                        </div>
+                        <div class="fmc-mobile-mid px-3 pb-3 pt-1">
+                            <div class="d-flex justify-space-between align-end">
+                                <div style="flex:1;margin-right:16px;">
+                                    <div class="fmc-page-skel" style="width:50px;height:8px;margin-bottom:4px;"></div>
+                                    <div class="fmc-page-skel" style="width:80%;height:10px;"></div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="fmc-page-skel" style="width:90px;height:12px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
     }
     else
     {
@@ -576,7 +627,7 @@
     private MudTable<AuditLogDto> _table = default!;
     private bool _loading = true;
     private bool _isMobile;
-    private AuditLogQueryDto _query = new() { PageSize = 500 };
+    private AuditLogQueryDto _query = new() { PageSize = 25 };
     private AuditLogSearchResultDto _searchResult = new();
     private DateRange _dateRange = new(DateTime.Today.AddDays(-7), DateTime.Today);
     private string _activeDateRange = "7d";
@@ -626,6 +677,11 @@
             return InvokeAsync(StateHasChanged);
         }
         return Task.CompletedTask;
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        _searchString = e.Value?.ToString() ?? "";
     }
 
     private bool FilterFunc(AuditLogDto log)

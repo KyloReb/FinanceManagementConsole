@@ -55,6 +55,53 @@
     max-width: 450px;
 }
 
+/* ── Premium Pill Search ── */
+.fmc-search-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-radius: 100px;
+    border: 1.5px solid rgba(var(--mud-palette-primary-rgb), 0.15);
+    background: rgba(var(--mud-palette-primary-rgb), 0.03);
+    transition: all 0.3s ease;
+    height: 40px;
+}
+.fmc-search-pill:hover {
+    border-color: rgba(var(--mud-palette-primary-rgb), 0.35);
+}
+.fmc-search-pill:focus-within {
+    border-color: var(--mud-palette-primary);
+    box-shadow: 0 0 0 4px rgba(var(--mud-palette-primary-rgb), 0.12), 0 4px 16px rgba(var(--mud-palette-primary-rgb), 0.1);
+}
+.fmc-search-pill-icon {
+    color: var(--mud-palette-primary);
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+    flex-shrink: 0;
+}
+.fmc-search-pill:focus-within .fmc-search-pill-icon {
+    opacity: 1;
+}
+.fmc-search-pill-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    color: var(--mud-palette-text-primary);
+    padding: 0;
+    min-width: 0;
+}
+.fmc-search-pill-input::placeholder {
+    font-weight: 500;
+    opacity: 0.5;
+    letter-spacing: 0.02em;
+    color: var(--mud-palette-text-primary);
+}
+
 .fmc-orchestration-row {
     display: flex;
     width: 100%;
@@ -101,6 +148,13 @@
 .fmc-date-label { font-size: 0.5rem; font-weight: 950; opacity: 0.6; letter-spacing: 0.1em; margin-bottom: -1px; }
 .fmc-raw-date { background: transparent; border: none; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 800; color: var(--mud-palette-text-primary); outline: none; cursor: pointer; }
 .fmc-date-sep { width: 1px; height: 20px; background: var(--mud-palette-divider); opacity: 0.5; }
+
+/* ── Custom Date Range ── */
+.fmc-custom-date-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
 /* ── Premium Action Toolbar (Consumes equal space) ── */
 .fmc-action-toolbar {
@@ -450,4 +504,323 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-val.highlighted-val {
 html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     border-top-color: rgba(0, 0, 0, 0.06) !important;
     color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* ── Mobile Transaction Cards ── */
+.fmc-mobile-tx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+}
+.fmc-tx-card {
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.fmc-tx-card:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+.fmc-tx-card-top {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--mud-palette-divider);
+}
+.fmc-tx-card-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.fmc-tx-card-date-text {
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--mud-palette-text-primary);
+}
+.fmc-tx-card-time-text {
+    font-size: 0.55rem;
+    font-weight: 700;
+    opacity: 0.5;
+    color: var(--mud-palette-text-secondary);
+}
+.fmc-tx-card-bar {
+    width: 3px;
+    height: 18px;
+    border-radius: 2px;
+    background: var(--mud-palette-divider);
+}
+.fmc-tx-card-bar.credit { background: var(--mud-palette-success); }
+.fmc-tx-card-bar.debit { background: var(--mud-palette-error); }
+.fmc-tx-card-body {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.fmc-tx-card-subscriber {
+    display: flex;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--mud-palette-text-primary);
+}
+.fmc-tx-card-account {
+    font-size: 0.55rem;
+    font-weight: 600;
+    opacity: 0.6;
+    color: var(--mud-palette-text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+}
+.fmc-tx-card-badges {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+.fmc-tx-badge {
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(var(--mud-palette-warning-rgb), 0.12);
+    color: var(--mud-palette-warning);
+    border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2);
+}
+.fmc-tx-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+.fmc-tx-status.successful, .fmc-tx-status.approved, .fmc-tx-status.completed {
+    background: rgba(var(--mud-palette-success-rgb), 0.12);
+    color: var(--mud-palette-success);
+    border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2);
+}
+.fmc-tx-status.pending, .fmc-tx-status.mixed {
+    background: rgba(var(--mud-palette-warning-rgb), 0.12);
+    color: var(--mud-palette-warning);
+    border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2);
+}
+.fmc-tx-status.error, .fmc-tx-status.failed, .fmc-tx-status.rejected, .fmc-tx-status.cancelled {
+    background: rgba(var(--mud-palette-error-rgb), 0.12);
+    color: var(--mud-palette-error);
+    border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2);
+}
+.fmc-tx-card-footer {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    border-top: 1px solid var(--mud-palette-divider);
+}
+.fmc-tx-card-footer.credit { border-top-color: rgba(var(--mud-palette-success-rgb), 0.15); }
+.fmc-tx-card-footer.debit { border-top-color: rgba(var(--mud-palette-error-rgb), 0.15); }
+.fmc-tx-card-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+}
+.fmc-tx-card-footer.credit .fmc-tx-card-amount { color: var(--mud-palette-success); }
+.fmc-tx-card-footer.debit .fmc-tx-card-amount { color: var(--mud-palette-error); }
+.fmc-tx-card-amount-label {
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    opacity: 0.4;
+    color: var(--mud-palette-text-secondary);
+}
+.fmc-mobile-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+}
+
+@media (max-width: 600px) {
+    .fmc-ledger-root .mud-container {
+        margin-top: 4px !important;
+        padding: 0 8px !important;
+    }
+    .fmc-ledger-root .d-flex.align-center.justify-space-between.mb-8 {
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 8px !important;
+    }
+    .fmc-header-accent {
+        width: 4px;
+        height: 28px;
+        margin-right: 8px !important;
+    }
+    .fmc-hero-text {
+        font-size: 0.95rem !important;
+    }
+    .fmc-subtitle {
+        font-size: 0.6rem !important;
+    }
+    .fmc-header-area {
+        padding: 8px 12px;
+        gap: 6px;
+    }
+    .fmc-header-area .fmc-header-icon {
+        width: 28px;
+        height: 28px;
+        margin-right: 6px !important;
+    }
+    .fmc-header-area .mud-typography-h6 {
+        font-size: 0.75rem !important;
+    }
+    .fmc-header-area .mud-typography-caption {
+        font-size: 0.55rem !important;
+    }
+    .fmc-identity-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+    .fmc-identity-search {
+        max-width: none;
+        min-width: 0 !important;
+        width: 100%;
+    }
+    .fmc-orchestration-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .fmc-temporal-filter {
+        width: 100%;
+        flex-direction: column;
+        gap: 4px;
+        padding: 3px;
+    }
+    .fmc-date-group {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 3px;
+    }
+    .fmc-date-btn {
+        font-size: 0.45rem;
+        padding: 2px 5px;
+        flex: 1 0 auto;
+    }
+    .fmc-custom-date-wrap {
+        width: 100%;
+    }
+    .fmc-custom-date-wrap .fmc-date-input-box {
+        flex: 1;
+    }
+    .fmc-custom-date-wrap .fmc-raw-date {
+        width: 100%;
+        font-size: 0.65rem;
+    }
+    .fmc-action-toolbar {
+        width: 100%;
+        margin-left: 0 !important;
+        display: flex;
+        gap: 4px;
+    }
+    .fmc-premium-action {
+        font-size: 0.5rem;
+        padding: 8px 6px;
+        flex: 1;
+    }
+    .fmc-premium-action .mud-icon-root {
+        font-size: 0.75rem !important;
+    }
+    ::deep .mud-th {
+        font-size: 0.45rem !important;
+        padding: 6px 4px !important;
+        white-space: nowrap;
+    }
+    ::deep .mud-td {
+        padding: 6px 4px !important;
+    }
+    ::deep .mud-td .mud-typography-body2 {
+        font-size: 0.6rem !important;
+    }
+    ::deep .mud-td .mud-typography-caption {
+        font-size: 0.45rem !important;
+    }
+    ::deep .mud-table-row .fmc-money {
+        font-size: 0.65rem !important;
+    }
+    ::deep .mud-table-row .fmc-status-badge {
+        font-size: 0.45rem !important;
+        padding: 2px 4px !important;
+    }
+    ::deep .mud-table-row .fmc-status-badge .mud-icon-root {
+        font-size: 0.55rem !important;
+    }
+    ::deep .mud-table-row .fmc-ledger-bar {
+        width: 2px !important;
+        height: 16px !important;
+    }
+    ::deep .mud-table {
+        overflow-x: visible !important;
+    }
+    ::deep .mud-table-container {
+        overflow-x: auto !important;
+    }
+    ::deep .mud-table-inner-container {
+        overflow-x: visible !important;
+    }
+    ::deep .mud-table-content {
+        min-width: 460px;
+        width: auto;
+        table-layout: fixed;
+    }
+    ::deep .mud-td .d-flex {
+        min-width: 0;
+    }
+    ::deep .mud-td .d-flex.flex-column {
+        min-width: 0;
+    }
+    ::deep .mud-td .mud-typography-body2 {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
+        display: block;
+    }
+    ::deep .fmc-row-tooltip {
+        width: 260px !important;
+    }
+    .fmc-empty-state {
+        padding: 16px 12px;
+        gap: 4px;
+    }
+    .fmc-empty-icon {
+        font-size: 1.5rem !important;
+        margin-bottom: 0 !important;
+    }
+    .fmc-empty-glow {
+        width: 120px;
+        height: 120px;
+    }
+    .fmc-empty-title {
+        font-size: 0.7rem !important;
+        margin-top: 4px !important;
+    }
+    .fmc-empty-subtitle {
+        font-size: 0.55rem !important;
+        max-width: 220px;
+        margin-top: 2px !important;
+        opacity: 0.45;
+    }
+    .fmc-end-text {
+        font-size: 0.45rem;
+    }
 }

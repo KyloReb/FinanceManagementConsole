@@ -27,9 +27,13 @@
     }
     .fmc-alert-grid { 
         display: grid; 
-        grid-template-columns: 1fr; 
+        grid-template-columns: 1fr 1fr; 
     }
-    @@media (min-width: 900px) {
+    .fmc-alert-grid.fmc-single-col {
+        grid-template-columns: 1fr;
+    }
+    .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-right: 1px solid var(--mud-palette-divider); }
+    @@media (max-width: 600px) {
         .fmc-alert-grid { 
             grid-template-columns: 1fr 1fr; 
         }
@@ -37,6 +41,8 @@
             grid-template-columns: 1fr;
         }
         .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-right: 1px solid var(--mud-palette-divider); }
+        .fmc-alert-column-left,
+        .fmc-alert-column-right { min-width: 0; overflow: hidden; }
     }
     .fmc-alert-list-hub { display: flex; flex-direction: column; overflow: hidden; }
     .fmc-alert-section-header {
@@ -52,8 +58,69 @@
     .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
     
     @@media (max-width: 600px) {
-        .fmc-alert-row-hub { flex-direction: column; align-items: flex-start; gap: 12px; }
-        .fmc-alert-actions-hub { align-self: flex-end; width: 100%; justify-content: flex-end; }
+        .fmc-alert-row-hub {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 10px 12px;
+            min-height: auto;
+            word-break: break-word;
+            overflow: hidden;
+        }
+        .fmc-alert-row-hub .d-flex.align-center.gap-2 {
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .fmc-alert-row-hub .d-flex.align-center.gap-2 .mud-link {
+            font-size: 0.65rem;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .fmc-alert-actions-hub {
+            align-self: flex-end;
+            width: 100%;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .fmc-alert-actions-hub .mud-button {
+            font-size: 0.6rem !important;
+            height: 26px !important;
+            padding: 0 8px !important;
+            min-width: 0 !important;
+        }
+        .fmc-alert-actions-hub .mud-icon-button {
+            width: 24px !important;
+            height: 24px !important;
+            padding: 2px !important;
+        }
+        .fmc-alert-tag-hub {
+            font-size: 0.45rem;
+            padding: 1px 5px;
+        }
+        .fmc-alert-entity-title {
+            font-size: 0.7rem;
+        }
+        .fmc-alert-content-hub > .mud-typography-caption {
+            font-size: 0.6rem !important;
+        }
+        .fmc-alert-header-area {
+            padding: 10px 14px;
+        }
+        .fmc-alert-header-area .mud-typography-subtitle1 {
+            font-size: 0.85rem !important;
+        }
+        .fmc-alert-header-area .mud-typography-caption {
+            font-size: 0.6rem !important;
+        }
+        .fmc-alert-hub-icon {
+            width: 28px;
+            height: 28px;
+        }
+        .fmc-alert-section-header .mud-typography {
+            font-size: 0.5rem !important;
+        }
     }
     
     .fmc-alert-indicator-hub { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }

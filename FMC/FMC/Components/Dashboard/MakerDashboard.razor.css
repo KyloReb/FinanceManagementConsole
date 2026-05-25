@@ -313,6 +313,10 @@
     background: rgba(var(--mud-palette-warning-rgb), 0.1);
 }
 
+.fmc-empty-notif {
+    min-height: 300px;
+}
+
 /* ── Premium Action Buttons (Batch: text + icon) ── */
 .fmc-action-btn {
     display: inline-flex;
@@ -428,7 +432,7 @@
     color: var(--mud-palette-warning);
 }
 
-@@media (max-width: 960px) {
+@media (max-width: 960px) {
     .fmc-operational-row {
         height: auto !important;
         flex-direction: column;
@@ -439,6 +443,69 @@
     }
     .fmc-scroll-list { 
         max-height: 400px; 
+    }
+}
+
+@media (max-width: 600px) {
+    .fmc-glass-card {
+        padding: 8px;
+    }
+    .fmc-glass-card .fmc-financial-value {
+        font-size: 0.6rem !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    .fmc-glass-card .fmc-card-label {
+        font-size: 0.45rem;
+    }
+    .fmc-glass-card .fmc-card-progress {
+        height: 3px;
+    }
+    .fmc-glass-card .mud-typography-caption {
+        font-size: 0.5rem !important;
+    }
+    .fmc-glass-card .d-flex.align-end {
+        overflow: hidden;
+    }
+    .fmc-maker-root .d-flex.gap-3 {
+        flex-wrap: nowrap;
+        gap: 4px;
+    }
+    ::deep .fmc-enterprise-btn {
+        font-size: 0.55rem !important;
+        height: 28px !important;
+        padding: 0 6px !important;
+        min-width: 0 !important;
+    }
+    .fmc-maker-root .mud-typography-h4 {
+        font-size: 0.65rem !important;
+    }
+    .fmc-maker-root .mud-typography-subtitle2 {
+        font-size: 0.6rem !important;
+    }
+    .fmc-operational-row {
+        flex-direction: column-reverse !important;
+    }
+    .fmc-panel-container {
+        height: auto !important;
+        max-height: none !important;
+    }
+    .fmc-panel-container .fmc-scroll-list {
+        max-height: 300px;
+    }
+    .fmc-panel-container .fmc-pending-paper {
+        height: auto !important;
+        min-height: 0 !important;
+        grid-template-rows: auto auto !important;
+    }
+    .fmc-panel-container .fmc-pending-paper .fmc-empty-notif {
+        padding: 16px !important;
+        min-height: 80px !important;
+        margin: 8px !important;
+    }
+    .fmc-panel-container .fmc-pending-paper .fmc-tab-content-root {
+        min-height: 0 !important;
     }
 }
 

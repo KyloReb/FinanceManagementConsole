@@ -203,16 +203,51 @@
     border-color: rgba(16, 185, 129, 0.2) !important; 
 }
 
-/* Search Bar Premium Overhaul */
-::deep .fmc-acc-input .mud-input-outlined {
-    border-radius: 14px !important;
-    background: rgba(var(--mud-palette-surface-rgb), 0.5) !important;
-    transition: all 0.2s ease !important;
+/* ── Premium Pill Search ── */
+.fmc-search-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-radius: 100px;
+    border: 1.5px solid rgba(var(--mud-palette-primary-rgb), 0.15);
+    background: rgba(var(--mud-palette-primary-rgb), 0.03);
+    transition: all 0.3s ease;
+    height: 40px;
 }
-
-::deep .fmc-acc-input .mud-input-outlined:focus-within {
-    background: var(--mud-palette-surface) !important;
-    box-shadow: 0 0 0 4px rgba(var(--mud-palette-primary-rgb), 0.1) !important;
+.fmc-search-pill:hover {
+    border-color: rgba(var(--mud-palette-primary-rgb), 0.35);
+}
+.fmc-search-pill:focus-within {
+    border-color: var(--mud-palette-primary);
+    box-shadow: 0 0 0 4px rgba(var(--mud-palette-primary-rgb), 0.12), 0 4px 16px rgba(var(--mud-palette-primary-rgb), 0.1);
+}
+.fmc-search-pill-icon {
+    color: var(--mud-palette-primary);
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+    flex-shrink: 0;
+}
+.fmc-search-pill:focus-within .fmc-search-pill-icon {
+    opacity: 1;
+}
+.fmc-search-pill-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    color: var(--mud-palette-text-primary);
+    padding: 0;
+    min-width: 0;
+}
+.fmc-search-pill-input::placeholder {
+    font-weight: 500;
+    opacity: 0.5;
+    letter-spacing: 0.02em;
+    color: var(--mud-palette-text-primary);
 }
 
 /* Adjustment & Staff Icons Hover Premium */
@@ -327,3 +362,203 @@
 .fmc-acc-mobile-card ::deep .fmc-avatar-5 { background-color: #d97706 !important; }
 .fmc-acc-mobile-card ::deep .fmc-avatar-6 { background-color: #dc2626 !important; }
 .fmc-acc-mobile-card ::deep .fmc-avatar-7 { background-color: #7c3aed !important; }
+
+@media (max-width: 600px) {
+    .fmc-acc-root .mud-container {
+        margin-top: 4px !important;
+        padding: 0 8px !important;
+    }
+    .fmc-acc-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px;
+        margin-bottom: 12px !important;
+    }
+    .fmc-acc-header .d-flex.align-center {
+        width: 100%;
+    }
+    .fmc-acc-bar {
+        width: 4px;
+        height: 36px;
+        margin-right: 10px !important;
+    }
+    .fmc-acc-hero-text {
+        font-size: 1.3rem !important;
+    }
+    .fmc-acc-subtitle {
+        font-size: 0.7rem !important;
+    }
+    ::deep .fmc-acc-action-btn {
+        width: 100%;
+        justify-content: center !important;
+        font-size: 0.6rem !important;
+        padding: 10px 16px !important;
+    }
+    .fmc-staff-surface {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+        padding: 12px 16px !important;
+    }
+    .fmc-staff-surface > div:last-child {
+        width: 100% !important;
+    }
+    .fmc-cardholder-surface {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px;
+        padding: 12px 16px !important;
+    }
+    .fmc-cardholder-surface > div:last-child {
+        width: 100% !important;
+    }
+    ::deep .fmc-th {
+        font-size: 0.5rem !important;
+        padding: 8px 6px !important;
+    }
+    ::deep .mud-td {
+        padding: 8px 6px !important;
+    }
+    ::deep .mud-td .mud-typography-body2 {
+        font-size: 0.65rem !important;
+    }
+    ::deep .mud-td .mud-typography-caption {
+        font-size: 0.55rem !important;
+    }
+    ::deep .mud-td .fmc-staff-name {
+        font-size: 0.7rem !important;
+    }
+    ::deep .mud-td .fmc-staff-email {
+        font-size: 0.6rem !important;
+    }
+    ::deep .mud-td .fmc-org-name {
+        font-size: 0.65rem !important;
+    }
+    ::deep .mud-td .fmc-org-sub {
+        font-size: 0.5rem !important;
+    }
+    ::deep .mud-td .fmc-role-tag {
+        font-size: 0.5rem !important;
+        padding: 3px 8px !important;
+    }
+    ::deep .mud-td .fmc-table-balance {
+        font-size: 0.75rem !important;
+    }
+    ::deep .mud-td .fmc-adj-btn {
+        padding: 4px !important;
+    }
+    ::deep .mud-avatar {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 0.7rem !important;
+        margin-right: 6px !important;
+    }
+    ::deep .mud-table-container {
+        overflow-x: auto !important;
+    }
+    ::deep .mud-table {
+        table-layout: auto !important;
+    }
+    ::deep .fmc-group-header > div {
+        padding: 4px 0 !important;
+    }
+    ::deep .fmc-group-header .mud-typography-subtitle2 {
+        font-size: 0.65rem !important;
+    }
+    ::deep .fmc-group-header .mud-typography-caption {
+        font-size: 0.5rem !important;
+    }
+    ::deep .fmc-group-header .mud-icon-root {
+        font-size: 1rem !important;
+    }
+    .fmc-legend-panel {
+        gap: 8px !important;
+        padding: 8px 12px !important;
+        margin-bottom: 16px !important;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .fmc-legend-panel .d-flex.align-center.gap-2 {
+        gap: 4px;
+    }
+    .fmc-legend-panel .mud-typography-caption {
+        font-size: 0.5rem !important;
+    }
+    .fmc-acc-card-label {
+        font-size: 0.65rem;
+    }
+    .fmc-acc-mobile-card {
+        border-radius: 12px;
+    }
+    .fmc-acc-mobile-card .pa-4 {
+        padding: 10px !important;
+    }
+    .fmc-acc-mobile-card .px-4.py-3 {
+        padding: 6px 10px 10px !important;
+    }
+    .fmc-acc-mobile-card .fmc-money {
+        font-size: 0.85rem !important;
+    }
+    .fmc-acc-mobile-card .mud-typography-body1 {
+        font-size: 0.8rem !important;
+    }
+    .fmc-acc-mobile-card .mud-typography-caption {
+        font-size: 0.6rem !important;
+    }
+    .fmc-acc-mobile-card .fmc-mobile-name-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+    .fmc-acc-mobile-card .s-mobile {
+        width: 7px;
+        height: 7px;
+        flex-shrink: 0;
+    }
+    .fmc-acc-mobile-card .d-flex.justify-space-between {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .fmc-acc-mobile-card .d-flex.justify-space-between.mb-2 {
+        margin-bottom: 4px !important;
+    }
+    .fmc-acc-mobile-card .fmc-role-tag.s-small {
+        font-size: 0.5rem !important;
+        padding: 2px 6px !important;
+    }
+    .fmc-acc-mobile-card .fmc-mobile-acc-number {
+        font-size: 0.6rem !important;
+    }
+    .fmc-acc-mobile-card .text-right.d-flex.flex-column.align-end {
+        flex-shrink: 0;
+    }
+    .fmc-acc-mobile-section {
+        background: var(--mud-palette-surface);
+        border-radius: 16px;
+        padding: 12px;
+        border: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-mobile-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 0;
+    }
+    .fmc-mobile-search {
+        width: 100%;
+    }
+    .fmc-mobile-search ::deep .mud-input-outlined {
+        border-radius: 12px !important;
+    }
+    .fmc-mobile-org-header {
+        font-size: 0.55rem !important;
+        font-weight: 900 !important;
+        letter-spacing: 0.1em;
+        padding: 8px 4px 4px;
+        opacity: 0.5;
+    }
+    .fmc-mobile-pagination {
+        padding: 8px 0;
+    }
+}

@@ -31,7 +31,7 @@ public class UsersController : ControllerBase
         _logger = logger;
     }
 
-    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpGet]
     public async Task<ActionResult<List<UserDto>>> GetAll()
     {
@@ -62,7 +62,7 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
-    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpGet("{id}")]
     public async Task<ActionResult<UserDto>> GetById(string id)
     {
@@ -165,7 +165,7 @@ public class UsersController : ControllerBase
         return Ok();
     }
 
-    [Authorize(Roles = Roles.Maker)]
+    [Authorize(Roles = Roles.Maker + "," + Roles.SuperAdmin)]
     [HttpPost("{id:guid}/adjust-balance")]
     public async Task<IActionResult> AdjustBalance(Guid id, [FromBody] UserBalanceAdjustmentRequest request)
     {
@@ -176,7 +176,7 @@ public class UsersController : ControllerBase
         if (targetUser == null) return NotFound("Target user not found.");
 
         var makerOrgId = User.FindFirst("OrganizationId")?.Value;
-        if (string.IsNullOrEmpty(makerOrgId) || targetUser.OrganizationId?.ToString() != makerOrgId)
+        if (!User.IsInRole(Roles.SuperAdmin) && (string.IsNullOrEmpty(makerOrgId) || targetUser.OrganizationId?.ToString() != makerOrgId))
         {
             return Forbid();
         }
@@ -185,7 +185,7 @@ public class UsersController : ControllerBase
         return success ? Ok() : BadRequest("Failed to initiate adjustment request. Ensure you have the Maker role.");
     }
 
-    [Authorize(Roles = Roles.Approver)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpPost("transactions/{transactionId:guid}/approve")]
     public async Task<IActionResult> ApproveTransaction(Guid transactionId)
     {
@@ -211,7 +211,7 @@ public class UsersController : ControllerBase
         }
     }
 
-    [Authorize(Roles = Roles.Approver)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpPost("transactions/{transactionId:guid}/reject")]
     public async Task<IActionResult> RejectTransaction(Guid transactionId, [FromBody] RejectRequest request)
     {
@@ -229,7 +229,7 @@ public class UsersController : ControllerBase
         }
     }
 
-    [Authorize(Roles = Roles.Approver)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpPost("transactions/batch/{batchId:guid}/approve")]
     public async Task<IActionResult> ApproveBatch(Guid batchId)
     {
@@ -255,7 +255,7 @@ public class UsersController : ControllerBase
         }
     }
 
-    [Authorize(Roles = Roles.Approver)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpPost("transactions/batch/{batchId:guid}/reject")]
     public async Task<IActionResult> RejectBatch(Guid batchId, [FromBody] RejectRequest request)
     {
@@ -281,7 +281,7 @@ public class UsersController : ControllerBase
         }
     }
 
-    [Authorize(Roles = Roles.Maker)]
+    [Authorize(Roles = Roles.Maker + "," + Roles.SuperAdmin)]
     [HttpDelete("transactions/{transactionId:guid}/cancel")]
     public async Task<IActionResult> CancelTransaction(Guid transactionId)
     {
@@ -292,7 +292,7 @@ public class UsersController : ControllerBase
         return success ? Ok() : BadRequest("Cancellation failed. You can only cancel your own pending transactions.");
     }
 
-    [Authorize(Roles = Roles.Maker)]
+    [Authorize(Roles = Roles.Maker + "," + Roles.SuperAdmin)]
     [HttpDelete("transactions/batch/{batchId:guid}/cancel")]
     public async Task<IActionResult> CancelBatch(Guid batchId)
     {
@@ -303,7 +303,7 @@ public class UsersController : ControllerBase
         return success ? Ok() : BadRequest("Batch cancellation failed. You can only cancel your own pending batches.");
     }
 
-    [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker + "," + Roles.SuperAdminApprover)]
     [HttpGet("organizations/{orgId:guid}/pending-transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetPendingTransactions(Guid orgId)
     {
@@ -318,7 +318,7 @@ public class UsersController : ControllerBase
         return Ok(transactions);
     }
 
-    [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker + "," + Roles.SuperAdminApprover)]
     [HttpGet("organizations/{orgId:guid}/transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetOrganizationTransactions(Guid orgId, [FromQuery] string? status = null, [FromQuery] int count = 50)
     {
@@ -332,7 +332,7 @@ public class UsersController : ControllerBase
         return Ok(transactions.ToList());
     }
 
-    [Authorize(Roles = Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdmin)]
+    [Authorize(Roles = Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdmin + "," + Roles.SuperAdminApprover)]
     [HttpGet("workflow-alerts")]
     public async Task<ActionResult<List<FMC.Shared.DTOs.Admin.SystemAlertDto>>> GetWorkflowAlerts()
     {
@@ -349,6 +349,7 @@ public class UsersController : ControllerBase
         // 3. Determine Primary Role for workflow context
         string role = Roles.User;
         if (User.IsInRole(Roles.SuperAdmin)) role = Roles.SuperAdmin;
+        else if (User.IsInRole(Roles.SuperAdminApprover)) role = Roles.SuperAdminApprover;
         else if (User.IsInRole(Roles.CEO)) role = Roles.CEO;
         else if (User.IsInRole(Roles.Approver)) role = Roles.Approver;
         else if (User.IsInRole(Roles.Maker)) role = Roles.Maker;
@@ -367,7 +368,7 @@ public class UsersController : ControllerBase
         return Ok(alerts.ToList());
     }
 
-    [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker)]
+    [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker + "," + Roles.SuperAdminApprover)]
     [HttpGet("organizations/{orgId:guid}/today-transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetTodayTransactions(Guid orgId)
     {
@@ -381,7 +382,7 @@ public class UsersController : ControllerBase
         return Ok(transactions);
     }
 
-    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+    [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
     [HttpGet("{id}/transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetTransactions(string id, [FromQuery] int count = 10)
     {

@@ -147,7 +147,7 @@ h1:focus {
 }
 
 html.dark {
-    --preloader-bg: #11111b; /* Dark Theme BG */
+    --preloader-bg: #121212; /* Dark Theme BG */
     --preloader-text-low: rgba(255,255,255,0.3);
     --preloader-text-high: rgba(255,255,255,0.8);
     --preloader-glow: rgba(255,255,255,0.05);

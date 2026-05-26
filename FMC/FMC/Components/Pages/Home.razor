@@ -18,22 +18,22 @@
 
 <div class="fmc-dashboard-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
-    <AuthorizeView Roles="@(Roles.SuperAdmin + "," + Roles.CEO)">
+    <AuthorizeView Roles="@(Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.SuperAdminApprover)">
         <Authorized>
             <MudGrid Class="mb-4">
                 <MudItem xs="12">
                     <div class="d-flex align-center">
                         <div class="fmc-header-accent mr-5"></div>
                         <div class="d-flex flex-column">
-                            <MudText Typo="Typo.h3" Class="fmc-hero-text">@(context.User.IsInRole(Roles.CEO) ? "Corporate Dashboard" : "Control Center")</MudText>
-                            <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">@(context.User.IsInRole(Roles.CEO) ? "Organization Capital & Workforce Oversight" : "System Health & Multi-Tenant Capital Oversight")</MudText>
+                            <MudText Typo="Typo.h3" Class="fmc-hero-text">@(context.User.IsInRole(Roles.CEO) ? "Corporate Dashboard" : context.User.IsInRole(Roles.SuperAdminApprover) ? "Approval Control Center" : "Control Center")</MudText>
+                            <MudText Typo="Typo.subtitle1" Class="fmc-subtitle">@(context.User.IsInRole(Roles.CEO) ? "Organization Capital & Workforce Oversight" : context.User.IsInRole(Roles.SuperAdminApprover) ? "Cross-Organizational Approval & Oversight" : "System Health & Multi-Tenant Capital Oversight")</MudText>
                         </div>
                     </div>
                 </MudItem>
             </MudGrid>
             
             <MudGrid Spacing="2" Class="mb-8">
-                @if (!context.User.IsInRole(Roles.SuperAdmin))
+                @if (!context.User.IsInRole(Roles.SuperAdmin) && !context.User.IsInRole(Roles.SuperAdminApprover))
                 {
                     var ceoOrg = _organizations.FirstOrDefault();
                     var walletLimit   = ceoOrg?.WalletLimit ?? 0;              // Authorized ceiling
@@ -99,7 +99,7 @@
             @* ── SYSTEM ALERT PANEL (Full Width) ── *@
             <MudGrid Class="mb-4">
                 <MudItem xs="12">
-                    @if (context.User.IsInRole(Roles.SuperAdmin))
+                    @if (context.User.IsInRole(Roles.SuperAdmin) || context.User.IsInRole(Roles.SuperAdminApprover))
                     {
                         <ExecutiveAlertPanel Organizations="_organizations" 
                                              Loading="_loading" 
@@ -145,7 +145,7 @@
                                         </div>
                                     </div>
                                     
-                                    @if (_isSuperAdmin)
+                                    @if (_isSuperAdmin || _isSuperAdminApprover)
                                     {
                                         <div class="d-flex align-center gap-2 fmc-header-controls">
                                             <MudTooltip Text="Refresh Data" Arrow="true" Placement="Placement.Top">
@@ -167,7 +167,7 @@
                                 </div>
 
                                 @* ── Row 2: Tactical Sorting Toolbar ── *@
-                                @if (_isSuperAdmin)
+                                @if (_isSuperAdmin || _isSuperAdminApprover)
                                 {
                                     @* Desktop: horizontal button toolbar *@
                                     <div class="fmc-filter-toolbar d-none d-sm-flex align-center gap-1 mt-2">
@@ -454,8 +454,8 @@
                             }
                         </MudPaper>
                         
-                        @* ── SYSTEM HEALTH PULSE (SuperAdmin Only) ── *@
-                        @if (_isSuperAdmin)
+                        @* ── SYSTEM HEALTH PULSE (SuperAdmin / SuperAdminApprover) ── *@
+                        @if (_isSuperAdmin || _isSuperAdminApprover)
                         {
                             <FMC.Components.Admin.SystemHealthPanel IsLoading="@_auditLoading" />
                         }
@@ -745,7 +745,7 @@
 
         </Authorized>
         <NotAuthorized>
-            @if (context.User.IsInRole(Roles.Maker) || context.User.IsInRole(Roles.Approver))
+            @if (context.User.IsInRole(Roles.Maker) || context.User.IsInRole(Roles.Approver) || context.User.IsInRole(Roles.SuperAdminApprover))
             {
                 <MakerDashboard Organization="@GetMakerOrganization()"
                                 Users="_users"
@@ -857,6 +857,7 @@
     private bool _loading = true;
     private bool _isCeo;
     private bool _isSuperAdmin;
+    private bool _isSuperAdminApprover;
     private List<OrganizationDto> _organizations = new();
     private List<UserDto> _users = new();
     private List<AuditLogDto> _auditLogs = new();
@@ -939,10 +940,11 @@
             var user = authState.User;
             _isCeo = user.IsInRole(Roles.CEO);
             _isSuperAdmin = user.IsInRole(Roles.SuperAdmin);
+            _isSuperAdminApprover = user.IsInRole(Roles.SuperAdminApprover);
             
-            if (_isSuperAdmin || _isCeo || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver))
+            if (_isSuperAdmin || _isSuperAdminApprover || _isCeo || user.IsInRole(Roles.Maker) || user.IsInRole(Roles.Approver))
             {
-                if (!user.IsInRole(Roles.SuperAdmin))
+                if (!user.IsInRole(Roles.SuperAdmin) && !user.IsInRole(Roles.SuperAdminApprover))
                 {
                     var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
                     if (Guid.TryParse(orgIdClaim, out var orgId))

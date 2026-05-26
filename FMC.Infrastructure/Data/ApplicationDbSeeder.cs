@@ -20,8 +20,8 @@ public static class ApplicationDbSeeder
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-        // 1. Seed Roles (SuperAdmin, CEO, Maker, Approver, User)
-        string[] roleNames = { Roles.SuperAdmin, Roles.CEO, Roles.Maker, Roles.Approver, Roles.User };
+        // 1. Seed Roles (SuperAdmin, CEO, Maker, Approver, User, SuperAdminApprover)
+        string[] roleNames = { Roles.SuperAdmin, Roles.CEO, Roles.Maker, Roles.Approver, Roles.User, Roles.SuperAdminApprover };
         foreach (var roleName in roleNames)
         {
             if (!await roleManager.RoleExistsAsync(roleName))

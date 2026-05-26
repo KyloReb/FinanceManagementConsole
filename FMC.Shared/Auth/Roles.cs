@@ -29,4 +29,10 @@ public static class Roles
     /// Standard privilege level. Access to personal financial data only.
     /// </summary>
     public const string User = "User";
+
+    /// <summary>
+    /// Cross-organizational approval authority. Authorized to approve or reject
+    /// pending transaction requests initiated by SuperAdmin accounts.
+    /// </summary>
+    public const string SuperAdminApprover = "SuperAdminApprover";
 }

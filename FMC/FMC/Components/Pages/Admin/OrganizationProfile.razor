@@ -6,7 +6,7 @@
 @using FMC.Services
 @using FMC.Components.Dashboard
 @using MudBlazor
-@attribute [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")]
+@attribute [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover}")]
 @inject OrganizationApiService OrganizationService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -557,7 +557,7 @@
         var state = await AuthProvider.GetAuthenticationStateAsync();
         _isSuperAdmin = state.User.IsInRole(Roles.SuperAdmin);
         _isMaker = state.User.IsInRole(Roles.Maker);
-        _isApprover = state.User.IsInRole(Roles.Approver) || state.User.IsInRole(Roles.CEO) || _isSuperAdmin;
+        _isApprover = state.User.IsInRole(Roles.Approver) || state.User.IsInRole(Roles.CEO) || _isSuperAdmin || state.User.IsInRole(Roles.SuperAdminApprover);
         await LoadProfileDataAsync();
     }
 

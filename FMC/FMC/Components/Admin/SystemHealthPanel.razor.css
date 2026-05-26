@@ -1,7 +1,16 @@
 .health-pulse-panel {
+    /* Base defaults (prevents white flash before theme class is applied) */
+    --health-panel-bg: var(--mud-palette-surface);
+    --health-card-bg: rgba(255, 255, 255, 0.03);
+    --health-text-primary: var(--mud-palette-text-primary);
+    --health-text-secondary: var(--mud-palette-text-secondary);
+    --health-text-muted: var(--mud-palette-text-disabled);
+    --health-border: rgba(255, 255, 255, 0.05);
+    --health-inner-border: rgba(255, 255, 255, 0.03);
+    --health-shadow: rgba(0, 0, 0, 0.2);
     /* Base Transitions */
     transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-    border-radius: 24px; /* Synchronized with main surfaces */
+    border-radius: 24px;
     padding: 32px;
     margin-top: 24px;
     backdrop-filter: blur(24px) saturate(180%);

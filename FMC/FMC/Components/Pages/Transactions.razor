@@ -7,10 +7,18 @@
 
 @inject ThemeService ThemeService
 @inject IBrowserViewportService BrowserViewportService
+
+@* ══════════════════════════════════════════════════════════════════════
+   PAGE: Transaction History / Forensic Settlement Ledger
+   Displays a sortable/filterable table (desktop) or card list (mobile)
+   of financial transactions with search, date filtering, and export.
+   ════════════════════════════════════════════════════════════════════ *@
+
 <div class="fmc-ledger-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
-    @* EXECUTIVE HERO HEADER *@
-    <div class="d-flex align-center justify-space-between mb-8">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+
+    @* ── HERO HEADER ── *@
+    <div class="d-flex align-center justify-space-between mb-4">
         <div class="d-flex align-center">
             <div class="fmc-header-accent mr-5"></div>
             <div class="d-flex flex-column">
@@ -20,8 +28,11 @@
     </div>
 
     <MudPaper Elevation="0" Class="fmc-main-surface">
+
+        @* ── FILTER HEADER: Search, Date Range, Export ── *@
         <div class="fmc-header-area">
-            @* TOP TIER: IDENTITY & SEARCH *@
+
+            @* TOP ROW: Icon + Label | Search Bar *@
             <div class="fmc-identity-row mb-3">
                  <div class="d-flex align-center">
                     <div class="fmc-header-icon mr-4"><MudIcon Icon="@Icons.Material.Filled.HistoryEdu" Color="Color.Primary" /></div>
@@ -40,9 +51,10 @@
                 </div>
             </div>
 
-            @* BOTTOM TIER: ORCHESTRATION (DATES & EXPORTS) *@
+            @* BOTTOM ROW: Date Quick-select + Custom Dates | Export Buttons *@
             <div class="fmc-orchestration-row">
                 <div class="fmc-temporal-filter">
+                    @* Quick date range buttons *@
                     <div class="fmc-date-group mr-3">
                         <button class="fmc-date-btn @(_activeDateRange == "all" ? "active" : "")" @onclick='() => SetQuickDate("all")'>ALL</button>
                         <button class="fmc-date-btn @(_activeDateRange == "today" ? "active" : "")" @onclick='() => SetQuickDate("today")'>TODAY</button>
@@ -50,6 +62,7 @@
                         <button class="fmc-date-btn @(_activeDateRange == "30d" ? "active" : "")" @onclick='() => SetQuickDate("30d")'>30D</button>
                         <button class="fmc-date-btn @(_activeDateRange == "1y" ? "active" : "")" @onclick='() => SetQuickDate("1y")'>1Y</button>
                     </div>
+                    @* Custom date range inputs *@
                     <div class="fmc-custom-date-wrap">
                         <div class="fmc-date-input-box">
                             <span class="fmc-date-label">STARTING PERIOD</span>
@@ -63,6 +76,7 @@
                     </div>
                 </div>
 
+                @* Export action buttons *@
                 <div class="fmc-action-toolbar ml-3">
                     <button class="fmc-premium-action excel" @onclick="ExportExcel">
                         <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Size="Size.Small" Class="mr-2" />
@@ -76,12 +90,17 @@
             </div>
         </div>
 
+        @* ── VIEW: Desktop Table vs Mobile Cards ── *@
         @if (!_isMobile)
         {
+
+        @* ─── DESKTOP: MudTable with sortable columns, hover tooltips, pagination ─── *@
         <MudTable @ref="_table" Items="@_transactions" Hover="true" Elevation="0" Loading="@_loading" 
                  OnRowClick="OnRowClick" T="TransactionDto" 
                  Striped="true" Dense="true" FixedHeader="true" Height="auto" HorizontalScrollbar="false"
                  SortMode="SortMode.Multiple" OnSelectedItemChanged="OnSelectedItemChanged" SelectionChanged="null">
+
+            @* Column width distribution *@
             <ColGroup>
                 <col style="width: 18%;" />
                 <col style="width: 25%;" />
@@ -89,6 +108,8 @@
                 <col style="width: 15%;" />
                 <col style="width: 20%;" />
             </ColGroup>
+
+            @* Skeleton loading rows shown while data loads *@
             <LoadingContent>
                 @for (int i = 0; i < 8; i++)
                 {
@@ -116,6 +137,7 @@
                     </div>
                 }
             </LoadingContent>
+
             <HeaderContent>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Date)">TIMESTAMP</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Subscriber)">SUBSCRIBER / BATCH</MudTableSortLabel></MudTh>
@@ -123,9 +145,10 @@
                 <MudTh Style="text-align:center;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Status)">STATUS</MudTableSortLabel></MudTh>
                 <MudTh Style="text-align:right;"><MudTableSortLabel SortBy="new Func<TransactionDto, object>(x => x.Amount)">AMOUNT</MudTableSortLabel></MudTh>
             </HeaderContent>
+
             <RowTemplate>
                 <MudTd>
-                    <!-- Premium Floating Forensic Tooltip -->
+                    @* Hover tooltip with full transaction telemetry *@
                     @{
                         var isCredit = context!.Amount > 0;
                         var isDebit = context.Amount < 0;
@@ -174,6 +197,7 @@
                         </div>
                     </div>
 
+                    @* Timestamp column with ledger bar *@
                     <div class="d-flex align-center gap-3">
                         <div class="fmc-ledger-bar" style="background: var(--mud-palette-divider);"></div>
                         @{
@@ -185,6 +209,8 @@
                         </div>
                     </div>
                 </MudTd>
+
+                @* Subscriber / Batch column *@
                 <MudTd>
                     <div class="d-flex flex-column">
                         <div class="d-flex align-center gap-2">
@@ -212,11 +238,15 @@
                         }
                     </div>
                 </MudTd>
+
+                @* Category badge *@
                 <MudTd>
                     <span class="fmc-status-badge mixed" style="font-size: 0.6rem; padding: 2px 8px; border-radius: 4px;">
                         @context!.Category.ToUpper()
                     </span>
                 </MudTd>
+
+                @* Status badge with icon *@
                 <MudTd>
                     <div class="d-flex justify-center">
                         <div class="fmc-status-badge @(context!.Status.ToLower())">
@@ -225,6 +255,8 @@
                         </div>
                     </div>
                 </MudTd>
+
+                @* Amount column — color-coded (green=credit, red=debit) *@
                 <MudTd Style="text-align:right">
                     <MudText Color="@(context!.Amount < 0 ? Color.Error : Color.Success)" 
                              Class="fmc-money" Style="font-size: 1.15rem; letter-spacing: -0.04em;">
@@ -232,6 +264,8 @@
                     </MudText>
                 </MudTd>
             </RowTemplate>
+
+            @* Empty state when no records match filters *@
             <NoRecordsContent>
                 <div class="fmc-empty-state">
                     <div class="fmc-empty-glow"></div>
@@ -240,8 +274,11 @@
                     <MudText Typo="Typo.body2" Class="fmc-empty-subtitle">Your tactical query did not yield any results in the current stream.</MudText>
                 </div>
             </NoRecordsContent>
+
             <FooterContent>
             </FooterContent>
+
+            @* Pagination + end-of-stream marker *@
             <PagerContent>
                 @if (!_loading && _transactions.Any(FilterFunc1) && _table != null && ((_table.CurrentPage + 1) * _table.RowsPerPage >= _table.GetFilteredItemsCount()))
                 {
@@ -259,7 +296,11 @@
         }
         else
         {
+
+        @* ─── MOBILE: Scrollable cards with pagination, skeleton loading, premium empty state ─── *@
             <div class="fmc-mobile-tx-list">
+
+                @* Show skeleton cards while data loads *@
                 @if (_loading)
                 {
                     <div class="fmc-mobile-loading">
@@ -291,10 +332,67 @@
                 }
                 else
                 {
+                    @* Compute pagination variables from filtered results *@
+                    var pageSizes = new[] { 10, 20, 30, 0 };
                     var mobileItems = _transactions.Where(FilterFunc1).ToList();
-                    @if (mobileItems.Any())
+                    var totalItems = mobileItems.Count;
+                    var ps = _mobileTxPageSize == 0 ? totalItems : _mobileTxPageSize;
+                    var totalPages = ps == 0 ? 1 : ((totalItems - 1) / ps) + 1;
+                    if (_mobileTxPage >= totalPages) _mobileTxPage = 0;
+                    var pagedItems = mobileItems.Skip(_mobileTxPage * ps).Take(ps).ToList();
+                    var showingStart = totalItems == 0 ? 0 : _mobileTxPage * ps + 1;
+                    var showingEnd = ps == 0 ? totalItems : Math.Min((_mobileTxPage + 1) * ps, totalItems);
+
+                    @if (totalItems > 0)
                     {
-                        @foreach (var tx in mobileItems)
+
+                        @* ── Rows-per-page selector + page summary + nav ── *@
+                        <div class="d-flex justify-space-between align-center mb-2 px-1">
+                            @* Page size buttons: 10 | 20 | 30 | All *@
+                            <div class="d-flex align-center gap-1" style="font-size:0.5rem;">
+                                @foreach (var sz in pageSizes)
+                                {
+                                    var label = sz == 0 ? "All" : sz.ToString();
+                                    var isActive = (_mobileTxPageSize == sz);
+                                    <button @onclick="() => { _mobileTxPageSize = sz; _mobileTxPage = 0; }"
+                                            style="padding:2px 6px; border-radius:4px; border:1px solid var(--mud-palette-divider); background:@(isActive ? "var(--mud-palette-primary)" : "transparent"); color:@(isActive ? "white" : "var(--mud-palette-text-primary)"); font-weight:900; font-size:0.5rem; cursor:pointer;">@label</button>
+                                }
+                            </div>
+                            @* Showing X–Y of Z counter *@
+                            <MudText Typo="Typo.caption" Style="font-size:0.5rem; opacity:0.5;">
+                                @if (totalItems > 0 && ps > 0) { <text>@showingStart–@showingEnd of @totalItems</text> }
+                            </MudText>
+                            @* Top pagination: first | prev | page count | next | last *@
+                            @if (totalItems > ps && ps > 0)
+                            {
+                                var isFirstPage = _mobileTxPage <= 0;
+                                var isLastPage = _mobileTxPage >= totalPages - 1;
+                                <div class="d-flex gap-1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small"
+                                                   Disabled="@isFirstPage"
+                                                   OnClick="@(() => { _mobileTxPage = 0; })"
+                                                   Style="width:24px;height:24px;" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"
+                                                   Disabled="@isFirstPage"
+                                                   OnClick="@(() => { if (_mobileTxPage > 0) { _mobileTxPage--; } })"
+                                                   Style="width:24px;height:24px;" />
+                                    <MudText Typo="Typo.caption" Style="font-size:0.5rem; opacity:0.5; align-self:center;">
+                                        @(_mobileTxPage + 1) / @totalPages
+                                    </MudText>
+                                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                                                   Disabled="@isLastPage"
+                                                   OnClick="@(() => { if (_mobileTxPage < totalPages - 1) { _mobileTxPage++; } })"
+                                                   Style="width:24px;height:24px;" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.LastPage" Size="Size.Small"
+                                                   Disabled="@isLastPage"
+                                                   OnClick="@(() => { _mobileTxPage = totalPages - 1; })"
+                                                   Style="width:24px;height:24px;" />
+                                </div>
+                            }
+                        </div>
+
+                        @* ── Mobile transaction cards ── *@
+                        @foreach (var tx in pagedItems)
                         {
                             var isCredit = tx.Amount > 0;
                             var isDebit = tx.Amount < 0;
@@ -306,7 +404,10 @@
                                         <span class="fmc-tx-card-date-text">@displayTime.ToString("MMM dd, yyyy")</span>
                                         <span class="fmc-tx-card-time-text">@displayTime.ToString("HH:mm:ss")</span>
                                     </div>
-                                    <div class="fmc-tx-card-bar @creditClass"></div>
+                                    <span class="fmc-tx-card-status-tag @tx.Status.ToLower()">
+                                        <MudIcon Icon="@GetStatusIcon(tx.Status)" Size="Size.Small" Style="font-size:0.6rem;" />
+                                        <span>@tx.Status.ToUpper()</span>
+                                    </span>
                                 </div>
                                 <div class="fmc-tx-card-body">
                                     <div class="fmc-tx-card-subscriber">
@@ -314,7 +415,8 @@
                                         {
                                             <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Color="Color.Info" Style="font-size:0.75rem;margin-right:4px;" />
                                         }
-                                        <span>@tx.Subscriber</span>
+                                        <span class="fmc-tx-card-subscriber-text">@tx.Subscriber</span>
+                                        <span class="fmc-tx-card-cat-tag">@tx.Category.ToUpper()</span>
                                     </div>
                                     @{
                                         var acc = tx.AccountNumber;
@@ -330,13 +432,6 @@
                                     {
                                         <div class="fmc-tx-card-account">@(acc == "BATCH_SUMMARY" ? "BATCH FORENSIC SUMMARY" : GetMaskedAccount(acc))</div>
                                     }
-                                    <div class="fmc-tx-card-badges">
-                                        <span class="fmc-tx-badge">@tx.Category.ToUpper()</span>
-                                        <span class="fmc-tx-status @tx.Status.ToLower()">
-                                            <MudIcon Icon="@GetStatusIcon(tx.Status)" Size="Size.Small" Style="font-size:0.65rem;" />
-                                            <span>@tx.Status.ToUpper()</span>
-                                        </span>
-                                    </div>
                                 </div>
                                 <div class="fmc-tx-card-footer @creditClass">
                                     <span class="fmc-tx-card-amount">@(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("C2")</span>
@@ -344,14 +439,52 @@
                                 </div>
                             </div>
                         }
+
+                        @* ── End-of-stream marker when on the last page ── *@
+                        @if (totalItems > 0 && ps > 0 && (_mobileTxPage + 1) * ps >= totalItems)
+                        {
+                            <div class="d-flex align-center justify-center gap-3 my-4" style="opacity:0.5;">
+                                <div style="flex:1; height:1px; background: linear-gradient(90deg, transparent, var(--mud-palette-divider), transparent); max-width:100px;"></div>
+                                <MudText Typo="Typo.caption" Style="font-family:'JetBrains Mono',monospace; font-size:0.55rem; font-weight:950; letter-spacing:0.3em;">END OF FORENSIC AUDIT STREAM</MudText>
+                                <div style="flex:1; height:1px; background: linear-gradient(90deg, transparent, var(--mud-palette-divider), transparent); max-width:100px;"></div>
+                            </div>
+                        }
+
+                        @* ── Bottom pagination: first | prev | page count | next | last ── *@
+                        if (totalItems > ps)
+                        {
+                            var isFirstPage = _mobileTxPage <= 0;
+                            var isLastPage = _mobileTxPage >= totalPages - 1;
+                            <div class="d-flex justify-center align-center gap-2 mt-3">
+                                <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Disabled="@isFirstPage"
+                                               OnClick="@(() => { _mobileTxPage = 0; })"
+                                               Variant="Variant.Outlined" Size="Size.Small" />
+                                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@isFirstPage"
+                                               OnClick="@(() => { if (_mobileTxPage > 0) { _mobileTxPage--; } })"
+                                               Variant="Variant.Outlined" Size="Size.Small" />
+                                <MudText Typo="Typo.caption" Style="font-size:0.6rem; font-weight:800;">@(_mobileTxPage + 1) / @totalPages</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@isLastPage"
+                                               OnClick="@(() => { if (_mobileTxPage < totalPages - 1) { _mobileTxPage++; } })"
+                                               Variant="Variant.Outlined" Size="Size.Small" />
+                                <MudIconButton Icon="@Icons.Material.Filled.LastPage" Disabled="@isLastPage"
+                                               OnClick="@(() => { _mobileTxPage = totalPages - 1; })"
+                                               Variant="Variant.Outlined" Size="Size.Small" />
+                            </div>
+                        }
                     }
                     else
                     {
-                        <div class="fmc-empty-state">
+                        @* ── Premium animated empty state when no results ── *@
+                        <div class="fmc-empty-state premium-empty-state pa-6 d-flex flex-column align-center justify-center">
                             <div class="fmc-empty-glow"></div>
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-empty-icon" />
-                            <MudText Typo="Typo.h6" Class="fmc-empty-title">No matching forensic records</MudText>
-                            <MudText Typo="Typo.body2" Class="fmc-empty-subtitle">Your tactical query did not yield any results in the current stream.</MudText>
+                            <div class="fmc-scanner-container mb-3">
+                                <div class="fmc-scanner-ring ring-1"></div>
+                                <div class="fmc-scanner-ring ring-2"></div>
+                                <div class="fmc-scanner-line"></div>
+                                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-premium-empty-icon" />
+                            </div>
+                            <MudText Typo="Typo.h6" Class="fmc-empty-title fmc-gradient-text" Style="font-weight: 900; letter-spacing: -0.02em;">No Matching Forensic Traces</MudText>
+                            <MudText Typo="Typo.body2" Class="fmc-empty-subtitle mt-2">Your tactical query did not yield any results in the current stream.</MudText>
                         </div>
                     }
                 }
@@ -361,12 +494,18 @@
 </MudContainer>
 </div>
 
+@* ══════════════════════════════════════════════════════════════════════
+   CODE-BEHIND
+   ════════════════════════════════════════════════════════════════════ *@
 @code {
+
+    /* ── Private State ── */
     private MudTable<TransactionDto> _table = default!;
     private List<TransactionDto> _transactions = new();
     private string _searchString = "";
     private TransactionDto? _selectedItem;
 
+    /* ── Dependency Injection ── */
     [Inject] private ApiFinanceService FinanceService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IDialogService DialogService { get; set; } = default!;
@@ -374,12 +513,19 @@
     [Inject] private ICurrentUserService CurrentUserService { get; set; } = default!;
     [Inject] private AdminService AdminService { get; set; } = default!;
 
+    /* ── IBrowserViewportObserver ── */
     Guid IBrowserViewportObserver.Id { get; } = Guid.NewGuid();
 
     private bool _loading = true;
     private bool _isMobile;
     private MudBlazor.Breakpoint _breakpoint;
     private List<UserDto> _allUsers = new();
+
+    /* ── Mobile pagination state ── */
+    private int _mobileTxPage = 0;
+    private int _mobileTxPageSize = 10;
+
+    /* ── Lifecycle ── */
 
     protected override async Task OnInitializedAsync()
     {
@@ -413,6 +559,12 @@
         await BrowserViewportService.UnsubscribeAsync(this);
     }
 
+    /* ── Data Loading ── */
+
+    /// <summary>
+    /// Fetches recent transactions from the API, groups bulk allotments by batch,
+    /// and applies the temporal filter.
+    /// </summary>
     private async Task LoadTransactions()
     {
         try
@@ -421,8 +573,8 @@
             var raw = await FinanceService.GetRecentTransactionsAsync(200);
             
             // ── AGGREGATION LOGIC ──
-            // We group by BatchId if available. 
-            // If BatchId is missing but the Category is "Bulk Allotment" and timestamps match, we also group them.
+            // Group by BatchId (if present) or by matching timestamps for "Bulk Allotment" items.
+            // Each group is collapsed into a single summary row with summed Amount and a derived Status.
             var processed = new List<TransactionDto>();
 
             var bulkGroups = raw
@@ -473,7 +625,6 @@
             processed.AddRange(individuals);
             _transactions = processed.OrderByDescending(t => t.ActionDate ?? t.Date).ToList();
             
-            // Initial filter application
             ApplyTemporalFilter();
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -495,14 +646,20 @@
         _selectedItem = item;
     }
 
+    /* ── Date Filtering ── */
+
     private string _activeDateRange = "all";
     private DateTime? _startDate;
     private DateTime? _endDate;
     private List<TransactionDto> _allTransactions = new();
 
+    /// <summary>
+    /// Sets a quick date range (Today, 7D, 30D, 1Y, All) and re-applies the filter.
+    /// </summary>
     private void SetQuickDate(string range)
     {
         _activeDateRange = range;
+        _mobileTxPage = 0;
         var today = DateTime.Today;
         
         switch (range)
@@ -531,6 +688,9 @@
         ApplyTemporalFilter();
     }
 
+    /// <summary>
+    /// Updates the start or end date from the date inputs.
+    /// </summary>
     private void UpdateDate(ChangeEventArgs e, bool isStart)
     {
         if (DateTime.TryParse(e.Value?.ToString(), out var dt))
@@ -538,27 +698,37 @@
             if (isStart) _startDate = dt;
             else _endDate = dt.AddDays(1).AddTicks(-1);
             _activeDateRange = "custom";
+            _mobileTxPage = 0;
             ApplyTemporalFilter();
         }
     }
 
+    /* ── Search ── */
+
     private void OnSearchChanged(ChangeEventArgs e)
     {
         _searchString = e.Value?.ToString() ?? "";
+        _mobileTxPage = 0;
     }
 
+    /* ── Filtering ── */
+
+    /// <summary>
+    /// Placeholder — currently all data is loaded client-side.
+    /// In production this would trigger an API call with date parameters.
+    /// </summary>
     private void ApplyTemporalFilter()
     {
-        // This is called after LoadTransactions to populate the table
-        // For a true "Choose date" feature, we filter the _transactions list
-        // Note: In a real app, you'd ideally call the API with these dates.
     }
 
+    /// <summary>
+    /// Combined filter: date range + search string.
+    /// Used by MudTable (FilterFunc1) and mobile card list.
+    /// </summary>
     private bool FilterFunc1(TransactionDto? transaction) 
     {
         if (transaction == null) return false;
         
-        // Date Range Filtering
         var effectiveDate = transaction.ActionDate ?? transaction.Date;
         if (_startDate.HasValue && effectiveDate < _startDate.Value) return false;
         if (_endDate.HasValue && effectiveDate > _endDate.Value) return false;
@@ -566,6 +736,9 @@
         return FilterFunc(transaction, _searchString);
     }
 
+    /// <summary>
+    /// Text search filter — matches Subscriber, Category, or Status.
+    /// </summary>
     private bool FilterFunc(TransactionDto transaction, string searchString)
     {
         if (string.IsNullOrWhiteSpace(searchString))
@@ -578,6 +751,8 @@
             return true;
         return false;
     }
+
+    /* ── Dialogs ── */
 
     private async Task OpenAddDialog()
     {
@@ -593,6 +768,11 @@
         }
     }
 
+    /* ── Export Helpers ── */
+
+    /// <summary>
+    /// Builds a human-readable filter summary string for the export file metadata.
+    /// </summary>
     private string GetActiveFilterString()
     {
         var parts = new List<string>();
@@ -632,6 +812,8 @@
         await JS.InvokeVoidAsync("fmc_downloadFile", fileName, contentType, streamRef);
     }
 
+    /* ── Utility ── */
+
     private string GetStatusIcon(string status) => status?.ToLower() switch
     {
         "successful" or "approved" or "completed" => Icons.Material.Filled.CheckCircle,
@@ -642,12 +824,18 @@
         _ => Icons.Material.Filled.Help
     };
 
+    /// <summary>
+    /// Masks the middle digits of an account number for display:
+    /// "123456******7890"
+    /// </summary>
     private string GetMaskedAccount(string? acc)
     {
         if (string.IsNullOrEmpty(acc) || acc == "BATCH_SUMMARY") return acc == "BATCH_SUMMARY" ? "BATCH SUMMARY" : "N/A";
         if (acc.Length < 10) return acc;
         return $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}";
     }
+
+    /* ── Row Interaction ── */
 
     private async Task OpenTransactionDialog(TransactionDto transaction)
     {
@@ -671,6 +859,7 @@
         await OpenTransactionDialog(args.Item!);
     }
 
+    /* ── Injected Services ── */
     [Inject] private IReportService ReportService { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
 }

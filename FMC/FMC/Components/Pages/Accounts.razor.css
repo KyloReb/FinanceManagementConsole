@@ -44,7 +44,7 @@
     font-size: 0.7rem !important;
     letter-spacing: 0.15em !important;
     padding: 14px 32px !important; 
-    background-color: #0f172a !important; /* High-contrast Midnight Slate */
+    background-color: #1E1E1E !important; /* High-contrast Midnight Slate */
     color: white !important; 
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
@@ -53,7 +53,7 @@
 
 ::deep .fmc-acc-action-btn:hover {
     transform: translateY(-1px);
-    background-color: #1e293b !important;
+    background-color: #2C2C2C !important;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
@@ -341,6 +341,82 @@
     animation: page-shimmer 1.6s ease-in-out infinite;
 }
 
+/* ── PREMIUM EMPTY STATE (MOBILE) ──
+   Animated radar/scanner for empty search results.
+   Mirrors the Transaction page premium-empty-state. */
+.fmc-empty-state { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; overflow: hidden; }
+.fmc-empty-glow { position: absolute; width: 300px; height: 300px; background: radial-gradient(circle, rgba(var(--mud-palette-primary-rgb), 0.1) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.fmc-empty-icon { font-size: 4rem !important; color: var(--mud-palette-primary); opacity: 0.4; animation: fmc-pulse-icon 3s infinite ease-in-out; }
+.fmc-empty-title { font-weight: 950 !important; color: var(--mud-palette-text-primary); margin-top: 16px; letter-spacing: -0.02em; }
+.fmc-empty-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.6; font-weight: 500; text-align: center; max-width: 300px; margin-top: 4px; }
+
+.premium-empty-state {
+    min-height: 300px;
+    background: rgba(var(--mud-palette-surface-rgb), 0.2);
+    border-radius: 16px;
+    border: 1px dashed rgba(var(--mud-palette-primary-rgb), 0.15);
+}
+.fmc-scanner-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.fmc-premium-empty-icon {
+    font-size: 2.5rem !important;
+    color: var(--mud-palette-primary);
+    z-index: 3;
+}
+.fmc-scanner-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.15);
+    pointer-events: none;
+}
+.fmc-scanner-ring.ring-1 {
+    width: 55px;
+    height: 55px;
+    animation: fmc-scanner-pulse-1 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fmc-scanner-ring.ring-2 {
+    width: 80px;
+    height: 80px;
+    animation: fmc-scanner-pulse-2 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fmc-scanner-line {
+    position: absolute;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--mud-palette-primary), transparent);
+    z-index: 2;
+    animation: fmc-scanner-sweep 2s infinite ease-in-out;
+}
+.fmc-gradient-text {
+    background: linear-gradient(135deg, var(--mud-palette-text-primary) 0%, rgba(var(--mud-palette-text-primary-rgb), 0.6) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+@keyframes fmc-scanner-pulse-1 {
+    0%, 100% { transform: scale(0.9); opacity: 0.3; }
+    50% { transform: scale(1.1); opacity: 0.6; }
+}
+@keyframes fmc-scanner-pulse-2 {
+    0%, 100% { transform: scale(0.95); opacity: 0.2; }
+    50% { transform: scale(1.15); opacity: 0.5; }
+}
+@keyframes fmc-scanner-sweep {
+    0% { transform: translateY(-25px); opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { transform: translateY(25px); opacity: 0; }
+}
+@keyframes fmc-pulse-icon {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.1); opacity: 0.5; }
+}
+
 /* ── Theme-Aware Avatar Color Palette ──
    8 vivid, distinct hues that remain legible in both light and dark mode.
    Assigned via fmc-avatar-{index} class generated from the display name hash. */
@@ -560,5 +636,54 @@
     }
     .fmc-mobile-pagination {
         padding: 8px 0;
+    }
+
+    /* ── Empty State (Mobile) ── */
+    .fmc-empty-state {
+        padding: 16px 12px;
+        gap: 4px;
+    }
+    .fmc-empty-icon {
+        font-size: 1.5rem !important;
+        margin-bottom: 0 !important;
+    }
+    .fmc-empty-glow {
+        width: 120px;
+        height: 120px;
+    }
+    .fmc-empty-title {
+        font-size: 0.7rem !important;
+        margin-top: 4px !important;
+    }
+    .fmc-empty-subtitle {
+        font-size: 0.55rem !important;
+        max-width: 220px;
+        margin-top: 2px !important;
+        opacity: 0.45;
+    }
+    .premium-empty-state {
+        min-height: 160px;
+        border-radius: 10px;
+    }
+    .fmc-scanner-container {
+        width: 56px;
+        height: 56px;
+    }
+    .fmc-scanner-ring.ring-1 {
+        width: 40px;
+        height: 40px;
+    }
+    .fmc-scanner-ring.ring-2 {
+        width: 56px;
+        height: 56px;
+    }
+    .fmc-scanner-line {
+        width: 42px;
+    }
+    .fmc-premium-empty-icon {
+        font-size: 1.6rem !important;
+    }
+    .fmc-gradient-text {
+        font-size: 0.75rem !important;
     }
 }

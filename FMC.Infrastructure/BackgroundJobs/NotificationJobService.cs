@@ -84,10 +84,20 @@ public sealed class NotificationJobService
                                         select u.Email)
                                         .ToListAsync();
 
+            // Also notify all SuperAdminApprovers (cross-org)
+            var superAdminApproverEmails = await (from u in _context.Users.OfType<ApplicationUser>()
+                                                  join ur in _context.UserRoles on u.Id equals ur.UserId
+                                                  join r in _context.Roles on ur.RoleId equals r.Id
+                                                  where r.Name == FMC.Shared.Auth.Roles.SuperAdminApprover
+                                                  select u.Email)
+                                                  .ToListAsync();
+
             var ceoEmail = await ResolveCeoEmailAsync(org.ChiefExecutiveId);
 
             var recipients = approverEmails.Where(e => !string.IsNullOrEmpty(e))
                                            .ToHashSet();
+            foreach (var email in superAdminApproverEmails)
+                if (!string.IsNullOrEmpty(email)) recipients.Add(email);
             if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
 
             if (!recipients.Any())
@@ -164,9 +174,19 @@ public sealed class NotificationJobService
                                         select u.Email)
                                         .ToListAsync();
 
+            // Also notify all SuperAdminApprovers (cross-org)
+            var superAdminApproverEmails = await (from u in _context.Users.OfType<ApplicationUser>()
+                                                  join ur in _context.UserRoles on u.Id equals ur.UserId
+                                                  join r in _context.Roles on ur.RoleId equals r.Id
+                                                  where r.Name == FMC.Shared.Auth.Roles.SuperAdminApprover
+                                                  select u.Email)
+                                                  .ToListAsync();
+
             var ceoEmail = await ResolveCeoEmailAsync(org.ChiefExecutiveId);
 
             var recipients = approverEmails.Where(e => !string.IsNullOrEmpty(e)).ToHashSet();
+            foreach (var email in superAdminApproverEmails)
+                if (!string.IsNullOrEmpty(email)) recipients.Add(email);
             if (!string.IsNullOrEmpty(ceoEmail)) recipients.Add(ceoEmail);
 
             if (!recipients.Any()) return;

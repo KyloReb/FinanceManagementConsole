@@ -8,7 +8,7 @@
         <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.CreditCard" Class="fmc-nav-link">Accounts</MudNavLink>
         <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Insights" Class="fmc-nav-link">Reports</MudNavLink>
 
-        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")">
+        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover}")">
             <Authorized>
                 <div class="fmc-nav-group-divider"></div>
                 @* ── CRITICAL FORENSICS ── *@
@@ -17,7 +17,7 @@
             </Authorized>
         </AuthorizeView>
 
-        <AuthorizeView Roles="@Roles.CEO">
+        <AuthorizeView Roles="@($"{Roles.CEO},{Roles.Approver},{Roles.SuperAdminApprover},{Roles.Maker},{Roles.SuperAdmin}")">
             <Authorized>
                 <div class="fmc-nav-group-divider"></div>
                 <div class="fmc-nav-group-label">CORPORATE</div>

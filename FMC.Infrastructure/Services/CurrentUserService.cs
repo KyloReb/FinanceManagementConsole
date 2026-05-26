@@ -59,4 +59,6 @@ public class CurrentUserService : ICurrentUserService
     public bool IsMaker => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.Maker) == true;
     
     public bool IsApprover => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.Approver) == true;
+
+    public bool IsSuperAdminApprover => _httpContextAccessor.HttpContext?.User?.IsInRole(FMC.Shared.Auth.Roles.SuperAdminApprover) == true;
 }

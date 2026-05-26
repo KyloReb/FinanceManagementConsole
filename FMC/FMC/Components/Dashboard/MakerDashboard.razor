@@ -561,12 +561,12 @@
     {
         var authState = await AuthStateTask;
         var user = authState.User;
-        _isApprover = user.IsInRole(Roles.Approver);
+        _isApprover = user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdminApprover);
         _isMaker = user.IsInRole(Roles.Maker);
         _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         
         if (user.IsInRole(Roles.Maker)) _roleDisplay = "MAKER";
-        else if (user.IsInRole(Roles.Approver)) _roleDisplay = "APPROVER";
+        else if (user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdminApprover)) _roleDisplay = "APPROVER";
     }
 
     protected override async Task OnParametersSetAsync()

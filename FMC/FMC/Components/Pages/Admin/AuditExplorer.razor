@@ -3,7 +3,7 @@
 @using FMC.Shared.Auth
 @using FMC.Shared.DTOs.Admin
 @using FMC.Components.Pages.Admin.Dialogs
-@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
 @inject OrganizationApiService OrgService
 @inject ThemeService ThemeService
 @inject ISnackbar Snackbar
@@ -31,7 +31,7 @@
         bottom: 115% !important;
         left: 50% !important;
         width: 320px !important;
-        background: #12121a !important; /* Solid Premium Dark Background in Dark Mode */
+        background: #1E1E1E !important; /* Solid Premium Dark Background in Dark Mode */
         border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
         border-radius: 12px !important;
         padding: 14px !important;

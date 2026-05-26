@@ -102,7 +102,7 @@ public class ThemeService
         try
         {
             await _js.InvokeVoidAsync("eval", _isDarkMode 
-                ? "document.documentElement.classList.add('dark'); document.documentElement.style.backgroundColor = '#11111b';" 
+                ? "document.documentElement.classList.add('dark'); document.documentElement.style.backgroundColor = '#121212';" 
                 : "document.documentElement.classList.remove('dark'); document.documentElement.style.backgroundColor = '#ffffff';");
         }
         catch (Exception ex) when (ex is OperationCanceledException or JSDisconnectedException) { }

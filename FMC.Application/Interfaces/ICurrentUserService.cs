@@ -45,4 +45,9 @@ public interface ICurrentUserService
     /// Returns true if the user has the Approver role for financial verification.
     /// </summary>
     bool IsApprover { get; }
+
+    /// <summary>
+    /// Returns true if the user has the SuperAdminApprover role for cross-org approval.
+    /// </summary>
+    bool IsSuperAdminApprover { get; }
 }

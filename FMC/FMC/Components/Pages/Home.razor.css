@@ -50,6 +50,15 @@
 .fmc-card-progress.error { background: var(--mud-palette-error); }
 
 /* Main Repository Surfaces - Adaptive */
+/* Base fallback before theme class applies (prevents white flash on load) */
+::deep .fmc-main-surface,
+::deep .fmc-audit-surface {
+    background-color: var(--mud-palette-surface);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    overflow: hidden;
+}
+
 .fmc-light-mode ::deep .fmc-main-surface,
 .fmc-light-mode ::deep .fmc-audit-surface { 
     background-color: #f1f5f9 !important;
@@ -716,7 +725,7 @@
     bottom: 115% !important;
     left: 50% !important;
     width: 320px !important;
-    background: #12121a !important; /* Solid Premium Dark Background in Dark Mode */
+    background: #1E1E1E !important; /* Solid Premium Dark Background in Dark Mode */
     border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
     border-radius: 12px !important;
     padding: 14px !important;

@@ -29,7 +29,28 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
             .Take(request.Count)
             .ToListAsync(cancellationToken);
 
-        var result = new List<TransactionDto>();
+        // Pre-load all reference data into dictionaries to eliminate N+1 queries
+        var allTenantIds = transactions.Select(t => t.TenantId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+        var allMakerIds = transactions.Select(t => t.MakerId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+        var allApproverIds = transactions.Select(t => t.ApproverId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+        var allUserIds = allTenantIds.Concat(allMakerIds).Concat(allApproverIds).Distinct().ToList();
+
+        var orgs = await _context.Organizations.IgnoreQueryFilters()
+            .Where(o => allTenantIds.Contains(o.Id.ToString()))
+            .ToListAsync(cancellationToken);
+        var orgMap = orgs.ToDictionary(o => o.Id.ToString(), o => o, StringComparer.OrdinalIgnoreCase);
+
+        var users = await _context.Users.IgnoreQueryFilters()
+            .Where(u => allUserIds.Contains(u.Id))
+            .ToListAsync(cancellationToken);
+        var userMap = users.ToDictionary(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
+
+        var cardholders = await _context.Cardholders.IgnoreQueryFilters()
+            .Where(c => allTenantIds.Contains(c.Id.ToString()))
+            .ToListAsync(cancellationToken);
+        var cardholderMap = cardholders.ToDictionary(c => c.Id.ToString(), c => c, StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<TransactionDto>(transactions.Count);
         foreach (var t in transactions)
         {
             string subscriber = "System Node";
@@ -37,43 +58,32 @@ public class GetRecentTransactionsQueryHandler : IRequestHandler<GetRecentTransa
             string? makerName = "System";
             string? approverName = null;
 
-            // Resolve Subscriber by TenantId (can be UserId, OrgId, or CardholderId)
-            var org = await _context.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id.ToString() == t.TenantId, cancellationToken);
-            if (org != null)
+            if (!string.IsNullOrEmpty(t.TenantId))
             {
-                subscriber = org.Name;
-                accountNumber = org.AccountNumber;
-            }
-            else
-            {
-                var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.TenantId, cancellationToken);
-                if (user != null)
+                if (orgMap.TryGetValue(t.TenantId, out var org))
+                {
+                    subscriber = org.Name;
+                    accountNumber = org.AccountNumber;
+                }
+                else if (userMap.TryGetValue(t.TenantId, out var user))
                 {
                     subscriber = $"{user.FirstName} {user.LastName}";
                 }
-                else
+                else if (cardholderMap.TryGetValue(t.TenantId, out var cardholder))
                 {
-                    var cardholder = await _context.Cardholders.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id.ToString() == t.TenantId, cancellationToken);
-                    if (cardholder != null)
-                    {
-                        subscriber = $"{cardholder.FirstName} {cardholder.LastName}";
-                        accountNumber = cardholder.AccountNumber;
-                    }
+                    subscriber = $"{cardholder.FirstName} {cardholder.LastName}";
+                    accountNumber = cardholder.AccountNumber;
                 }
             }
 
-            // Resolve Maker
-            if (!string.IsNullOrEmpty(t.MakerId))
+            if (!string.IsNullOrEmpty(t.MakerId) && userMap.TryGetValue(t.MakerId, out var maker))
             {
-                var maker = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.MakerId, cancellationToken);
-                if (maker != null) makerName = $"{maker.FirstName} {maker.LastName}";
+                makerName = $"{maker.FirstName} {maker.LastName}";
             }
 
-            // Resolve Approver
-            if (!string.IsNullOrEmpty(t.ApproverId))
+            if (!string.IsNullOrEmpty(t.ApproverId) && userMap.TryGetValue(t.ApproverId, out var approver))
             {
-                var approver = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == t.ApproverId, cancellationToken);
-                if (approver != null) approverName = $"{approver.FirstName} {approver.LastName}";
+                approverName = $"{approver.FirstName} {approver.LastName}";
             }
 
             result.Add(new TransactionDto

@@ -1,13 +1,22 @@
+@* ══════════════════════════════════════════════════════════════════════
+   TRANSACTIONS.RAZOR.CSS — Forensic Settlement Ledger Styles
+   Breakpoints:
+     - 960px : Switch from side-by-side to stacked header/filter layout
+     - 600px : Switch from desktop table to mobile card layout
+   ════════════════════════════════════════════════════════════════════ *@
 
-/* EXECUTIVE THEME TOKENS */
+/* ── THEME TOKENS ───────────────────────────────────────────────
+   Shared across light/dark modes. These are applied via Blazor
+   scoped CSS and use CSS custom properties from MudBlazor theme. */
 .fmc-header-accent { width: 6px; height: 54px; background: linear-gradient(to bottom, var(--mud-palette-primary), var(--mud-palette-info)); border-radius: 4px; }
 .fmc-hero-text { font-weight: 950; letter-spacing: -0.05em; color: var(--mud-palette-text-primary); margin-bottom: -4px; }
 .fmc-subtitle { color: var(--mud-palette-text-secondary); opacity: 0.7; font-weight: 500; }
 
-/* ── Root & Page Backgrounds ── */
+/* ── PAGE ROOT ───────────────────────────────────────────────── */
 .fmc-ledger-root { min-height: 100vh; transition: background-color 0.3s ease; }
 
-/* ── Main Ledger Surfaces ── */
+/* ── MAIN CARD / PAPER ──────────────────────────────────────────
+   The frosted-glass surface that wraps the table and filters. */
 .fmc-main-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; transition: all 0.3s ease; }
 
 .fmc-light-mode .fmc-main-surface { 
@@ -26,7 +35,8 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
 }
 
-/* ── Header Construction ── */
+/* ── FILTER HEADER AREA ─────────────────────────────────────────
+   Contains the search bar row and the date/export row. */
 .fmc-header-area { 
     padding: 16px 24px; 
     border-bottom: 1px solid var(--mud-palette-divider); 
@@ -55,7 +65,9 @@
     max-width: 450px;
 }
 
-/* ── Premium Pill Search ── */
+/* ── PREMIUM PILL SEARCH BAR ───────────────────────────────────
+   Custom HTML input styled as a pill. Replaces MudTextField
+   Outlined variant because fieldset/legend clips border-radius. */
 .fmc-search-pill {
     display: flex;
     align-items: center;
@@ -102,6 +114,8 @@
     color: var(--mud-palette-text-primary);
 }
 
+/* ── ORCHESTRATION ROW ─────────────────────────────────────────
+   Houses date filter group + export buttons side by side. */
 .fmc-orchestration-row {
     display: flex;
     width: 100%;
@@ -114,7 +128,9 @@
     border-radius: 12px; display: flex; align-items: center; justify-content: center; 
 }
 
-/* ── Temporal Filter (Glass Variant) ── */
+/* ── TEMPORAL FILTER (GLASS VARIANT) ───────────────────────────
+   Contains quick-date buttons + custom date inputs.
+   Uses backdrop-filter for a glass-morphism effect. */
 .fmc-temporal-filter {
     display: flex;
     align-items: center;
@@ -122,7 +138,7 @@
     backdrop-filter: blur(8px);
     border-radius: 10px;
     padding: 4px;
-    width: fit-content; /* Hardened compactness */
+    width: fit-content; /* Keeps the filter compact on desktop */
 }
 
 .fmc-light-mode .fmc-temporal-filter {
@@ -149,22 +165,25 @@
 .fmc-raw-date { background: transparent; border: none; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 800; color: var(--mud-palette-text-primary); outline: none; cursor: pointer; }
 .fmc-date-sep { width: 1px; height: 20px; background: var(--mud-palette-divider); opacity: 0.5; }
 
-/* ── Custom Date Range ── */
+/* ── CUSTOM DATE RANGE ─────────────────────────────────────────
+   Wraps the two date inputs side by side. */
 .fmc-custom-date-wrap {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-/* ── Premium Action Toolbar (Consumes equal space) ── */
+/* ── EXPORT ACTION TOOLBAR ─────────────────────────────────────
+   Consumes remaining space so Excel and PDF buttons stretch
+   evenly on mobile. */
 .fmc-action-toolbar {
     display: flex;
     gap: 12px;
-    flex: 1; /* Consume remaining space */
+    flex: 1;
 }
 
 .fmc-premium-action {
-    flex: 1; /* Consume evenly */
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -202,19 +221,20 @@
 .fmc-premium-action.excel:hover { border-color: var(--mud-palette-success) !important; color: var(--mud-palette-success) !important; }
 .fmc-premium-action.pdf:hover { border-color: var(--mud-palette-error) !important; color: var(--mud-palette-error) !important; }
 
-/* ── Interactive Row Typography (High Visibility) ── */
+/* ── DESKTOP TABLE: ROW INTERACTION ────────────────────────────
+   Scaled typography on hover for visual feedback. */
 ::deep .mud-table-row { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); }
 ::deep .mud-table-row:hover .mud-typography,
 ::deep .mud-table-row:hover .fmc-status-badge,
 ::deep .mud-table-row:hover .fmc-money,
 ::deep .mud-table-row:hover .fmc-ledger-bar { 
-    transform: scale(1.05) !important; /* Significant enlargement */
+    transform: scale(1.05) !important;
     transform-origin: left center !important;
-    display: inline-block; /* Ensure transform applies correctly */
+    display: inline-block;
     transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1) !important;
 }
 
-/* Ensure right-aligned text scales from the right */
+/* Right-aligned content scales from the right */
 ::deep .mud-table-row:hover td[style*="text-align:right"] .mud-typography,
 ::deep .mud-table-row:hover td[style*="text-align:right"] .fmc-money {
     transform-origin: right center !important;
@@ -224,13 +244,15 @@
     transform-origin: center center !important;
 }
 
-/* ── Table & Forensic Typography (Deep Targeting) ── */
+/* ── TABLE OVERFLOW FIXES ─────────────────────────────────────
+   MudBlazor applies overflow-x:hidden on three nested containers.
+   We override on mobile to allow horizontal scroll (see @media 600px). */
 ::deep .mud-table { background: transparent !important; overflow-x: hidden !important; }
 ::deep .mud-table-root { background: transparent !important; }
 ::deep .mud-table-container { background: transparent !important; overflow-x: hidden !important; }
 ::deep .mud-table-inner-container { overflow-x: hidden !important; }
 
-/* Light Mode Deep Fixes */
+/* ── DESKTOP TABLE: LIGHT MODE ──────────────────────────────── */
 .fmc-light-mode ::deep .mud-th { 
     background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9)) !important;
     border-bottom: 2px solid rgba(var(--mud-palette-primary-rgb), 0.1) !important;
@@ -241,7 +263,7 @@
 }
 
 .fmc-light-mode ::deep .mud-table-row { 
-    background-color: rgba(0, 0, 0, 0.01) !important; /* Ultra-transparent for deep glass clarity */
+    background-color: rgba(0, 0, 0, 0.01) !important;
     transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -257,7 +279,7 @@
     box-shadow: 0 10px 25px rgba(var(--mud-palette-primary-rgb), 0.1), inset 0 0 0 1px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
 }
 
-/* Dark Mode Deep Fixes */
+/* ── DESKTOP TABLE: DARK MODE ───────────────────────────────── */
 .fmc-dark-mode ::deep .mud-th {
     background: rgba(var(--mud-palette-surface-rgb), 0.6) !important;
     backdrop-filter: blur(10px);
@@ -290,13 +312,13 @@
     box-shadow: 0 0 15px rgba(var(--mud-palette-primary-rgb), 0.6) !important;
 }
 
-/* ── Premium Entry Animations ── */
+/* ── ENTRY ANIMATIONS ─────────────────────────────────────────
+   Staggered row entrance for the desktop table. */
 @keyframes fmc-ledger-row-in {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Stagger the entry for rows (up to 10) */
 ::deep .fmc-premium-table .mud-table-row:nth-child(1) { animation-delay: 0.05s; }
 ::deep .fmc-premium-table .mud-table-row:nth-child(2) { animation-delay: 0.1s; }
 ::deep .fmc-premium-table .mud-table-row:nth-child(3) { animation-delay: 0.15s; }
@@ -306,7 +328,8 @@
 ::deep .fmc-premium-table .mud-table-row:nth-child(7) { animation-delay: 0.35s; }
 ::deep .fmc-premium-table .mud-table-row:nth-child(8) { animation-delay: 0.4s; }
 
-/* ── Skeletal Loading Shimmer ── */
+/* ── SKELETON LOADING SHIMMER ─────────────────────────────────
+   Applied to both desktop LoadingContent and mobile skeleton cards. */
 .fmc-skel { background: rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 4px; position: relative; overflow: hidden; }
 .fmc-skel::after {
     content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -329,12 +352,13 @@
     font-variant-numeric: tabular-nums !important; 
     letter-spacing: -0.05em !important; 
     font-weight: 950 !important; 
-    white-space: nowrap !important; /* Prevent money from wrapping */
+    white-space: nowrap !important;
 }
 
 .fmc-end-row ::deep td { border-bottom: none !important; }
 
-/* ── Status Pills ── */
+/* ── STATUS PILLS ──────────────────────────────────────────────
+   Color-coded badges for transaction status values. */
 .fmc-status-badge {
     display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 8px;
     font-weight: 900; font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;
@@ -343,7 +367,8 @@
 .fmc-status-badge.pending, .fmc-status-badge.mixed { background: rgba(var(--mud-palette-warning-rgb), 0.12); color: var(--mud-palette-warning); border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2); }
 .fmc-status-badge.error, .fmc-status-badge.failed, .fmc-status-badge.rejected, .fmc-status-badge.cancelled { background: rgba(var(--mud-palette-error-rgb), 0.12); color: var(--mud-palette-error); border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2); }
 
-/* ── Premium Empty State & End of Stream ── */
+/* ── EMPTY STATE & END-OF-STREAM ────────────────────────────────
+   Shared between desktop NoRecordsContent and mobile empty state. */
 .fmc-empty-state { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; overflow: hidden; }
 .fmc-empty-glow { position: absolute; width: 300px; height: 300px; background: radial-gradient(circle, rgba(var(--mud-palette-primary-rgb), 0.1) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 .fmc-empty-icon { font-size: 4rem !important; color: var(--mud-palette-primary); opacity: 0.4; animation: fmc-pulse-icon 3s infinite ease-in-out; }
@@ -359,7 +384,76 @@
     50% { transform: scale(1.1); opacity: 0.5; }
 }
 
-/* ── Responsive ── */
+/* ── PREMIUM SCANNER EMPTY STATE ───────────────────────────────
+   Animated radar/scanner icon used in the mobile empty state.
+   Replaces the static SearchOff icon with a live visual. */
+.premium-empty-state {
+    min-height: 300px;
+    background: rgba(var(--mud-palette-surface-rgb), 0.2);
+    border-radius: 16px;
+    border: 1px dashed rgba(var(--mud-palette-primary-rgb), 0.15);
+}
+.fmc-scanner-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.fmc-premium-empty-icon {
+    font-size: 2.5rem !important;
+    color: var(--mud-palette-primary);
+    z-index: 3;
+}
+.fmc-scanner-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.15);
+    pointer-events: none;
+}
+.fmc-scanner-ring.ring-1 {
+    width: 55px;
+    height: 55px;
+    animation: fmc-scanner-pulse-1 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fmc-scanner-ring.ring-2 {
+    width: 80px;
+    height: 80px;
+    animation: fmc-scanner-pulse-2 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fmc-scanner-line {
+    position: absolute;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--mud-palette-primary), transparent);
+    z-index: 2;
+    animation: fmc-scanner-sweep 2s infinite ease-in-out;
+}
+.fmc-gradient-text {
+    background: linear-gradient(135deg, var(--mud-palette-text-primary) 0%, rgba(var(--mud-palette-text-primary-rgb), 0.6) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+@keyframes fmc-scanner-pulse-1 {
+    0%, 100% { transform: scale(0.9); opacity: 0.3; }
+    50% { transform: scale(1.1); opacity: 0.6; }
+}
+@keyframes fmc-scanner-pulse-2 {
+    0%, 100% { transform: scale(0.95); opacity: 0.2; }
+    50% { transform: scale(1.15); opacity: 0.5; }
+}
+@keyframes fmc-scanner-sweep {
+    0% { transform: translateY(-25px); opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { transform: translateY(25px); opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVE: 960px BREAKPOINT
+   Stacks the identity row, filter row, and export row vertically.
+   ════════════════════════════════════════════════════════════════ */
 @media (max-width: 960px) {
     .fmc-identity-row { flex-direction: column; align-items: stretch; gap: 12px; }
     .fmc-identity-search { max-width: none; }
@@ -368,7 +462,11 @@
     .fmc-premium-action { padding: 12px; }
 }
 
-/* Premium Symmetrical Centered Tooltip for Transaction Table Rows */
+/* ══════════════════════════════════════════════════════════════════
+   ROW HOVER TOOLTIP (DESKTOP ONLY)
+   Appears on hover, positioned above or below the row.
+   Uses !important to pierce Blazor CSS isolation.
+   ════════════════════════════════════════════════════════════════ */
 ::deep .mud-table-row {
     position: relative !important;
     z-index: 1 !important;
@@ -384,7 +482,7 @@
     bottom: 115% !important;
     left: 50% !important;
     width: 320px !important;
-    background: #12121a !important; 
+    background: #1E1E1E !important; 
     border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
     border-radius: 12px !important;
     padding: 14px !important;
@@ -419,7 +517,7 @@ html:not(.dark) ::deep .tooltip-lbl {
     transform: translateX(-50%) translateY(0) scale(1) !important;
 }
 
-/* Downward positioning override for first three items to prevent layout clipping */
+/* Downward positioning for first 3 rows to prevent viewport clipping */
 ::deep .mud-table-row:nth-of-type(-n+3) .fmc-row-tooltip {
     bottom: auto !important;
     top: 115% !important;
@@ -431,7 +529,7 @@ html:not(.dark) ::deep .tooltip-lbl {
     transform: translateX(-50%) translateY(0) scale(1) !important;
 }
 
-/* Tooltip Internal Structure */
+/* ── TOOLTIP INTERNAL STRUCTURE ─────────────────────────────── */
 ::deep .fmc-row-tooltip .tooltip-header {
     font-size: 0.58rem !important;
     font-weight: 950 !important;
@@ -506,7 +604,11 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     color: rgba(0, 0, 0, 0.4) !important;
 }
 
-/* ── Mobile Transaction Cards ── */
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE: TRANSACTION CARDS
+   These replace the desktop MudTable when viewport ≤ 600px.
+   Each card shows: timestamp, subscriber, category, status, amount.
+   ════════════════════════════════════════════════════════════════ */
 .fmc-mobile-tx-list {
     display: flex;
     flex-direction: column;
@@ -549,6 +651,44 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     opacity: 0.5;
     color: var(--mud-palette-text-secondary);
 }
+.fmc-tx-card-status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.fmc-tx-card-status-tag.successful, .fmc-tx-card-status-tag.approved, .fmc-tx-card-status-tag.completed {
+    background: rgba(var(--mud-palette-success-rgb), 0.12);
+    color: var(--mud-palette-success);
+    border: 1px solid rgba(var(--mud-palette-success-rgb), 0.2);
+}
+.fmc-tx-card-status-tag.pending, .fmc-tx-card-status-tag.mixed {
+    background: rgba(var(--mud-palette-warning-rgb), 0.12);
+    color: var(--mud-palette-warning);
+    border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2);
+}
+.fmc-tx-card-status-tag.error, .fmc-tx-card-status-tag.failed, .fmc-tx-card-status-tag.rejected, .fmc-tx-card-status-tag.cancelled {
+    background: rgba(var(--mud-palette-error-rgb), 0.12);
+    color: var(--mud-palette-error);
+    border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2);
+}
+.fmc-tx-card-cat-tag {
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(var(--mud-palette-warning-rgb), 0.12);
+    color: var(--mud-palette-warning);
+    border: 1px solid rgba(var(--mud-palette-warning-rgb), 0.2);
+    flex-shrink: 0;
+    margin-left: auto;
+}
 .fmc-tx-card-bar {
     width: 3px;
     height: 18px;
@@ -569,6 +709,14 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     font-size: 0.7rem;
     font-weight: 800;
     color: var(--mud-palette-text-primary);
+    gap: 8px;
+    width: 100%;
+}
+.fmc-tx-card-subscriber-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .fmc-tx-card-account {
     font-size: 0.55rem;
@@ -649,15 +797,25 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     padding: 8px;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVE: 600px BREAKPOINT
+   - Hides the desktop MudTable, shows mobile card layout
+   - Stacks all filter controls vertically
+   - Reduces typography sizes
+   - Forces horizontal scroll on table if shown
+   ════════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
+
+    /* ── Container & Header ── */
     .fmc-ledger-root .mud-container {
-        margin-top: 4px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
         padding: 0 8px !important;
     }
-    .fmc-ledger-root .d-flex.align-center.justify-space-between.mb-8 {
+    .fmc-ledger-root .d-flex.align-center.justify-space-between.mb-4 {
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 8px !important;
+        gap: 4px;
+        margin-bottom: 4px !important;
     }
     .fmc-header-accent {
         width: 4px;
@@ -666,10 +824,13 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     }
     .fmc-hero-text {
         font-size: 0.95rem !important;
+        white-space: nowrap !important;
     }
     .fmc-subtitle {
         font-size: 0.6rem !important;
     }
+
+    /* ── Filter Header ── */
     .fmc-header-area {
         padding: 8px 12px;
         gap: 6px;
@@ -695,6 +856,8 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
         min-width: 0 !important;
         width: 100%;
     }
+
+    /* ── Date Filter & Export ── */
     .fmc-orchestration-row {
         flex-direction: column;
         gap: 6px;
@@ -704,12 +867,14 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
         flex-direction: column;
         gap: 4px;
         padding: 3px;
+        overflow: hidden;
     }
     .fmc-date-group {
         width: 100%;
         flex-wrap: wrap;
         justify-content: center;
         gap: 3px;
+        margin-right: 0 !important; /* Overrides mr-3 overflow */
     }
     .fmc-date-btn {
         font-size: 0.45rem;
@@ -740,6 +905,10 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     .fmc-premium-action .mud-icon-root {
         font-size: 0.75rem !important;
     }
+
+    /* ── Desktop Table Overrides ──
+       Compress cells, allow horizontal scroll via overflow-x:auto
+       on the middle container while keeping inner/outer visible. */
     ::deep .mud-th {
         font-size: 0.45rem !important;
         padding: 6px 4px !important;
@@ -798,6 +967,8 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
     ::deep .fmc-row-tooltip {
         width: 260px !important;
     }
+
+    /* ── Empty State (Mobile) ── */
     .fmc-empty-state {
         padding: 16px 12px;
         gap: 4px;
@@ -819,6 +990,31 @@ html:not(.dark) ::deep .fmc-row-tooltip .tooltip-footer {
         max-width: 220px;
         margin-top: 2px !important;
         opacity: 0.45;
+    }
+    .premium-empty-state {
+        min-height: 160px;
+        border-radius: 10px;
+    }
+    .fmc-scanner-container {
+        width: 56px;
+        height: 56px;
+    }
+    .fmc-scanner-ring.ring-1 {
+        width: 40px;
+        height: 40px;
+    }
+    .fmc-scanner-ring.ring-2 {
+        width: 56px;
+        height: 56px;
+    }
+    .fmc-scanner-line {
+        width: 42px;
+    }
+    .fmc-premium-empty-icon {
+        font-size: 1.6rem !important;
+    }
+    .fmc-gradient-text {
+        font-size: 0.75rem !important;
     }
     .fmc-end-text {
         font-size: 0.45rem;

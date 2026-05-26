@@ -40,13 +40,13 @@
             <MudGrid Spacing="2">
                 
                 <!-- Subscriber Info -->
-                <MudItem xs="6">
+                <MudItem xs="12" sm="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">SUBSCRIBER</MudText>
                     <MudText Typo="Typo.body2" Style="font-weight: 800;">@Transaction.Subscriber</MudText>
                 </MudItem>
                 
                 <!-- Account Number with Toggle Masking -->
-                <MudItem xs="6">
+                <MudItem xs="12" sm="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">ACCOUNT NUMBER</MudText>
                     <div class="d-flex align-center gap-1">
                         <MudText Typo="Typo.body2" Style="font-weight: 700; font-family: 'Roboto Mono', monospace;">
@@ -89,11 +89,11 @@
                 </MudItem>
                 
                 <!-- Maker and Reference Details -->
-                <MudItem xs="6">
+                <MudItem xs="12" sm="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">MAKER / INITIATOR</MudText>
                     <MudText Typo="Typo.body2" Style="font-weight: 700;">@Transaction.MakerName</MudText>
                 </MudItem>
-                <MudItem xs="6">
+                <MudItem xs="12" sm="6">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">REFERENCE ID</MudText>
                     <MudText Typo="Typo.body2" Style="font-size: 0.7rem; font-family: 'Roboto Mono', monospace;">@Transaction.Id.ToString().ToUpper()</MudText>
                 </MudItem>
@@ -101,13 +101,13 @@
                 <!-- Approver Details (Hidden while Pending) -->
                 @if (Transaction.Status != "Pending")
                 {
-                    <MudItem xs="6">
+                    <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">RESOLUTION AUTHORITY</MudText>
                         <MudText Typo="Typo.body2" Style="font-weight: 800; color: var(--mud-palette-info);">
                             @(Transaction.ApproverName ?? "System Auto-Settlement")
                         </MudText>
                     </MudItem>
-                    <MudItem xs="6">
+                    <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">
                             @(Transaction.Status switch {
                                 "Approved" or "Successful" => "APPROVED TIMESTAMP",
@@ -143,47 +143,45 @@
                 <div class="mt-2 pa-4 fmc-flow-surface d-flex align-center justify-space-between">
                     
                     <!-- Source Node -->
-                    <div class="d-flex flex-column align-center" style="width: 150px; z-index: 2;">
+                    <div class="d-flex flex-column align-center fmc-flow-node-wrapper">
                         <div class="fmc-flow-node source">
-                            <MudIcon Icon="@sourceIcon" Style="font-size: 1.2rem; color: var(--mud-palette-info);" />
+                            <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" Style="color: var(--mud-palette-info);" />
                         </div>
-                        <div class="mt-2 text-center" style="line-height: 1.1;">
-                            <MudText Style="font-weight: 800; font-size: 0.7rem; display: block;">@sourceName</MudText>
+                        <div class="mt-2 text-center fmc-flow-label">
+                            <MudText Class="fmc-flow-name">@sourceName</MudText>
                             @if (isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
                             {
-                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@GetMaskedAccount(_orgAccountNumber)</MudText>
+                                <MudText Class="fmc-flow-acct">@GetMaskedAccount(_orgAccountNumber)</MudText>
                             }
                             else if (!isCorporateToUser && !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "BATCH_SUMMARY" && Transaction.AccountNumber != "N/A")
                             {
-                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@cardholderIdentity</MudText>
+                                <MudText Class="fmc-flow-acct">@cardholderIdentity</MudText>
                             }
                         </div>
                     </div>
 
                     <!-- Animated Connector -->
-                    <div class="fmc-flow-connector flex-grow-1 mx-2" style="position: relative; z-index: 1; height: 2px; background: rgba(var(--mud-palette-info-rgb), 0.2); margin-top: -24px;">
+                    <div class="fmc-flow-connector mx-2">
                         <div class="fmc-flow-particle"></div>
                         <div class="fmc-flow-badge">
-                            <MudText Style="font-family:'Roboto Mono',monospace; font-weight:900; font-size:0.7rem; color: var(--mud-palette-info);">
-                                @absAmount.ToString("N2")
-                            </MudText>
+                            <MudText Class="fmc-flow-amount">@absAmount.ToString("N2")</MudText>
                         </div>
                     </div>
 
                     <!-- Destination Node -->
-                    <div class="d-flex flex-column align-center" style="width: 150px; z-index: 2;">
+                    <div class="d-flex flex-column align-center fmc-flow-node-wrapper">
                         <div class="fmc-flow-node dest">
-                            <MudIcon Icon="@destIcon" Style="font-size: 1.2rem; color: var(--mud-palette-success);" />
+                            <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" Style="color: var(--mud-palette-success);" />
                         </div>
-                        <div class="mt-2 text-center" style="line-height: 1.1;">
-                            <MudText Style="font-weight: 800; font-size: 0.7rem; display: block;">@destName</MudText>
+                        <div class="mt-2 text-center fmc-flow-label">
+                            <MudText Class="fmc-flow-name">@destName</MudText>
                             @if (!isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
                             {
-                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@GetMaskedAccount(_orgAccountNumber)</MudText>
+                                <MudText Class="fmc-flow-acct">@GetMaskedAccount(_orgAccountNumber)</MudText>
                             }
                             else if (isCorporateToUser && !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "BATCH_SUMMARY" && Transaction.AccountNumber != "N/A")
                             {
-                                <MudText Style="font-size: 0.55rem; font-family: 'Roboto Mono', monospace; opacity: 0.5;">@cardholderIdentity</MudText>
+                                <MudText Class="fmc-flow-acct">@cardholderIdentity</MudText>
                             }
                         </div>
                     </div>
@@ -203,43 +201,51 @@
             @if (Transaction.SubTransactions != null && Transaction.SubTransactions.Any())
             {
                 <div class="mt-6">
-                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--mud-palette-divider); border-radius: 12px; background: rgba(var(--mud-palette-surface-rgb), 0.5);">
-                        <MudTable Items="@Transaction.SubTransactions" Filter="new Func<TransactionDto, bool>(FilterBatchItem)" Dense="true" Hover="true" Elevation="0" Style="background: transparent;">
-                            <ToolBarContent>
-                                <div class="d-flex align-center gap-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
-                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
-                                </div>
-                                <MudSpacer />
-                                <MudTextField @bind-Value="_batchSearchString" Placeholder="Search cardholder or account..." 
-                                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" 
-                                              Style="min-width: 320px; background: rgba(var(--mud-palette-surface-rgb), 0.7); border-radius: 8px; font-weight: 500;" />
-                            </ToolBarContent>
+                    @* Shared toolbar *@
+                    <div class="d-flex align-center gap-2 fmc-batch-header mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
+                        <div class="flex-grow-1"></div>
+                        <div class="fmc-search-pill fmc-batch-search">
+                            <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
+                            <input type="text" class="fmc-search-pill-input" placeholder="Search cardholder or account..."
+                                   value="@_batchSearchString" @oninput="OnBatchSearchChanged" />
+                        </div>
+                    </div>
+
+                    @* Desktop: Table (sm and up) *@
+                    <div class="d-none d-sm-block fmc-batch-container">
+                        <MudTable Items="@Transaction.SubTransactions" Filter="new Func<TransactionDto, bool>(FilterBatchItem)" Dense="true" Hover="true" Elevation="0" Style="background: transparent;" HorizontalScrollbar="true">
+                            <ColGroup>
+                                <col style="width: 40px;" />
+                                <col style="width: 200px;" />
+                                <col style="width: 120px;" />
+                                <col style="width: 100px;" />
+                            </ColGroup>
                             <HeaderContent>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; width: 40px;">#</MudTh>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6;">CARDHOLDER</MudTh>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: right;">AMOUNT</MudTh>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: center;">STATUS</MudTh>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; width: 40px; min-width: 40px;">#</MudTh>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; width: 200px; min-width: 200px;">CARDHOLDER</MudTh>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: right; width: 120px; min-width: 120px;">AMOUNT</MudTh>
+                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: center; width: 100px; min-width: 100px;">STATUS</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="sub">
                                 <MudTd Style="opacity: 0.5; font-size: 0.75rem; font-family: 'Roboto Mono', monospace;">
                                     @((Transaction.SubTransactions!.IndexOf(sub) + 1).ToString("D2"))
                                 </MudTd>
                                 <MudTd>
-                                    <div class="d-flex flex-column">
-                                        <MudText Typo="Typo.body2" Style="font-weight: 700; font-size: 0.8rem;">@sub.Subscriber</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.65rem;">@GetMaskedAccount(sub.AccountNumber)</MudText>
+                                    <div class="d-flex gap-2" style="overflow: hidden;">
+                                        <MudText Typo="Typo.body2" Style="font-weight: 700; font-size: 0.8rem; white-space: nowrap;">@sub.Subscriber</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; white-space: nowrap;">@GetMaskedAccount(sub.AccountNumber)</MudText>
                                     </div>
                                 </MudTd>
                                 <MudTd Style="text-align: right;">
-                                    <MudText Typo="Typo.body2" Class="fmc-financial-mono" Style="font-weight: 800; font-size: 0.85rem;" 
+                                    <MudText Typo="Typo.body2" Class="fmc-financial-mono" Style="font-weight: 800; font-size: 0.85rem;"
                                              Color="@(sub.Amount < 0 ? Color.Error : Color.Success)">
                                         @sub.Amount.ToString("C2")
                                     </MudText>
                                 </MudTd>
                                 <MudTd Style="text-align: center;">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)" 
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)"
                                              Style="font-weight: 900; font-size: 0.6rem; margin: 0;">
                                         @sub.Status.ToUpper()
                                     </MudChip>
@@ -253,6 +259,45 @@
                                 </div>
                             </NoRecordsContent>
                         </MudTable>
+                    </div>
+
+                    @* Mobile: Cards (xs only) *@
+                    <div class="d-sm-none fmc-batch-container">
+                        @{
+                            var filteredItems = Transaction.SubTransactions.Where(s => FilterBatchItem(s)).ToList();
+                        }
+                        @if (filteredItems.Any())
+                        {
+                            @foreach (var sub in filteredItems)
+                            {
+                                var rowIndex = Transaction.SubTransactions.IndexOf(sub) + 1;
+                                <div class="fmc-batch-card">
+                                    <div class="fmc-batch-card-row">
+                                        <div class="fmc-batch-card-left">
+                                            <span class="fmc-batch-card-idx">@rowIndex.ToString("D2")</span>
+                                            <span class="fmc-batch-card-name">@sub.Subscriber</span>
+                                        </div>
+                                        <span class="fmc-batch-card-amount fmc-financial-mono"
+                                              style="color: @(sub.Amount < 0 ? "var(--mud-palette-error)" : "var(--mud-palette-success)");">
+                                            @sub.Amount.ToString("C2")
+                                        </span>
+                                    </div>
+                                    <div class="fmc-batch-card-acct">@GetMaskedAccount(sub.AccountNumber)</div>
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)"
+                                             Style="font-weight: 900; font-size: 0.6rem; margin: 0;">
+                                        @sub.Status.ToUpper()
+                                    </MudChip>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column align-center justify-center pa-6" style="opacity: 0.7;">
+                                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" Color="Color.Primary" />
+                                <MudText Typo="Typo.body2" Style="font-weight: 800;">No matching cardholders found</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Try adjusting your search keywords.</MudText>
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -282,6 +327,7 @@
     </DialogContent>
     
     <DialogActions>
+        <div class="d-flex fmc-dialog-actions">
         @if (_showSuccessOverlay)
         {
             <MudButton Variant="Variant.Filled"
@@ -296,25 +342,25 @@
         }
         else
         {
-            <MudButton OnClick="CloseDialog" Variant="Variant.Text" Style="font-weight: 800; text-transform:none;">Close</MudButton>
-            <MudSpacer />
-            
-            <MudButton Variant="Variant.Text" 
-                       StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
-                       OnClick="ExportDialogToPdf" 
-                       Class="mr-2"
-                       Disabled="@_isDownloadingPdf"
-                       Style="font-weight: 800; text-transform: none; color: var(--mud-palette-info);">
-                @if (_isDownloadingPdf)
-                {
-                    <MudProgressCircular Class="ms-n1 mr-2" Size="Size.Small" Indeterminate="true" />
-                    <span>Generating...</span>
-                }
-                else
-                {
-                    <span>Download PDF</span>
-                }
-            </MudButton>
+            <div class="d-flex align-center gap-2 fmc-action-row">
+                <MudButton OnClick="CloseDialog" Variant="Variant.Outlined" Class="fmc-action-close">Close</MudButton>
+                <MudSpacer />
+                <MudButton Variant="Variant.Outlined" 
+                           StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
+                           OnClick="ExportDialogToPdf" 
+                           Class="fmc-action-pdf"
+                           Disabled="@_isDownloadingPdf">
+                    @if (_isDownloadingPdf)
+                    {
+                        <MudProgressCircular Class="ms-n1 mr-2" Size="Size.Small" Indeterminate="true" />
+                        <span>Generating...</span>
+                    }
+                    else
+                    {
+                        <span>Download PDF</span>
+                    }
+                </MudButton>
+            </div>
 
             <!-- Action Buttons Contextual to User Role and Status -->
         @if (Transaction.Status == "Pending")
@@ -327,6 +373,7 @@
                            StartIcon="@Icons.Material.Filled.DeleteForever" 
                            OnClick="CancelTransactionAsync"
                            Disabled="@_processing"
+                           Class="fmc-action-cancel"
                            Style="font-weight: 800; text-transform:none; border-radius: 8px;">
                     @(_processing ? "Processing..." : "Cancel Request")
                 </MudButton>
@@ -338,54 +385,20 @@
                            Variant="Variant.Outlined" 
                            OnClick="@(() => ProcessDecisionAsync(approve: false))"
                            Disabled="@_processing"
+                           Class="fmc-action-reject"
                            Style="font-weight: 700; text-transform:none;">Reject</MudButton>
-                           
+                            
                 <MudButton Variant="Variant.Filled" 
                            OnClick="@(() => ProcessDecisionAsync(approve: true))"
                            Disabled="@_processing"
+                           Class="fmc-action-approve"
                            Style="background-color: #2e7d32; color: #ffffff; font-weight: 900; text-transform:none; border-radius: 8px;">Approve</MudButton>
             }
             }
         }
+        </div>
     </DialogActions>
 </MudDialog>
-
-<style>
-    .fmc-financial-mono { font-family: 'Roboto Mono', monospace; font-weight: 900; }
-    .fmc-flow-surface { background: rgba(var(--mud-palette-primary-rgb), 0.02); border-radius: 12px; border: 1px dashed var(--mud-palette-divider); position: relative; overflow: hidden; }
-    .fmc-flow-node { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--mud-palette-surface); border: 2px solid var(--mud-palette-divider); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    .fmc-flow-node.source { border-color: rgba(var(--mud-palette-info-rgb), 0.5); }
-    .fmc-flow-node.dest { border-color: rgba(var(--mud-palette-success-rgb), 0.5); }
-    
-    .fmc-flow-particle {
-        position: absolute;
-        top: -3px;
-        left: 0;
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--mud-palette-info);
-        box-shadow: 0 0 8px var(--mud-palette-info);
-        animation: flow-move 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    @@keyframes flow-move {
-        0% { left: 0; opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { left: 100%; opacity: 0; }
-    }
-    .fmc-flow-badge {
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--mud-palette-surface);
-        padding: 1px 8px;
-        border-radius: 10px;
-        border: 1px solid var(--mud-palette-divider);
-        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
-</style>
 
 @code {
     #region Parameters & Injections
@@ -440,7 +453,7 @@
     {
         // Resolve user roles once during component initialization
         var authState = await AuthStateTask;
-        _isApprover = authState.User.IsInRole(Roles.Approver);
+        _isApprover = authState.User.IsInRole(Roles.Approver) || authState.User.IsInRole(Roles.SuperAdminApprover);
 
         if (Transaction.OrganizationId.HasValue)
         {
@@ -513,6 +526,11 @@
     private void ToggleAccountMask()
     {
         _showFullAccount = !_showFullAccount;
+    }
+
+    private void OnBatchSearchChanged(ChangeEventArgs e)
+    {
+        _batchSearchString = e.Value?.ToString() ?? "";
     }
 
     private bool FilterBatchItem(TransactionDto sub)

@@ -561,7 +561,7 @@ public class OrganizationService : IOrganizationService
         bool txHasOrg = transaction.OrganizationId.HasValue && transaction.OrganizationId != Guid.Empty;
         bool sameOrg = !txHasOrg || (approver != null && approver.OrganizationId == transaction.OrganizationId);
         
-        if (approver == null || (!sameOrg && !_currentUserService.IsSuperAdmin))
+        if (approver == null || (!sameOrg && !_currentUserService.IsSuperAdmin && !_currentUserService.IsSuperAdminApprover))
         {
             await _auditService.RecordFinancialEventAsync("APPROVAL_BLOCKED", transaction.OrganizationId ?? Guid.Empty, targetName, transaction.Amount, "Residency Violation: Approver belongs to different organization.", approverId, null, transaction.TenantId);
             throw new ApplicationException("Organizational Security: You can only approve transactions for your own organization.");

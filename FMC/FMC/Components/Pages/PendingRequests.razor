@@ -10,7 +10,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ThemeService ThemeService
-@attribute [Authorize(Roles = "SuperAdmin,CEO,Maker,Approver")]
+@attribute [Authorize(Roles = "SuperAdmin,CEO,Maker,Approver,SuperAdminApprover")]
 
 <div class="fmc-ops-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-12">
@@ -605,7 +605,7 @@
         var user = authState.User;
         
         // Resolve RBAC permissions
-        _isApprover = user.IsInRole(Roles.Approver);
+        _isApprover = user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdminApprover);
         _isMaker = user.IsInRole(Roles.Maker);
         _isCeo = user.IsInRole(Roles.CEO);
         _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

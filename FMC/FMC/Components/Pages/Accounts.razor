@@ -5,7 +5,7 @@
 @using MudBlazor.Services
 @implements IAsyncDisposable
 @implements IBrowserViewportObserver
-@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+@attribute [Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
 @inject FMC.Services.Api.AdminService AdminService
 @inject FMC.Services.Api.OrganizationApiService OrganizationService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -571,17 +571,27 @@
                 </MudText>
                 @if (totalCardholders > pageSize && pageSize > 0)
                 {
-                    <div class="d-flex gap-2">
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" 
-                                       Disabled="@(_mobileCardholderPage <= 0)"
+                    var isFirstPage = _mobileCardholderPage <= 0;
+                    var isLastPage = _mobileCardholderPage >= totalPages - 1;
+                    <div class="d-flex gap-1">
+                        <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small"
+                                       Disabled="@isFirstPage"
+                                       OnClick="@(() => { _mobileCardholderPage = 0; })"
+                                       Style="width:24px;height:24px;" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"
+                                       Disabled="@isFirstPage"
                                        OnClick="@(() => { if (_mobileCardholderPage > 0) { _mobileCardholderPage--; } })"
                                        Style="width:24px;height:24px;" />
                         <MudText Typo="Typo.caption" Style="font-size:0.5rem; opacity:0.5; align-self:center;">
                             @(_mobileCardholderPage + 1) / @totalPages
                         </MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" 
-                                       Disabled="@(_mobileCardholderPage >= totalPages - 1)"
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                                       Disabled="@isLastPage"
                                        OnClick="@(() => { if (_mobileCardholderPage < totalPages - 1) { _mobileCardholderPage++; } })"
+                                       Style="width:24px;height:24px;" />
+                        <MudIconButton Icon="@Icons.Material.Filled.LastPage" Size="Size.Small"
+                                       Disabled="@isLastPage"
+                                       OnClick="@(() => { _mobileCardholderPage = totalPages - 1; })"
                                        Style="width:24px;height:24px;" />
                     </div>
                 }
@@ -621,16 +631,33 @@
                 </div>
             }
 
+            @if (totalCardholders > 0 && pageSize > 0 && (_mobileCardholderPage + 1) * pageSize >= totalCardholders)
+            {
+                <div class="d-flex align-center justify-center gap-3 my-4" style="opacity:0.5;">
+                    <div style="flex:1; height:1px; background: linear-gradient(90deg, transparent, var(--mud-palette-divider), transparent); max-width:100px;"></div>
+                    <MudText Typo="Typo.caption" Style="font-family:'JetBrains Mono',monospace; font-size:0.55rem; font-weight:950; letter-spacing:0.3em;">END OF CARDHOLDER REGISTRY</MudText>
+                    <div style="flex:1; height:1px; background: linear-gradient(90deg, transparent, var(--mud-palette-divider), transparent); max-width:100px;"></div>
+                </div>
+            }
+
             @if (totalCardholders > pageSize)
             {
+                var isFirstPage = _mobileCardholderPage <= 0;
+                var isLastPage = _mobileCardholderPage >= totalPages - 1;
                 <div class="fmc-mobile-pagination mt-3">
-                    <div class="d-flex justify-center align-center gap-3">
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@(_mobileCardholderPage <= 0)"
+                    <div class="d-flex justify-center align-center gap-2">
+                        <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Disabled="@isFirstPage"
+                                       OnClick="@(() => { _mobileCardholderPage = 0; })"
+                                       Variant="Variant.Outlined" Size="Size.Small" />
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@isFirstPage"
                                        OnClick="@(() => { if (_mobileCardholderPage > 0) { _mobileCardholderPage--; } })"
                                        Variant="Variant.Outlined" Size="Size.Small" />
                         <MudText Typo="Typo.caption" Style="font-size:0.6rem; font-weight:800;">@(_mobileCardholderPage + 1) / @totalPages</MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(_mobileCardholderPage >= totalPages - 1)"
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@isLastPage"
                                        OnClick="@(() => { if (_mobileCardholderPage < totalPages - 1) { _mobileCardholderPage++; } })"
+                                       Variant="Variant.Outlined" Size="Size.Small" />
+                        <MudIconButton Icon="@Icons.Material.Filled.LastPage" Disabled="@isLastPage"
+                                       OnClick="@(() => { _mobileCardholderPage = totalPages - 1; })"
                                        Variant="Variant.Outlined" Size="Size.Small" />
                     </div>
                 </div>
@@ -638,9 +665,16 @@
 
             @if (totalCardholders == 0 && !string.IsNullOrWhiteSpace(_searchString))
             {
-                <div class="d-flex flex-column align-center py-6">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Style="font-size:2rem; opacity:0.3;" />
-                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">No cardholders match your search</MudText>
+                <div class="fmc-empty-state premium-empty-state pa-6 d-flex flex-column align-center justify-center">
+                    <div class="fmc-empty-glow"></div>
+                    <div class="fmc-scanner-container mb-3">
+                        <div class="fmc-scanner-ring ring-1"></div>
+                        <div class="fmc-scanner-ring ring-2"></div>
+                        <div class="fmc-scanner-line"></div>
+                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Class="fmc-premium-empty-icon" />
+                    </div>
+                    <MudText Typo="Typo.h6" Class="fmc-empty-title fmc-gradient-text" Style="font-weight: 900; letter-spacing: -0.02em;">No Matching Cardholder Records</MudText>
+                    <MudText Typo="Typo.body2" Class="fmc-empty-subtitle mt-2">Your search query did not yield any results in the registry.</MudText>
                 </div>
             }
         </div>

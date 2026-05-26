@@ -1,3 +1,4 @@
+/* ── Success/Error Overlays ── */
 .fmc-success-overlay {
     position: absolute;
     inset: 0;
@@ -77,4 +78,350 @@
 }
 .fmc-success-overlay.rejected .fmc-success-icon {
     color: var(--mud-palette-error);
+}
+
+/* ── Liquidity Flow Diagram ── */
+.fmc-financial-mono {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 900;
+}
+
+.fmc-flow-surface {
+    background: rgba(var(--mud-palette-primary-rgb), 0.02);
+    border-radius: 12px;
+    border: 1px dashed var(--mud-palette-divider);
+    position: relative;
+}
+
+.fmc-flow-node {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mud-palette-surface);
+    border: 2px solid var(--mud-palette-divider);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.fmc-flow-node.source { border-color: rgba(var(--mud-palette-info-rgb), 0.5); }
+.fmc-flow-node.dest { border-color: rgba(var(--mud-palette-success-rgb), 0.5); }
+
+.fmc-flow-node-icon { font-size: 1.2rem; }
+
+.fmc-flow-node-wrapper {
+    width: 150px;
+    z-index: 2;
+}
+
+.fmc-flow-label { line-height: 1.1; }
+
+.fmc-flow-name {
+    font-weight: 800;
+    font-size: 0.7rem;
+    display: block;
+}
+
+.fmc-flow-acct {
+    font-size: 0.55rem;
+    font-family: 'Roboto Mono', monospace;
+    opacity: 0.5;
+}
+
+.fmc-flow-connector {
+    position: relative;
+    z-index: 1;
+    height: 2px;
+    flex: 1 1 auto;
+    background: rgba(var(--mud-palette-info-rgb), 0.2);
+    margin-top: -24px;
+}
+
+.fmc-flow-particle {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mud-palette-info);
+    box-shadow: 0 0 8px var(--mud-palette-info);
+    animation: flow-move 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes flow-move {
+    0% { left: 0; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}
+
+@keyframes flow-move-vertical {
+    0% { top: 0; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+.fmc-flow-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--mud-palette-surface);
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--mud-palette-divider);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.fmc-flow-amount {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 900;
+    font-size: 0.7rem;
+    color: var(--mud-palette-info);
+}
+
+/* ── Batch Search Bar (Premium Pill) ── */
+.fmc-batch-search {
+    min-width: 200px;
+}
+
+.fmc-search-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-radius: 100px;
+    border: 1.5px solid rgba(var(--mud-palette-primary-rgb), 0.15);
+    background: rgba(var(--mud-palette-primary-rgb), 0.03);
+    transition: all 0.3s ease;
+    height: 36px;
+}
+.fmc-search-pill:hover {
+    border-color: rgba(var(--mud-palette-primary-rgb), 0.35);
+}
+.fmc-search-pill:focus-within {
+    border-color: var(--mud-palette-primary);
+    box-shadow: 0 0 0 4px rgba(var(--mud-palette-primary-rgb), 0.12), 0 4px 16px rgba(var(--mud-palette-primary-rgb), 0.1);
+}
+.fmc-search-pill-icon {
+    color: var(--mud-palette-primary);
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+    flex-shrink: 0;
+}
+.fmc-search-pill:focus-within .fmc-search-pill-icon {
+    opacity: 1;
+}
+.fmc-search-pill-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    color: var(--mud-palette-text-primary);
+    padding: 0;
+    min-width: 0;
+}
+.fmc-search-pill-input::placeholder {
+    font-weight: 500;
+    opacity: 0.5;
+    letter-spacing: 0.02em;
+    color: var(--mud-palette-text-primary);
+}
+
+/* ── Dialog Actions ── */
+.fmc-dialog-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fmc-action-close,
+.fmc-action-pdf,
+.fmc-action-cancel,
+.fmc-action-reject,
+.fmc-action-approve {
+    font-weight: 800 !important;
+    text-transform: none !important;
+}
+
+.fmc-action-close {
+    color: #C8923D !important;
+    border-color: rgba(200, 146, 61, 0.35) !important;
+    transition: all 0.2s ease;
+}
+.fmc-action-close:hover {
+    border-color: #C8923D !important;
+    background: rgba(200, 146, 61, 0.08) !important;
+}
+
+.fmc-action-pdf {
+    color: #3A6B7C !important;
+    border-color: rgba(58, 107, 124, 0.35) !important;
+    transition: all 0.2s ease;
+}
+.fmc-action-pdf:hover {
+    border-color: #3A6B7C !important;
+    background: rgba(58, 107, 124, 0.08) !important;
+}
+
+/* ── MOBILE (xs: <600px) ── */
+@media (max-width: 600px) {
+    .fmc-flow-surface {
+        flex-direction: column !important;
+        align-items: center !important;
+        padding: 24px 20px !important;
+    }
+
+    .fmc-flow-node {
+        width: 48px !important;
+        height: 48px !important;
+    }
+
+    .fmc-flow-node-icon {
+        font-size: 1.4rem !important;
+    }
+
+    .fmc-flow-node-wrapper {
+        width: 100% !important;
+        max-width: 220px;
+    }
+
+    .fmc-flow-name {
+        font-size: 0.8rem !important;
+    }
+
+    .fmc-flow-acct {
+        font-size: 0.65rem !important;
+    }
+
+    .fmc-flow-connector {
+        width: 3px !important;
+        height: 80px !important;
+        flex: 0 0 auto !important;
+        margin: 16px 0 !important;
+        margin-top: 0 !important;
+    }
+
+    .fmc-flow-particle {
+        width: 8px !important;
+        height: 8px !important;
+        top: 0 !important;
+        left: -2.5px !important;
+        animation: flow-move-vertical 2s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .fmc-flow-badge {
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        padding: 4px 14px !important;
+    }
+
+    .fmc-flow-amount {
+        font-size: 0.85rem !important;
+    }
+
+    .fmc-batch-search {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .fmc-batch-header {
+        flex-wrap: wrap;
+    }
+    .fmc-batch-header .mud-typography-subtitle2 {
+        font-size: 0.7rem !important;
+    }
+    .fmc-batch-card-row {
+        flex-wrap: wrap;
+    }
+
+    .fmc-dialog-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .fmc-dialog-actions > * {
+        width: 100%;
+    }
+
+    .fmc-action-row {
+        width: 100%;
+    }
+
+    .fmc-action-cancel,
+    .fmc-action-reject,
+    .fmc-action-approve {
+        width: 100%;
+    }
+}
+
+/* ── Batch Container and Cards (mobile) ── */
+.fmc-batch-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--mud-palette-divider);
+    border-radius: 12px;
+    background: rgba(var(--mud-palette-surface-rgb), 0.5);
+}
+
+.fmc-batch-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+}
+.fmc-batch-card:last-child {
+    border-bottom: none;
+}
+
+.fmc-batch-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.fmc-batch-card-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.fmc-batch-card-idx {
+    opacity: 0.5;
+    font-size: 0.7rem;
+    font-family: 'Roboto Mono', monospace;
+    flex-shrink: 0;
+}
+
+.fmc-batch-card-name {
+    font-weight: 700;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fmc-batch-card-amount {
+    font-weight: 800;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.fmc-batch-card-acct {
+    font-size: 0.65rem;
+    color: var(--mud-palette-text-secondary);
+    font-family: 'Roboto Mono', monospace;
+    padding-left: 38px;
 }

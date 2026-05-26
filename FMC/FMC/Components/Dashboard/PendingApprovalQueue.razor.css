@@ -209,7 +209,7 @@ body:not(.mud-dark) .fmc-row-tooltip {
     bottom: 115%; /* Default upward position for rows 4+ */
     left: 50%; /* Center horizontally relative to the entire table row */
     width: 320px;
-    background: #12121a !important; /* Rich solid opaque dark background matches UI and prevents transparency bleed */
+    background: #1E1E1E !important; /* Rich solid opaque dark background matches UI and prevents transparency bleed */
     border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.25) !important;
     border-radius: 12px;
     padding: 14px;

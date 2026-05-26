@@ -177,6 +177,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Roles.CEO, policy => policy.RequireRole(Roles.CEO, Roles.SuperAdmin));
     options.AddPolicy(Roles.Maker, policy => policy.RequireRole(Roles.Maker));
     options.AddPolicy(Roles.Approver, policy => policy.RequireRole(Roles.Approver));
+    options.AddPolicy(Roles.SuperAdminApprover, policy => policy.RequireRole(Roles.SuperAdminApprover, Roles.Approver));
 });
 
 // Database with built-in EF Core transient fault retry (SQL Server)

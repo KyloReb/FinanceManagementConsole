@@ -580,7 +580,8 @@ public class IdentityService : IIdentityService
             FMC.Shared.Auth.Roles.CEO, 
             FMC.Shared.Auth.Roles.Maker, 
             FMC.Shared.Auth.Roles.Approver, 
-            FMC.Shared.Auth.Roles.User 
+            FMC.Shared.Auth.Roles.User,
+            FMC.Shared.Auth.Roles.SuperAdminApprover
         };
 
         var intersect = currentRoles.Intersect(rolesToRemove).ToList();

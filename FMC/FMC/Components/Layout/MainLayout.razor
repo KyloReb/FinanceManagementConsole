@@ -37,7 +37,7 @@
         <MudSpacer />
 
         @* ── NOTIFICATION BELL ── *@
-        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver}")" Context="notifState">
+        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover})" Context="notifState">
             <Authorized>
                 <MudMenu @bind-Open="_notifOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
                          Dense="true" PopoverClass="fmc-notif-popover mud-elevation-25">
@@ -371,6 +371,70 @@
     .fmc-user-item.logout-action:hover { background: rgba(var(--mud-palette-error-rgb), 0.05) !important; }
     .fmc-user-item.logout-action ::deep .mud-list-item-icon { color: var(--mud-palette-error) !important; }
     .fmc-logout-text { font-weight: 950 !important; color: var(--mud-palette-error); letter-spacing: 0.02em; }
+
+    /* ── MOBILE NOTIFICATION PANEL (PREMIUM) ── */
+    @@media (max-width: 600px) {
+        .fmc-notif-popover .mud-popover {
+            max-width: calc(100vw - 16px) !important;
+            margin: 0 8px !important;
+        }
+        .fmc-notif-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 16px !important;
+            background: rgba(var(--mud-palette-surface-rgb), 0.92) !important;
+            backdrop-filter: blur(24px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.2), 0 0 0 1px rgba(var(--mud-palette-primary-rgb), 0.08) !important;
+        }
+        .fmc-notif-header {
+            padding: 16px 16px 8px !important;
+        }
+        .fmc-notif-header .mud-typography-h6 {
+            font-size: 1rem !important;
+        }
+        .fmc-notif-tabs {
+            padding: 0 8px !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .fmc-notif-tab {
+            font-size: 0.7rem !important;
+            padding: 6px 10px !important;
+            white-space: nowrap;
+        }
+        .fmc-notif-body {
+            padding: 8px !important;
+            max-height: 60vh !important;
+        }
+        .fmc-notif-item {
+            padding: 14px !important;
+            margin-bottom: 10px !important;
+            border-radius: 14px !important;
+            border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.06) !important;
+            background: rgba(var(--mud-palette-background-rgb), 0.6) !important;
+            transition: all 0.2s ease;
+        }
+        .fmc-notif-item:active {
+            transform: scale(0.98);
+            background: rgba(var(--mud-palette-primary-rgb), 0.04) !important;
+        }
+        .fmc-notif-item .mud-typography-body1 {
+            font-size: 0.8rem !important;
+        }
+        .fmc-notif-item .mud-typography-body2 {
+            font-size: 0.7rem !important;
+        }
+        .fmc-notif-action {
+            padding-top: 10px !important;
+        }
+        .fmc-notif-action span {
+            font-size: 0.75rem !important;
+        }
+        .fmc-notif-empty {
+            padding: 24px 16px !important;
+        }
+    }
 </style>
 
 @code {

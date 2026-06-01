@@ -124,7 +124,7 @@
                             <RowTemplate Context="row">
                                 <MudTd>@row.RowNumber</MudTd>
                                 <MudTd><b class="fmc-text-sm" style="white-space: nowrap;">@row.Subscriber</b></MudTd>
-                                <MudTd><code class="fmc-card-code-mini" style="white-space: nowrap;">@MaskCard(row.CardNumber)</code></MudTd>
+                                <MudTd><code class="fmc-card-code-mini" style="white-space: nowrap;">@FinanceUtils.MaskCard(row.CardNumber)</code></MudTd>
                                 <MudTd>
                                     <span class="fmc-amount-sm fmc-financial-mono @(_isCredit ? "credit" : "debit")" style="white-space: nowrap;">
                                         @(_isCredit ? "+" : "-")₱@row.Amount.ToString("N2")
@@ -452,18 +452,6 @@
         return $"{baseUrl}/api/excel/download-template";
     }
 
-    /// <summary>
-    /// Utility to mask 16-digit card numbers for security while maintaining auditability.
-    /// Shows first 6 and last 4 digits.
-    /// </summary>
-    private string MaskCard(string? card)
-    {
-        if (string.IsNullOrEmpty(card)) return "N/A";
-        if (card.Length < 10) return card;
-        return $"{card[..6]}••••{card[^4..]}";
-    }
-
-    /// <summary>
     /// Orchestrates the initial file ingestion and analysis.
     /// Converts the browser file to a stream and invokes the parsing service.
     /// </summary>

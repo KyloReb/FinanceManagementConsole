@@ -31,7 +31,7 @@
         @if (_isCEOOrAdmin)
         {
             <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" 
-                       Size="Size.Large" Class="fmc-acc-action-btn" OnClick="OpenCreateUserDialog">CREATE NEW ACCOUNT</MudButton>
+                       Size="Size.Large" Class="fmc-acc-action-btn d-none d-sm-flex" OnClick="OpenCreateUserDialog">CREATE NEW ACCOUNT</MudButton>
         }
     </div>
 
@@ -406,7 +406,7 @@
                                             <div class="fmc-status-dot @GetStatusClass(cardholder)"></div>
                                         </MudTooltip>
                                     </div>
-                                    <MudText Typo="Typo.caption" Class="fmc-card-mono">@MaskCard(cardholder.AccountNumber)</MudText>
+                                    <MudText Typo="Typo.caption" Class="fmc-card-mono">@FinanceUtils.MaskCard(cardholder.AccountNumber)</MudText>
                                 </div>
                             </div>
                         </MudTd>
@@ -474,33 +474,46 @@
                 </div>
                 @foreach (var orgGroup in FilteredStaff.GroupBy(s => s.Organization ?? "SYSTEM CORE").OrderBy(g => g.Key))
                 {
-                    <MudText Typo="Typo.caption" Class="fmc-mobile-org-header">@orgGroup.Key.ToUpper()</MudText>
-                    @foreach (var staff in orgGroup)
+                    var orgKey = orgGroup.Key;
+                    var isExpanded = IsOrgExpanded(orgKey);
+                    <div class="fmc-mobile-org-header d-flex align-center justify-space-between cursor-pointer" @onclick="() => ToggleOrgGroup(orgKey)">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Style="color: var(--fmc-accent-premium); opacity: 0.7;" />
+                            <MudText Typo="Typo.caption" Style="font-weight: 900;">@orgKey.ToUpper()</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
+                                     Style="height: 16px; font-size: 0.45rem; padding: 0 5px;">@orgGroup.Count()</MudChip>
+                        </div>
+                        <MudIcon Icon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" Class="mud-text-secondary" />
+                    </div>
+                    if (isExpanded)
                     {
-                        <div class="fmc-acc-mobile-card cursor-pointer mb-2" @onclick="@(() => Navigation.NavigateTo($"/profile/{staff.Id}"))">
-                            <div class="pa-3">
-                                <div class="d-flex justify-space-between align-start">
-                                    <div class="d-flex gap-3 flex-grow-1" style="min-width:0;">
-                                        <div style="position: relative;">
-                                            <MudAvatar Color="Color.Default" Class="@($"fmc-avatar-{GetAvatarIndex(staff.DisplayName)}")" Style="color: white; font-weight: 950; width: 36px; height: 36px; font-size:0.75rem;">@(GetInitials(staff))</MudAvatar>
-                                            <div style="position: absolute; bottom: 0; right: 0; width: 9px; height: 9px; background: @(staff.IsActive ? "var(--mud-palette-success)" : "var(--mud-palette-error)"); border-radius: 50%; border: 2px solid var(--mud-palette-surface);"></div>
-                                        </div>
-                                        <div class="d-flex flex-column" style="min-width:0;">
-                                            <div class="d-flex align-center gap-2">
-                                                <MudText Typo="Typo.body2" Style="font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@staff.DisplayName</MudText>
-                                                @if (!staff.IsActive)
-                                                {
-                                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled"
-                                                             Style="height: 14px; font-size:0.45rem; padding: 0 4px; flex-shrink:0;">SUSPENDED</MudChip>
-                                                }
+                        @foreach (var staff in orgGroup)
+                        {
+                            <div class="fmc-acc-mobile-card cursor-pointer mb-2" @onclick="@(() => Navigation.NavigateTo($"/profile/{staff.Id}"))">
+                                <div class="pa-3">
+                                    <div class="d-flex justify-space-between align-start">
+                                        <div class="d-flex gap-3 flex-grow-1" style="min-width:0;">
+                                            <div style="position: relative;">
+                                                <MudAvatar Color="Color.Default" Class="@($"fmc-avatar-{GetAvatarIndex(staff.DisplayName)}")" Style="color: white; font-weight: 950; width: 36px; height: 36px; font-size:0.75rem;">@(GetInitials(staff))</MudAvatar>
+                                                <div style="position: absolute; bottom: 0; right: 0; width: 9px; height: 9px; background: @(staff.IsActive ? "var(--mud-palette-success)" : "var(--mud-palette-error)"); border-radius: 50%; border: 2px solid var(--mud-palette-surface);"></div>
                                             </div>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.6rem !important;">@staff.Email</MudText>
+                                            <div class="d-flex flex-column" style="min-width:0;">
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudText Typo="Typo.body2" Style="font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@staff.DisplayName</MudText>
+                                                    @if (!staff.IsActive)
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled"
+                                                                 Style="height: 14px; font-size:0.45rem; padding: 0 4px; flex-shrink:0;">SUSPENDED</MudChip>
+                                                    }
+                                                </div>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.6rem !important;">@staff.Email</MudText>
+                                            </div>
                                         </div>
+                                        <span class="fmc-role-tag s-small @(staff.Role == Roles.SuperAdmin ? "admin" : (staff.Role == Roles.CEO ? "ceo" : (staff.Role == Roles.Maker ? "maker" : "approver")))" style="flex-shrink:0;">@staff.Role</span>
                                     </div>
-                                    <span class="fmc-role-tag s-small @(staff.Role == Roles.SuperAdmin ? "admin" : (staff.Role == Roles.CEO ? "ceo" : (staff.Role == Roles.Maker ? "maker" : "approver")))" style="flex-shrink:0;">@staff.Role</span>
                                 </div>
                             </div>
-                        </div>
+                        }
                     }
                 }
             }
@@ -609,7 +622,7 @@
                                         <MudText Typo="Typo.body1" Inline="true" Style="font-weight:950; letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@user.DisplayName</MudText>
                                         <div class="fmc-status-dot @GetStatusClass(user) s-mobile"></div>
                                     </div>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary fmc-mobile-acc-number">@(MaskCard(user.AccountNumber))</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary fmc-mobile-acc-number">@(FinanceUtils.MaskCard(user.AccountNumber))</MudText>
                                 </div>
                             </div>
                             <div class="text-right d-flex flex-column align-end" style="flex-shrink:0;">
@@ -713,6 +726,12 @@
     private void ToggleStaffSection() 
     {
         _mobileStaffExpanded = !_mobileStaffExpanded;
+    }
+
+    private void ToggleOrgGroup(string orgKey)
+    {
+        if (_expandedGroups.Contains(orgKey)) _expandedGroups.Remove(orgKey);
+        else _expandedGroups.Add(orgKey);
     }
 
     private void OnSearchChanged(ChangeEventArgs e)
@@ -837,13 +856,6 @@
                           (string.IsNullOrWhiteSpace(_staffSearchString) || 
                            u.DisplayName.Contains(_staffSearchString, StringComparison.OrdinalIgnoreCase) ||
                            (u.Email ?? "").Contains(_staffSearchString, StringComparison.OrdinalIgnoreCase))) ?? Enumerable.Empty<UserDto>();
-
-    private string MaskCard(string? number)
-    {
-        if (string.IsNullOrWhiteSpace(number) || number.Length < 10) return "UNAVAILABLE";
-        // Display 6-XXXXX-4 format
-        return $"{number.Substring(0, 6)} • • • {number.Substring(number.Length - 4)}";
-    }
 
     private string GetStatusClass(UserDto user)
     {

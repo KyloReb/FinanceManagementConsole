@@ -92,7 +92,7 @@
                                         </MudAvatar>
                                         <div style="overflow:hidden">
                                             <MudText Typo="Typo.caption" Style="font-weight:800;" Class="d-block truncate">@ch.DisplayName</MudText>
-                                            <MudText Typo="Typo.caption" Style="font-size:0.6rem; opacity:0.6;" Class="d-block">@MaskCard(ch.AccountNumber)</MudText>
+                                            <MudText Typo="Typo.caption" Style="font-size:0.6rem; opacity:0.6;" Class="d-block">@FinanceUtils.MaskCard(ch.AccountNumber)</MudText>
                                         </div>
                                     </div>
                                     <MudIcon Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Small" Color="Color.Primary" />
@@ -205,7 +205,7 @@
                             </div>
                         </MudTd>
                         <MudTd DataLabel="Card">
-                            <code class="fmc-card-code">@MaskCard(row.CardNumber)</code>
+                            <code class="fmc-card-code">@FinanceUtils.MaskCard(row.CardNumber)</code>
                         </MudTd>
                         <MudTd DataLabel="Amount">
                             <div class="fmc-editable-amount-wrapper fmc-financial-mono">
@@ -461,18 +461,6 @@
         return false;
     }
 
-    /// <summary>
-    /// Utility to mask 16-digit card numbers for security while maintaining auditability.
-    /// Shows first 6 and last 4 digits.
-    /// </summary>
-    private string MaskCard(string? card)
-    {
-        if (string.IsNullOrEmpty(card)) return "N/A";
-        if (card.Length < 10) return card;
-        return $"{card[..6]}••••{card[^4..]}";
-    }
-
-    /// <summary>
     /// Opens a dialog to edit the full details of a specific allocation row.
     /// </summary>
     private async Task EditRow(BulkTransactionRowDto row)

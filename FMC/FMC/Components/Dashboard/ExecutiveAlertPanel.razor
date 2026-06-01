@@ -26,25 +26,25 @@
         border-radius: 10px; display: flex; align-items: center; justify-content: center;
     }
     .fmc-alert-grid { 
-        display: grid; 
-        grid-template-columns: 1fr 1fr; 
+        display: flex; 
+        flex-direction: column;
+        gap: 0;
     }
     .fmc-alert-grid.fmc-single-col {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
     }
-    .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-right: 1px solid var(--mud-palette-divider); }
+    .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-bottom: 1px solid var(--mud-palette-divider); }
     @@media (max-width: 600px) {
-        .fmc-alert-grid { 
-            grid-template-columns: 1fr 1fr; 
-        }
-        .fmc-alert-grid.fmc-single-col {
-            grid-template-columns: 1fr;
-        }
-        .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-right: 1px solid var(--mud-palette-divider); }
+        .fmc-alert-grid { display: flex; flex-direction: column; }
+        .fmc-alert-grid.fmc-single-col { display: flex; flex-direction: column; }
+        .fmc-alert-grid:not(.fmc-single-col) .fmc-alert-column-left { border-bottom: 1px solid var(--mud-palette-divider); border-right: none; }
         .fmc-alert-column-left,
-        .fmc-alert-column-right { min-width: 0; overflow: hidden; }
+        .fmc-alert-column-right { min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
     }
-    .fmc-alert-list-hub { display: flex; flex-direction: column; overflow: hidden; }
+    .fmc-alert-column-left,
+    .fmc-alert-column-right { display: flex; flex-direction: column; min-height: 0; }
+    .fmc-alert-list-hub { display: flex; flex-direction: column; flex: 1; min-height: 0; background: rgba(var(--mud-palette-surface-rgb), 0.3); }
     .fmc-alert-section-header {
         background: rgba(var(--mud-palette-background-grey-rgb), 0.5);
         border-bottom: 1px solid var(--mud-palette-divider);
@@ -53,7 +53,8 @@
     .fmc-alert-row-hub { 
         padding: 16px 24px; display: flex; align-items: center; gap: 16px;
         border-bottom: 1px solid var(--mud-palette-divider); transition: background 0.2s;
-        position: relative; min-height: 110px; flex-wrap: wrap;
+        position: relative; min-height: 112px; flex-wrap: wrap;
+        box-sizing: border-box;
     }
     .fmc-alert-row-hub:hover { background: var(--mud-palette-action-default-hover); }
     

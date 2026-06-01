@@ -37,7 +37,7 @@
         <MudSpacer />
 
         @* ── NOTIFICATION BELL ── *@
-        <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover})" Context="notifState">
+        <AuthorizeView Roles='@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover}")' Context="notifState">
             <Authorized>
                 <MudMenu @bind-Open="_notifOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
                          Dense="true" PopoverClass="fmc-notif-popover mud-elevation-25">

@@ -322,7 +322,7 @@ public class UsersController : ControllerBase
     [HttpGet("organizations/{orgId:guid}/transactions")]
     public async Task<ActionResult<List<TransactionDto>>> GetOrganizationTransactions(Guid orgId, [FromQuery] string? status = null, [FromQuery] int count = 50)
     {
-        if (!User.IsInRole(Roles.SuperAdmin))
+        if (!User.IsInRole(Roles.SuperAdmin) && !User.IsInRole(Roles.SuperAdminApprover))
         {
             var myOrgId = User.FindFirst("OrganizationId")?.Value;
             if (string.IsNullOrEmpty(myOrgId) || Guid.Parse(myOrgId) != orgId) return Forbid();

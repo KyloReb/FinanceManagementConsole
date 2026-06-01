@@ -11,7 +11,7 @@ namespace FMC.Api.Controllers;
 /// All endpoints are restricted to SuperAdmin role to prevent unauthorized tenant data mutation.
 /// Route: /api/organizations
 /// </summary>
-[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
@@ -49,6 +49,23 @@ public class OrganizationsController : ControllerBase
         
         var performedBy = User.Identity?.Name ?? "System";
         var success = await _organizationService.AdjustBalanceAsync(id, request.Amount, request.Label, performedBy, HttpContext.RequestAborted);
+        return success ? Ok() : NotFound();
+    }
+
+    /// <summary>
+    /// Creates a pending balance adjustment request (4-eyes) for a SuperAdmin-initiated org adjustment.
+    /// SuperAdminApprover must approve before the ledger is modified.
+    /// </summary>
+    [Authorize(Roles = Roles.SuperAdmin)]
+    [HttpPost("{id:guid}/request-pending-adjustment")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RequestPendingAdjustment(Guid id, [FromBody] BalanceAdjustmentRequest request)
+    {
+        _logger.LogInformation("[OrganizationsController] Pending adjustment request for Tenant {Id} of {Amount} by {User}", id, request.Amount, User.Identity?.Name);
+
+        var performedBy = User.Identity?.Name ?? "System";
+        var success = await _organizationService.AdjustBalanceAsync(id, request.Amount, request.Label, performedBy, createPending: true, HttpContext.RequestAborted);
         return success ? Ok() : NotFound();
     }
 

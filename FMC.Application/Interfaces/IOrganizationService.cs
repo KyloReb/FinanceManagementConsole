@@ -65,6 +65,11 @@ public interface IOrganizationService
     Task<bool> AdjustBalanceAsync(Guid organizationId, decimal amount, string label, string performedBy, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Performs a balance adjustment with option to create a pending request (4-eyes).
+    /// </summary>
+    Task<bool> AdjustBalanceAsync(Guid organizationId, decimal amount, string label, string performedBy, bool createPending, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// CEO/Admin Endpoint: Initiates a balance adjustment for an individual user's personal wallet (Maker Step).
     /// </summary>
     Task<bool> AdjustUserBalanceAsync(Guid userId, decimal amount, string label, string performedBy, string? idempotencyKey = null, Guid? parentTransactionId = null, bool isSettlement = false, CancellationToken cancellationToken = default);

@@ -367,8 +367,8 @@
                             var isBatchSubmit = actUpper == "BATCH_SUBMITTED";
                             var isBatchCancel = actUpper == "BATCH_CANCELLED";
                             
-                            var isCredit = isApproved || actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
-                            var isDebit = isBatchCancel || actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED") || actUpper == "BATCH_REJECTED";
+                                        var isCredit = isApproved || actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || actUpper.Contains("FUNDED") || actUpper.Contains("ADJUSTMENT_REQUESTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
+                            var isDebit = isBatchCancel || actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED") || actUpper == "BATCH_REJECTED" || actUpper.Contains("DEBITED");
                             var isSecurity = isBatchSubmit || actUpper.Contains("LOGIN") || actUpper.Contains("AUTH") || actUpper.Contains("PASSWORD_RESET");
                             var isNeutral = actUpper.Contains("LOGOUT") || actUpper.Contains("VIEW") || actUpper.Contains("READ");
                             
@@ -454,12 +454,12 @@
                                 }
                             </div>
                         </MudTd>
-                        <MudTd Style="text-align:right">
+                         <MudTd Style="text-align:right">
                             @if (context.Amount.HasValue)
                             {
                                 <MudText Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:1.15rem;" 
                                          Color="@(isCredit ? Color.Success : Color.Error)">
-                                    @(isCredit ? "+" : "-")₱@context.Amount.Value.ToString("N2")
+                                    @(isCredit ? "+" : "-")₱@(Math.Abs(context.Amount.Value).ToString("N2"))
                                 </MudText>
                             }
                             else
@@ -566,9 +566,14 @@
             }
             else
             {
-                @* MOBILE FOrensIC DOSSIER LIST *@
-                <div class="d-flex flex-column gap-2 mb-10">
-                    @foreach (var log in _searchResult.Items.Where(FilterFunc))
+                @* MOBILE FORENSIC DOSSIER LIST *@
+                var mobileFiltered = _searchResult.Items.Where(FilterFunc).ToList();
+                var mTotal = mobileFiltered.Count;
+                var mPages = _mobilePageSize >= mTotal ? 1 : (int)Math.Ceiling((double)mTotal / _mobilePageSize);
+                if (_mobileCurrentPage >= mPages) _mobileCurrentPage = Math.Max(0, mPages - 1);
+                var mItems = mobileFiltered.Skip(_mobileCurrentPage * _mobilePageSize).Take(_mobilePageSize).ToList();
+                <div class="d-flex flex-column gap-2 mb-2">
+                    @foreach (var log in mItems)
                     {
                         <div class="fmc-audit-mobile-card" @onclick="@(() => ShowDetail(log))">
                             <div class="fmc-mobile-top pa-3 d-flex justify-space-between align-center">
@@ -579,8 +584,8 @@
                                         var isBatchSubmit = actUpper == "BATCH_SUBMITTED";
                                         var isBatchCancel = actUpper == "BATCH_CANCELLED";
                                         
-                                        var isCredit = isApproved || actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
-                                        var isDebit = isBatchCancel || actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED") || actUpper == "BATCH_REJECTED";
+                            var isCredit = isApproved || actUpper.Contains("CREDIT") || actUpper.Contains("DEPOSIT") || actUpper.Contains("WALLET_ADJUSTED") || actUpper.Contains("FUNDED") || actUpper.Contains("ADJUSTMENT_REQUESTED") || (actUpper.Contains("SUCCESS") && !actUpper.Contains("DEBIT") && !actUpper.Contains("LOGIN"));
+                                        var isDebit = isBatchCancel || actUpper.Contains("DEBIT") || actUpper.Contains("WITHDRAW") || actUpper.Contains("REJECTED") || actUpper.Contains("FAILED") || actUpper == "BATCH_REJECTED" || actUpper.Contains("DEBITED");
                                         var colorClass = isCredit ? "success" : (isDebit ? "error" : "info");
                                     }
                                     <div class="fmc-audit-pulse @colorClass"></div>
@@ -602,7 +607,7 @@
                                         {
                                             <MudText Style="font-weight:950; font-family:'JetBrains Mono',monospace; font-size:0.8rem;" 
                                                      Color="@(isCredit ? Color.Success : Color.Error)">
-                                                @(isCredit ? "+" : "-")₱@log.Amount.Value.ToString("N0")
+                                                @(isCredit ? "+" : "-")₱@(Math.Abs(log.Amount.Value).ToString("N0"))
                                             </MudText>
                                         }
                                         else
@@ -614,6 +619,29 @@
                             </div>
                         </div>
                     }
+                </div>
+
+                @* Mobile Paginator *@
+                <div class="fmc-mobile-audit-pager">
+                    <div class="fmc-mobile-pager-row">
+                        <span class="fmc-mobile-pager-label">Rows:</span>
+                        <div class="fmc-mobile-pager-options">
+                            @foreach (var s in new[] { 10, 25, 50 })
+                            {
+                                <button class="fmc-mobile-pager-btn @(_mobilePageSize == s ? "active" : "")"
+                                        @onclick="@(() => { _mobilePageSize = s; _mobileCurrentPage = 0; StateHasChanged(); })">@s</button>
+                            }
+                            <button class="fmc-mobile-pager-btn @(_mobilePageSize >= mTotal ? "active" : "")"
+                                    @onclick="@(() => { _mobilePageSize = mTotal; _mobileCurrentPage = 0; StateHasChanged(); })">All</button>
+                        </div>
+                    </div>
+                    <div class="fmc-mobile-pager-nav">
+                        <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage = 0; StateHasChanged(); })" disabled="@(_mobileCurrentPage == 0)"><MudIcon Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small"/></button>
+                        <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage--; StateHasChanged(); })" disabled="@(_mobileCurrentPage == 0)"><MudIcon Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"/></button>
+                        <span>@(_mobileCurrentPage + 1) of @mPages</span>
+                        <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage++; StateHasChanged(); })" disabled="@(_mobileCurrentPage >= mPages - 1)"><MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"/></button>
+                        <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage = mPages - 1; StateHasChanged(); })" disabled="@(_mobileCurrentPage >= mPages - 1)"><MudIcon Icon="@Icons.Material.Filled.LastPage" Size="Size.Small"/></button>
+                    </div>
                 </div>
             }
         }
@@ -632,6 +660,8 @@
     private DateRange _dateRange = new(DateTime.Today.AddDays(-7), DateTime.Today);
     private string _activeDateRange = "7d";
     private string _searchString = "";
+    private int _mobilePageSize = 10;
+    private int _mobileCurrentPage = 0;
 
     [Inject] private IReportService ReportService { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
@@ -711,6 +741,7 @@
         try
         {
             _loading = true;
+            _mobileCurrentPage = 0;
             _query.FromDate = _dateRange.Start;
             _query.ToDate = _dateRange.End?.AddDays(1).AddTicks(-1); // End of the day
 

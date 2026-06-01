@@ -29,12 +29,15 @@
             @* RESET & SYNC FEATURE *@
             <div class="mb-8 pa-4 fmc-sync-feature d-flex align-center justify-space-between">
                 <div>
-                    <MudText Typo="Typo.caption" Style="font-weight: 900; letter-spacing: 0.1em; color: var(--mud-palette-info);">CAPACITY MANAGEMENT</MudText>
-                    <MudText Typo="Typo.body2" Style="opacity: 0.7; font-size: 0.8rem;">Reset wallet to available cash and clear usage</MudText>
+                    <MudText Typo="Typo.caption" Style="font-weight: 800; letter-spacing: 0.06em; color: #b45309; font-size: 0.55rem;">CAPACITY MANAGEMENT</MudText>
+                    <MudText Typo="Typo.caption" Style="opacity: 0.6; font-size: 0.65rem; color: var(--mud-palette-text-secondary);">Reset wallet to available cash and clear usage</MudText>
                 </div>
-                <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small" 
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" 
                            StartIcon="@Icons.Material.Filled.Sync" OnClick="HandleSyncLimitAsync"
-                           Style="text-transform:none; font-weight: 800; border-radius: 8px; box-shadow: none; height: 36px;">Reset & Sync</MudButton>
+                           Class="fmc-sync-btn"
+                           Style="text-transform:none; font-weight: 700; border-radius: 8px; height: 32px; font-size: 0.65rem; border-color: rgba(180,83,9,0.3); color: #b45309;">
+                    Reset &amp; Sync
+                </MudButton>
             </div>
 
             <MudGrid Spacing="3">
@@ -60,8 +63,8 @@
             @* IMPACT ANALYTICS *@
             <div class="mt-8 fmc-impact-summary">
                 <div class="d-flex justify-space-between mb-2">
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Current Liquidity:</MudText>
-                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@Organization.TotalBalance.ToString("C")</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Current Wallet:</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@Organization.RemainingBalance.ToString("C")</MudText>
                 </div>
                 <div class="d-flex justify-space-between align-center">
                     <MudText Typo="Typo.body1" Style="font-weight: 800;">Resulting Balance:</MudText>
@@ -199,9 +202,13 @@
 
     /* Capacity Management section */
     .fmc-sync-feature { 
-        background: rgba(var(--mud-palette-info-rgb), 0.06); 
-        border: 1px dashed rgba(var(--mud-palette-info-rgb), 0.35); 
-        border-radius: 20px; 
+        background: rgba(180, 83, 9, 0.05); 
+        border: 1px dashed rgba(180, 83, 9, 0.2); 
+        border-radius: 16px; 
+    }
+    .fmc-sync-btn:hover {
+        background: rgba(180, 83, 9, 0.08) !important;
+        border-color: rgba(180, 83, 9, 0.5) !important;
     }
 
     .fmc-dashboard-amount-field .mud-input-root { font-size: 2.5rem !important; font-weight: 900 !important; color: var(--mud-palette-text-primary) !important; letter-spacing: -0.03em; }
@@ -298,6 +305,7 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public OrganizationDto Organization { get; set; } = default!;
     [Parameter] public bool IsCredit { get; set; }
+    [Parameter] public bool RequireApproval { get; set; }
 
     private MudMessageBox _mbox { get; set; } = default!;
     private decimal? _amount;
@@ -342,8 +350,8 @@
 
     private decimal? CalculateNewBalance()
     {
-        if (_amount == null) return Organization.TotalBalance;
-        return _isCredit ? Organization.TotalBalance + _amount : Organization.TotalBalance - _amount;
+        if (_amount == null) return Organization.RemainingBalance;
+        return _isCredit ? Organization.RemainingBalance + _amount : Organization.RemainingBalance - _amount;
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -368,16 +376,33 @@
         {
             _isProcessing = true;
             decimal adjustment = _isCredit ? (_amount ?? 0) : -(_amount ?? 0);
-            var success = await OrgService.AdjustBalanceAsync(Organization.Id, adjustment, _label);
-            
-            if (success)
+
+            bool success;
+            if (RequireApproval)
             {
-                OrgService.NotifyDataChanged();
-                ShowSuccessOverlay("INSTITUTIONAL LEDGER UPDATED", $"Funding allocation successfully committed for {Organization.Name}");
+                success = await OrgService.RequestPendingAdjustmentAsync(Organization.Id, adjustment, _label);
+                if (success)
+                {
+                    OrgService.NotifyDataChanged();
+                    ShowSuccessOverlay("PENDING REQUEST SUBMITTED", $"Awaiting SuperAdminApprover authorization for {Organization.Name}");
+                }
+                else
+                {
+                    ShowErrorOverlay("REQUEST FAILED", "Unable to submit pending adjustment request.");
+                }
             }
             else
             {
-                ShowErrorOverlay("COMMITMENT FAILED", "Unable to process institution ledger adjustment.");
+                success = await OrgService.AdjustBalanceAsync(Organization.Id, adjustment, _label);
+                if (success)
+                {
+                    OrgService.NotifyDataChanged();
+                    ShowSuccessOverlay("INSTITUTIONAL LEDGER UPDATED", $"Funding allocation successfully committed for {Organization.Name}");
+                }
+                else
+                {
+                    ShowErrorOverlay("COMMITMENT FAILED", "Unable to process institution ledger adjustment.");
+                }
             }
         }
         catch (Exception ex)

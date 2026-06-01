@@ -5,24 +5,26 @@
 @using FMC.Services
 @using FMC.Components.Pages.Admin
 @using FMC.Components.Pages.Admin.Dialogs
+@using MudBlazor
 @inject OrganizationApiService OrgService
 @inject IReportService ReportGen
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ThemeService ThemeService
+@inject FMC.Services.Api.AuthService AuthService
 @attribute [Authorize(Roles = "SuperAdmin,CEO,Maker,Approver,SuperAdminApprover")]
 
 <div class="fmc-ops-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-12">
     <!-- Header Section -->
-    <div class="d-flex align-center justify-space-between mb-8">
+    <div class="fmc-page-header">
         <div>
             <MudText Typo="Typo.h4" Style="font-weight: 950; letter-spacing: -0.04em; text-transform: uppercase;" Color="Color.Primary">Pending Requests</MudText>
             <MudText Typo="Typo.subtitle1" Style="font-weight: 500; opacity: 0.5;">Comprehensive financial settlement and authorization queue.</MudText>
         </div>
         
         <!-- Action Buttons for Makers -->
-        <div class="d-flex gap-3">
+        <div class="fmc-header-actions">
             @if (_isMaker)
             {
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenUserSelectionAsync(isCredit: true))"
@@ -170,73 +172,80 @@
         }
         else if (!groups.Any())
         {
-            <!-- Empty State Display -->
-            <MudPaper Class="pa-16 d-flex flex-column align-center justify-center text-center fmc-empty-state" Elevation="0">
-                <MudIcon Icon="@(status == "Pending" ? Icons.Material.Filled.AssignmentTurnedIn : Icons.Material.Filled.History)" 
-                         Size="Size.Large" Style="font-size: 6rem; opacity: 0.05;" />
-                <MudText Typo="Typo.h5" Class="mt-6" Style="font-weight: 900; opacity: 0.4;">Queue is Empty</MudText>
-                <MudText Typo="Typo.body1" Class="mud-text-secondary" Style="max-width:300px;">
+            <!-- Empty State Display (no data at all) -->
+            <div class="fmc-empty-root">
+                <div class="fmc-empty-glow-amber"></div>
+                <div class="fmc-empty-icon-wrap">
+                    <MudIcon Icon="@(status == "Pending" ? Icons.Material.Filled.AssignmentTurnedIn : Icons.Material.Filled.History)" Style="font-size: 3rem;" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; color: var(--mud-palette-text-primary);">Queue is Empty</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="max-width: 320px; line-height: 1.6; font-weight: 500;">
                     @(status == "Pending" ? "There are no records requiring immediate authorization." : $"No {status.ToLower()} records found in recent history.")
                 </MudText>
-            </MudPaper>
+            </div>
         }
         else
         {
+            <!-- Shared Toolbar (always visible on desktop + mobile) -->
+            <div class="fmc-toolbar">
+                <MudText Typo="Typo.h6" Class="fmc-toolbar-label">@status.ToUpper() RECORDS</MudText>
+                <div class="fmc-toolbar-controls">
+                    @if (_isCeo)
+                    {
+                        <div class="d-flex gap-2">
+                            <MudTooltip Text="Export to Excel">
+                                <MudIconButton Icon="@Icons.Custom.FileFormats.FileExcel" Color="Color.Success" Variant="Variant.Outlined" 
+                                               OnClick="ExportToExcelAsync" Style="border-radius: 8px;" aria-label="Export to Excel" />
+                            </MudTooltip>
+                            <MudTooltip Text="Export to PDF">
+                                <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" Variant="Variant.Outlined" 
+                                               OnClick="ExportToPdfAsync" Style="border-radius: 8px;" aria-label="Export to PDF" />
+                            </MudTooltip>
+                        </div>
+                    }
+
+                    <div class="fmc-date-group">
+                        <button class="fmc-date-btn @(_activeDateRange == "all" ? "active" : "")" @onclick='() => SetQuickDate("all")'>ALL</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "7d" ? "active" : "")" @onclick='() => SetQuickDate("7d")'>7D</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "1m" ? "active" : "")" @onclick='() => SetQuickDate("1m")'>1M</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "3m" ? "active" : "")" @onclick='() => SetQuickDate("3m")'>3M</button>
+                        <button class="fmc-date-btn @(_activeDateRange == "1y" ? "active" : "")" @onclick='() => SetQuickDate("1y")'>1Y</button>
+                    </div>
+
+                    <div class="fmc-custom-date-wrap">
+                        <div class="fmc-date-input-box">
+                            <span class="fmc-date-label">START DATE</span>
+                            <input type="date" value="@(_filterDateRange?.Start?.ToString("yyyy-MM-dd"))" 
+                                   @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) { _filterDateRange = new DateRange(d, _filterDateRange?.End); _activeDateRange = "custom"; } StateHasChanged(); })"
+                                   class="fmc-raw-date" />
+                        </div>
+                        <div class="fmc-date-sep"></div>
+                        <div class="fmc-date-input-box">
+                            <span class="fmc-date-label">END DATE</span>
+                            <input type="date" value="@(_filterDateRange?.End?.ToString("yyyy-MM-dd"))" 
+                                   @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) { _filterDateRange = new DateRange(_filterDateRange?.Start, d); _activeDateRange = "custom"; } StateHasChanged(); })"
+                                   class="fmc-raw-date" />
+                        </div>
+                    </div>
+
+                    <div class="fmc-search-pill">
+                        <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
+                        <input type="text" class="fmc-search-pill-input" placeholder="Filter by subscriber, label, or card..." 
+                               value="@_searchString" @oninput="@(e => { _searchString = e.Value?.ToString() ?? ""; StateHasChanged(); })" />
+                    </div>
+                </div>
+            </div>
+
             <!-- Data Table -->
-            <MudTable Items="@groups" Hover="true" Elevation="0" Class="fmc-premium-table" Striped="false" 
+            <MudTable @ref="_table" Items="@groups" Hover="true" Elevation="0" Class="fmc-premium-table" Striped="false" 
                       Filter="new Func<TransactionGroup,bool>(GroupFilterFunc)"
                       OnRowClick="@(async (TableRowClickEventArgs<TransactionGroup> e) => { if(e.Item != null && !e.Item.BatchId.HasValue) await OpenDetailAsync(e.Item.Transactions.First()); })" 
                       RowClassFunc="@((group, idx) => group != null && !group.BatchId.HasValue ? "cursor-pointer" : "")">
                 
-                <!-- Table Toolbar: Title, Exports, Filters -->
-                <ToolBarContent>
-                    <MudText Typo="Typo.h6" Style="font-weight: 900; font-size: 0.95rem; letter-spacing: 0.05em; opacity:0.8;">@status.ToUpper() RECORDS</MudText>
-                    <MudSpacer />
-                    
-                    <div class="d-flex align-center gap-4 py-2">
-                        @if (_isCeo)
-                        {
-                            <!-- CEO Reporting Exports -->
-                            <div class="d-flex gap-2 mr-4">
-                                <MudTooltip Text="Export to Excel">
-                                    <MudIconButton Icon="@Icons.Custom.FileFormats.FileExcel" Color="Color.Success" Variant="Variant.Outlined" 
-                                                   OnClick="ExportToExcelAsync" Style="border-radius: 8px;" aria-label="Export to Excel" />
-                                </MudTooltip>
-                                <MudTooltip Text="Export to PDF">
-                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" Variant="Variant.Outlined" 
-                                                   OnClick="ExportToPdfAsync" Style="border-radius: 8px;" aria-label="Export to PDF" />
-                                </MudTooltip>
-                            </div>
-                        }
-
-                        <!-- Native Date Range Selector -->
-                        <div class="fmc-compact-range-wrapper">
-                            <div class="fmc-range-section">
-                                <span class="fmc-range-label">START</span>
-                                <input type="date" value="@(_filterDateRange?.Start?.ToString("yyyy-MM-dd"))" 
-                                       @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) _filterDateRange = new DateRange(d, _filterDateRange?.End); StateHasChanged(); })"
-                                       class="fmc-native-picker" />
-                            </div>
-                            <div class="fmc-range-divider"></div>
-                            <div class="fmc-range-section">
-                                <span class="fmc-range-label">END</span>
-                                <input type="date" value="@(_filterDateRange?.End?.ToString("yyyy-MM-dd"))" 
-                                       @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) _filterDateRange = new DateRange(_filterDateRange?.Start, d); StateHasChanged(); })"
-                                       class="fmc-native-picker" />
-                            </div>
-                        </div>
-                                       
-                        <!-- Global Search Filter -->
-                        <MudTextField @bind-Value="_searchString" Placeholder="Filter ledger..." 
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" 
-                                      Class="mt-0" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 300px; border-radius: 12px; font-weight: 700;"></MudTextField>
-                    </div>
-                </ToolBarContent>
-                
                 <!-- Table Headers -->
                 <HeaderContent>
                     <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.Date))">TIMESTAMP</MudTableSortLabel></MudTh>
-                    <MudTh Style="max-width: 220px; width: 220px;"><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.Label ?? string.Empty))">RECIPIENT & CARD</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="@(new Func<TransactionGroup, object>(x => x.Label ?? string.Empty))">RECIPIENT & CARD</MudTableSortLabel></MudTh>
                     
                     
                     @if (status == "Pending")
@@ -264,7 +273,7 @@
                              <MudText Typo="Typo.caption" Style="opacity: 0.5;">@context.Date.ToLocalTime().ToString("HH:mm:ss")</MudText>
                          </div>
                     </MudTd>
-                    <MudTd DataLabel="Recipient" Style="max-width: 220px; width: 220px;">
+                    <MudTd DataLabel="Recipient">
                         @if (context.BatchId.HasValue)
                         {
                             <div class="d-flex align-center" style="min-width:0;">
@@ -326,7 +335,7 @@
                                         OnClick="@(() => HandleGroupApprovalAsync(context, approve: true))" 
                                         Disabled="isAnyProcessing"
                                         Size="Size.Small"
-                                        Style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-radius: 8px; width: 34px; height: 34px; box-shadow: 0 3px 10px rgba(16,185,129,0.35);" />
+                                        Style="background: linear-gradient(135deg, #047857, #059669); color: #fff; border-radius: 8px; width: 34px; height: 34px; box-shadow: 0 3px 10px rgba(5,150,105,0.35);" />
                                 </MudTooltip>
                                 <MudTooltip Text="Reject">
                                     <MudIconButton 
@@ -334,11 +343,11 @@
                                         OnClick="@(() => HandleGroupApprovalAsync(context, approve: false))" 
                                         Disabled="isAnyProcessing"
                                         Size="Size.Small"
-                                        Style="background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; border-radius: 8px; width: 34px; height: 34px; box-shadow: 0 3px 10px rgba(239,68,68,0.3);" />
+                                        Style="background: linear-gradient(135deg, #A10B31, #BE123C); color: #fff; border-radius: 8px; width: 34px; height: 34px; box-shadow: 0 3px 10px rgba(190,18,60,0.3);" />
                                 </MudTooltip>
                             </div>
                         }
-                        else
+                        else if (status != "Global")
                         {
                             <MudTooltip Text="View Details">
                                 <MudIconButton 
@@ -381,28 +390,217 @@
                 </ChildRowContent>
 
                 <NoRecordsContent>
-                    <div class="fmc-empty-state pt-16 pb-16" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; overflow: hidden; border: none; background: transparent !important;">
-                        <div class="fmc-empty-glow" style="position: absolute; width: 220px; height: 220px; background: radial-gradient(circle, rgba(var(--mud-palette-primary-rgb), 0.08) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 1;"></div>
-                        <div class="mb-4" style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.1); border-radius: 50%; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 10px 25px rgba(var(--mud-palette-primary-rgb), 0.05);">
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Style="font-size: 2.2rem; color: var(--mud-palette-primary);" />
+                    @{
+                        var hasFilters = !string.IsNullOrWhiteSpace(_searchString) || _filterDateRange?.Start != null || _filterDateRange?.End != null;
+                    }
+                    @if (hasFilters)
+                    {
+                        <div class="fmc-empty-root" style="padding: 80px 24px;">
+                            <div class="fmc-empty-glow-violet"></div>
+                            <div class="fmc-empty-icon-wrap" style="background: rgba(146, 64, 14, 0.06); border-color: rgba(146, 64, 14, 0.12); box-shadow: 0 10px 25px rgba(146, 64, 14, 0.08);">
+                                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Style="font-size: 2.6rem; color: var(--fmc-premium-primary);" />
+                            </div>
+                            <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; color: var(--mud-palette-text-primary);">No Results Match</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="max-width: 340px; line-height: 1.6; font-weight: 500; margin-bottom: 6px;">
+                                @(!string.IsNullOrWhiteSpace(_searchString) ? $"Your search for \"{_searchString}\" did not match any records." : "The selected date range returned no results.")
+                            </MudText>
+                            <MudText Typo="Typo.caption" Style="font-weight: 600; opacity: 0.6; color: var(--mud-palette-text-secondary);">Try broadening your search terms or expanding the date filter.</MudText>
                         </div>
-                        <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; z-index: 2; color: var(--mud-palette-text-primary);">No Matching Transactions</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="max-width: 320px; line-height: 1.6; font-weight: 500; z-index: 2;">Your search filters did not yield any results. Try refining your keywords or expanding your date range query.</MudText>
-                    </div>
+                    }
+                    else
+                    {
+                        <div class="fmc-empty-root" style="padding: 40px 24px;">
+                            <div class="fmc-empty-glow-amber" style="width: 140px; height: 140px;"></div>
+                            <div class="fmc-empty-icon-wrap">
+                                <MudIcon Icon="@(status == "Pending" ? Icons.Material.Filled.Inbox : Icons.Material.Filled.History)" Style="font-size: 2.2rem;" />
+                            </div>
+                            <MudText Typo="Typo.body1" Style="font-weight: 800; color: var(--mud-palette-text-secondary);">No entries on this page</MudText>
+                        </div>
+                    }
                 </NoRecordsContent>
 
                 <PagerContent>
-                    <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" />
+                    @{
+                        var pagerTotal = groups.Count;
+                        var pagerSize = _table?.RowsPerPage ?? 10;
+                        var pagerPages = pagerSize <= 0 ? 1 : (int)Math.Ceiling((double)pagerTotal / pagerSize);
+                        var pagerCur = _table?.CurrentPage ?? 0;
+                        var isFirst = pagerCur <= 0;
+                        var isLast = pagerCur >= pagerPages - 1;
+                    }
+                    <div class="fmc-pager-root">
+                        <div class="fmc-pager-info">
+                            <span class="fmc-pager-label">Rows per page:</span>
+                            <div class="fmc-pager-options">
+                                @foreach (var ps in new[] { 10, 25, 50, 100 })
+                                {
+                                    <button class="fmc-pager-opt @(pagerSize == ps ? "active" : "")" @onclick="@(() => { if(_table != null) _table.RowsPerPage = ps; })">@ps</button>
+                                }
+                            </div>
+                        </div>
+                        <div class="fmc-pager-nav">
+                            <button class="fmc-pager-btn" @onclick="@(() => { if(_table != null) _table.CurrentPage = 0; })" disabled="@isFirst" title="First page">
+                                <MudIcon Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small" />
+                            </button>
+                            <button class="fmc-pager-btn" @onclick="@(() => { if(_table != null) _table.CurrentPage--; })" disabled="@isFirst" title="Previous page">
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" />
+                            </button>
+                            <span class="fmc-pager-current">@(pagerCur + 1) of @pagerPages</span>
+                            <button class="fmc-pager-btn" @onclick="@(() => { if(_table != null) _table.CurrentPage++; })" disabled="@isLast" title="Next page">
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                            </button>
+                            <button class="fmc-pager-btn" @onclick="@(() => { if(_table != null) _table.CurrentPage = pagerPages - 1; })" disabled="@isLast" title="Last page">
+                                <MudIcon Icon="@Icons.Material.Filled.LastPage" Size="Size.Small" />
+                            </button>
+                        </div>
+                    </div>
                 </PagerContent>
             </MudTable>
+
+            <!-- Mobile Card View -->
+            <div class="fmc-mobile-cards">
+                @{
+                    var filtered = groups.Where(g => GroupFilterFunc(g)).ToList();
+                    var totalItems = filtered.Count;
+                    var totalPages = totalItems == 0 ? 1 : (_mobilePageSize >= totalItems ? 1 : (int)Math.Ceiling((double)totalItems / _mobilePageSize));
+                    if (_mobileCurrentPage >= totalPages) _mobileCurrentPage = Math.Max(0, totalPages - 1);
+                    var displayedGroups = filtered.Skip(_mobileCurrentPage * _mobilePageSize).Take(_mobilePageSize).ToList();
+                }
+                @if (totalItems == 0)
+                {
+                    <div class="fmc-empty-root" style="padding: 60px 24px;">
+                        <div class="fmc-empty-glow-amber"></div>
+                        <div class="fmc-empty-icon-wrap">
+                            <MudIcon Icon="@(status == "Pending" ? Icons.Material.Filled.AssignmentTurnedIn : Icons.Material.Filled.History)" Style="font-size: 2.6rem;" />
+                        </div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; color: var(--mud-palette-text-primary);">Queue is Empty</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="max-width: 300px; line-height: 1.6; font-weight: 500;">
+                            @(status == "Pending" ? "There are no records requiring immediate authorization." : $"No {status.ToLower()} records found.")
+                        </MudText>
+                    </div>
+                }
+                else if (displayedGroups.Count == 0)
+                {
+                    var hasFilters = !string.IsNullOrWhiteSpace(_searchString) || _filterDateRange?.Start != null || _filterDateRange?.End != null;
+                    <div class="fmc-empty-root" style="padding: 60px 24px;">
+                        <div class="fmc-empty-glow-violet"></div>
+                        <div class="fmc-empty-icon-wrap" style="background: rgba(146, 64, 14, 0.06); border-color: rgba(146, 64, 14, 0.12); box-shadow: 0 10px 25px rgba(146, 64, 14, 0.08);">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Style="font-size: 2.6rem; color: var(--fmc-premium-primary);" />
+                        </div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; color: var(--mud-palette-text-primary);">No Results Match</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="max-width: 340px; line-height: 1.6; font-weight: 500; margin-bottom: 6px;">
+                            @(!string.IsNullOrWhiteSpace(_searchString) ? $"Your search for \"{_searchString}\" did not match any records." : "The selected date range returned no results.")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Style="font-weight: 600; opacity: 0.6; color: var(--mud-palette-text-secondary);">Try broadening your search terms or expanding the date filter.</MudText>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var group in displayedGroups)
+                    {
+                        <div class="fmc-mobile-tx-card">
+                            <div class="fmc-mobile-tx-top">
+                                <div class="fmc-mobile-tx-info">
+                                    <span class="fmc-mobile-tx-entity">@(group.Transactions.FirstOrDefault()?.Subscriber ?? group.Label)</span>
+                                    <span class="fmc-mobile-tx-label">@group.Transactions.FirstOrDefault()?.Label</span>
+                                </div>
+                                <span class="fmc-mobile-tx-amount @(group.TotalAmount >= 0 ? "credit" : "debit")">@(group.TotalAmount >= 0 ? "+" : "")₱@(Math.Abs(group.TotalAmount).ToString("N2"))</span>
+                            </div>
+                            <div class="fmc-mobile-tx-meta">
+                                <span>@group.Date.ToLocalTime().ToString("MMM dd HH:mm")</span>
+                                <span class="fmc-status-chip @(group.Status.ToLower())">@group.Status</span>
+                                @if (group.BatchId.HasValue)
+                                {
+                                    <span class="fmc-batch-chip">BATCH · @group.Transactions.Count items</span>
+                                }
+                            </div>
+                            @if (status == "Pending" && _isApprover && group.Transactions.Any(t => t.MakerId != _currentUserId))
+                            {
+                                <div class="fmc-mobile-tx-actions">
+                                    <button class="fmc-mobile-approve-btn" @onclick="@(() => HandleGroupApprovalAsync(group, true))" disabled="@(_processingGroupId != null)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" /> Approve
+                                    </button>
+                                    <button class="fmc-mobile-reject-btn" @onclick="@(() => HandleGroupApprovalAsync(group, false))" disabled="@(_processingGroupId != null)">
+                                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" /> Reject
+                                    </button>
+                                </div>
+                            }
+                            else if (status != "Global")
+                            {
+                                <div class="fmc-mobile-tx-detail">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(async () => { if(group.BatchId.HasValue) { group.ShowDetails = !group.ShowDetails; } else { await OpenDetailAsync(group.Transactions.First()); } })" />
+                                </div>
+                            }
+                            @if (group.ShowDetails && group.BatchId.HasValue)
+                            {
+                                <div class="fmc-mobile-tx-children">
+                                    @foreach (var tx in group.Transactions)
+                                    {
+                                        <div class="fmc-mobile-tx-child">
+                                            <span>@tx.Subscriber</span>
+                                            <span class="fmc-card-mono">@GetMaskedAccount(tx.AccountNumber)</span>
+                                            <span class="fmc-mobile-tx-amount @(tx.Amount >= 0 ? "credit" : "debit")">@tx.Amount.ToString("C")</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    <div class="fmc-mobile-pager">
+                        <div class="fmc-mobile-pager-row">
+                            <span class="fmc-mobile-pager-label">Rows per page:</span>
+                            <div class="fmc-mobile-pager-options">
+                                @foreach (var size in new[] { 10, 25, 50 })
+                                {
+                                    <button class="fmc-mobile-pager-btn @(_mobilePageSize == size ? "active" : "")" @onclick="@(() => { _mobilePageSize = size; _mobileCurrentPage = 0; StateHasChanged(); })">@size</button>
+                                }
+                                <button class="fmc-mobile-pager-btn @(_mobilePageSize >= totalItems ? "active" : "")" @onclick="@(() => { _mobilePageSize = totalItems; _mobileCurrentPage = 0; StateHasChanged(); })">All</button>
+                            </div>
+                        </div>
+                        <div class="fmc-mobile-pager-nav">
+                            <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage = 0; StateHasChanged(); })" disabled="@(_mobileCurrentPage == 0)">
+                                <MudIcon Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small" />
+                            </button>
+                            <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage--; StateHasChanged(); })" disabled="@(_mobileCurrentPage == 0)">
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" />
+                            </button>
+                            <span class="fmc-mobile-pager-count">@(_mobileCurrentPage + 1) of @totalPages</span>
+                            <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage++; StateHasChanged(); })" disabled="@(_mobileCurrentPage >= totalPages - 1)">
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                            </button>
+                            <button class="fmc-mobile-nav-btn" @onclick="@(() => { _mobileCurrentPage = totalPages - 1; StateHasChanged(); })" disabled="@(_mobileCurrentPage >= totalPages - 1)">
+                                <MudIcon Icon="@Icons.Material.Filled.LastPage" Size="Size.Small" />
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
         }
     };
     #endregion
 }
 
 <style>
+    :root {
+        --fmc-font-premium: 'Inter', -apple-system, sans-serif;
+    }
+    .fmc-light-mode {
+        --fmc-premium-primary: #92400E;
+        --fmc-premium-primary-rgb: 146, 64, 14;
+        --fmc-premium-success: #065F46;
+        --fmc-premium-error: #991B1B;
+        --fmc-premium-warning: #A16207;
+        --fmc-premium-bg-subtle: rgba(146, 64, 14, 0.04);
+    }
+    .fmc-dark-mode {
+        --fmc-premium-primary: #A78BFA;
+        --fmc-premium-primary-rgb: 167, 139, 250;
+        --fmc-premium-success: #6EE7B7;
+        --fmc-premium-error: #FDA4AF;
+        --fmc-premium-warning: #FCD34D;
+        --fmc-premium-bg-subtle: rgba(167, 139, 250, 0.08);
+    }
     /* Styling Definitions */
-    :root { --fmc-font-premium: 'Inter', -apple-system, sans-serif; }
     /* Main Integrated Ledger Surfaces - Adaptive */
     .fmc-light-mode .fmc-integrated-ledger { 
         background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
@@ -444,7 +642,7 @@
     }
     .fmc-range-divider { width: 1px; height: 24px; background: var(--mud-palette-divider); margin: 0 4px; }
     
-    .fmc-premium-table { padding-bottom: 8px; background: transparent !important; table-layout: fixed; width: 100%; }
+    .fmc-premium-table { padding-bottom: 8px; background: transparent !important; table-layout: fixed; width: 100%; overflow-x: hidden; }
     .fmc-premium-table .mud-table-head { background-color: transparent !important; }
     .fmc-premium-table .mud-th { font-weight: 950 !important; color: var(--mud-palette-text-secondary); font-size: 0.65rem !important; letter-spacing: 0.12em; text-transform: uppercase; padding: 22px 16px !important; border-bottom: 2px solid var(--mud-palette-divider); background: transparent !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .fmc-premium-table .mud-td { padding: 16px 16px !important; border-bottom: 1px solid var(--mud-palette-divider); background: transparent !important; overflow: hidden; }
@@ -454,6 +652,54 @@
     .fmc-financial-mono { font-family: 'Roboto Mono', monospace; }
     .fmc-card-mono { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; background: rgba(var(--mud-palette-background-grey-rgb), 0.6); padding: 5px 10px; border-radius: 8px; opacity: 0.9; border: 1px solid var(--mud-palette-divider); color: var(--mud-palette-primary); }
     .fmc-empty-state { border: none; background: transparent !important; }
+
+    /* ── Premium Empty States ── */
+    .fmc-empty-root {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 100px 24px;
+        position: relative;
+        overflow: hidden;
+    }
+    .fmc-empty-glow-amber {
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(180, 83, 9, 0.08) 0%, transparent 70%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 1;
+    }
+    .fmc-empty-glow-violet {
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(var(--fmc-premium-primary-rgb), 0.08) 0%, transparent 70%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 1;
+    }
+    .fmc-empty-icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(180, 83, 9, 0.05);
+        border: 1px solid rgba(180, 83, 9, 0.1);
+        margin-bottom: 20px;
+        z-index: 2;
+        box-shadow: 0 10px 25px rgba(180, 83, 9, 0.05);
+        color: #B45309;
+    }
     
     .fmc-enterprise-btn { border-radius: 12px !important; height: 44px !important; padding: 0 20px !important; font-weight: 800 !important; text-transform: none !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; font-size: 0.85rem !important; border: none !important; }
     .fmc-enterprise-btn.mud-button-filled-primary { background: linear-gradient(135deg, var(--mud-palette-primary), #6366f1) !important; box-shadow: 0 4px 14px rgba(var(--mud-palette-primary-rgb), 0.35) !important; }
@@ -557,6 +803,542 @@
         50% { transform: scale(1.1); opacity: 0; }
         100% { transform: scale(0.95); opacity: 0; }
     }
+
+    /* ── Mobile Responsive ── */
+    .fmc-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 32px;
+        gap: 16px;
+    }
+    .fmc-header-actions {
+        display: flex;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+
+    .fmc-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-toolbar-label {
+        font-weight: 900;
+        font-size: 0.95rem;
+        letter-spacing: 0.05em;
+        opacity: 0.8;
+        flex-shrink: 0;
+    }
+    .fmc-toolbar-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    /* ── Premium Search Pill (from AuditExplorer) ── */
+    .fmc-search-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        border-radius: 100px;
+        border: 1.5px solid rgba(var(--fmc-premium-primary-rgb), 0.15);
+        background: rgba(var(--fmc-premium-primary-rgb), 0.03);
+        transition: all 0.3s ease;
+        height: 40px;
+        min-width: 240px;
+        flex: 1;
+        max-width: 360px;
+    }
+    .fmc-search-pill:hover {
+        border-color: rgba(var(--fmc-premium-primary-rgb), 0.35);
+    }
+    .fmc-search-pill:focus-within {
+        border-color: var(--fmc-premium-primary);
+        box-shadow: 0 0 0 4px rgba(var(--fmc-premium-primary-rgb), 0.12), 0 4px 16px rgba(var(--fmc-premium-primary-rgb), 0.1);
+    }
+    .fmc-search-pill-icon {
+        color: var(--fmc-premium-primary);
+        opacity: 0.6;
+        transition: opacity 0.3s ease;
+        flex-shrink: 0;
+    }
+    .fmc-search-pill:focus-within .fmc-search-pill-icon {
+        opacity: 1;
+    }
+    .fmc-search-pill-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-weight: 600;
+        font-size: 0.85rem;
+        letter-spacing: 0.01em;
+        color: var(--mud-palette-text-primary);
+        padding: 0;
+        min-width: 0;
+    }
+    .fmc-search-pill-input::placeholder {
+        font-weight: 500;
+        opacity: 0.5;
+        letter-spacing: 0.02em;
+        color: var(--mud-palette-text-primary);
+    }
+
+    /* ── Premium Date Range (from AuditExplorer) ── */
+    .fmc-date-group {
+        display: flex;
+        gap: 2px;
+        background: rgba(0,0,0,0.06);
+        padding: 2px;
+        border-radius: 7px;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+    .fmc-dark-mode .fmc-date-group { background: rgba(255,255,255,0.06); }
+    .fmc-date-btn {
+        padding: 5px 12px;
+        border-radius: 5px;
+        border: none;
+        background: transparent;
+        font-size: 0.65rem;
+        font-weight: 950;
+        letter-spacing: 0.05em;
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .fmc-date-btn:hover {
+        background: rgba(var(--fmc-premium-primary-rgb), 0.08);
+        color: var(--mud-palette-text-primary);
+    }
+    .fmc-date-btn.active {
+        background: var(--fmc-premium-primary);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(var(--fmc-premium-primary-rgb), 0.3);
+    }
+
+    .fmc-custom-date-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        background: rgba(var(--fmc-premium-primary-rgb), 0.03);
+        border: 1.5px solid rgba(var(--fmc-premium-primary-rgb), 0.15);
+        border-radius: 12px;
+        padding: 4px 10px;
+        height: 40px;
+        transition: all 0.3s ease;
+    }
+    .fmc-custom-date-wrap:hover {
+        border-color: rgba(var(--fmc-premium-primary-rgb), 0.35);
+    }
+    .fmc-custom-date-wrap:focus-within {
+        border-color: var(--fmc-premium-primary);
+        box-shadow: 0 0 0 4px rgba(var(--fmc-premium-primary-rgb), 0.12);
+    }
+    .fmc-date-input-box {
+        display: flex;
+        flex-direction: column;
+        padding: 0 8px;
+    }
+    .fmc-date-label {
+        font-size: 0.45rem;
+        font-weight: 950;
+        opacity: 0.6;
+        letter-spacing: 0.1em;
+        margin-bottom: -1px;
+    }
+    .fmc-raw-date {
+        background: transparent;
+        border: none;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--mud-palette-text-primary);
+        outline: none;
+        cursor: pointer;
+        color-scheme: dark;
+        padding: 0;
+    }
+    .fmc-date-sep {
+        width: 1px;
+        height: 18px;
+        background: var(--mud-palette-divider);
+        opacity: 0.5;
+    }
+
+    .fmc-mobile-cards { display: none; }
+    .fmc-mobile-tx-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 14px;
+        padding: 14px;
+        margin: 8px 12px;
+        transition: all 0.2s ease;
+    }
+    .fmc-mobile-tx-card:active { transform: scale(0.99); }
+    .fmc-mobile-tx-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .fmc-mobile-tx-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+    }
+    .fmc-mobile-tx-entity {
+        font-weight: 900;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--mud-palette-text-primary);
+    }
+    .fmc-mobile-tx-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--mud-palette-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+    }
+    .fmc-mobile-tx-amount {
+        font-family: 'Roboto Mono', monospace;
+        font-weight: 950;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .fmc-mobile-tx-amount.credit { color: var(--mud-palette-success); }
+    .fmc-mobile-tx-amount.debit { color: var(--mud-palette-error); }
+    .fmc-mobile-tx-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    .fmc-status-chip {
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 0.55rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .fmc-status-chip.pending { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .fmc-status-chip.approved, .fmc-status-chip.successful { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
+    .fmc-status-chip.rejected { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+    .fmc-batch-chip {
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 0.55rem;
+        font-weight: 900;
+        background: rgba(var(--mud-palette-info-rgb), 0.08);
+        color: var(--mud-palette-info);
+    }
+    .fmc-mobile-tx-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+    }
+    .fmc-mobile-approve-btn, .fmc-mobile-reject-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: none;
+        font-size: 0.75rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .fmc-mobile-approve-btn { background: linear-gradient(135deg, #047857, #059669); color: #fff; }
+    .fmc-mobile-approve-btn:active { transform: scale(0.97); }
+    .fmc-mobile-reject-btn { background: linear-gradient(135deg, #A10B31, #BE123C); color: #fff; }
+    .fmc-mobile-reject-btn:active { transform: scale(0.97); }
+    .fmc-mobile-tx-detail {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 6px;
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-mobile-tx-children {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-mobile-tx-child {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 0.75rem;
+        gap: 8px;
+    }
+    .fmc-mobile-tx-child .fmc-card-mono { font-size: 0.6rem; padding: 3px 6px; }
+
+    @@media (max-width: 768px) {
+        .fmc-page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .fmc-header-actions {
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        .fmc-header-actions .fmc-enterprise-btn {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.75rem !important;
+            padding: 0 12px !important;
+        }
+        .fmc-custom-tab-bar {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .fmc-custom-tab-bar::-webkit-scrollbar { display: none; }
+        .fmc-tab-btn {
+            flex: 1;
+            padding: 0 6px;
+            font-size: 0.55rem;
+            white-space: nowrap;
+        }
+        .fmc-tab-btn .mud-icon-root { font-size: 0.9rem !important; }
+        .fmc-date-group {
+            width: 100%;
+            box-sizing: border-box;
+            justify-content: center;
+        }
+        .fmc-date-btn {
+            flex: 1;
+            text-align: center;
+            font-size: 0.6rem;
+            padding: 6px 8px;
+        }
+        .fmc-premium-table { display: none; }
+        .fmc-mobile-cards { display: block; }
+        .fmc-custom-date-wrap {
+            width: 100%;
+        }
+        .fmc-custom-date-wrap .fmc-date-input-box { flex: 1; }
+        .fmc-custom-date-wrap .fmc-raw-date { width: 100%; font-size: 0.6rem; }
+        .fmc-search-pill {
+            width: 100%;
+            max-width: none;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .fmc-toolbar {
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px 12px;
+        }
+        .fmc-toolbar-controls {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            width: 100%;
+        }
+        .fmc-custom-date-wrap {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .fmc-custom-date-wrap .fmc-date-input-box { flex: 1; }
+        .fmc-custom-date-wrap .fmc-raw-date { width: 100%; font-size: 0.6rem; box-sizing: border-box; }
+        .fmc-search-pill {
+            width: 100%;
+            max-width: none;
+            min-width: 0;
+            box-sizing: border-box;
+            height: 48px !important;
+            padding: 0 16px;
+        }
+        .fmc-search-pill-input { font-size: 0.95rem; }
+        .fmc-toolbar .d-flex.gap-2 {
+            justify-content: center;
+        }
+    }
+
+    /* ── Desktop Pager ── */
+    .fmc-pager-root {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        gap: 16px;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--mud-palette-divider);
+    }
+    .fmc-pager-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .fmc-pager-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--mud-palette-text-secondary);
+        white-space: nowrap;
+    }
+    .fmc-pager-options {
+        display: flex;
+        gap: 3px;
+    }
+    .fmc-pager-opt {
+        padding: 3px 8px;
+        border-radius: 5px;
+        border: 1px solid var(--mud-palette-divider);
+        background: transparent;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .fmc-pager-opt.active {
+        background: var(--fmc-premium-primary);
+        color: #fff;
+        border-color: var(--fmc-premium-primary);
+    }
+    .fmc-pager-opt:hover:not(.active) {
+        background: rgba(var(--fmc-premium-primary-rgb), 0.08);
+        border-color: rgba(var(--fmc-premium-primary-rgb), 0.3);
+    }
+    .fmc-pager-nav {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .fmc-pager-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--mud-palette-divider);
+        background: transparent;
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .fmc-pager-btn:hover:not(:disabled) {
+        background: rgba(var(--fmc-premium-primary-rgb), 0.08);
+        border-color: rgba(var(--fmc-premium-primary-rgb), 0.3);
+        color: var(--fmc-premium-primary);
+    }
+    .fmc-pager-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+    }
+    .fmc-pager-btn .mud-icon-root { font-size: 1.1rem !important; }
+    .fmc-pager-current {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: var(--mud-palette-text-secondary);
+        padding: 0 8px;
+        white-space: nowrap;
+    }
+
+    /* ── Mobile Pager ── */
+    .fmc-mobile-pager {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px;
+        gap: 10px;
+        border-top: 1px solid var(--mud-palette-divider);
+        margin-top: 4px;
+    }
+    .fmc-mobile-pager-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .fmc-mobile-pager-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--mud-palette-text-secondary);
+    }
+    .fmc-mobile-pager-options {
+        display: flex;
+        gap: 4px;
+    }
+    .fmc-mobile-pager-btn {
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--mud-palette-divider);
+        background: transparent;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .fmc-mobile-pager-btn.active {
+        background: var(--fmc-premium-primary);
+        color: #fff;
+        border-color: var(--fmc-premium-primary);
+    }
+    .fmc-mobile-pager-btn:not(.active):hover {
+        background: rgba(var(--fmc-premium-primary-rgb), 0.08);
+        border-color: rgba(var(--fmc-premium-primary-rgb), 0.5);
+    }
+    .fmc-mobile-pager-count {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: var(--mud-palette-text-secondary);
+    }
+    .fmc-mobile-pager-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    .fmc-mobile-nav-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--mud-palette-divider);
+        background: var(--mud-palette-surface);
+        color: var(--mud-palette-text-secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .fmc-mobile-nav-btn:hover:not(:disabled) {
+        background: rgba(var(--fmc-premium-primary-rgb), 0.08);
+        border-color: rgba(var(--fmc-premium-primary-rgb), 0.3);
+        color: var(--fmc-premium-primary);
+    }
+    .fmc-mobile-nav-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+    }
+    .fmc-mobile-nav-btn .mud-icon-root { font-size: 1.2rem !important; }
 </style>
 
 @code {
@@ -570,9 +1352,12 @@
 
     private Guid _orgId;
     private string? _currentUserId;
+    private string _currentUserName = "Approver";
     private bool _isApprover;
     private bool _isMaker;
     private bool _isCeo;
+    private bool _isSuperAdmin;
+    private bool _isSuperAdminApprover;
 
     // Data Collections
     private List<TransactionDto> _allTransactions = new();
@@ -584,6 +1369,7 @@
     // UI State
     private bool _loading = true;
     private string? _processingGroupId = null;
+    private string? _rejectionReason;
     private bool _processingIsApprove = false;
     private bool _showErrorOverlay = false;
     private string _errorTitle = "";
@@ -593,7 +1379,11 @@
     private string _successSubtext = "";
     private int _activeIndex = 0;
     private string _searchString = "";
-    private DateRange? _filterDateRange;
+    private DateRange? _filterDateRange = new DateRange(DateTime.Today.AddDays(-7), DateTime.Today);
+    private string _activeDateRange = "7d";
+    private int _mobilePageSize = 10;
+    private int _mobileCurrentPage = 0;
+    private MudTable<TransactionGroup>? _table;
 
     #endregion
 
@@ -608,18 +1398,38 @@
         _isApprover = user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdminApprover);
         _isMaker = user.IsInRole(Roles.Maker);
         _isCeo = user.IsInRole(Roles.CEO);
+        _isSuperAdmin = user.IsInRole(Roles.SuperAdmin);
+        _isSuperAdminApprover = user.IsInRole(Roles.SuperAdminApprover);
         _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        _currentUserName = user.Identity?.Name ?? "Approver";
+        try { var me = await AuthService.GetCurrentUserAsync(); if (me != null) _currentUserName = me.DisplayName; } catch { }
         
-        var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
-        if (Guid.TryParse(orgIdClaim, out var id))
+        if (_isSuperAdmin || _isSuperAdminApprover)
         {
-            _orgId = id;
-            await LoadQueueDataAsync();
+            var orgs = await OrgService.GetOrganizationsAsync();
+            if (orgs.Any())
+            {
+                await LoadAllOrgsQueueDataAsync(orgs);
+            }
+            else
+            {
+                ShowApprovalErrorAsync("No organizations found.", false);
+                _loading = false;
+            }
         }
         else
         {
-            ShowApprovalErrorAsync("Organizational context unresolved.", false);
-            _loading = false;
+            var orgIdClaim = user.FindFirst("OrganizationId")?.Value;
+            if (Guid.TryParse(orgIdClaim, out var id))
+            {
+                _orgId = id;
+                await LoadQueueDataAsync();
+            }
+            else
+            {
+                ShowApprovalErrorAsync("Organizational context unresolved.", false);
+                _loading = false;
+            }
         }
     }
 
@@ -628,8 +1438,38 @@
     #region Data Loading & Structuring
 
     /// <summary>
-    /// Fetches the latest transaction history from the backend and segregates it into the appropriate tab queues.
-    /// Also groups transactions into 'TransactionGroups' for consolidated display.
+    /// Fetches the latest transaction history from all orgs and consolidates (SuperAdmin path).
+    /// </summary>
+    private async Task LoadAllOrgsQueueDataAsync(List<FMC.Shared.DTOs.Organization.OrganizationDto> orgs)
+    {
+        _loading = true;
+        try
+        {
+            var fetchCount = _isSuperAdmin || _isSuperAdminApprover ? 200 : 2000;
+            var tasks = orgs.Select(o => OrgService.GetOrganizationTransactionsAsync(o.Id, count: fetchCount));
+            var results = await Task.WhenAll(tasks);
+            _allTransactions = results.SelectMany(r => r).ToList();
+            if (_isSuperAdmin || _isSuperAdminApprover)
+                _allTransactions = _allTransactions.Where(t => t.Category is "Org Adjustment Pending" or "System Adjustment").ToList();
+            
+            _allGroups = GroupTransactions(_allTransactions);
+            _pendingGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Pending").ToList());
+            _approvedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList());
+            _rejectedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Rejected").ToList());
+        }
+        catch (Exception ex)
+        {
+            ShowApprovalErrorAsync($"Load Failed: {ex.Message}", false);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Fetches the latest transaction history from a single org and segregates it into tab queues.
     /// </summary>
     private async Task LoadQueueDataAsync()
     {
@@ -640,7 +1480,10 @@
             _allTransactions = allHistory.ToList();
             
             _allGroups = GroupTransactions(_allTransactions);
-            _pendingGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Pending").ToList());
+            var pendingTxs = _allTransactions.Where(t => t.Status == "Pending");
+            if (_isSuperAdmin || _isSuperAdminApprover)
+                pendingTxs = pendingTxs.Where(t => t.Category == "Org Adjustment Pending");
+            _pendingGroups = GroupTransactions(pendingTxs.ToList());
             _approvedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList());
             _rejectedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Rejected").ToList());
         }
@@ -711,6 +1554,21 @@
         if (string.IsNullOrEmpty(account)) return "ID.NULL";
         if (account.Length <= 10) return account;
         return $"{account[..6]}••••{account[^4..]}";
+    }
+
+    private void SetQuickDate(string range)
+    {
+        _activeDateRange = range;
+        var today = DateTime.Today;
+        switch (range)
+        {
+            case "all": _filterDateRange = new DateRange(null, null); break;
+            case "7d":  _filterDateRange = new DateRange(today.AddDays(-7), today); break;
+            case "1m":  _filterDateRange = new DateRange(today.AddMonths(-1), today); break;
+            case "3m":  _filterDateRange = new DateRange(today.AddMonths(-3), today); break;
+            case "1y":  _filterDateRange = new DateRange(today.AddYears(-1), today); break;
+        }
+        StateHasChanged();
     }
 
     /// <summary>
@@ -838,6 +1696,13 @@
                 "Are you sure you want to reject this transaction?", 
                 yesText: "Yes, Reject", cancelText: "No, Cancel");
             if (result != true) return;
+
+            // Prompt for rejection reason
+            var reasonParams = new DialogParameters { ["ContentText"] = "Please provide a reason for rejecting this transaction. (optional)" };
+            var reasonDialog = await DialogService.ShowAsync<RejectionDialog>("Reject Transaction", reasonParams, new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small });
+            var reasonResult = await reasonDialog.Result;
+            if (reasonResult is null || reasonResult.Canceled) return;
+            _rejectionReason = (reasonResult.Data as string)?.Trim();
         }
 
         try
@@ -848,7 +1713,7 @@
 
             var success = approve 
                 ? await OrgService.ApproveTransactionAsync(tx.Id)
-                : await OrgService.RejectTransactionAsync(tx.Id, "Rejected by Authorized Personnel");
+                : await OrgService.RejectTransactionAsync(tx.Id, _rejectionReason ?? $"Rejected by {_currentUserName}.");
 
             if (success)
             {
@@ -924,7 +1789,7 @@
 
                     if (result is not null && !result.Canceled)
                     {
-                        var reason = result.Data as string ?? "Batch rejected by approver.";
+                        var reason = result.Data as string ?? $"Batch rejected by {_currentUserName}.";
                         await OrgService.RejectBatchAsync(group.BatchId.Value, reason);
                         ShowSuccessOverlayAsync("BATCH DENIED", "The batch has been rejected and removed from the active queue.");
                     }

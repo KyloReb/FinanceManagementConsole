@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FMC.Api.Controllers;
 
-[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver)]
+[Authorize(Roles = Roles.SuperAdmin + "," + Roles.CEO + "," + Roles.Maker + "," + Roles.Approver + "," + Roles.SuperAdminApprover)]
 [ApiController]
 [Route("api/[controller]")]
 public class AuditController : ControllerBase
@@ -27,8 +27,8 @@ public class AuditController : ControllerBase
     [HttpGet("logs")]
     public async Task<ActionResult<List<AuditLogDto>>> GetRecentLogs([FromQuery] int count = 20, [FromQuery] string? category = null, [FromQuery] string? tenantId = null)
     {
-        // Security: Non-SuperAdmins can only see their own organization logs
-        if (!User.IsInRole(Roles.SuperAdmin))
+        // Security: Non-SuperAdmins and non-SuperAdminApprovers can only see their own organization logs
+        if (!User.IsInRole(Roles.SuperAdmin) && !User.IsInRole(Roles.SuperAdminApprover))
         {
             var userOrgClaim = User.FindFirst("OrganizationId")?.Value;
             if (!string.IsNullOrEmpty(userOrgClaim))
@@ -47,7 +47,7 @@ public class AuditController : ControllerBase
     [HttpPost("search")]
     public async Task<ActionResult<AuditLogSearchResultDto>> SearchLogs([FromBody] AuditLogQueryDto query)
     {
-        if (!User.IsInRole(Roles.SuperAdmin))
+        if (!User.IsInRole(Roles.SuperAdmin) && !User.IsInRole(Roles.SuperAdminApprover))
         {
             var userOrgClaim = User.FindFirst("OrganizationId")?.Value;
             if (!string.IsNullOrEmpty(userOrgClaim))

@@ -18,7 +18,7 @@
                 <MudText Typo="Typo.h4" Style="font-weight: 900; letter-spacing: -0.02em;">Organization Operations</MudText>
                 <MudText Typo="Typo.subtitle2" Class="mud-text-secondary" Style="font-weight: 700;">@_roleDisplay AUTHENTICATED · @Organization.Name.ToUpper()</MudText>
             </div>
-            @if (_isMaker)
+            @if (_isMaker || _isSuperAdmin)
             {
                 <div class="d-flex gap-3">
                     <MudButton Variant="Variant.Filled" OnClick="@(() => OpenUserSelection(true))"
@@ -109,10 +109,64 @@
         </div>
     </MudItem>
 
-    @* ── INTELLIGENCE OVERSIGHT (WORKFLOW ALERTS) ── *@
-    <MudItem xs="12">
-        <WorkflowAlertPanel Loading="Loading" />
-    </MudItem>
+    @* ── INTELLIGENCE OVERSIGHT + PENDING REQUESTS (side by side) ── *@
+    @if (_isSuperAdmin || _isSuperAdminApprover)
+    {
+        <MudItem xs="12" sm="7">
+            <WorkflowAlertPanel Loading="Loading" />
+        </MudItem>
+        <MudItem xs="12" sm="5">
+            <MudPaper Class="fmc-main-surface pa-4" Elevation="0" Style="height: 100%; border-radius: 16px;">
+                <div class="d-flex align-center justify-space-between mb-3">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.HourglassTop" Size="Size.Small" Color="Color.Warning" />
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 700; letter-spacing: 0.02em;">Pending Requests</MudText>
+                    </div>
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: 900;">@_pendingTransactions.Count</MudChip>
+                </div>
+                <div style="max-height: 220px; overflow-y: auto;">
+                    @if (_pendingTransactions.Any())
+                    {
+                        @foreach (var pt in _pendingTransactions.Take(5))
+                        {
+                            <div class="d-flex align-center justify-space-between py-2" style="border-bottom: 1px solid var(--mud-palette-divider);">
+                                <div class="d-flex flex-column" style="min-width: 0;">
+                                    <MudText Typo="Typo.body2" Style="font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@pt.Subscriber</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">₱@Math.Abs(pt.Amount).ToString("N2")</MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Tertiary" Variant="Variant.Outlined" Style="font-size: 0.6rem; flex-shrink: 0;">@pt.Label</MudChip>
+                            </div>
+                        }
+                        @if (_pendingTransactions.Count > 5)
+                        {
+                            <div class="text-center mt-2">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">+ @(_pendingTransactions.Count - 5) more</MudText>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column align-center py-4" style="opacity: 0.4;">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                            <MudText Typo="Typo.caption">All clear — no pending requests</MudText>
+                        </div>
+                    }
+                </div>
+                @if (_pendingTransactions.Any())
+                {
+                    <div class="mt-2 text-center">
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="/pending-requests" Style="text-transform: none; font-weight: 700;">View All →</MudButton>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+    }
+    else
+    {
+        <MudItem xs="12">
+            <WorkflowAlertPanel Loading="Loading" />
+        </MudItem>
+    }
 
 
     @* ── OPERATIONAL ROW: Balanced Height Sync ── *@
@@ -394,7 +448,7 @@
                             <MudTh Style="font-size:0.65rem; font-weight:900; letter-spacing:0.08em; color:var(--mud-palette-text-secondary); text-align:right;">
                                 <MudTableSortLabel SortBy="new Func<UserDto, object>(x => x.Balance)">WALLET BALANCE</MudTableSortLabel>
                             </MudTh>
-                            @if (_isMaker)
+                            @if (_isMaker || _isSuperAdmin)
                             {
                                 <MudTh Style="font-size:0.65rem; font-weight:900; letter-spacing:0.08em; color:var(--mud-palette-text-secondary); text-align:center;">ACTIONS</MudTh>
                             }
@@ -424,7 +478,7 @@
                                     @ch.Balance.ToString("C")
                                 </MudText>
                             </MudTd>
-                            @if (_isMaker)
+                            @if (_isMaker || _isSuperAdmin)
                             {
                                 <MudTd Style="text-align:center;">
                                     <MudTooltip Text="Debit Disabled">
@@ -471,7 +525,7 @@
                                     </MudText>
                                 </div>
                             </div>
-                            @if (_isMaker)
+                            @if (_isMaker || _isSuperAdmin)
                             {
                                 <div class="d-flex justify-end gap-2 mt-2">
                                     <MudButton StartIcon="@Icons.Material.Filled.RemoveCircleOutline" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Disabled="true">Debit</MudButton>
@@ -536,6 +590,8 @@
     private bool _auditLoading;
     private bool _isApprover;
     private bool _isMaker;
+    private bool _isSuperAdmin;
+    private bool _isSuperAdminApprover;
     private string? _currentUserId;
     private string _cardholderSearch = "";
     private string _roleDisplay = "Operations";
@@ -563,6 +619,8 @@
         var user = authState.User;
         _isApprover = user.IsInRole(Roles.Approver) || user.IsInRole(Roles.SuperAdminApprover);
         _isMaker = user.IsInRole(Roles.Maker);
+        _isSuperAdmin = user.IsInRole(Roles.SuperAdmin);
+        _isSuperAdminApprover = user.IsInRole(Roles.SuperAdminApprover);
         _currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         
         if (user.IsInRole(Roles.Maker)) _roleDisplay = "MAKER";

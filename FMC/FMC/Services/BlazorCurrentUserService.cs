@@ -36,7 +36,7 @@ public class BlazorCurrentUserService : ICurrentUserService
     public bool IsSuperAdmin => GetUser()?.IsInRole("SuperAdmin") ?? false;
     public bool IsCeo => GetUser()?.IsInRole("CEO") ?? false;
     public bool IsMaker => GetUser()?.IsInRole("Maker") ?? false;
-    public bool IsApprover => GetUser()?.IsInRole("Approver") ?? false;
+    public bool IsApprover => (GetUser()?.IsInRole("Approver") ?? false) || (GetUser()?.IsInRole("SuperAdminApprover") ?? false);
     public bool IsSuperAdminApprover => GetUser()?.IsInRole("SuperAdminApprover") ?? false;
 
     private ClaimsPrincipal? GetUser()

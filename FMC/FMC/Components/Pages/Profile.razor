@@ -3,425 +3,527 @@
 @using Microsoft.AspNetCore.Authorization
 @using FMC.Shared.DTOs.User
 @using FMC.Shared.Auth
+@using FMC.Shared.DTOs
+@using FMC.Services
+@implements IDisposable
 @attribute [Authorize]
+@inject ThemeService ThemeService
 
 <PageTitle>Identity Profile</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-16 fmc-profile-container">
+<style>
+    .fmc-sidebar-card {
+        border-radius: 24px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important;
+    }
+    .fmc-profile-tabs {
+        border-radius: 24px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.04) !important;
+    }
+    .fmc-activity-table .mud-table-row { background: #f8fafc !important; }
+    .fmc-activity-table .mud-table-row:hover { background: #faf6f0 !important; }
+    .fmc-activity-pager { background: #f8fafc; }
+    .fmc-date-group { display: flex; align-items: center; height: 40px; flex-shrink: 1; }
+    .fmc-date-btn { font-size: 0.6rem; padding: 4px 10px; }
+    .fmc-date-btn.active { background: #4F46E5 !important; color: #fff !important; }
+    .fmc-dark-mode .fmc-sidebar-card {
+        background: #0f0f1a !important;
+        border-color: #1a1a2e !important;
+    }
+    .fmc-dark-mode .fmc-profile-tabs {
+        background: #0f0f1a !important;
+        border-color: #1a1a2e !important;
+    }
+    .fmc-dark-mode .fmc-activity-table .mud-table-row { background: #0f0f1a !important; }
+    .fmc-dark-mode .fmc-activity-table .mud-table-row:hover { background: #1a1520 !important; }
+    .fmc-dark-mode .fmc-activity-pager { background: #0f0f1a; }
+</style>
+
+<div class="fmc-profile-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-16 fmc-profile-container">
     @if (_user == null)
     {
         <MudGrid Spacing="4">
-            <MudItem xs="12" sm="8" Class="pb-2">
+            <MudItem xs="12" Class="pb-2">
                 <MudSkeleton Width="250px" Height="40px" SkeletonType="SkeletonType.Rectangle" Class="rounded-lg mb-2" />
-                <MudSkeleton Width="350px" Height="20px" SkeletonType="SkeletonType.Rectangle" Class="rounded" />
             </MudItem>
-            <MudItem xs="12" sm="4" Class="d-flex align-center justify-sm-end pb-2">
-                <MudSkeleton Width="150px" Height="48px" SkeletonType="SkeletonType.Rectangle" Class="rounded-xl" />
-            </MudItem>
-
             <MudItem xs="12" lg="4">
                 <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center fmc-sidebar-card">
                     <MudSkeleton SkeletonType="SkeletonType.Circle" Width="110px" Height="110px" Class="mb-4" />
                     <MudSkeleton Width="180px" Height="30px" Class="mb-1" />
                     <MudSkeleton Width="220px" Height="18px" Class="mb-3" />
                     <MudSkeleton Width="100px" Height="24px" Class="mb-4 rounded" />
-                    <MudDivider Class="mb-4 w-100" Style="opacity:0.2;" />
-                    <div class="w-100 d-flex flex-column gap-2">
-                        <MudSkeleton Width="100%" Height="44px" Class="rounded-lg" />
-                        <MudSkeleton Width="100%" Height="44px" Class="rounded-lg" />
-                        <MudSkeleton Width="100%" Height="44px" Class="rounded-lg" />
-                    </div>
                 </MudPaper>
             </MudItem>
-
             <MudItem xs="12" lg="8">
-                <MudGrid Spacing="3">
-                    <MudItem xs="6">
-                        <MudSkeleton Width="100%" Height="140px" SkeletonType="SkeletonType.Rectangle" Class="rounded-xl" />
-                    </MudItem>
-                    <MudItem xs="6">
-                        <MudSkeleton Width="100%" Height="140px" SkeletonType="SkeletonType.Rectangle" Class="rounded-xl" />
-                    </MudItem>
-                    <MudItem xs="12">
-                        <MudPaper Elevation="0" Class="fmc-profile-tabs" Style="height: 400px;">
-                            <div class="px-8 pt-8">
-                                <MudSkeleton Width="200px" Height="15px" Class="mb-2" />
-                                <MudSkeleton Width="250px" Height="30px" Class="mb-6" />
-                                <MudGrid Spacing="3">
-                                    <MudItem xs="6">
-                                        <MudSkeleton Width="100%" Height="80px" Class="rounded-lg" />
-                                    </MudItem>
-                                    <MudItem xs="6">
-                                        <MudSkeleton Width="100%" Height="80px" Class="rounded-lg" />
-                                    </MudItem>
-                                    <MudItem xs="12">
-                                        <MudSkeleton Width="100%" Height="80px" Class="rounded-lg" />
-                                    </MudItem>
-                                </MudGrid>
-                            </div>
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
+                <MudPaper Elevation="0" Class="fmc-profile-tabs" Style="height: 300px;">
+                    <div class="px-8 pt-8"><MudSkeleton Width="250px" Height="30px" Class="mb-6" /></div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12">
+                <MudPaper Elevation="0" Class="fmc-profile-tabs" Style="height: 200px;" />
             </MudItem>
         </MudGrid>
     }
     else
     {
         <MudGrid Spacing="4">
-            @* HEADER / QUICK STATS *@
-            <MudItem xs="12" sm="8" Class="pb-2">
-                <MudText Typo="Typo.h4" Style="font-weight:800; letter-spacing:-0.5px;">@(_isForeignProfile ? "User Audit Profile" : "Identity Profile")</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">@(_isForeignProfile ? $"Administrative forensic view for account ID: {UserId}" : "Security, Identity & Financial Sovereignty")</MudText>
-            </MudItem>
-            <MudItem xs="12" sm="4" Class="d-flex align-center justify-sm-end pb-2 gap-2">
-                @if (!_isForeignProfile && !_isEditing)
-                {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" 
-                               OnClick="@StartEdit" Class="fmc-action-btn-compact">
-                        Edit Profile
-                    </MudButton>
-                }
-                else if (_isEditing)
-                {
-                    <MudButton Variant="Variant.Text" OnClick="@CancelEdit" Class="fmc-btn-cancel mr-2">
-                        CANCEL
-                    </MudButton>
-                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" 
-                               OnClick="@SaveProfile" Class="fmc-btn-save" Disabled="@_saving">
-                        @(_saving ? "SYNCHRONIZING..." : "SAVE CHANGES")
-                    </MudButton>
-                }
-                
-                @if (IsAdminOrCeo && !_isEditing)
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Dashboard" 
-                               OnClick="@(() => Navigation.NavigateTo("/"))" Class="fmc-action-btn">
-                        Control Center
-                    </MudButton>
-                }
+            @* HEADER *@
+            <MudItem xs="12" Class="pb-2">
+                <MudText Typo="Typo.h4" Style="font-weight:800; letter-spacing:-0.5px;">@(_isForeignProfile ? "User Profile" : "My Profile")</MudText>
             </MudItem>
 
             <MudItem xs="12" lg="4">
-                <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center fmc-sidebar-card">
-                    <div class="avatar-wrapper mb-4">
+                <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center fmc-sidebar-card" Style="height:100%;">
+                    <div class="fmc-avatar-ring mb-4">
                         <MudAvatar Style="@($"height:110px; width:110px; font-size:2.5rem; font-weight:700; background: {GetAvatarGradient(_user.Id)}; color: white; box-shadow: 0 8px 20px rgba(0,0,0,0.15);")">
                             @(GetInitials(_user))
                         </MudAvatar>
                     </div>
                     
                     <MudText Typo="Typo.h5" Align="Align.Center" Style="font-weight:800; letter-spacing:-0.5px; line-height:1.2;">@_user.DisplayName</MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary" Align="Align.Center">@_user.Email</MudText>
-                    <div class="mt-1 mb-3 fmc-util-pill normal d-inline-block px-3 py-1 mx-auto" style="font-size:0.75rem; font-family:'JetBrains Mono', monospace; font-weight:800;">
-                        ACCT: @MaskAccountNumber(GetStableAccountNumber(_user.Id.ToString(), _user.AccountNumber))
-                    </div>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary" Align="Align.Center" Style="font-size:0.7rem; font-weight:700; opacity:0.6; margin-bottom:4px;">@(_user.Organization ?? "No Organization")</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary" Align="Align.Center">@MaskEmail(_user.Email)</MudText>
                     
-                    <div class="d-flex gap-2 flex-wrap justify-center mb-4">
+                    <div class="d-flex gap-2 flex-wrap justify-center mt-3 mb-4">
                         @{
                             var colorClass = _user.Role == Roles.SuperAdmin ? "admin" : _user.Role == Roles.CEO ? "ceo" : "user";
                         }
                         <span class="fmc-profile-badge @colorClass">@_user.Role</span>
                     </div>
-
-                    <MudDivider Class="mb-4 w-100" Style="opacity:0.2;" />
-                    
-                    <div class="w-100 d-flex flex-column gap-1 mt-1">
-                        <div class="d-flex align-center pa-3 fmc-mini-stat clickable @(_activeTab == 0 ? "active" : "")" @onclick="@(() => _activeTab = 0)">
-                            <MudIcon Icon="@Icons.Material.Filled.Fingerprint" Size="Size.Small" Color="Color.Primary" Class="mr-3" />
-                            <MudText Typo="Typo.body2" Style="font-weight:700;">Personal Details</MudText>
-                        </div>
-                        <div class="d-flex align-center pa-3 fmc-mini-stat clickable" @onclick="@StartEdit">
-                            <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Small" Color="Color.Info" Class="mr-3" />
-                            <MudText Typo="Typo.body2" Style="font-weight:700;">Security & Credentials</MudText>
-                        </div>
-                        <div class="d-flex align-center pa-3 fmc-mini-stat clickable @(_activeTab == 1 ? "active" : "")" @onclick="@(() => _activeTab = 1)">
-                            <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Default" Class="mr-3" />
-                            <MudText Typo="Typo.body2" Style="font-weight:700;">Activity Session</MudText>
-                        </div>
-                    </div>
                 </MudPaper>
             </MudItem>
 
             <MudItem xs="12" lg="8">
-                <MudGrid Spacing="3">
-                    @* Financial Cards - Only show wallet for Cardholders (Roles.User) *@
-                    @if (_user.Role == Roles.User)
-                    {
-                        <MudItem xs="6" lg="6">
-                            <MudPaper Elevation="0" Class="pa-6 fmc-balance-card h-100">
-                                <div class="d-flex align-center justify-space-between w-100">
-                                    <MudText Typo="Typo.overline" Style="color: rgba(255,255,255,0.7); font-weight:800; letter-spacing: 1px; font-size:0.65rem;">AVAILABLE BALANCE</MudText>
-                                    <MudIconButton Icon="@(_showBalance ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)" 
-                                                Color="Color.Inherit" Size="Size.Small" 
-                                                OnClick="@(() => _showBalance = !_showBalance)" 
-                                                Style="padding:0; opacity: 0.7;" />
-                                </div>
-                                <div class="fmc-balance-container">
-                                    @if (_showBalance)
-                                    {
-                                        <MudText Typo="Typo.h2" Class="fmc-balance-amount">@(_walletBalance.ToString("C2"))</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudText Typo="Typo.h2" Class="fmc-balance-amount">₱ ••••••</MudText>
-                                    }
-                                </div>
-                                <div class="d-flex align-center mt-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" Style="color: rgba(255,255,255,0.5); font-size: 0.8rem;" Class="mr-1" />
-                                    <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.6); font-weight:600; font-size:0.6rem;">Secured Ledger</MudText>
-                                </div>
-                            </MudPaper>
-                        </MudItem>
-                    }
-
-                    <MudItem xs="@(_user.Role == Roles.User ? 6 : 12)" lg="@(_user.Role == Roles.User ? 6 : 12)">
-                        <MudPaper Elevation="0" Class="pa-6 d-flex flex-column justify-center fmc-org-card h-100 fmc-hover-card" 
-                                  Style="@(_user.OrganizationId.HasValue ? "cursor: pointer;" : "")"
-                                  @onclick="@(() => { if(_user.OrganizationId.HasValue) Navigation.NavigateTo($"/admin/organizations/{_user.OrganizationId.Value}"); })">
-                            <MudText Typo="Typo.overline" Style="color: var(--mud-palette-text-secondary); font-weight:800; letter-spacing: 1px; font-size:0.65rem;">
-                                @(_user.Role == Roles.SuperAdmin ? "SYSTEM AUTHORITY" : "TENANT")
-                            </MudText>
-                            <div class="fmc-org-compact mt-2">
-                                <MudIcon Icon="@(_user.Role == Roles.SuperAdmin ? Icons.Material.Filled.AdminPanelSettings : Icons.Material.Filled.Business)" 
-                                         Color="Color.Primary" Size="Size.Medium" Class="mr-2" />
-                                <div class="fmc-org-details w-100" style="overflow:hidden;">
-                                    <MudText Typo="Typo.body1" Class="fmc-org-name-compact" Style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@(_user.Organization ?? "Global Core")</MudText>
-                                    <div class="d-flex align-center justify-space-between mt-1 w-100">
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size:0.65rem;">ID: @(_user.OrganizationId?.ToString().Substring(0, 8) ?? "System")</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight:700; font-size:0.65rem;">ACCT: @GetStableAccountNumber(_user.OrganizationId?.ToString() ?? "", _user.OrganizationAccountNumber)</MudText>
-                                    </div>
-                                </div>
+                <MudPaper Elevation="0" Class="fmc-profile-tabs">
+                    <div class="fmc-tab-content-premium">
+                        <div class="px-8 pt-8 pb-4 d-flex align-center justify-space-between">
+                            <div>
+                                <MudText Typo="Typo.overline" Class="fmc-premium-overline">PROFILE DETAILS</MudText>
+                                <MudText Typo="Typo.h5" Class="fmc-premium-title">Personal Information</MudText>
                             </div>
-                        </MudPaper>
-                    </MudItem>
-
-                    @* Institutional Liquidity Card for CEOs/Admins *@
-                    @if (_user.Role == Roles.CEO || _user.Role == Roles.SuperAdmin)
-                    {
-                        <MudItem xs="12">
-                            <MudPaper Elevation="0" Class="pa-6 fmc-institutional-card">
-                                <div class="d-flex align-center justify-space-between mb-4">
-                                    <div>
-                                        <MudText Typo="Typo.overline" Style="color: rgba(255,255,255,0.7); font-weight:800; letter-spacing: 1px;">INSTITUTIONAL LIQUIDITY</MudText>
-                                        <MudText Typo="Typo.h3" Style="font-weight:900; font-family: 'JetBrains Mono', monospace; line-height:1;">@(_orgBalance.ToString("C2"))</MudText>
-                                    </div>
-                                    <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Large" Style="color: rgba(255,255,255,0.2); font-size: 4rem;" />
-                                </div>
-                                <div class="d-flex align-center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Style="color: rgba(255,255,255,0.5);" Class="mr-2" />
-                                    <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.6); font-weight:600;">Authorized Corporate Float available for subscriber allocation.</MudText>
-                                </div>
-                            </MudPaper>
-                        </MudItem>
-                    }
-
-                    @if (_walletBalance == 0 && !IsAdminOrCeo)
-                    {
-                        <MudItem xs="12">
-                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="fmc-zero-alert" Icon="@Icons.Material.Filled.AccountBalanceWallet">
-                                Your wallet is currently at zero liquidity. Please contact your organization's <strong>Chief Executive</strong> to request a fund allotment for this cycle.
-                            </MudAlert>
-                        </MudItem>
-                    }
-
-                    <MudItem xs="12">
-                        <MudTabs @bind-ActivePanelIndex="_activeTab" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="fmc-profile-tabs">
-                            <MudTabPanel Text="Identity Mapping" Icon="@Icons.Material.Filled.Fingerprint">
-                                <div class="fmc-tab-content-premium">
-                                    <div class="px-8 pt-8 pb-4 d-flex align-center justify-space-between">
-                                        <div>
-                                            <MudText Typo="Typo.overline" Class="fmc-premium-overline">INSTITUTIONAL IDENTITY RECORDS</MudText>
-                                            <MudText Typo="Typo.h5" Class="fmc-premium-title">Secure Identity Mapping</MudText>
-                                        </div>
-                                        <div class="fmc-security-badge-premium">
-                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-2" />
-                                            <span>ENCRYPTED LEDGER</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <MudGrid Spacing="2" Class="px-8 pb-8">
-                                        <MudItem xs="12" sm="6">
-                                            <div class="fmc-id-card @(_isEditing ? "editing" : "")">
-                                                <div class="fmc-id-accent primary"></div>
-                                                <div class="fmc-id-content">
-                                                    <div class="d-flex align-center mb-1">
-                                                        <div class="fmc-id-icon-bg primary mr-2">
-                                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Style="font-size:0.9rem;" />
-                                                        </div>
-                                                        <MudText Typo="Typo.caption" Class="fmc-id-label">GIVEN NAME</MudText>
-                                                    </div>
-                                                    @if (_isEditing)
-                                                    {
-                                                        <MudTextField @bind-Value="_editModel.FirstName" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-edit-input-compact" Placeholder="Enter name" />
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudText Typo="Typo.body1" Class="fmc-id-value">@_user.FirstName</MudText>
-                                                    }
-                                                </div>
-                                            </div>
-                                        </MudItem>
-
-                                        <MudItem xs="12" sm="6">
-                                            <div class="fmc-id-card @(_isEditing ? "editing" : "")">
-                                                <div class="fmc-id-accent secondary"></div>
-                                                <div class="fmc-id-content">
-                                                    <div class="d-flex align-center mb-1">
-                                                        <div class="fmc-id-icon-bg secondary mr-2">
-                                                            <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Style="font-size:0.9rem;" />
-                                                        </div>
-                                                        <MudText Typo="Typo.caption" Class="fmc-id-label">SURNAME</MudText>
-                                                    </div>
-                                                    @if (_isEditing)
-                                                    {
-                                                        <MudTextField @bind-Value="_editModel.LastName" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-edit-input-compact" Placeholder="Enter surname" />
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudText Typo="Typo.body1" Class="fmc-id-value">@_user.LastName</MudText>
-                                                    }
-                                                </div>
-                                            </div>
-                                        </MudItem>
-
-                                        <MudItem xs="12">
-                                            <div class="fmc-id-card">
-                                                <div class="fmc-id-accent info"></div>
-                                                <div class="fmc-id-content">
-                                                    <div class="d-flex align-center justify-space-between mb-1">
-                                                        <div class="d-flex align-center">
-                                                            <div class="fmc-id-icon-bg info mr-2">
-                                                                <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Style="font-size:0.9rem;" />
-                                                            </div>
-                                                            <MudText Typo="Typo.caption" Class="fmc-id-label">REGISTERED INSTITUTIONAL EMAIL</MudText>
-                                                        </div>
-                                                        <div class="d-flex align-center fmc-verified-chip">
-                                                            <div class="status-dot sm mr-2"></div>
-                                                            <span>VERIFIED CHANNEL</span>
-                                                        </div>
-                                                    </div>
-                                                    <MudText Typo="Typo.h6" Style="font-weight:800; letter-spacing:-0.2px;">@_user.Email</MudText>
-                                                </div>
-                                            </div>
-                                        </MudItem>
-                                    </MudGrid>
-                                </div>
-                            </MudTabPanel>
-                            
-                            @if (_user.Role == Roles.User)
+                            @if (!_isForeignProfile && !_isEditing)
                             {
-                                <MudTabPanel Text="Financial Forensic" Icon="@Icons.Material.Filled.QueryStats">
-                                    @if (_loadingHistory)
-                                    {
-                                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="rounded" />
-                                    }
-                                    else if (!_transactions.Any())
-                                    {
-                                        <div class="d-flex flex-column align-center justify-center py-16">
-                                            <div class="fmc-empty-icon-container mb-6">
-                                                <MudIcon Icon="@Icons.Material.Filled.HistoryToggleOff" Style="font-size: 3rem; color: var(--mud-palette-primary);" />
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" 
+                                           OnClick="@StartEdit" Class="fmc-action-btn-compact">
+                                    Edit
+                                </MudButton>
+                            }
+                            else if (_isEditing)
+                            {
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Text" OnClick="@CancelEdit" Class="fmc-btn-cancel">CANCEL</MudButton>
+                                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" 
+                                               OnClick="@SaveProfile" Class="fmc-btn-save" Disabled="@_saving">
+                                        @(_saving ? "SAVING..." : "SAVE")
+                                    </MudButton>
+                                </div>
+                            }
+                        </div>
+                        
+                        <MudGrid Spacing="2" Class="px-8 pb-8">
+                            <MudItem xs="12" sm="6">
+                                <div class="fmc-id-card @(_isEditing ? "editing" : "")">
+                                    <div class="fmc-id-accent primary"></div>
+                                    <div class="fmc-id-content">
+                                        <div class="d-flex align-center mb-1">
+                                            <div class="fmc-id-icon-bg primary mr-2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Style="font-size:0.9rem;" />
                                             </div>
-                                            <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px;">No Transactions Found</MudText>
-                                            <MudText Typo="Typo.body2" Class="mud-text-secondary text-center px-12 mt-2" Style="max-width: 450px; line-height: 1.6;">
-                                                The digital ledger for this account is currently empty. Any future adjustments or credits will be logged here for forensic auditing.
-                                            </MudText>
-                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Class="mt-6" Style="text-transform:none; font-weight:700;">Refresh Ledger</MudButton>
+                                            <MudText Typo="Typo.caption" Class="fmc-id-label">GIVEN NAME</MudText>
                                         </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="px-8 pt-8 pb-2 d-flex align-center justify-space-between">
-                                            <MudText Typo="Typo.h6" Style="font-weight:900; letter-spacing:-0.5px;">Digital Ledger Trace</MudText>
-                                            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Download" Color="Color.Primary" Size="Size.Small" Style="text-transform:none; font-weight:700;">Export History</MudButton>
+                                        @if (_isEditing)
+                                        {
+                                            <MudTextField @bind-Value="_editModel.FirstName" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-edit-input-compact" Placeholder="Enter name" />
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body1" Class="fmc-id-value">@_user.FirstName</MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <div class="fmc-id-card @(_isEditing ? "editing" : "")">
+                                    <div class="fmc-id-accent secondary"></div>
+                                    <div class="fmc-id-content">
+                                        <div class="d-flex align-center mb-1">
+                                            <div class="fmc-id-icon-bg secondary mr-2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Style="font-size:0.9rem;" />
+                                            </div>
+                                            <MudText Typo="Typo.caption" Class="fmc-id-label">SURNAME</MudText>
                                         </div>
-                                        <MudTable Items="@_transactions" Dense="true" Hover="true" Bordered="false" Striped="false" Elevation="0" Class="fmc-trace-table mb-4">
+                                        @if (_isEditing)
+                                        {
+                                            <MudTextField @bind-Value="_editModel.LastName" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-edit-input-compact" Placeholder="Enter surname" />
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body1" Class="fmc-id-value">@_user.LastName</MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <div class="fmc-id-card">
+                                    <div class="fmc-id-accent info"></div>
+                                    <div class="fmc-id-content">
+                                        <div class="d-flex align-center justify-space-between mb-1">
+                                            <div class="d-flex align-center">
+                                                <div class="fmc-id-icon-bg info mr-2">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Style="font-size:0.9rem;" />
+                                                </div>
+                                                <MudText Typo="Typo.caption" Class="fmc-id-label">REGISTERED INSTITUTIONAL EMAIL</MudText>
+                                            </div>
+                                            <div class="d-flex align-center fmc-verified-chip">
+                                                <div class="status-dot sm mr-2"></div>
+                                                <span>VERIFIED CHANNEL</span>
+                                            </div>
+                                        </div>
+                                        <MudText Typo="Typo.h6" Style="font-weight:800; letter-spacing:-0.2px;">@MaskEmail(_user.Email)</MudText>
+                                    </div>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            @* ── Activity Session (full width) ── *@
+            <MudItem xs="12">
+                <MudPaper Elevation="0" Class="fmc-profile-tabs">
+                @if (_activityLoading)
+                                {
+                                    <div class="pa-4">
+                                        @for (int i = 0; i < 5; i++)
+                                        {
+                                            <div class="d-flex align-center py-3 px-4" style="border-bottom:1px solid #f1f5f9; gap:16px;">
+                                                <div class="fmc-act-skel" style="width:80px; height:12px;"></div>
+                                                <div class="fmc-act-skel" style="width:60px; height:20px; border-radius:4px;"></div>
+                                                <div class="fmc-act-skel" style="flex:1; height:14px;"></div>
+                                                <div class="fmc-act-skel" style="width:90px; height:14px;"></div>
+                                                <div class="fmc-act-skel" style="width:60px; height:20px; border-radius:10px;"></div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else if (!_activityEntries.Any())
+                                {
+                                    <div class="d-flex flex-column align-center justify-center py-12">
+                                        <MudIcon Icon="@Icons.Material.Filled.HistoryToggleOff" Style="font-size: 3rem; opacity:0.15;"/>
+                                        <MudText Typo="Typo.h6" Class="mt-4" Style="opacity:0.4; font-weight:800;">No Activity Recorded</MudText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @* ── Title ── *@
+                                    <div class="fmc-activity-header">
+                                        <div class="fmc-activity-title-bar">
+                                            <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Small" Class="mr-2" Style="color:#B45309;"/>
+                                            <MudText Typo="Typo.overline" Class="fmc-premium-overline">ACTIVITY SESSION</MudText>
+                                        </div>
+                                    </div>
+
+                                    @* ── Toolbar ── *@
+                                    <div class="fmc-activity-toolbar">
+                                        @* Single row *@
+                                        <div class="fmc-toolbar-row-bar">
+                                            <div class="fmc-date-group">
+                                                <button class="fmc-date-btn @(_activityCategory == "" ? "active" : "")" @onclick='() => { _activityCategory = ""; _activityCurrentPage = 0; }'>ALL</button>
+                                                <button class="fmc-date-btn @(_activityCategory == "financial" ? "active" : "")" @onclick='() => { _activityCategory = "financial"; _activityCurrentPage = 0; }'>FINANCIAL</button>
+                                                <button class="fmc-date-btn @(_activityCategory == "security" ? "active" : "")" @onclick='() => { _activityCategory = "security"; _activityCurrentPage = 0; }'>SECURITY</button>
+                                            </div>
+                                            <div class="fmc-date-group">
+                                                <button class="fmc-date-btn @(_activeActivityDate == "all" ? "active" : "")" @onclick='() => SetQuickActivityDate("all")'>ALL</button>
+                                                <button class="fmc-date-btn @(_activeActivityDate == "7d" ? "active" : "")" @onclick='() => SetQuickActivityDate("7d")'>7D</button>
+                                                <button class="fmc-date-btn @(_activeActivityDate == "1m" ? "active" : "")" @onclick='() => SetQuickActivityDate("1m")'>1M</button>
+                                                <button class="fmc-date-btn @(_activeActivityDate == "3m" ? "active" : "")" @onclick='() => SetQuickActivityDate("3m")'>3M</button>
+                                                <button class="fmc-date-btn @(_activeActivityDate == "1y" ? "active" : "")" @onclick='() => SetQuickActivityDate("1y")'>1Y</button>
+                                            </div>
+                                            <div class="fmc-custom-date-wrap">
+                                                <div class="fmc-date-input-box">
+                                                    <span class="fmc-date-label">START</span>
+                                                    <input type="date" value="@(_activityDateRange?.Start?.ToString("yyyy-MM-dd"))"
+                                                           @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) { _activityDateRange = new(d, _activityDateRange?.End); _activeActivityDate = "custom"; } })"
+                                                           class="fmc-raw-date"/>
+                                                </div>
+                                                <div class="fmc-date-sep"></div>
+                                                <div class="fmc-date-input-box">
+                                                    <span class="fmc-date-label">END</span>
+                                                    <input type="date" value="@(_activityDateRange?.End?.ToString("yyyy-MM-dd"))"
+                                                           @onchange="@(e => { if(DateTime.TryParse(e.Value?.ToString(), out var d)) { _activityDateRange = new(_activityDateRange?.Start, d); _activeActivityDate = "custom"; } })"
+                                                           class="fmc-raw-date"/>
+                                                </div>
+                                            </div>
+                                            <div style="width:8px; flex-shrink:0;"></div>
+                                            <div class="d-flex gap-1" style="flex-shrink:0;">
+                                                <button class="fmc-act-export-btn fmc-act-export-compact" @onclick="ExportActivityToExcel">
+                                                    <MudIcon Icon="@Icons.Custom.FileFormats.FileExcel" Size="Size.Small" style="font-size:0.8rem;"/><span>XLS</span>
+                                                </button>
+                                                <button class="fmc-act-export-btn fmc-act-export-compact" @onclick="ExportActivityToPdf">
+                                                    <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" style="font-size:0.8rem;"/><span>PDF</span>
+                                                </button>
+                                            </div>
+                                            <div class="fmc-search-pill" style="flex:1; min-width:140px; max-width:none;">
+                                                <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon"/>
+                                                <input type="text" class="fmc-search-pill-input" placeholder="Filter activity..." value="@_activitySearch"
+                                                       @oninput="@(e => { _activitySearch = e.Value?.ToString() ?? ""; _activityCurrentPage = 0; StateHasChanged(); })"/>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @* ── Desktop Table ── *@
+                                    <div class="d-none d-sm-block">
+                                        <MudTable @ref="_activityTable" Items="@_activityEntries" Filter="new Func<ActivityEntry,bool>(ActivityFilterFunc)"
+                                                  Hover="true" Elevation="0" Class="fmc-activity-table" Dense="true"
+                                                  OnRowClick="@((TableRowClickEventArgs<ActivityEntry> e) => ShowActivityDetail(e.Item))">
                                             <HeaderContent>
-                                                <MudTh Class="fmc-th pl-8">DATE</MudTh>
-                                                <MudTh Class="fmc-th">EVENT LABEL</MudTh>
-                                                <MudTh Class="fmc-th pr-8" Style="text-align:right">ADJUSTMENT</MudTh>
+                                                <MudTh Style="font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase;">TIMESTAMP</MudTh>
+                                                <MudTh Style="font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase;">DETAIL</MudTh>
+                                                <MudTh Style="width:80px; font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase;">TYPE</MudTh>
+                                                <MudTh Style="font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase;">STATUS</MudTh>
+                                                <MudTh Style="font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase; text-align:right;">AMOUNT</MudTh>
                                             </HeaderContent>
-                                            <RowTemplate Context="tx">
-                                                <MudTd DataLabel="Date" Class="pl-8 py-4">@tx.Date.ToString("MMM dd, yyyy")</MudTd>
-                                                <MudTd DataLabel="Label">
-                                                    <div class="d-flex align-center">
-                                                        <MudIcon Icon="@(tx.Amount >= 0 ? Icons.Material.Filled.AddCircleOutline : Icons.Material.Filled.RemoveCircleOutline)" 
-                                                                Size="Size.Small" Class="mr-2" 
-                                                                Color="@(tx.Amount >= 0 ? Color.Success : Color.Error)" 
-                                                                Style="opacity: 0.7;" />
-                                                        <MudText Typo="Typo.body2" Style="font-weight:600; color: var(--mud-palette-text-primary);">@tx.Label</MudText>
-                                                    </div>
+                                            <RowTemplate>
+                                                <MudTd><span style="font-weight:700; font-size:0.8rem; color:var(--mud-palette-text-primary);">@context.Timestamp.ToLocalTime().ToString("MMM dd HH:mm")</span></MudTd>
+                                                <MudTd><span style="font-weight:600; font-size:0.8rem; color:var(--mud-palette-text-primary);">@context.Detail</span></MudTd>
+                                                <MudTd>
+                                                    <span class="fmc-type-badge fmc-type-@(context.Type.ToLower())">@context.Type</span>
                                                 </MudTd>
-                                                <MudTd DataLabel="Amount" Class="pr-8" Style="text-align:right">
-                                                    <MudText Color="@(tx.Amount < 0 ? Color.Error : Color.Success)" Style="font-weight:800; font-family: 'JetBrains Mono', 'Roboto Mono', monospace; font-size:1.1rem; letter-spacing:-0.5px;">
-                                                        @(tx.Amount > 0 ? "+" : "")@tx.Amount.ToString("N2")
-                                                    </MudText>
+                                                <MudTd>
+                                                    <span class="fmc-status-dot-small @(context.Status == "Success" || context.Status == "Completed" ? "done" : context.Status == "Failed" ? "fail" : "neutral")"></span>
+                                                    <span style="font-size:0.65rem; font-weight:700; color:var(--mud-palette-text-secondary);">@context.Status</span>
+                                                </MudTd>
+                                                <MudTd Style="text-align:right;">
+                                                    @if (context.Amount.HasValue)
+                                                    {
+                                                        <span class="fmc-amount @(context.Amount >= 0 ? "credit" : "debit")" style="font-family:'JetBrains Mono',monospace; font-weight:800; font-size:0.82rem;">
+                                                            @(context.Amount >= 0 ? "+" : "")₱@(Math.Abs(context.Amount.Value).ToString("N2"))
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span style="opacity:0.3;">—</span>
+                                                    }
                                                 </MudTd>
                                             </RowTemplate>
+                                            <NoRecordsContent>
+                                                @{
+                                                    var hasFilter = !string.IsNullOrWhiteSpace(_activitySearch) || !string.IsNullOrEmpty(_activityCategory);
+                                                    var totalUnfiltered = _activityEntries.Count;
+                                                }
+                                                @if (hasFilter)
+                                                {
+                                                    <div class="fmc-act-feedback">
+                                                        <div class="fmc-act-feedback-icon noresults">
+                                                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Small"/>
+                                                        </div>
+                                                        <span class="fmc-act-feedback-text">No results for this combination</span>
+                                                        <span class="fmc-act-feedback-hint">Try broadening your search or adjusting the date range</span>
+                                                    </div>
+                                                }
+                                                else if (totalUnfiltered > 0)
+                                                {
+                                                    <div class="fmc-act-feedback">
+                                                        <div class="fmc-act-feedback-icon end">
+                                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small"/>
+                                                        </div>
+                                                        <span class="fmc-act-feedback-text">End of data — @totalUnfiltered entries total</span>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="fmc-act-feedback">
+                                                        <div class="fmc-act-feedback-icon empty">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Small"/>
+                                                        </div>
+                                                        <span class="fmc-act-feedback-text">No activity recorded yet</span>
+                                                    </div>
+                                                }
+                                            </NoRecordsContent>
+                                            <PagerContent>
+                                                @{
+                                                    var pTotal = _activityEntries.Where(ActivityFilterFunc).Count();
+                                                    var pSize = _activityTable?.RowsPerPage ?? 10;
+                                                    var pPages = pSize <= 0 ? 1 : (int)Math.Ceiling((double)pTotal / pSize);
+                                                    var pCur = _activityTable?.CurrentPage ?? 0;
+                                                    var f = pCur <= 0;
+                                                    var l = pCur >= pPages - 1;
+                                                }
+                                                <div class="fmc-activity-pager">
+                                                    <div class="d-flex align-center gap-2">
+                                                        <span style="font-size:0.6rem; font-weight:700; color:#64748b; white-space:nowrap;">Rows:</span>
+                                                        <div class="fmc-date-group">
+                                                            @foreach (var sz in new[] { 10, 25, 50 })
+                                                            {
+                                                                <button class="fmc-date-btn @(_activityPageSize == sz ? "active" : "")" @onclick='() => { _activityPageSize = sz; _activityCurrentPage = 0; StateHasChanged(); }'>@sz</button>
+                                                            }
+                                                            <button class="fmc-date-btn @(_activityPageSize >= _activityEntries.Count ? "active" : "")" @onclick='() => { _activityPageSize = _activityEntries.Count; _activityCurrentPage = 0; StateHasChanged(); }'>All</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="fmc-activity-pager-nav">
+                                                        <button class="fmc-pager-btn" @onclick="@(() => { if(_activityTable!=null)_activityTable.CurrentPage = 0; })" disabled="@f"><MudIcon Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small"/></button>
+                                                        <button class="fmc-pager-btn" @onclick="@(() => { if(_activityTable!=null) _activityTable.CurrentPage--; })" disabled="@f"><MudIcon Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"/></button>
+                                                        <span class="fmc-pager-current">@(pCur+1) of @pPages</span>
+                                                        <button class="fmc-pager-btn" @onclick="@(() => { if(_activityTable!=null) _activityTable.CurrentPage++; })" disabled="@l"><MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"/></button>
+                                                        <button class="fmc-pager-btn" @onclick="@(() => { if(_activityTable!=null)_activityTable.CurrentPage = pPages - 1; })" disabled="@l"><MudIcon Icon="@Icons.Material.Filled.LastPage" Size="Size.Small"/></button>
+                                                    </div>
+                                                </div>
+                                            </PagerContent>
                                         </MudTable>
-                                        <div class="d-flex justify-center pb-8">
-                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="fmc-action-btn" EndIcon="@Icons.Material.Filled.ArrowForward" OnClick="@(() => Navigation.NavigateTo("/transactions"))">Access Full Transaction Logs</MudButton>
-                                        </div>
-                                    }
-                                </MudTabPanel>
-                            }
-                        </MudTabs>
-                    </MudItem>
-                </MudGrid>
+                                    </div>
+
+                                    @* ── Mobile Cards ── *@
+                                    <div class="d-sm-none">
+                                        @{
+                                            var filtered = _activityEntries.Where(ActivityFilterFunc).ToList();
+                                            var pTotalM = filtered.Count;
+                                            var pPagesM = _activityPageSize >= pTotalM ? 1 : (int)Math.Ceiling((double)pTotalM / _activityPageSize);
+                                            if (_activityCurrentPage >= pPagesM) _activityCurrentPage = Math.Max(0, pPagesM - 1);
+                                            var pageItems = filtered.Skip(_activityCurrentPage * _activityPageSize).Take(_activityPageSize).ToList();
+                                        }
+                                        @foreach (var e in pageItems)
+                                        {
+                                            <div class="fmc-act-card" @onclick="@(() => ShowActivityDetail(e))">
+                                                <div class="d-flex align-center justify-space-between mb-1">
+                                                    <div class="d-flex align-center gap-2">
+                                                        <span class="fmc-type-badge fmc-type-@(e.Type.ToLower())">@e.Type</span>
+                                                        <span class="fmc-status-dot-small @(e.Status == "Success" || e.Status == "Completed" ? "done" : e.Status == "Failed" ? "fail" : "neutral")"></span>
+                                                        <span style="font-size:0.6rem; font-weight:700; color:var(--mud-palette-text-secondary);">@e.Status</span>
+                                                    </div>
+                                                @if (e.Amount.HasValue)
+                                                {
+                                                    <span class="fmc-amount @(e.Amount >= 0 ? "credit" : "debit")" style="font-family:'JetBrains Mono',monospace; font-weight:900; font-size:0.85rem;">
+                                                        @(e.Amount >= 0 ? "+" : "")₱@(Math.Abs(e.Amount.Value).ToString("N2"))
+                                                    </span>
+                                                }
+                                                </div>
+                                                <span style="font-weight:700; font-size:0.8rem;">@e.Detail</span>
+                                                <div class="d-flex align-center justify-space-between mt-1">
+                                                    <span style="font-size:0.6rem; color:var(--mud-palette-text-secondary);">@e.Timestamp.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
+                                                    @if (!e.Amount.HasValue)
+                                                    {
+                                                        <span style="font-size:0.55rem; color:var(--mud-palette-text-secondary);">
+                                                            @(string.IsNullOrEmpty(e.IpAddress) ? "" : e.IpAddress)
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                        @if (pTotalM == 0)
+                                        {
+                                            var mHasFilter = !string.IsNullOrWhiteSpace(_activitySearch) || !string.IsNullOrEmpty(_activityCategory);
+                                            var mTotalUnfiltered = _activityEntries.Count;
+                                            <div class="fmc-act-feedback">
+                                                <div class="fmc-act-feedback-icon @(mTotalUnfiltered > 0 ? "noresults" : "empty")">
+                                                    <MudIcon Icon="@(mTotalUnfiltered > 0 ? Icons.Material.Filled.SearchOff : Icons.Material.Filled.Inbox)" Size="Size.Small"/>
+                                                </div>
+                                                <span class="fmc-act-feedback-text">@(mTotalUnfiltered > 0 ? "No results for this combination" : "No activity recorded yet")</span>
+                                                @if (mTotalUnfiltered > 0)
+                                                {
+                                                    <span class="fmc-act-feedback-hint">Try broadening your search or adjusting the date range</span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="fmc-activity-pager">
+                                                <div class="d-flex align-center gap-2">
+                                                    <span style="font-size:0.6rem; font-weight:700; color:#64748b; white-space:nowrap;">Rows:</span>
+                                                    <div class="fmc-date-group">
+                                                        @foreach (var sz in new[] { 10, 25, 50 })
+                                                        {
+                                                            <button class="fmc-date-btn @(_activityPageSize == sz ? "active" : "")" @onclick='() => { _activityPageSize = sz; _activityCurrentPage = 0; StateHasChanged(); }'>@sz</button>
+                                                        }
+                                                        <button class="fmc-date-btn @(_activityPageSize >= _activityEntries.Count ? "active" : "")" @onclick='() => { _activityPageSize = _activityEntries.Count; _activityCurrentPage = 0; StateHasChanged(); }'>All</button>
+                                                    </div>
+                                                </div>
+                                                <div class="fmc-activity-pager-nav">
+                                                    <button class="fmc-pager-btn" @onclick="@(() => { _activityCurrentPage = 0; StateHasChanged(); })" disabled="@(_activityCurrentPage == 0)"><MudIcon Icon="@Icons.Material.Filled.FirstPage" Size="Size.Small"/></button>
+                                                    <button class="fmc-pager-btn" @onclick="@(() => { _activityCurrentPage--; StateHasChanged(); })" disabled="@(_activityCurrentPage == 0)"><MudIcon Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small"/></button>
+                                                    <span class="fmc-pager-current">@(_activityCurrentPage + 1) of @pPagesM</span>
+                                                    <button class="fmc-pager-btn" @onclick="@(() => { _activityCurrentPage++; StateHasChanged(); })" disabled="@(_activityCurrentPage >= pPagesM - 1)"><MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"/></button>
+                                                    <button class="fmc-pager-btn" @onclick="@(() => { _activityCurrentPage = pPagesM - 1; StateHasChanged(); })" disabled="@(_activityCurrentPage >= pPagesM - 1)"><MudIcon Icon="@Icons.Material.Filled.LastPage" Size="Size.Small"/></button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                </MudPaper>
             </MudItem>
         </MudGrid>
     }
 </MudContainer>
+</div>
 
 @code {
     [Inject] private FMC.Services.Api.AuthService AuthService { get; set; } = default!;
-    [Inject] private FMC.Services.Api.ApiFinanceService FinanceService { get; set; } = default!;
     [Inject] private FMC.Services.Api.AdminService AdminService { get; set; } = default!;
     [Inject] private FMC.Services.Api.OrganizationApiService OrgService { get; set; } = default!;
+    [Inject] private FMC.Services.IReportService ReportService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
 
     [Parameter] public string? UserId { get; set; }
 
     private UserDto? _user;
-    private decimal _walletBalance = 0;
-    private decimal _orgBalance = 0;
-    private bool _showBalance = true;
-    private List<FMC.Shared.DTOs.TransactionDto> _transactions = new();
-    private bool _loadingHistory = true;
     private bool _isForeignProfile = false;
     private bool _isEditing = false;
     private bool _saving = false;
-    private int _activeTab = 0;
     private UpdateUserDto _editModel = new();
 
-    private bool IsAdminOrCeo => _user?.Role == Roles.SuperAdmin || _user?.Role == Roles.CEO;
+    private List<ActivityEntry> _activityEntries = new();
+    private bool _activityLoading = true;
+    private DateRange? _activityDateRange = new(DateTime.Today.AddDays(-7), DateTime.Today);
+    private string _activeActivityDate = "7d";
+    private string _activitySearch = "";
+    private string _activityCategory = ""; // ""=all, "financial", "security"
+    private int _activityPageSize = 10;
+    private int _activityCurrentPage = 0;
+    private MudTable<ActivityEntry>? _activityTable;
+    private CancellationTokenSource? _activityCts;
+
+    public class ActivityEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public string Type { get; set; } = "";
+        public string Detail { get; set; } = "";
+        public decimal? Amount { get; set; }
+        public string Status { get; set; } = "";
+        public string? IpAddress { get; set; }
+        public string? Device { get; set; }
+        public FMC.Shared.DTOs.TransactionDto? SourceTransaction { get; set; }
+        public FMC.Shared.DTOs.Admin.AuditLogDto? SourceAuditLog { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        try 
+        try
         {
             if (string.IsNullOrEmpty(UserId))
             {
-                _user = await AuthService.GetCurrentUserAsync();
-                if (_user != null)
-                {
-                    _walletBalance = await FinanceService.GetTotalBalanceAsync();
-                    _transactions = await FinanceService.GetRecentTransactionsAsync(8);
-
-                    // Fetch Org Balance if CEO/Admin
-                    if (IsAdminOrCeo && _user.OrganizationId.HasValue)
-                    {
-                        var org = await OrgService.GetByIdAsync(_user.OrganizationId.Value);
-                        if (org != null) _orgBalance = org.TotalBalance;
-                    }
-                }
+                try { _user = await AuthService.GetCurrentUserAsync(); }
+                catch (Exception ex) when (ex is not ObjectDisposedException and not OperationCanceledException and not TaskCanceledException)
+                { Snackbar.Add("Failed to load your identity. Please refresh.", Severity.Error); }
             }
             else
             {
                 _isForeignProfile = true;
-                _user = await AdminService.GetUserAsync(UserId);
+                try { _user = await AdminService.GetUserAsync(UserId); }
+                catch (Exception ex) when (ex is not ObjectDisposedException and not OperationCanceledException and not TaskCanceledException)
+                { Snackbar.Add("Failed to load user profile.", Severity.Error); return; }
+
                 if (_user != null)
                 {
-                    // Check permissions: SuperAdmin can see all, CEO only their own org
                     var currentUser = await AuthService.GetCurrentUserAsync();
                     if (currentUser == null) { Navigation.NavigateTo("/login"); return; }
                     
@@ -431,31 +533,29 @@
                     
                     if (!isSuperAdmin && !isOrgStaff)
                     {
-                        Snackbar.Add("Access Denied: You do not have permission to view this forensic identity profile.", Severity.Error);
+                        Snackbar.Add("Access Denied.", Severity.Error);
                         Navigation.NavigateTo("/profile");
                         return;
-                    }
-
-                    _walletBalance = _user.Balance;
-                    _transactions = await AdminService.GetUserTransactionsAsync(UserId, 8);
-
-                    // Fetch Org Balance for target user if they are CEO/Admin
-                    if (IsAdminOrCeo && _user.OrganizationId.HasValue)
-                    {
-                        var org = await OrgService.GetByIdAsync(_user.OrganizationId.Value);
-                        if (org != null) _orgBalance = org.TotalBalance;
                     }
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not ObjectDisposedException and not OperationCanceledException and not TaskCanceledException)
         {
             Snackbar.Add("Identity synchronization failure. Please refresh the browser.", Severity.Error);
         }
-        finally
-        {
-            _loadingHistory = false;
-        }
+
+        _activityCts = new CancellationTokenSource();
+        if (_activityEntries.Count == 0)
+            _ = LoadActivityDataAsync(_activityCts.Token);
+    }
+
+    private string MaskEmail(string? email)
+    {
+        if (string.IsNullOrEmpty(email)) return "";
+        var at = email.IndexOf('@');
+        if (at <= 2) return email;
+        return email[..2] + new string('*', at - 2) + email[at..];
     }
 
     private void StartEdit()
@@ -540,19 +640,226 @@
         return initial;
     }
 
-    private string MaskAccountNumber(string acct)
+    #region Activity Session
+
+    private async Task LoadActivityDataAsync(CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(acct) || acct.Length < 10) return acct;
-        return $"{acct.Substring(0, 6)} {new string('*', acct.Length - 10)} {acct.Substring(acct.Length - 4)}";
+        if (_user == null) return;
+        _activityLoading = true;
+        try
+        {
+            var entries = new List<ActivityEntry>();
+            var uid = _user.Id;
+
+            // ── Financial transactions ──
+            try
+            {
+                var txns = await AdminService.GetUserTransactionsAsync(_user.Id, 200);
+                if (txns != null)
+                {
+                    foreach (var t in txns.Where(t => t.Date <= DateTime.UtcNow))
+                    {
+                        entries.Add(new ActivityEntry
+                        {
+                            Timestamp = t.ActionDate ?? t.Date,
+                            Type = t.Amount >= 0 ? "CREDIT" : "DEBIT",
+                            Detail = string.IsNullOrEmpty(t.ApproverName) ? (t.Label ?? (t.Amount >= 0 ? "Credit" : "Debit")) : $"{(t.Amount >= 0 ? "Credit" : "Debit")} — {(t.Label?.Contains("Approved") == true ? ("Approved by " + t.ApproverName) : t.Label)}",
+                            Amount = t.Amount,
+                            Status = t.Status ?? "Completed",
+                            SourceTransaction = t
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or OperationCanceledException or TaskCanceledException) { return; }
+            catch { }
+
+            ct.ThrowIfCancellationRequested();
+
+            // ── Financial audit events performed by this user ──
+            try
+            {
+                var finLogs = await OrgService.GetRecentAuditLogsAsync(200, "financial");
+                if (finLogs != null)
+                {
+                    var userName = _user.UserName ?? "";
+                    var displayName = _user.DisplayName ?? "";
+                    foreach (var log in finLogs.Where(l =>
+                        (l.PerformedBy != null && (l.PerformedBy.Equals(userName, StringComparison.OrdinalIgnoreCase) || l.PerformedBy.Equals(displayName, StringComparison.OrdinalIgnoreCase))) ||
+                        (l.UserId != null && l.UserId.Equals(uid, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        var isCredit = log.Action?.Contains("FUNDED") == true || log.Action?.Contains("CREDIT") == true || log.Action?.Contains("ADJUSTMENT_REQUESTED") == true;
+                        var isDebit = log.Action?.Contains("DEBITED") == true || log.Action?.Contains("DEBIT_REQUESTED") == true;
+                        entries.Add(new ActivityEntry
+                        {
+                            Timestamp = log.CreatedAt,
+                            Type = isCredit ? "CREDIT" : isDebit ? "DEBIT" : "AUDIT",
+                            Detail = log.Action ?? "Financial Event",
+                            Amount = log.Amount,
+                            Status = log.Action?.Contains("REQUESTED") == true ? "Pending" : "Completed",
+                            SourceAuditLog = log
+                        });
+                    }
+                }
+            }
+            catch { }
+
+            // ── Auth events ──
+            try
+            {
+                var authLogs = await AdminService.GetAuthLogsAsync();
+                if (authLogs != null)
+                {
+                    foreach (var log in authLogs.Where(l => l.UserId == uid))
+                    {
+                        entries.Add(new ActivityEntry
+                        {
+                            Timestamp = log.CreatedAt,
+                            Type = log.Action?.Contains("Success") == true ? "LOGIN" :
+                                   log.Action?.Contains("Fail") == true ? "LOGIN_FAILED" :
+                                   log.Action?.Contains("Logout") == true ? "LOGOUT" : "AUTH",
+                            Detail = log.Action ?? "Auth Event",
+                            Status = log.Action?.Contains("Success") == true ? "Success" : "Failed",
+                            IpAddress = log.IpAddress,
+                            Device = log.Device,
+                            SourceAuditLog = log
+                        });
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or OperationCanceledException or TaskCanceledException) { return; }
+            catch { }
+
+            _activityEntries = entries.OrderByDescending(e => e.Timestamp).ToList();
+        }
+        finally
+        {
+            _activityLoading = false;
+            StateHasChanged();
+        }
     }
 
-    private string GetStableAccountNumber(string id, string? currentAcct)
+    private async void ShowActivityDetail(ActivityEntry e)
     {
-        if (!string.IsNullOrWhiteSpace(currentAcct) && currentAcct != "N/A" && currentAcct.Length > 10) return currentAcct;
-        if (string.IsNullOrEmpty(id)) return "N/A";
-        var rnd = new Random(id.GetHashCode());
-        long r1 = rnd.Next(10000, 99999);
-        long r2 = rnd.Next(100000, 999999);
-        return "63641" + r1.ToString("D5") + r2.ToString("D6");
+        if (e.SourceTransaction != null)
+        {
+            var parameters = new DialogParameters { ["Transaction"] = e.SourceTransaction, ["IsOwnTransaction"] = false };
+            await DialogService.ShowAsync<FMC.Components.Pages.Admin.Dialogs.PendingDetailDialog>("Transaction Detail", parameters, new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        }
+        else if (e.SourceAuditLog != null)
+        {
+            var parameters = new DialogParameters { ["Log"] = e.SourceAuditLog };
+            await DialogService.ShowAsync<FMC.Components.Pages.Admin.Dialogs.AuditDetailDialog>("Forensic Trace", parameters, new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        }
+    }
+
+    private void SetQuickActivityDate(string range)
+    {
+        _activeActivityDate = range;
+        var today = DateTime.Today;
+        switch (range)
+        {
+            case "all": _activityDateRange = new DateRange(null, null); break;
+            case "7d":  _activityDateRange = new DateRange(today.AddDays(-7), today); break;
+            case "1m":  _activityDateRange = new DateRange(today.AddMonths(-1), today); break;
+            case "3m":  _activityDateRange = new DateRange(today.AddMonths(-3), today); break;
+            case "1y":  _activityDateRange = new DateRange(today.AddYears(-1), today); break;
+        }
+    }
+
+    private bool ActivityFilterFunc(ActivityEntry e)
+    {
+        if (!string.IsNullOrEmpty(_activityCategory))
+        {
+            bool isFinancial = e.Amount.HasValue;
+            bool isSecurity = e.Type is "LOGIN" or "LOGOUT" or "LOGIN_FAILED" or "AUTH";
+            if (_activityCategory == "financial" && !isFinancial) return false;
+            if (_activityCategory == "security" && !isSecurity) return false;
+        }
+        if (_activityDateRange?.Start.HasValue == true && _activityDateRange?.End.HasValue == true)
+        {
+            if (e.Timestamp.Date < _activityDateRange.Start.Value.Date || e.Timestamp.Date > _activityDateRange.End.Value.Date)
+                return false;
+        }
+        if (!string.IsNullOrWhiteSpace(_activitySearch))
+        {
+            var q = _activitySearch.Trim();
+            return (e.Detail?.Contains(q, StringComparison.OrdinalIgnoreCase) == true ||
+                    e.Type?.Contains(q, StringComparison.OrdinalIgnoreCase) == true ||
+                    e.Status?.Contains(q, StringComparison.OrdinalIgnoreCase) == true ||
+                    e.IpAddress?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
+        }
+        return true;
+    }
+
+    private static Color GetActivityTypeColor(string type) => type switch
+    {
+        "CREDIT" => Color.Success,
+        "DEBIT" => Color.Error,
+        "LOGIN" => Color.Info,
+        "LOGOUT" => Color.Default,
+        "LOGIN_FAILED" => Color.Error,
+        "AUDIT" => Color.Default,
+        _ => Color.Primary
+    };
+
+    private static string GetActivityTypeIcon(string type) => type switch
+    {
+        "CREDIT" => Icons.Material.Filled.AddCircleOutline,
+        "DEBIT" => Icons.Material.Filled.RemoveCircleOutline,
+        "LOGIN" => Icons.Material.Filled.Login,
+        "LOGOUT" => Icons.Material.Filled.Logout,
+        "LOGIN_FAILED" => Icons.Material.Filled.GppBad,
+        "AUDIT" => Icons.Material.Filled.Receipt,
+        _ => Icons.Material.Filled.Circle
+    };
+
+    private async Task ExportActivityToPdf()
+    {
+        try
+        {
+            var filtered = _activityEntries.Where(ActivityFilterFunc).ToList();
+            var dataForExport = filtered.Select(e => new FMC.Shared.DTOs.TransactionDto
+            {
+                Date = e.Timestamp,
+                Label = $"[{e.Type}] {e.Detail}",
+                Amount = e.Amount ?? 0,
+                Status = e.Status
+            }).ToList();
+            var bytes = await Task.Run(() => ReportService.GeneratePdf("User Activity Report", dataForExport));
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JS.InvokeVoidAsync("fmc_downloadFile", $"Activity_{DateTime.Now:yyyyMMdd_HHmmss}.pdf", "application/pdf", streamRef);
+            Snackbar.Add("PDF exported successfully.", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add($"Export failed: {ex.Message}", Severity.Error); }
+    }
+
+    private async Task ExportActivityToExcel()
+    {
+        try
+        {
+            var filtered = _activityEntries.Where(ActivityFilterFunc).ToList();
+            var dataForExport = filtered.Select(e => new FMC.Shared.DTOs.TransactionDto
+            {
+                Date = e.Timestamp,
+                Label = $"[{e.Type}] {e.Detail}",
+                Amount = e.Amount ?? 0,
+                Status = e.Status
+            }).ToList();
+            var bytes = await Task.Run(() => ReportService.GenerateExcel("User Activity Report", dataForExport));
+            using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+            await JS.InvokeVoidAsync("fmc_downloadFile", $"Activity_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", streamRef);
+            Snackbar.Add("Excel exported successfully.", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add($"Export failed: {ex.Message}", Severity.Error); }
+    }
+
+    #endregion
+
+    public void Dispose()
+    {
+        _activityCts?.Cancel();
+        _activityCts?.Dispose();
+        _activityCts = null;
     }
 }

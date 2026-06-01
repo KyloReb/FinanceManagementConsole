@@ -11,23 +11,25 @@
 
 <MudDialog>
     <TitleContent>
-        <!-- Header Section -->
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Color="Color.Info" />
             <MudText Typo="Typo.h6">Transaction Details</MudText>
         </div>
     </TitleContent>
-    
+
     <DialogContent>
-        <div class="fmc-details-container pa-4">
-            
-            <!-- Summary Header: Amount and Status -->
-            <div class="d-flex justify-space-between align-center mb-6">
+        <div class="fmc-details-container">
+
+            <!-- ════ Summary Header: Amount + Status ════ -->
+            <div class="fmc-summary-header">
                 <div>
-                    <MudText Typo="Typo.h5" Class="fmc-financial-mono" Color="@(Transaction.Amount < 0 ? Color.Error : Color.Success)">
+                    <MudText Class="fmc-amount-display fmc-financial-mono"
+                             Color="@(Transaction.Amount < 0 ? Color.Error : Color.Success)">
                         @Transaction.Amount.ToString("C")
                     </MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">ESTABLISHED @Transaction.Date.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</MudText>
+                    <MudText Class="fmc-timestamp-label">
+                        ESTABLISHED @Transaction.Date.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                    </MudText>
                 </div>
                 <MudChip T="string" Color="@GetStatusColor(Transaction.Status)" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 900;">
                     @Transaction.Status.ToUpper()
@@ -36,35 +38,32 @@
 
             <MudDivider Class="my-4" />
 
-            <!-- Detailed Information Grid -->
+            <!-- ════ Information Grid ════ -->
             <MudGrid Spacing="2">
-                
-                <!-- Subscriber Info -->
+
+                <!-- Subscriber -->
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">SUBSCRIBER</MudText>
-                    <MudText Typo="Typo.body2" Style="font-weight: 800;">@Transaction.Subscriber</MudText>
+                    <div class="fmc-detail-label">SUBSCRIBER</div>
+                    <div class="fmc-detail-value">@Transaction.Subscriber</div>
                 </MudItem>
-                
-                <!-- Account Number with Toggle Masking -->
+
+                <!-- Account Number with toggle -->
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">ACCOUNT NUMBER</MudText>
+                    <div class="fmc-detail-label">ACCOUNT NUMBER</div>
                     <div class="d-flex align-center gap-1">
-                        <MudText Typo="Typo.body2" Style="font-weight: 700; font-family: 'Roboto Mono', monospace;">
-                            @GetMaskedAccount(Transaction.AccountNumber)
-                        </MudText>
-                        <MudIconButton Icon="@(_showFullAccount ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" 
-                                       Size="Size.Small" 
-                                       OnClick="ToggleAccountMask" 
-                                       Class="pa-0" 
-                                       Style="opacity: 0.5;" 
+                        <span class="fmc-detail-value mono">@GetMaskedAccount(Transaction.AccountNumber)</span>
+                        <MudIconButton Icon="@(_showFullAccount ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                       Size="Size.Small"
+                                       OnClick="ToggleAccountMask"
+                                       Style="opacity: 0.5;"
                                        aria-label="Toggle full account number visibility" />
                     </div>
                 </MudItem>
-                
-                <!-- Transaction Description -->
+
+                <!-- Description / Label -->
                 <MudItem xs="12">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">DESCRIPTION / LABEL</MudText>
-                    <MudText Typo="Typo.body2">
+                    <div class="fmc-detail-label">DESCRIPTION / LABEL</div>
+                    <div class="fmc-description-block">
                         @if (!string.IsNullOrWhiteSpace(Transaction.Label))
                         {
                             @Transaction.Label
@@ -84,128 +83,191 @@
                                 @($"{userPart} Debited by {amtStr} to Credit {orgPart}")
                             }
                         }
-                    </MudText>
+                    </div>
+                </MudItem>
 
-                </MudItem>
-                
-                <!-- Maker and Reference Details -->
+                <!-- Maker / Initiator -->
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">MAKER / INITIATOR</MudText>
-                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@Transaction.MakerName</MudText>
+                    <div class="fmc-detail-label">MAKER / INITIATOR</div>
+                    <div class="fmc-detail-value maker">@Transaction.MakerName</div>
                 </MudItem>
+
+                <!-- Reference ID -->
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">REFERENCE ID</MudText>
-                    <MudText Typo="Typo.body2" Style="font-size: 0.7rem; font-family: 'Roboto Mono', monospace;">@Transaction.Id.ToString().ToUpper()</MudText>
+                    <div class="fmc-detail-label">REFERENCE ID</div>
+                    <div class="fmc-detail-value mono">@Transaction.Id.ToString().ToUpper()</div>
                 </MudItem>
-                
-                <!-- Approver Details (Hidden while Pending) -->
+
+                <!-- Approver details (hidden while Pending) -->
                 @if (Transaction.Status != "Pending")
                 {
                     <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">RESOLUTION AUTHORITY</MudText>
-                        <MudText Typo="Typo.body2" Style="font-weight: 800; color: var(--mud-palette-info);">
+                        <div class="fmc-detail-label">RESOLUTION AUTHORITY</div>
+                        <div class="fmc-detail-value approver">
                             @(Transaction.ApproverName ?? "System Auto-Settlement")
-                        </MudText>
+                        </div>
                     </MudItem>
                     <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        <div class="fmc-detail-label">
                             @(Transaction.Status switch {
                                 "Approved" or "Successful" => "APPROVED TIMESTAMP",
                                 "Rejected" => "REJECTED TIMESTAMP",
                                 "Cancelled" => "CANCELLED TIMESTAMP",
                                 _ => "COMPLETION TIMESTAMP"
                             })
-                        </MudText>
-                        <MudText Typo="Typo.body2" Style="font-weight: 700;">
+                        </div>
+                        <div class="fmc-detail-value">
                             @(Transaction.ActionDate?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "N/A")
-                        </MudText>
+                        </div>
                     </MudItem>
                 }
             </MudGrid>
-            
-            @* ── LIQUIDITY FLOW DIAGRAM ── *@
+
+            <!-- ════ Liquidity Flow Diagram ════ -->
             @{
-                var isCorporateToUser = Transaction.Amount > 0; // Credit to user
+                var isCorporateToUser = Transaction.Amount > 0;
                 var absAmount = Math.Abs(Transaction.Amount);
-                var cardholderIdentity = GetMaskedAccount(Transaction.AccountNumber);
-                
                 var sourceName = isCorporateToUser ? _orgName : Transaction.Subscriber;
                 var destName = isCorporateToUser ? Transaction.Subscriber : _orgName;
                 var sourceIcon = isCorporateToUser ? Icons.Material.Filled.AccountBalance : Icons.Material.Filled.Wallet;
                 var destIcon = isCorporateToUser ? Icons.Material.Filled.Wallet : Icons.Material.Filled.AccountBalance;
+                var sourceAcct = isCorporateToUser ? _orgAccountNumber : Transaction.AccountNumber;
+                var destAcct = isCorporateToUser ? Transaction.AccountNumber : _orgAccountNumber;
+
+                if (Transaction.Category == "Org Adjustment Pending")
+                {
+                    if (isCorporateToUser)
+                    {
+                        sourceName = "Corporate Treasury";
+                        sourceIcon = Icons.Material.Filled.AccountBalance;
+                        sourceAcct = null;
+                        destAcct = _orgAccountNumber;
+                    }
+                    else
+                    {
+                        sourceAcct = _orgAccountNumber;
+                        destName = "Corporate Treasury";
+                        destIcon = Icons.Material.Filled.AccountBalance;
+                        destAcct = null;
+                    }
+                }
+                else if (sourceName == destName)
+                {
+                    sourceName = "Corporate Treasury";
+                    sourceIcon = Icons.Material.Filled.AccountBalance;
+                    sourceAcct = null;
+                }
             }
 
             <div class="mt-6 mb-2">
                 <div class="mb-3">
-                    <MudText Typo="Typo.overline" Style="letter-spacing:0.1em; font-weight:800; opacity:0.6;">Liquidity Flow</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="display:block; font-style: italic;">This diagram visualizes the directional movement of funds between the corporate float and the subscriber wallet(s).</MudText>
+                    <div class="fmc-flow-section-title">Liquidity Flow</div>
+                    <div class="fmc-flow-subtitle">Directional movement of funds between the corporate float and subscriber wallet(s).</div>
                 </div>
-                <div class="mt-2 pa-4 fmc-flow-surface d-flex align-center justify-space-between">
-                    
-                    <!-- Source Node -->
-                    <div class="d-flex flex-column align-center fmc-flow-node-wrapper">
-                        <div class="fmc-flow-node source">
-                            <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" Style="color: var(--mud-palette-info);" />
+
+                @* Desktop: horizontal flow *@
+                <div class="d-none d-sm-flex fmc-flow-surface">
+                    <div class="fmc-flow-node-wrapper">
+                        <div class="fmc-flow-glass-node source">
+                            <div class="fmc-flow-node-ring"></div>
+                            <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
                         </div>
-                        <div class="mt-2 text-center fmc-flow-label">
-                            <MudText Class="fmc-flow-name">@sourceName</MudText>
-                            @if (isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
+                        <div class="fmc-flow-label">
+                            <span class="fmc-flow-name">@sourceName</span>
+                            @if (!string.IsNullOrEmpty(sourceAcct) && sourceAcct != "BATCH_SUMMARY" && sourceAcct != "N/A")
                             {
-                                <MudText Class="fmc-flow-acct">@GetMaskedAccount(_orgAccountNumber)</MudText>
-                            }
-                            else if (!isCorporateToUser && !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "BATCH_SUMMARY" && Transaction.AccountNumber != "N/A")
-                            {
-                                <MudText Class="fmc-flow-acct">@cardholderIdentity</MudText>
+                                <span class="fmc-flow-acct">@GetMaskedAccount(sourceAcct)</span>
                             }
                         </div>
                     </div>
 
-                    <!-- Animated Connector -->
-                    <div class="fmc-flow-connector mx-2">
-                        <div class="fmc-flow-particle"></div>
+                    <div class="fmc-flow-connector">
+                        <div class="fmc-flow-particles">
+                            <div class="fmc-flow-particle p1"></div>
+                            <div class="fmc-flow-particle p2"></div>
+                            <div class="fmc-flow-particle p3"></div>
+                        </div>
                         <div class="fmc-flow-badge">
-                            <MudText Class="fmc-flow-amount">@absAmount.ToString("N2")</MudText>
+                            <span class="fmc-flow-amount">₱@absAmount.ToString("N2")</span>
                         </div>
+                        <svg class="fmc-flow-arrow" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
 
-                    <!-- Destination Node -->
-                    <div class="d-flex flex-column align-center fmc-flow-node-wrapper">
-                        <div class="fmc-flow-node dest">
-                            <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" Style="color: var(--mud-palette-success);" />
+                    <div class="fmc-flow-node-wrapper">
+                        <div class="fmc-flow-glass-node dest">
+                            <div class="fmc-flow-node-ring"></div>
+                            <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
                         </div>
-                        <div class="mt-2 text-center fmc-flow-label">
-                            <MudText Class="fmc-flow-name">@destName</MudText>
-                            @if (!isCorporateToUser && !string.IsNullOrEmpty(_orgAccountNumber))
+                        <div class="fmc-flow-label">
+                            <span class="fmc-flow-name">@destName</span>
+                            @if (!string.IsNullOrEmpty(destAcct) && destAcct != "BATCH_SUMMARY" && destAcct != "N/A")
                             {
-                                <MudText Class="fmc-flow-acct">@GetMaskedAccount(_orgAccountNumber)</MudText>
+                                <span class="fmc-flow-acct">@GetMaskedAccount(destAcct)</span>
                             }
-                            else if (isCorporateToUser && !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "BATCH_SUMMARY" && Transaction.AccountNumber != "N/A")
+                        </div>
+                    </div>
+                </div>
+
+                @* Mobile: vertical flow with animated particles *@
+                <div class="d-sm-none fmc-flow-surface-mobile">
+                    <div class="fmc-flow-node-wrapper">
+                        <div class="fmc-flow-glass-node source">
+                            <div class="fmc-flow-node-ring"></div>
+                            <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                        </div>
+                        <div class="fmc-flow-label">
+                            <span class="fmc-flow-name">@sourceName</span>
+                            @if (!string.IsNullOrEmpty(sourceAcct) && sourceAcct != "BATCH_SUMMARY" && sourceAcct != "N/A")
                             {
-                                <MudText Class="fmc-flow-acct">@cardholderIdentity</MudText>
+                                <span class="fmc-flow-acct">@GetMaskedAccount(sourceAcct)</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="fmc-flow-connector-v">
+                        <div class="fmc-flow-particles-v">
+                            <div class="fmc-flow-particle-v p1"></div>
+                            <div class="fmc-flow-particle-v p2"></div>
+                            <div class="fmc-flow-particle-v p3"></div>
+                        </div>
+                        <div class="fmc-flow-badge-v">
+                            <span class="fmc-flow-amount">₱@absAmount.ToString("N2")</span>
+                        </div>
+                    </div>
+                    <div class="fmc-flow-node-wrapper">
+                        <div class="fmc-flow-glass-node dest">
+                            <div class="fmc-flow-node-ring"></div>
+                            <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                        </div>
+                        <div class="fmc-flow-label">
+                            <span class="fmc-flow-name">@destName</span>
+                            @if (!string.IsNullOrEmpty(destAcct) && destAcct != "BATCH_SUMMARY" && destAcct != "N/A")
+                            {
+                                <span class="fmc-flow-acct">@GetMaskedAccount(destAcct)</span>
                             }
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Rejection Feedback Alert -->
+            <!-- ════ Rejection Feedback ════ -->
             @if (!string.IsNullOrEmpty(Transaction.RejectionReason))
             {
-                <div class="mt-4 pa-4 mud-alert-error" style="border-radius: 12px; border: 1px solid rgba(var(--mud-palette-error-rgb), 0.2);">
-                    <MudText Typo="Typo.caption" Style="font-weight: 950; color: var(--mud-palette-error); letter-spacing: 0.05em;">DENIAL REASON</MudText>
-                    <MudText Typo="Typo.body2" Style="font-weight: 500;">@Transaction.RejectionReason</MudText>
+                <div class="fmc-rejection-box">
+                    <div class="fmc-rejection-label">DENIAL REASON</div>
+                    <div class="fmc-rejection-text">@Transaction.RejectionReason</div>
                 </div>
             }
 
-            @* ── BULK BREAKDOWN SECTION ── *@
+            <!-- ════ Batch Breakdown ════ -->
             @if (Transaction.SubTransactions != null && Transaction.SubTransactions.Any())
             {
                 <div class="mt-6">
-                    @* Shared toolbar *@
-                    <div class="d-flex align-center gap-2 fmc-batch-header mb-3">
+                    <div class="fmc-batch-header">
                         <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
-                        <MudText Typo="Typo.subtitle2" Style="font-weight: 900; letter-spacing: 0.02em;">BATCH BREAKDOWN</MudText>
-                        <div class="flex-grow-1"></div>
+                        <span style="font-weight:900; font-size:0.8rem; letter-spacing:0.02em;">BATCH BREAKDOWN</span>
+                        <div style="flex:1;"></div>
                         <div class="fmc-search-pill fmc-batch-search">
                             <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
                             <input type="text" class="fmc-search-pill-input" placeholder="Search cardholder or account..."
@@ -213,55 +275,47 @@
                         </div>
                     </div>
 
-                    @* Desktop: Table (sm and up) *@
+                    @* Desktop Table *@
                     <div class="d-none d-sm-block fmc-batch-container">
-                        <MudTable Items="@Transaction.SubTransactions" Filter="new Func<TransactionDto, bool>(FilterBatchItem)" Dense="true" Hover="true" Elevation="0" Style="background: transparent;" HorizontalScrollbar="true">
-                            <ColGroup>
-                                <col style="width: 40px;" />
-                                <col style="width: 200px;" />
-                                <col style="width: 120px;" />
-                                <col style="width: 100px;" />
-                            </ColGroup>
+                        <MudTable Items="@Transaction.SubTransactions" Filter="new Func<TransactionDto, bool>(FilterBatchItem)" Dense="true" Hover="true" Elevation="0" Style="background:transparent;">
                             <HeaderContent>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; width: 40px; min-width: 40px;">#</MudTh>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; width: 200px; min-width: 200px;">CARDHOLDER</MudTh>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: right; width: 120px; min-width: 120px;">AMOUNT</MudTh>
-                                <MudTh Style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; text-align: center; width: 100px; min-width: 100px;">STATUS</MudTh>
+                                <MudTh Style="font-size:0.65rem; font-weight:900; opacity:0.6; width:40px;">#</MudTh>
+                                <MudTh Style="font-size:0.65rem; font-weight:900; opacity:0.6;">CARDHOLDER</MudTh>
+                                <MudTh Style="font-size:0.65rem; font-weight:900; opacity:0.6; text-align:right; width:120px;">AMOUNT</MudTh>
+                                <MudTh Style="font-size:0.65rem; font-weight:900; opacity:0.6; text-align:center; width:100px;">STATUS</MudTh>
                             </HeaderContent>
                             <RowTemplate Context="sub">
-                                <MudTd Style="opacity: 0.5; font-size: 0.75rem; font-family: 'Roboto Mono', monospace;">
+                                <MudTd Style="opacity:0.5; font-size:0.75rem; font-family:'JetBrains Mono',monospace;">
                                     @((Transaction.SubTransactions!.IndexOf(sub) + 1).ToString("D2"))
                                 </MudTd>
                                 <MudTd>
-                                    <div class="d-flex gap-2" style="overflow: hidden;">
-                                        <MudText Typo="Typo.body2" Style="font-weight: 700; font-size: 0.8rem; white-space: nowrap;">@sub.Subscriber</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-size: 0.6rem; white-space: nowrap;">@GetMaskedAccount(sub.AccountNumber)</MudText>
+                                    <div class="d-flex gap-2" style="overflow:hidden;">
+                                        <span style="font-weight:700; font-size:0.8rem; white-space:nowrap;">@sub.Subscriber</span>
+                                        <span style="font-size:0.6rem; color:var(--mud-palette-text-secondary); white-space:nowrap;">@GetMaskedAccount(sub.AccountNumber)</span>
                                     </div>
                                 </MudTd>
-                                <MudTd Style="text-align: right;">
-                                    <MudText Typo="Typo.body2" Class="fmc-financial-mono" Style="font-weight: 800; font-size: 0.85rem;"
-                                             Color="@(sub.Amount < 0 ? Color.Error : Color.Success)">
+                                <MudTd Style="text-align:right;">
+                                    <span class="fmc-financial-mono" style="font-weight:800; font-size:0.85rem; color:@(sub.Amount < 0 ? "var(--mud-palette-error)" : "var(--mud-palette-success)");">
                                         @sub.Amount.ToString("C2")
-                                    </MudText>
+                                    </span>
                                 </MudTd>
-                                <MudTd Style="text-align: center;">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)"
-                                             Style="font-weight: 900; font-size: 0.6rem; margin: 0;">
+                                <MudTd Style="text-align:center;">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)" Style="font-weight:900; font-size:0.6rem; margin:0;">
                                         @sub.Status.ToUpper()
                                     </MudChip>
                                 </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
-                                <div class="d-flex flex-column align-center justify-center pa-6" style="opacity: 0.7;">
-                                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" Color="Color.Primary" />
-                                    <MudText Typo="Typo.body2" Style="font-weight: 800;">No matching cardholders found</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Try adjusting your search keywords.</MudText>
+                                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; opacity:0.7;">
+                                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Primary" />
+                                    <span style="font-weight:800; margin-top:8px;">No matching cardholders found</span>
+                                    <span style="font-size:0.75rem; color:var(--mud-palette-text-secondary);">Try adjusting your search keywords.</span>
                                 </div>
                             </NoRecordsContent>
                         </MudTable>
                     </div>
 
-                    @* Mobile: Cards (xs only) *@
+                    @* Mobile Cards *@
                     <div class="d-sm-none fmc-batch-container">
                         @{
                             var filteredItems = Transaction.SubTransactions.Where(s => FilterBatchItem(s)).ToList();
@@ -277,14 +331,16 @@
                                             <span class="fmc-batch-card-idx">@rowIndex.ToString("D2")</span>
                                             <span class="fmc-batch-card-name">@sub.Subscriber</span>
                                         </div>
-                                        <span class="fmc-batch-card-amount fmc-financial-mono"
-                                              style="color: @(sub.Amount < 0 ? "var(--mud-palette-error)" : "var(--mud-palette-success)");">
+                                        <span class="fmc-batch-card-amount"
+                                              style="color:@(sub.Amount < 0 ? "var(--mud-palette-error)" : "var(--mud-palette-success)");">
                                             @sub.Amount.ToString("C2")
                                         </span>
                                     </div>
-                                    <div class="fmc-batch-card-acct">@GetMaskedAccount(sub.AccountNumber)</div>
+                                    <div style="font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:var(--mud-palette-text-secondary); opacity:0.7; margin-top:4px; margin-left:28px;">
+                                        @GetMaskedAccount(sub.AccountNumber)
+                                    </div>
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@GetStatusColor(sub.Status)"
-                                             Style="font-weight: 900; font-size: 0.6rem; margin: 0;">
+                                             Style="font-weight:900; font-size:0.6rem; margin:4px 0 0 28px;">
                                         @sub.Status.ToUpper()
                                     </MudChip>
                                 </div>
@@ -292,10 +348,10 @@
                         }
                         else
                         {
-                            <div class="d-flex flex-column align-center justify-center pa-6" style="opacity: 0.7;">
-                                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-2" Color="Color.Primary" />
-                                <MudText Typo="Typo.body2" Style="font-weight: 800;">No matching cardholders found</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Try adjusting your search keywords.</MudText>
+                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; opacity:0.7;">
+                                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Primary" />
+                                <span style="font-weight:800; margin-top:8px;">No matching cardholders found</span>
+                                <span style="font-size:0.75rem; color:var(--mud-palette-text-secondary);">Try adjusting your search keywords.</span>
                             </div>
                         }
                     </div>
@@ -303,99 +359,91 @@
             }
         </div>
 
+        <!-- ════ Success Overlay ════ -->
         @if (_showSuccessOverlay)
         {
             <div class="fmc-success-overlay @(_isRejection ? "rejected" : "")">
                 <div class="fmc-success-icon-container">
                     <MudIcon Icon="@(_isRejection ? Icons.Material.Filled.Gavel : Icons.Material.Filled.Verified)" Class="fmc-success-icon" />
                 </div>
-                <MudText Typo="Typo.h5" Class="fmc-success-text">@_successMessage</MudText>
-                <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_successSubtext</MudText>
+                <div class="fmc-success-text">@_successMessage</div>
+                <div class="fmc-success-subtext">@_successSubtext</div>
             </div>
         }
 
+        <!-- ════ Error Overlay ════ -->
         @if (_showErrorOverlay)
         {
             <div class="fmc-success-overlay fmc-error-overlay">
-                <div class="fmc-success-icon-container" style="background: rgba(211,47,47,0.12); box-shadow: 0 0 40px rgba(211,47,47,0.25);">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="fmc-success-icon" Style="color: #ef5350;" />
+                <div class="fmc-success-icon-container">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="fmc-success-icon" />
                 </div>
-                <MudText Typo="Typo.h5" Class="fmc-success-text" Style="color: #ef5350;">@_errorMessage</MudText>
-                <MudText Typo="Typo.body1" Class="fmc-success-subtext">@_errorSubtext</MudText>
+                <div class="fmc-success-text">@_errorMessage</div>
+                <div class="fmc-success-subtext">@_errorSubtext</div>
             </div>
         }
     </DialogContent>
-    
-    <DialogActions>
-        <div class="d-flex fmc-dialog-actions">
-        @if (_showSuccessOverlay)
-        {
-            <MudButton Variant="Variant.Filled"
-                       Style="background-color: #2e7d32; color: #fff; font-weight: 900; text-transform: none; border-radius: 8px; min-width: 120px;"
-                       OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))">Done</MudButton>
-        }
-        else if (_showErrorOverlay)
-        {
-            <MudButton Variant="Variant.Filled"
-                       Style="background-color: #c62828; color: #fff; font-weight: 900; text-transform: none; border-radius: 8px; min-width: 120px;"
-                       OnClick="@(() => { _showErrorOverlay = false; StateHasChanged(); })">Dismiss</MudButton>
-        }
-        else
-        {
-            <div class="d-flex align-center gap-2 fmc-action-row">
-                <MudButton OnClick="CloseDialog" Variant="Variant.Outlined" Class="fmc-action-close">Close</MudButton>
-                <MudSpacer />
-                <MudButton Variant="Variant.Outlined" 
-                           StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
-                           OnClick="ExportDialogToPdf" 
-                           Class="fmc-action-pdf"
-                           Disabled="@_isDownloadingPdf">
-                    @if (_isDownloadingPdf)
-                    {
-                        <MudProgressCircular Class="ms-n1 mr-2" Size="Size.Small" Indeterminate="true" />
-                        <span>Generating...</span>
-                    }
-                    else
-                    {
-                        <span>Download PDF</span>
-                    }
-                </MudButton>
-            </div>
 
-            <!-- Action Buttons Contextual to User Role and Status -->
-        @if (Transaction.Status == "Pending")
-        {
-            @if (IsOwnTransaction)
+    <!-- ════ Dialog Actions ════ -->
+    <DialogActions>
+        <div class="fmc-dialog-actions">
+            @if (_showSuccessOverlay)
             {
-                <!-- Makers can cancel their own pending requests -->
-                <MudButton Color="Color.Error" 
-                           Variant="Variant.Filled" 
-                           StartIcon="@Icons.Material.Filled.DeleteForever" 
-                           OnClick="CancelTransactionAsync"
-                           Disabled="@_processing"
-                           Class="fmc-action-cancel"
-                           Style="font-weight: 800; text-transform:none; border-radius: 8px;">
-                    @(_processing ? "Processing..." : "Cancel Request")
-                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Class="fmc-overlay-done"
+                           OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))">Done</MudButton>
             }
-            else if (_isApprover)
+            else if (_showErrorOverlay)
             {
-                <!-- Approvers can deny or authorize the request -->
-                <MudButton Color="Color.Error" 
-                           Variant="Variant.Outlined" 
-                           OnClick="@(() => ProcessDecisionAsync(approve: false))"
-                           Disabled="@_processing"
-                           Class="fmc-action-reject"
-                           Style="font-weight: 700; text-transform:none;">Reject</MudButton>
-                            
-                <MudButton Variant="Variant.Filled" 
-                           OnClick="@(() => ProcessDecisionAsync(approve: true))"
-                           Disabled="@_processing"
-                           Class="fmc-action-approve"
-                           Style="background-color: #2e7d32; color: #ffffff; font-weight: 900; text-transform:none; border-radius: 8px;">Approve</MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Class="fmc-overlay-dismiss"
+                           OnClick="@(() => { _showErrorOverlay = false; StateHasChanged(); })">Dismiss</MudButton>
             }
+            else
+            {
+                <div class="fmc-actions-bar">
+                    <MudButton OnClick="CloseDialog" Variant="Variant.Outlined" Class="fmc-act-close">Close</MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
+                               OnClick="ExportDialogToPdf"
+                               Class="fmc-act-pdf"
+                               Disabled="@_isDownloadingPdf">
+                        @if (_isDownloadingPdf)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Secondary" />
+                            <span class="ml-2">Generating...</span>
+                        }
+                        else { <span>PDF</span> }
+                    </MudButton>
+
+                    <div class="fmc-act-spacer"></div>                    @if (Transaction.Status == "Pending")
+                    {
+                        @if (IsOwnTransaction)
+                        {
+                            <MudButton Color="Color.Error"
+                                       Variant="Variant.Filled"
+                                       StartIcon="@Icons.Material.Filled.DeleteForever"
+                                       OnClick="CancelTransactionAsync"
+                                       Disabled="@_processing"
+                                       Class="fmc-act-cancel">
+                                @(_processing ? "Processing..." : "Cancel")
+                            </MudButton>
+                        }
+                        else if (_isApprover)
+                        {
+                            <MudButton Color="Color.Error"
+                                       Variant="Variant.Outlined"
+                                       OnClick="@(() => ProcessDecisionAsync(approve: false))"
+                                       Disabled="@_processing"
+                                       Class="fmc-act-reject">Reject</MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       OnClick="@(() => ProcessDecisionAsync(approve: true))"
+                                       Disabled="@_processing"
+                                       Class="fmc-act-approve">Approve</MudButton>
+                        }
+                    }
+                </div>
             }
-        }
         </div>
     </DialogActions>
 </MudDialog>
@@ -403,31 +451,14 @@
 @code {
     #region Parameters & Injections
 
-    /// <summary>
-    /// The dialog instance required for MudBlazor to manage visibility and return results.
-    /// </summary>
-    [CascadingParameter] 
-    public IMudDialogInstance MudDialog { get; set; } = default!;
-
-    /// <summary>
-    /// The transaction payload to display and interact with.
-    /// </summary>
-    [Parameter] 
-    public TransactionDto Transaction { get; set; } = default!;
-
-    /// <summary>
-    /// Indicates whether the currently logged-in user is the original creator of this transaction.
-    /// Used to enforce the 4-eyes policy and permit cancellations.
-    /// </summary>
-    [Parameter] 
-    public bool IsOwnTransaction { get; set; }
-
-    [CascadingParameter] 
-    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+    [CascadingParameter] public IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public TransactionDto Transaction { get; set; } = default!;
+    [Parameter] public bool IsOwnTransaction { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
     #endregion
 
-    #region State Variables
+    #region State
 
     private bool _processing;
     private bool _showFullAccount;
@@ -439,7 +470,6 @@
     private bool _showErrorOverlay;
     private string _errorMessage = "";
     private string _errorSubtext = "";
-    
     private string _orgName = "Corporate Liquidity";
     private string _orgAccountNumber = "";
     private string _batchSearchString = "";
@@ -447,11 +477,10 @@
 
     #endregion
 
-    #region Lifecycle Methods
+    #region Lifecycle
 
     protected override async Task OnInitializedAsync()
     {
-        // Resolve user roles once during component initialization
         var authState = await AuthStateTask;
         _isApprover = authState.User.IsInRole(Roles.Approver) || authState.User.IsInRole(Roles.SuperAdminApprover);
 
@@ -459,40 +488,25 @@
         {
             try {
                 var org = await OrgService.GetByIdAsync(Transaction.OrganizationId.Value);
-                if (org != null)
-                {
-                    _orgName = org.Name;
-                    _orgAccountNumber = org.AccountNumber;
-                }
+                if (org != null) { _orgName = org.Name; _orgAccountNumber = org.AccountNumber; }
             } catch { }
         }
 
-        // Deep resolution for Corporate Liquidity fallback
         if (_orgName == "Corporate Liquidity")
         {
             try {
                 var users = await AdminService.GetUsersAsync();
-                
                 if (Transaction.SubTransactions?.Any() == true)
                 {
                     var firstSub = Transaction.SubTransactions.First();
                     var user = users.FirstOrDefault(u => u.DisplayName == firstSub.Subscriber || u.UserName == firstSub.Subscriber);
-                    if (user != null && !string.IsNullOrEmpty(user.Organization))
-                    {
-                        _orgName = user.Organization;
-                        _orgAccountNumber = user.OrganizationAccountNumber;
-                    }
+                    if (user?.Organization != null) { _orgName = user.Organization; _orgAccountNumber = user.OrganizationAccountNumber; }
                 }
                 else
                 {
                     var user = users.FirstOrDefault(u => u.DisplayName == Transaction.Subscriber || u.UserName == Transaction.Subscriber);
-                    if (user != null && !string.IsNullOrEmpty(user.Organization))
-                    {
-                        _orgName = user.Organization;
-                        _orgAccountNumber = user.OrganizationAccountNumber;
-                    }
+                    if (user?.Organization != null) { _orgName = user.Organization; _orgAccountNumber = user.OrganizationAccountNumber; }
                 }
-
                 if (_orgName != "Corporate Liquidity" && string.IsNullOrEmpty(_orgAccountNumber))
                 {
                     var orgs = await OrgService.GetOrganizationsAsync();
@@ -501,16 +515,30 @@
                 }
             } catch { }
         }
-        
-        // If the transaction is missing its account number, hydrate it from the deep resolution cache
+
         if (string.IsNullOrEmpty(Transaction.AccountNumber) || Transaction.AccountNumber == "N/A")
         {
             try {
                 var users = await AdminService.GetUsersAsync();
                 var user = users.FirstOrDefault(u => u.DisplayName == Transaction.Subscriber || u.UserName == Transaction.Subscriber);
-                if (user != null)
+                if (user != null) Transaction.AccountNumber = user.AccountNumber;
+            } catch { }
+        }
+
+        if (Transaction.Subscriber == _orgName && !string.IsNullOrEmpty(Transaction.TenantId))
+        {
+            try {
+                var directUser = await AdminService.GetUserAsync(Transaction.TenantId);
+                if (directUser != null)
                 {
-                    Transaction.AccountNumber = user.AccountNumber;
+                    Transaction.Subscriber = directUser.DisplayName;
+                    if (!string.IsNullOrEmpty(directUser.AccountNumber)) Transaction.AccountNumber = directUser.AccountNumber;
+                }
+                else
+                {
+                    var allUsers = await AdminService.GetUsersAsync();
+                    var matched = allUsers.FirstOrDefault(u => u.Id == Transaction.TenantId);
+                    if (matched != null) { Transaction.Subscriber = matched.DisplayName; if (!string.IsNullOrEmpty(matched.AccountNumber)) Transaction.AccountNumber = matched.AccountNumber; }
                 }
             } catch { }
         }
@@ -520,18 +548,8 @@
 
     #region UI Helpers
 
-    /// <summary>
-    /// Toggles the visibility of the full account number for sensitive data handling.
-    /// </summary>
-    private void ToggleAccountMask()
-    {
-        _showFullAccount = !_showFullAccount;
-    }
-
-    private void OnBatchSearchChanged(ChangeEventArgs e)
-    {
-        _batchSearchString = e.Value?.ToString() ?? "";
-    }
+    private void ToggleAccountMask() => _showFullAccount = !_showFullAccount;
+    private void OnBatchSearchChanged(ChangeEventArgs e) => _batchSearchString = e.Value?.ToString() ?? "";
 
     private bool FilterBatchItem(TransactionDto sub)
     {
@@ -544,269 +562,131 @@
     private async Task ExportDialogToPdf()
     {
         if (_isDownloadingPdf) return;
-        _isDownloadingPdf = true;
-        StateHasChanged();
-        
+        _isDownloadingPdf = true; StateHasChanged();
         try
         {
             var isBatch = Transaction.SubTransactions?.Any() == true;
             var listToExport = isBatch ? Transaction.SubTransactions! : new List<TransactionDto> { Transaction };
-                
             var title = isBatch ? "Batch Breakdown Report" : "Forensic Settlement Detail";
-            
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var fileName = isBatch 
-                ? $"FMC_BatchBreakdown_{Transaction.Id.ToString()[..8]}_{timestamp}.pdf"
-                : $"FMC_SettlementDetail_{Transaction.Id.ToString()[..8]}_{timestamp}.pdf";
-                
+            var fileName = $"FMC_{(isBatch ? "BatchBreakdown" : "SettlementDetail")}_{Transaction.Id.ToString()[..8]}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
             var bytes = await Task.Run(() => ReportService.GeneratePdf(title, listToExport));
             using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
             await JS.InvokeVoidAsync("fmc_downloadFile", fileName, "application/pdf", streamRef);
-            
             Snackbar.Add("Forensic report downloaded successfully.", Severity.Success);
         }
-        catch (Exception)
-        {
-            Snackbar.Add("Failed to generate PDF report.", Severity.Error);
-        }
-        finally
-        {
-            _isDownloadingPdf = false;
-            StateHasChanged();
-        }
+        catch { Snackbar.Add("Failed to generate PDF report.", Severity.Error); }
+        finally { _isDownloadingPdf = false; StateHasChanged(); }
     }
 
-    /// <summary>
-    /// Masks the account number leaving only the first 6 and last 4 digits visible.
-    /// </summary>
-    /// <param name="account">The full raw account string</param>
-    /// <returns>A masked string</returns>
     private string GetMaskedAccount(string? account)
     {
         if (string.IsNullOrEmpty(account)) return "N/A";
         if (account == "BATCH_SUMMARY") return "BATCH SUMMARY";
         if (_showFullAccount) return account;
-        if (account.Length <= 10) return account; // Too short to effectively mask the middle
-
+        if (account.Length <= 10) return account;
         return $"{account[..6]}{new string('*', account.Length - 10)}{account[^4..]}";
     }
 
-    /// <summary>
-    /// Maps a transaction status string to its corresponding MudBlazor theme color.
-    /// </summary>
     private Color GetStatusColor(string status) => status switch
     {
-        "Pending"   => Color.Warning,
-        "Approved"  => Color.Success,
-        "Successful"=> Color.Success,
-        "Rejected"  => Color.Error,
-        "Cancelled" => Color.Default,
-        _           => Color.Info
+        "Pending"    => Color.Warning,
+        "Approved"   or "Successful" => Color.Success,
+        "Rejected"   => Color.Error,
+        "Cancelled"  => Color.Default,
+        _            => Color.Info
     };
 
     private void ShowSuccessOverlay(string title, string subtext, bool isRejection = false)
     {
-        _successMessage = title;
-        _successSubtext = subtext;
-        _isRejection = isRejection;
-        _showSuccessOverlay = true;
-        StateHasChanged();
+        _successMessage = title; _successSubtext = subtext; _isRejection = isRejection; _showSuccessOverlay = true; StateHasChanged();
     }
 
     private void ShowErrorOverlay(string title, string subtext)
     {
-        _errorMessage = title;
-        _errorSubtext = subtext;
-        _showErrorOverlay = true;
-        StateHasChanged();
+        _errorMessage = title; _errorSubtext = subtext; _showErrorOverlay = true; StateHasChanged();
     }
 
     #endregion
 
     #region Action Handlers
 
-    /// <summary>
-    /// Closes the dialog without taking any action.
-    /// </summary>
     private void CloseDialog() => MudDialog.Cancel();
 
-    /// <summary>
-    /// Allows the Maker to withdraw their pending transaction request.
-    /// </summary>
     private async Task CancelTransactionAsync()
     {
         bool isBatch = Transaction.SubTransactions != null && Transaction.SubTransactions.Any();
         string typeLabel = isBatch ? "batch" : "individual transaction";
-
         string markup = $@"
-            <div class='d-flex flex-column align-center text-center pt-6 pb-2 px-2'>
-                <div class='mb-4' style='background: rgba(var(--mud-palette-error-rgb), 0.1); border-radius: 50%; padding: 16px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(var(--mud-palette-error-rgb), 0.2);'>
+            <div style='display:flex; flex-direction:column; align-items:center; text-align:center; padding:24px 16px;'>
+                <div style='background:rgba(var(--mud-palette-error-rgb),0.1); border-radius:50%; padding:16px; width:72px; height:72px; display:flex; align-items:center; justify-content:center; margin-bottom:16px; box-shadow:0 0 20px rgba(var(--mud-palette-error-rgb),0.2);'>
                     <svg style='width:36px;height:36px;color:var(--mud-palette-error);' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
                         <path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'></path>
                         <line x1='12' y1='9' x2='12' y2='13'></line>
                         <line x1='12' y1='17' x2='12.01' y2='17'></line>
                     </svg>
                 </div>
-                <h3 style='font-weight: 900; letter-spacing: 0.05em; font-size: 1.15rem; color: var(--mud-palette-text-primary); margin-bottom: 8px;'>WITHDRAW REQUEST</h3>
-                <p style='color: var(--mud-palette-text-secondary); font-size: 0.85rem; line-height: 1.6; max-width: 280px;'>
+                <h3 style='font-weight:900; letter-spacing:0.05em; font-size:1.15rem; margin-bottom:8px;'>WITHDRAW REQUEST</h3>
+                <p style='color:var(--mud-palette-text-secondary); font-size:0.85rem; line-height:1.6; max-width:280px;'>
                     Are you sure you want to cancel this <b>{typeLabel}</b>?<br/>This action is permanent and cannot be undone.
                 </p>
-            </div>
-        ";
-
-        var options = new DialogOptions { 
-            CloseButton = false, 
-            MaxWidth = MaxWidth.ExtraSmall, 
-            FullWidth = true, 
-            NoHeader = true,
-            BackgroundClass = "fmc-dialog-blur"
-        };
-
-        bool? confirm = await DialogService.ShowMessageBoxAsync(
-            title: default,
-            markupMessage: new MarkupString(markup),
-            yesText: "Confirm", 
-            cancelText: "Go Back",
-            options: options);
-
+            </div>";
+        var options = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, NoHeader = true, BackgroundClass = "fmc-dialog-blur" };
+        bool? confirm = await DialogService.ShowMessageBoxAsync(title: default, markupMessage: new MarkupString(markup), yesText: "Confirm", cancelText: "Go Back", options: options);
         if (confirm != true) return;
-
-        try 
-        {
+        try {
             _processing = true;
-            
-            bool success = isBatch 
-                ? await OrgService.CancelBatchAsync(Transaction.Id)
-                : await OrgService.CancelTransactionAsync(Transaction.Id);
-            
-            if (success)
-            {
-                ShowSuccessOverlay("REQUEST WITHDRAWN", isBatch ? "Batch has been removed from the queue." : "Transaction has been removed.");
-            }
-            else 
-            {
-                ShowErrorOverlay("WITHDRAWAL BLOCKED", isBatch ? "Unable to cancel batch at this time." : "Unable to cancel transaction.");
-            }
+            bool success = isBatch ? await OrgService.CancelBatchAsync(Transaction.Id) : await OrgService.CancelTransactionAsync(Transaction.Id);
+            if (success) ShowSuccessOverlay("REQUEST WITHDRAWN", isBatch ? "Batch has been removed from the queue." : "Transaction has been removed.");
+            else ShowErrorOverlay("WITHDRAWAL BLOCKED", isBatch ? "Unable to cancel batch at this time." : "Unable to cancel transaction.");
         }
-        catch (Exception ex)
-        {
-            ShowErrorOverlay("OPERATION FAILED", ex.Message);
-        }
-        finally
-        {
-            _processing = false;
-        }
+        catch (Exception ex) { ShowErrorOverlay("OPERATION FAILED", ex.Message); }
+        finally { _processing = false; }
     }
 
-    /// <summary>
-    /// Handles the authorization workflow (Approve or Reject) for Approvers.
-    /// </summary>
-    /// <param name="approve">True if authorizing, False if denying</param>
     private async Task ProcessDecisionAsync(bool approve)
     {
-        try
-        {
+        try {
             _processing = true;
             bool success = false;
-            
             if (approve)
             {
-                // Step-up Security Verification: Require password for all approvals
                 var secOpts = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, BackdropClick = false };
                 var secDialog = await DialogService.ShowAsync<SecurityVerificationDialog>("Security Verification", new DialogParameters(), secOpts);
                 var secResult = await secDialog.Result;
-                
-                if (secResult is null || secResult.Canceled)
-                {
-                    _processing = false;
-                    return;
-                }
-
+                if (secResult is null || secResult.Canceled) { _processing = false; return; }
                 bool isBatch = Transaction.SubTransactions != null && Transaction.SubTransactions.Any();
-                success = isBatch 
-                    ? await OrgService.ApproveBatchAsync(Transaction.Id)
-                    : await OrgService.ApproveTransactionAsync(Transaction.Id);
-
-                if (success) 
-                {
-                    ShowSuccessOverlay("TRANSACTION AUTHORIZED", "Decision has been securely logged to the ledger.");
-                }
+                success = isBatch ? await OrgService.ApproveBatchAsync(Transaction.Id) : await OrgService.ApproveTransactionAsync(Transaction.Id);
+                if (success) ShowSuccessOverlay("TRANSACTION AUTHORIZED", "Decision has been securely logged to the ledger.");
             }
             else
             {
-                // Confirmation Prompt for Rejection
-                bool? confirm = await DialogService.ShowMessageBoxAsync(
-                    "Confirm Rejection", 
-                    "Are you sure you want to reject this request?", 
-                    yesText: "Yes, Reject", cancelText: "No, Cancel");
-                
-                if (confirm != true)
-                {
-                    _processing = false;
-                    return;
-                }
-
-                // Prompt the Approver for a mandatory/optional denial reason
+                bool? confirm = await DialogService.ShowMessageBoxAsync("Confirm Rejection", "Are you sure you want to reject this request?", yesText: "Yes, Reject", cancelText: "No, Cancel");
+                if (confirm != true) { _processing = false; return; }
                 var parameters = new DialogParameters { ["ContentText"] = "Please provide a reason for rejecting this transaction." };
-                var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
-                
-                var dialog = await DialogService.ShowAsync<RejectionDialog>("Reject Transaction", parameters, options);
+                var dialog = await DialogService.ShowAsync<RejectionDialog>("Reject Transaction", parameters, new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small });
                 var result = await dialog.Result;
-
                 if (result is not null && !result.Canceled)
                 {
-                    // Proceed with rejection using the provided reason
                     var reason = result.Data as string ?? "Rejected by approver.";
                     bool isBatch = Transaction.SubTransactions != null && Transaction.SubTransactions.Any();
-                    
-                    success = isBatch
-                        ? await OrgService.RejectBatchAsync(Transaction.Id, reason)
-                        : await OrgService.RejectTransactionAsync(Transaction.Id, reason);
-
-                    if (success)
-                    {
-                        // Close the dialog immediately — let the page-level overlay show the rejection feedback
-                        MudDialog.Close(DialogResult.Ok(true));
-                        return;
-                    }
+                    success = isBatch ? await OrgService.RejectBatchAsync(Transaction.Id, reason) : await OrgService.RejectTransactionAsync(Transaction.Id, reason);
+                    if (success) { MudDialog.Close(DialogResult.Ok(true)); return; }
                 }
-                else 
-                {
-                    // The user cancelled the rejection reason dialog, so abort the rejection process entirely
-                    _processing = false;
-                    return;
-                }
+                else { _processing = false; return; }
             }
-
-            if (!success)
-            {
-                ShowErrorOverlay("SETTLEMENT BLOCKED", "Unable to process. Verify balance and permissions.");
-            }
+            if (!success) ShowErrorOverlay("SETTLEMENT BLOCKED", "Unable to process. Verify balance and permissions.");
         }
         catch (Exception ex)
         {
-            bool isLiquidityError = ex.Message.Contains("insufficient", StringComparison.OrdinalIgnoreCase)
-                                 || ex.Message.Contains("liquidity", StringComparison.OrdinalIgnoreCase);
-
+            bool isLiquidityError = ex.Message.Contains("insufficient", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("liquidity", StringComparison.OrdinalIgnoreCase);
             if (isLiquidityError)
             {
-                var batchCount = (Transaction.SubTransactions != null && Transaction.SubTransactions.Any()) 
-                                 ? Transaction.SubTransactions.Count : 0;
-                var batchNote = batchCount > 0 ? $" ({batchCount} settlements)" : string.Empty;
-
-                ShowErrorOverlay(
-                    "INSUFFICIENT LIQUIDITY",
-                    $"The organization's corporate float does not have enough balance to cover this settlement{batchNote}. Contact your SuperAdmin to top-up the wallet.");
+                var batchCount = (Transaction.SubTransactions?.Any() == true) ? Transaction.SubTransactions.Count : 0;
+                ShowErrorOverlay("INSUFFICIENT LIQUIDITY", $"The organization's corporate float does not have enough balance to cover this settlement{(batchCount > 0 ? $" ({batchCount} settlements)" : "")}. Contact your SuperAdmin to top-up the wallet.");
             }
-            else
-            {
-                ShowErrorOverlay("AUTHORIZATION FAILED", ex.Message);
-            }
+            else ShowErrorOverlay("AUTHORIZATION FAILED", ex.Message);
         }
-        finally
-        {
-            _processing = false;
-        }
+        finally { _processing = false; }
     }
 
     #endregion

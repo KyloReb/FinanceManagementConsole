@@ -326,3 +326,74 @@
     .fmc-audit-mobile-card .d-flex.justify-space-between { flex-wrap: wrap; }
     .fmc-audit-mobile-card .d-flex.justify-space-between .flex-grow-1 { flex: 1 1 100% !important; }
 }
+
+/* ── Mobile Paginator ── */
+.fmc-mobile-audit-pager {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--mud-palette-divider);
+    margin-top: 4px;
+}
+.fmc-mobile-pager-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.fmc-mobile-pager-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--mud-palette-text-secondary);
+}
+.fmc-mobile-pager-options {
+    display: flex;
+    gap: 4px;
+}
+.fmc-mobile-pager-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--mud-palette-divider);
+    background: transparent;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--mud-palette-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.fmc-mobile-pager-btn.active {
+    background: var(--mud-palette-primary);
+    color: #fff;
+    border-color: var(--mud-palette-primary);
+}
+.fmc-mobile-pager-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--mud-palette-text-secondary);
+}
+.fmc-mobile-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--mud-palette-divider);
+    background: var(--mud-palette-surface);
+    color: var(--mud-palette-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.fmc-mobile-nav-btn:hover:not(:disabled) {
+    background: rgba(var(--mud-palette-primary-rgb), 0.08);
+    border-color: rgba(var(--mud-palette-primary-rgb), 0.3);
+    color: var(--mud-palette-primary);
+}
+.fmc-mobile-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.fmc-mobile-nav-btn .mud-icon-root { font-size: 1.1rem !important; }

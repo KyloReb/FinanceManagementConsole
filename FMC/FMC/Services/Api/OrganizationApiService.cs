@@ -85,6 +85,12 @@ public class OrganizationApiService
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<bool> RequestPendingAdjustmentAsync(Guid id, decimal amount, string label)
+    {
+        var response = await _httpClient.PostAsJsonAsync($"api/organizations/{id}/request-pending-adjustment", new { Amount = amount, Label = label });
+        return response.IsSuccessStatusCode;
+    }
+
     /// <summary>
     /// CEO Endpoint: Adjusts the balance of an individual user within the CEO's organization.
     /// </summary>

@@ -32,5 +32,6 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         public bool IsCeo => false;
         public bool IsMaker => false;
         public bool IsApprover => false;
+        public bool IsSuperAdminApprover => true;
     }
 }

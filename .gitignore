@@ -44,3 +44,9 @@ publish/
 
 # Local Ad-hoc Scripts
 query_db.ps1
+
+# ===========================
+# AI context files (local only)
+# ===========================
+AI_MAP.md
+_CONTEXT.md

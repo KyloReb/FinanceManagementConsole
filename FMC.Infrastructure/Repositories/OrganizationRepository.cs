@@ -113,11 +113,21 @@ public class OrganizationRepository : IOrganizationRepository
     public async Task<decimal> GetTotalUserBalanceAsync(Guid organizationId, CancellationToken ct = default)
     {
         var orgTenantId = organizationId.ToString();
-        return await (from c in _context.Cardholders
-                      where c.OrganizationId == organizationId
-                      join a in _context.Accounts.IgnoreQueryFilters() on c.Id.ToString() equals a.TenantId
-                      where a.TenantId != orgTenantId
-                      select a.Balance).SumAsync(ct);
+
+        // Use a direct two-step approach: get all cardholder IDs for this org,
+        // then sum the account balances for those IDs. This avoids the
+        // inefficient Guid.ToString() join that EF Core can't translate to SQL.
+        var cardholderIds = await _context.Cardholders
+            .Where(c => c.OrganizationId == organizationId)
+            .Select(c => c.Id.ToString())
+            .ToListAsync(ct);
+
+        if (cardholderIds.Count == 0) return 0m;
+
+        return await _context.Accounts
+            .IgnoreQueryFilters()
+            .Where(a => a.TenantId != orgTenantId && cardholderIds.Contains(a.TenantId))
+            .SumAsync(a => a.Balance, ct);
     }
 
     public async Task<decimal> GetOrganizationBalanceAsync(Guid organizationId, CancellationToken ct = default)

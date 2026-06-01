@@ -103,12 +103,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         base.OnModelCreating(builder);
 
         // Global Query Filters for Tenancy and Soft Deletions
-        builder.Entity<Transaction>().HasQueryFilter(t => _currentUserService.IsSuperAdmin || t.TenantId == _currentUserService.TenantId || (t.OrganizationId != null && t.OrganizationId == _currentUserService.OrganizationId));
-        builder.Entity<Account>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId || (a.OrganizationId != null && a.OrganizationId == _currentUserService.OrganizationId));
-        builder.Entity<Budget>().HasQueryFilter(b => _currentUserService.IsSuperAdmin || b.TenantId == _currentUserService.TenantId);
-        builder.Entity<AuditLog>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || a.TenantId == _currentUserService.TenantId);
+        builder.Entity<Transaction>().HasQueryFilter(t => _currentUserService.IsSuperAdmin || _currentUserService.IsSuperAdminApprover || t.TenantId == _currentUserService.TenantId || (t.OrganizationId != null && t.OrganizationId == _currentUserService.OrganizationId));
+        builder.Entity<Account>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || _currentUserService.IsSuperAdminApprover || a.TenantId == _currentUserService.TenantId || (a.OrganizationId != null && a.OrganizationId == _currentUserService.OrganizationId));
+        builder.Entity<Budget>().HasQueryFilter(b => _currentUserService.IsSuperAdmin || _currentUserService.IsSuperAdminApprover || b.TenantId == _currentUserService.TenantId);
+        builder.Entity<AuditLog>().HasQueryFilter(a => _currentUserService.IsSuperAdmin || _currentUserService.IsSuperAdminApprover || a.TenantId == _currentUserService.TenantId);
         builder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
-        builder.Entity<Cardholder>().HasQueryFilter(c => _currentUserService.IsSuperAdmin || c.TenantId == _currentUserService.TenantId || c.OrganizationId == _currentUserService.OrganizationId);
+        builder.Entity<Cardholder>().HasQueryFilter(c => _currentUserService.IsSuperAdmin || _currentUserService.IsSuperAdminApprover || c.TenantId == _currentUserService.TenantId || c.OrganizationId == _currentUserService.OrganizationId);
 
         builder.Entity<UserOtpVerification>()
             .HasIndex(o => o.UserId);
@@ -129,6 +129,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasIndex(a => a.UserId);
         builder.Entity<AuditLog>()
             .HasIndex(a => a.CreatedAt);
+
+        builder.Entity<Account>()
+            .HasIndex(a => a.TenantId);
+        builder.Entity<Account>()
+            .HasIndex(a => a.OrganizationId);
 
         builder.Entity<Cardholder>()
             .HasIndex(c => c.AccountNumber)

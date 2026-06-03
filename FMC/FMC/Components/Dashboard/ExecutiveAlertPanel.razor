@@ -13,7 +13,7 @@
         box-shadow: 0 4px 25px rgba(0,0,0,0.03); margin-bottom: 24px;
     }
     .dark .fmc-alert-surface, :host-context(.dark) .fmc-alert-surface {
-        background: var(--mud-palette-surface);
+        background: #121212;
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
     .fmc-alert-header-area { 
@@ -160,7 +160,7 @@
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">@TotalAlerts operational @(TotalAlerts == 1 ? "alert" : "alerts") detected across workflow &amp; financial domains</MudText>
                 </div>
             </div>
-            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => _dismissed = true)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(async () => { _dismissed = true; await OnDismissed.InvokeAsync(true); })" />
         </div>
 
         <MudCollapse Expanded="_isExpanded">
@@ -434,6 +434,7 @@
     [Parameter] public List<OrganizationDto> Organizations { get; set; } = new();
     [Parameter] public bool Loading { get; set; }
     [Parameter] public EventCallback OnActionCompleted { get; set; }
+    [Parameter] public EventCallback<bool> OnDismissed { get; set; }
 
     private bool _dismissed;
     private bool _isExpanded = true;

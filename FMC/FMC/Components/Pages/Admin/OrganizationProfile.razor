@@ -268,7 +268,7 @@
        </div>
 
        @* Mobile VIP Placement: Liquidity First *@
-       @if (_org.Name != "Nationlink/Infoserve Inc.")
+       @if (_org!.Name != "Nationlink/Infoserve Inc.")
        {
            <div class="d-block d-md-none mb-6">
                @liquidityCard
@@ -332,7 +332,7 @@
                     </div>
                 </MudPaper>
 
-                @if (_org.Name != "Nationlink/Infoserve Inc.")
+                @if (_org!.Name != "Nationlink/Infoserve Inc.")
                 {
                     <MudPaper Elevation="0" Class="fmc-glass-surface pa-6 accent-info mb-6">
                         <MudText Typo="Typo.subtitle2" Class="fmc-section-label mb-2">SYSTEM TENANTS</MudText>
@@ -345,7 +345,7 @@
 
            <MudItem xs="12" md="8" lg="9">
                 @* Desktop Standard Placement: Liquidity Flow *@
-                @if (_org.Name != "Nationlink/Infoserve Inc.")
+                @if (_org!.Name != "Nationlink/Infoserve Inc.")
                 {
                     <div class="d-none d-md-block mb-6">
                         @liquidityCard
@@ -356,7 +356,7 @@
                     <PendingApprovalQueue OrganizationId="Id" OrganizationName="@_org?.Name" />
                 </div>
 
-                @if (_org.Name != "Nationlink/Infoserve Inc.")
+                @if (_org!.Name != "Nationlink/Infoserve Inc.")
                 {
                     <MudPaper Elevation="0" Class="fmc-glass-surface pa-6">
                         <div class="d-none d-md-block">

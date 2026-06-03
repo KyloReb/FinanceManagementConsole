@@ -87,7 +87,7 @@
                         
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Success" 
-                                   OnClick="Cancel"
+                                   OnClick="@(() => MudDialog.Close(DialogResult.Ok(true)))"
                                    Style="margin-top:24px; text-transform:none; font-weight:800; border-radius:12px; height:48px; min-width:160px;">
                             Done
                         </MudButton>

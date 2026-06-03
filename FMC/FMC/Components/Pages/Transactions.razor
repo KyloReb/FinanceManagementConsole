@@ -97,8 +97,7 @@
         @* ─── DESKTOP: MudTable with sortable columns, hover tooltips, pagination ─── *@
         <MudTable @ref="_table" Items="@_transactions" Hover="true" Elevation="0" Loading="@_loading" 
                  OnRowClick="OnRowClick" T="TransactionDto" 
-                 Striped="true" Dense="true" FixedHeader="true" Height="auto" HorizontalScrollbar="false"
-                 SortMode="SortMode.Multiple" OnSelectedItemChanged="OnSelectedItemChanged" SelectionChanged="null">
+                 Striped="true" Dense="true" FixedHeader="true" Height="auto" HorizontalScrollbar="false">
 
             @* Column width distribution *@
             <ColGroup>
@@ -503,7 +502,6 @@
     private MudTable<TransactionDto> _table = default!;
     private List<TransactionDto> _transactions = new();
     private string _searchString = "";
-    private TransactionDto? _selectedItem;
 
     /* ── Dependency Injection ── */
     [Inject] private ApiFinanceService FinanceService { get; set; } = default!;
@@ -639,11 +637,6 @@
         {
             _loading = false;
         }
-    }
-
-    private void OnSelectedItemChanged(TransactionDto? item)
-    {
-        _selectedItem = item;
     }
 
     /* ── Date Filtering ── */

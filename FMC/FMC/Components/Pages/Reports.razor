@@ -1,11 +1,17 @@
 @page "/reports"
 @attribute [Authorize]
 @using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Organization
+@using FMC.Shared.DTOs.User
+@using Microsoft.JSInterop
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthProvider
+@inject OrganizationApiService OrgService
+@inject IReportService ReportGen
+@inject IJSRuntime JS
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
-    @* ── ANALYTICS HEADER ── *@
+    @* ── REPORTS HEADER ── *@
     <div class="d-flex align-center justify-space-between mb-8">
         <div class="d-flex align-center">
             <div class="fmc-reports-accent mr-5"></div>
@@ -16,174 +22,571 @@
         </div>
     </div>
 
-
-
-    <MudGrid Spacing="3">
-        @* ── REPORT INVENTORY ── *@
-        <MudItem xs="12" md="8">
-            <div class="fmc-reports-surface">
-                <div class="fmc-surface-header">
-                    <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Class="mr-3" Color="Color.Primary" />
-                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Report Inventory</MudText>
-                    <MudSpacer />
-                    <MudTextField @bind-Value="_search" Placeholder="Filter reports..." Adornment="Adornment.Start" 
-                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" 
-                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-filter-input" />
-                </div>
-                
-                <div class="pa-2">
-                    <MudTable Items="@_availableReports" Dense="true" Hover="true" Elevation="0" 
-                              Filter="new Func<ReportMetadata,bool>(FilterFunc)" Class="fmc-reports-table">
-                        <HeaderContent>
-                            <MudTh>REPORT NAME</MudTh>
-                            <MudTh>TYPE</MudTh>
-                            <MudTh>GENERATED</MudTh>
-                            <MudTh>SIZE</MudTh>
-                            <MudTh Style="text-align:right">ACTIONS</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="NAME">
-                                <div class="d-flex flex-column">
-                                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@context.Name</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Description</MudText>
-                                </div>
-                            </MudTd>
-                            <MudTd>
-                                <MudChip T="string" Color="@GetChipColor(context.Category)" Size="Size.Small" 
-                                         Variant="Variant.Text" Style="font-weight:800; font-size:0.6rem;">@context.Category</MudChip>
-                            </MudTd>
-                            <MudTd>@context.GeneratedAt.ToString("MMM dd, yyyy")</MudTd>
-                            <MudTd>@context.Filesize</MudTd>
-                            <MudTd Style="text-align:right">
-                                <MudMenu Icon="@Icons.Material.Filled.FileDownload" Size="Size.Small" AnchorOrigin="Origin.BottomRight">
-                                    <MudMenuItem OnClick="@(() => Export("PDF"))">Export as PDF</MudMenuItem>
-                                    <MudMenuItem OnClick="@(() => Export("CSV"))">Export as CSV</MudMenuItem>
-                                    <MudMenuItem OnClick="@(() => Export("Excel"))">Export as Excel</MudMenuItem>
-                                </MudMenu>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </div>
+    @* ── REPORT CONTROLS ── *@
+    <div class="fmc-reports-controls">
+        <div class="fmc-reports-controls-row">
+            <div class="fmc-report-pills">
+                <button class="fmc-report-pill @(IsSelected("all") ? "active" : "")" @onclick='() => { ToggleReport("all"); }'>ALL</button>
+                @foreach (var t in GetAllTypes())
+                {
+                    <button class="fmc-report-pill @(IsSelected(t) ? "active" : "")" @onclick='() => { ToggleReport(t); }'>@GetReportTitle(t).ToUpper()</button>
+                }
             </div>
-        </MudItem>
-
-        @* ── DISTRIBUTION ANALYTICS ── *@
-        <MudItem xs="12" md="4">
-            <div class="fmc-reports-surface h-100">
-                <div class="fmc-surface-header">
-                    <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Class="mr-3" Color="Color.Secondary" />
-                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Institutional Distribution</MudText>
+        </div>
+        <div class="fmc-reports-controls-row">
+            @if (_isAdmin)
+            {
+                <div class="fmc-org-select-inline">
+                    <MudSelect T="string" Label="Organization" @bind-Value="_selectedOrgId" Variant="Variant.Outlined" Margin="Margin.Dense" Class="fmc-select-input" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@("all")">All Organizations</MudSelectItem>
+                        @foreach (var org in _organizations)
+                        {
+                            <MudSelectItem Value="@org.Id.ToString()">@org.Name</MudSelectItem>
+                        }
+                    </MudSelect>
                 </div>
-                <div class="d-flex flex-column align-center justify-center pa-8">
-                    <MudChart ChartType="ChartType.Donut" T="double" ChartSeries="@_donutSeries" ChartLabels="@_chartLabels" 
-                              Width="220px" Height="220px" LegendPosition="Position.Bottom" />
-                    <div class="mt-6 w-100">
-                        <div class="d-flex justify-space-between mb-1">
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Corporate Liquidity</MudText>
-                            <MudText Typo="Typo.caption" Style="font-weight: 800;">64%</MudText>
-                        </div>
-                        <MudProgressLinear Color="Color.Primary" Value="64" Size="Size.Small" Class="rounded-pill mb-4" />
-                        
-                        <div class="d-flex justify-space-between mb-1">
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Reserve Capital</MudText>
-                            <MudText Typo="Typo.caption" Style="font-weight: 800;">36%</MudText>
-                        </div>
-                        <MudProgressLinear Color="Color.Secondary" Value="36" Size="Size.Small" Class="rounded-pill" />
+            }
+            <div class="fmc-temporal-filter">
+                <div class="fmc-date-group">
+                    <button class="fmc-date-btn @(_activeDateRange == "all" ? "active" : "")" @onclick='async () => { SetQuickDate("all"); await Reload(); }'>ALL</button>
+                    <button class="fmc-date-btn @(_activeDateRange == "today" ? "active" : "")" @onclick='async () => { SetQuickDate("today"); await Reload(); }'>TODAY</button>
+                    <button class="fmc-date-btn @(_activeDateRange == "7d" ? "active" : "")" @onclick='async () => { SetQuickDate("7d"); await Reload(); }'>7D</button>
+                    <button class="fmc-date-btn @(_activeDateRange == "30d" ? "active" : "")" @onclick='async () => { SetQuickDate("30d"); await Reload(); }'>30D</button>
+                    <button class="fmc-date-btn @(_activeDateRange == "1y" ? "active" : "")" @onclick='async () => { SetQuickDate("1y"); await Reload(); }'>1Y</button>
+                </div>
+                <div class="fmc-custom-date-wrap">
+                    <div class="fmc-date-input-box">
+                        <span class="fmc-date-label">START</span>
+                        <input type="date" value="@(_startDate?.ToString("yyyy-MM-dd"))" @onchange='(e) => { UpdateDate(e, true); }' class="fmc-raw-date" />
+                    </div>
+                    <div class="fmc-date-sep"></div>
+                    <div class="fmc-date-input-box">
+                        <span class="fmc-date-label">END</span>
+                        <input type="date" value="@(_endDate?.ToString("yyyy-MM-dd"))" @onchange='(e) => { UpdateDate(e, false); }' class="fmc-raw-date" />
                     </div>
                 </div>
             </div>
-        </MudItem>
-    </MudGrid>
+            <div class="fmc-reports-actions">
+                @if (_dataLoaded)
+                {
+                    <button class="fmc-report-export-btn" title="Export as Excel" @onclick="ExportExcel">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 18H9v-2h4v2zm6-9h-5V4.5L19 11z"/></svg>
+                        Excel
+                    </button>
+                    <button class="fmc-report-export-btn" title="Export as PDF" @onclick="ExportPdf">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>
+                        PDF
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── REPORT CONTENT (loading skeleton) ── *@
+    @if (_reportLoading)
+    {
+        <div class="fmc-skel-surface">
+            <div class="fmc-skel-controls">
+                <div class="fmc-skel fmc-skel-select" style="width:80px;"></div>
+                <div class="fmc-skel fmc-skel-select" style="width:180px;"></div>
+                <div class="fmc-skel fmc-skel-select" style="width:200px;"></div>
+                <div class="fmc-skel fmc-skel-select" style="width:120px;"></div>
+            </div>
+            <div class="fmc-skel-kpi-row">
+                <div class="fmc-skel-card"><div class="fmc-skel fmc-skel-icon"></div><div class="fmc-skel-body"><div class="fmc-skel fmc-skel-line" style="width:50%;"></div><div class="fmc-skel fmc-skel-line" style="width:70%;height:18px;margin-top:4px;"></div></div></div>
+                <div class="fmc-skel-card"><div class="fmc-skel fmc-skel-icon"></div><div class="fmc-skel-body"><div class="fmc-skel fmc-skel-line" style="width:50%;"></div><div class="fmc-skel fmc-skel-line" style="width:70%;height:18px;margin-top:4px;"></div></div></div>
+                <div class="fmc-skel-card"><div class="fmc-skel fmc-skel-icon"></div><div class="fmc-skel-body"><div class="fmc-skel fmc-skel-line" style="width:50%;"></div><div class="fmc-skel fmc-skel-line" style="width:70%;height:18px;margin-top:4px;"></div></div></div>
+                <div class="fmc-skel-card"><div class="fmc-skel fmc-skel-icon"></div><div class="fmc-skel-body"><div class="fmc-skel fmc-skel-line" style="width:50%;"></div><div class="fmc-skel fmc-skel-line" style="width:70%;height:18px;margin-top:4px;"></div></div></div>
+            </div>
+            <div class="fmc-skel-table">
+                <div class="fmc-skel fmc-skel-table-hdr"></div>
+                @for (int i = 0; i < 5; i++)
+                {
+                    <div class="fmc-skel-table-row">
+                        <div class="fmc-skel fmc-skel-line" style="width:@(60 + i * 5)%;"></div>
+                        <div class="fmc-skel fmc-skel-line" style="width:@(50 + i * 4)%;"></div>
+                        <div class="fmc-skel fmc-skel-line" style="width:@(40 + i * 3)%;"></div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (_dataLoaded)
+    {
+        @foreach (var type in GetDisplayTypes())
+        {
+            <div class="fmc-reports-surface">
+                <div class="fmc-surface-header">
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;">@GetReportTitle(type)</MudText>
+                    <MudSpacer />
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetDateRangeLabel()</MudText>
+                </div>
+                @* KPI row *@
+                @if (type == "disbursement")
+                {
+                    <div class="fmc-kpi-row">
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap primary"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Total Amount</div><div class="fmc-kpi-value success">₱@(_transactionData.Sum(t => Math.Abs(t.Amount)).ToString("N2"))</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap info"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 13.17V7h2v6.17l2.59-2.58L17 12l-5 5z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Transactions</div><div class="fmc-kpi-value">@_transactionData.Count</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap info"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 13.17V7h2v6.17l2.59-2.58L17 12l-5 5z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Completed</div><div class="fmc-kpi-value" style="color:var(--mud-palette-success);">@_transactionData.Count(t => t.Status is "Completed" or "Approved")</div></div></div>
+                    </div>
+                }
+                else if (type == "orghealth")
+                {
+                    <div class="fmc-kpi-row">
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap primary"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Total Balance</div><div class="fmc-kpi-value success">₱@(_orgHealthData.Sum(o => o.TotalBalance).ToString("N2"))</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap info"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 13.17V7h2v6.17l2.59-2.58L17 12l-5 5z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Organizations</div><div class="fmc-kpi-value">@_orgHealthData.Count</div></div></div>
+                    </div>
+                }
+                else if (type == "cardholders")
+                {
+                    <div class="fmc-kpi-row">
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap primary"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Total Balance</div><div class="fmc-kpi-value success">₱@(_cardholderData.Sum(u => u.Balance).ToString("N2"))</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap info"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 13.17V7h2v6.17l2.59-2.58L17 12l-5 5z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Cardholders</div><div class="fmc-kpi-value">@_cardholderData.Count</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap success"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Active</div><div class="fmc-kpi-value" style="color:var(--mud-palette-success);">@_cardholderData.Count(u => u.IsActive)</div></div></div>
+                    </div>
+                }
+                else if (type == "audit")
+                {
+                    <div class="fmc-kpi-row">
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap primary"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Total Amount</div><div class="fmc-kpi-value success">₱@(_auditData.Sum(a => Math.Abs(a.Amount ?? 0)).ToString("N2"))</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap info"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 13.17V7h2v6.17l2.59-2.58L17 12l-5 5z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Entries</div><div class="fmc-kpi-value">@_auditData.Count</div></div></div>
+                    </div>
+                }
+                else if (type == "compensation")
+                {
+                    <div class="fmc-kpi-row">
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap primary"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Net Total</div><div class="fmc-kpi-value success">₱@(_compensationData.Sum(r => Math.Abs(r.NetAmount)).ToString("N2"))</div></div></div>
+                        <div class="fmc-kpi-card"><div class="fmc-kpi-icon-wrap info"><svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L11 13.17V7h2v6.17l2.59-2.58L17 12l-5 5z"/></svg></div><div class="fmc-kpi-body"><div class="fmc-kpi-label">Subscribers</div><div class="fmc-kpi-value">@_compensationData.Count</div></div></div>
+                    </div>
+                }
+                <div class="fmc-report-table-wrap">
+                    @if (type == "orghealth")
+                    {
+                        <MudTable Items="@_orgHealthData" Dense="true" Hover="true" Elevation="0" Class="fmc-reports-table" RowsPerPage="10" Context="row">
+                            <HeaderContent><MudTh>ORGANIZATION</MudTh><MudTh>WALLET LIMIT</MudTh><MudTh>BALANCE</MudTh><MudTh>USAGE</MudTh><MudTh>REMAINING</MudTh><MudTh>USAGE %</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="ORG"><MudText Typo="Typo.body2" Style="font-weight:700;">@row.Name</MudText></MudTd>
+                                <MudTd DataLabel="LIMIT">₱@row.WalletLimit.ToString("N2")</MudTd>
+                                <MudTd DataLabel="BALANCE">₱@row.TotalBalance.ToString("N2")</MudTd>
+                                <MudTd DataLabel="USAGE">₱@row.Usage.ToString("N2")</MudTd>
+                                <MudTd DataLabel="REMAINING">₱@row.RemainingBalance.ToString("N2")</MudTd>
+                                <MudTd DataLabel="USAGE %"><div class="d-flex align-center gap-2"><MudProgressLinear Color="Color.Primary" Value="@(row.WalletLimit > 0 ? (double)(row.Usage / row.WalletLimit * 100) : 0)" Size="Size.Small" Class="rounded-pill" Style="flex:1;max-width:100px;" /><span>@(row.WalletLimit > 0 ? (row.Usage / row.WalletLimit * 100).ToString("N1") : "0.0")%</span></div></MudTd>
+                            </RowTemplate>
+                            <PagerContent><MudTablePager PageSizeOptions="new int[]{5, 10, 25, 50}" /></PagerContent>
+                        </MudTable>
+                    }
+                    else if (type == "cardholders")
+                    {
+                        <MudTable Items="@_cardholderData" Dense="true" Hover="true" Elevation="0" Class="fmc-reports-table" RowsPerPage="10" Context="row">
+                            <HeaderContent><MudTh>NAME</MudTh><MudTh>EMAIL</MudTh><MudTh>ACCOUNT NUMBER</MudTh><MudTh>BALANCE</MudTh><MudTh>STATUS</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="NAME"><MudText Typo="Typo.body2" Style="font-weight:700;">@row.DisplayName</MudText></MudTd>
+                                <MudTd DataLabel="EMAIL">@row.Email</MudTd>
+                                <MudTd DataLabel="ACCOUNT">@(string.IsNullOrEmpty(row.AccountNumber) ? "N/A" : row.AccountNumber)</MudTd>
+                                <MudTd DataLabel="BALANCE">₱@row.Balance.ToString("N2")</MudTd>
+                                <MudTd DataLabel="STATUS"><MudChip T="string" Color="@(row.IsActive ? Color.Success : Color.Default)" Size="Size.Small" Variant="Variant.Text" Style="font-weight:800;font-size:0.6rem;">@(row.IsActive ? "Active" : "Inactive")</MudChip></MudTd>
+                            </RowTemplate>
+                            <PagerContent><MudTablePager PageSizeOptions="new int[]{5, 10, 25, 50}" /></PagerContent>
+                        </MudTable>
+                    }
+                    else if (type == "compensation")
+                    {
+                        <MudTable Items="@_compensationData" Dense="true" Hover="true" Elevation="0" Class="fmc-reports-table" RowsPerPage="10" Context="row">
+                            <HeaderContent><MudTh>SUBSCRIBER</MudTh><MudTh>ACCOUNT NUMBER</MudTh><MudTh>TOTAL CREDITS</MudTh><MudTh>TOTAL DEBITS</MudTh><MudTh>NET AMOUNT</MudTh><MudTh>TX COUNT</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="SUBSCRIBER"><MudText Typo="Typo.body2" Style="font-weight:700;">@row.Subscriber</MudText></MudTd>
+                                <MudTd DataLabel="ACCOUNT">@(string.IsNullOrEmpty(row.AccountNumber) ? "N/A" : row.AccountNumber)</MudTd>
+                                <MudTd DataLabel="CREDITS" Style="color:var(--mud-palette-success);font-weight:700;">₱@row.TotalCredits.ToString("N2")</MudTd>
+                                <MudTd DataLabel="DEBITS" Style="color:var(--mud-palette-error);font-weight:700;">₱@row.TotalDebits.ToString("N2")</MudTd>
+                                <MudTd DataLabel="NET" Style="@GetNetStyle(row.NetAmount)">₱@row.NetAmount.ToString("N2")</MudTd>
+                                <MudTd DataLabel="TX">@row.TransactionCount</MudTd>
+                            </RowTemplate>
+                            <PagerContent><MudTablePager PageSizeOptions="new int[]{5, 10, 25, 50}" /></PagerContent>
+                        </MudTable>
+                    }
+                    else if (type == "audit")
+                    {
+                        <MudTable Items="@_auditData" Dense="true" Hover="true" Elevation="0" Class="fmc-reports-table" RowsPerPage="10" Context="row">
+                            <HeaderContent><MudTh>DATE</MudTh><MudTh>ACTION</MudTh><MudTh>PERFORMED BY</MudTh><MudTh>ENTITY</MudTh><MudTh>AMOUNT</MudTh><MudTh>LABEL</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="DATE">@row.CreatedAt.ToLocalTime().ToString("MMM dd HH:mm")</MudTd>
+                                <MudTd DataLabel="ACTION"><MudChip T="string" Color="@GetChipColor(row.Action)" Size="Size.Small" Variant="Variant.Text" Style="font-weight:800;font-size:0.6rem;">@row.Action</MudChip></MudTd>
+                                <MudTd DataLabel="PERFORMED BY">@row.PerformedBy</MudTd>
+                                <MudTd DataLabel="ENTITY">@(row.EntityName ?? row.Organization ?? "-")</MudTd>
+                                <MudTd DataLabel="AMOUNT">@(row.Amount.HasValue ? "₱" + Math.Abs(row.Amount.Value).ToString("N2") : "-")</MudTd>
+                                <MudTd DataLabel="LABEL">@row.Label</MudTd>
+                            </RowTemplate>
+                            <PagerContent><MudTablePager PageSizeOptions="new int[]{5, 10, 25, 50}" /></PagerContent>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudTable Items="@_transactionData" Dense="true" Hover="true" Elevation="0" Class="fmc-reports-table" RowsPerPage="10" Context="row">
+                            <HeaderContent><MudTh>DATE</MudTh><MudTh>ORGANIZATION</MudTh><MudTh>SUBSCRIBER</MudTh><MudTh>AMOUNT</MudTh><MudTh>CATEGORY</MudTh><MudTh>STATUS</MudTh><MudTh>LABEL</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="DATE">@row.Date.ToLocalTime().ToString("MMM dd HH:mm")</MudTd>
+                                <MudTd DataLabel="ORG"><MudText Typo="Typo.body2" Style="font-weight:700;">@(row.OrganizationId.HasValue && _orgNameMap.TryGetValue(row.OrganizationId.Value, out var on) ? on : "N/A")</MudText></MudTd>
+                                <MudTd DataLabel="SUBSCRIBER">@(row.Category is "System Adjustment" or "Org Adjustment Pending" ? "Mother Account" : row.Subscriber)</MudTd>
+                                <MudTd DataLabel="AMOUNT" Style="@GetAmountStyle(row.Amount)">@(row.Amount >= 0 ? "+" : "")₱@(Math.Abs(row.Amount).ToString("N2"))</MudTd>
+                                <MudTd DataLabel="CATEGORY"><MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text" Style="font-weight:800;font-size:0.6rem;">@row.Category</MudChip></MudTd>
+                                <MudTd DataLabel="STATUS"><MudChip T="string" Color="@GetStatusColor(row.Status)" Size="Size.Small" Variant="Variant.Text" Style="font-weight:800;font-size:0.6rem;">@row.Status</MudChip></MudTd>
+                                <MudTd DataLabel="LABEL"><MudText Typo="Typo.caption">@row.Label</MudText></MudTd>
+                            </RowTemplate>
+                            <PagerContent><MudTablePager PageSizeOptions="new int[]{5, 10, 25, 50}" /></PagerContent>
+                        </MudTable>
+                    }
+                </div>
+            </div>
+            <div class="fmc-report-section-gap"></div>
+        }
+    }
 </MudContainer>
 
-<style>
-    .fmc-reports-accent { width: 6px; height: 50px; background: var(--mud-palette-primary); border-radius: 4px; }
-    .fmc-hero-text { font-weight: 900 !important; letter-spacing: -0.02em; }
-    .fmc-subtitle { color: var(--mud-palette-text-secondary); font-weight: 600; }
-    
-    .fmc-report-picker { background: var(--mud-palette-surface); width: 280px; }
-    .fmc-report-gen-btn { height: 40px; border-radius: 10px; font-weight: 800; text-transform: none; }
-
-    /* Stat Cards */
-    .fmc-report-stat-card {
-        background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider);
-        padding: 20px; border-radius: 20px; display: flex; align-items: center;
-        transition: transform 0.2s, border-color 0.2s;
-    }
-    .fmc-report-stat-card:hover { transform: translateY(-3px); border-color: var(--mud-palette-primary); }
-    .fmc-stat-icon-wrap { 
-        width: 48px; height: 48px; border-radius: 12px; 
-        display: flex; align-items: center; justify-content: center;
-    }
-    .fmc-stat-icon-wrap.primary { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); }
-    .fmc-stat-icon-wrap.success { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
-    .fmc-stat-icon-wrap.info { background: rgba(var(--mud-palette-info-rgb), 0.1); color: var(--mud-palette-info); }
-    .fmc-stat-label { font-weight: 800; color: var(--mud-palette-text-secondary); letter-spacing: 0.1em; font-size: 0.65rem; }
-    .fmc-stat-val { font-weight: 900; }
-    .fmc-stat-val.success { color: var(--mud-palette-success); }
-
-    /* Surface */
-    .fmc-reports-surface {
-        background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider);
-        border-radius: 24px; overflow: hidden; display: flex; flex-direction: column;
-    }
-    .fmc-surface-header {
-        padding: 20px 24px; border-bottom: 1px solid var(--mud-palette-divider);
-        background: var(--mud-palette-background-grey); display: flex; align-items: center;
-    }
-    .fmc-filter-input { background: var(--mud-palette-surface); width: 200px; }
-    
-    .fmc-reports-table { background: transparent !important; }
-    ::deep .mud-table-head { background: var(--mud-palette-background-grey); }
-    ::deep .mud-th { font-weight: 800 !important; font-size: 0.7rem !important; color: var(--mud-palette-text-secondary) !important; letter-spacing: 0.05em; }
-
-</style>
-
 @code {
-    private string _search = "";
-    private double[] _chartData = { 64, 36 };
-    private string[] _chartLabels = { "Institutional", "Operational" };
-    private List<ChartSeries<double>> _donutSeries = new() 
-    { 
-        new ChartSeries<double> { Name = "Distribution", Data = new double[] { 64, 36 } } 
-    };
+    private HashSet<string> _selectedReports = new() { "all" };
+    private string _selectedOrgId = "";
+    private bool _isAdmin;
+    private bool _isCeo;
+    private bool _reportLoading;
+    private bool _dataLoaded;
+    private string _activeDateRange = "7d";
+    private DateTime? _startDate;
+    private DateTime? _endDate;
 
-    private record ReportMetadata(string Name, string Description, string Category, DateTime GeneratedAt, string Filesize, string Roles = "");
-    private List<ReportMetadata> _allReports = new()
-    {
-        new("Institutional Audit Summary", "Comprehensive forensic log of all ledger adjustments.", "FINANCIAL", DateTime.Now.AddDays(-1), "2.4 MB"),
-        new("Capital Velocity Matrix", "Detailed cashflow analysis across all organizational nodes.", "INTELLIGENCE", DateTime.Now.AddDays(-2), "1.1 MB"),
-        new("Tenant Health Ledger", "Risk assessment and liquidity status of all subscribers.", "SYSTEM", DateTime.Now.AddDays(-3), "840 KB", Roles.SuperAdmin),
-        new("Personnel Adjustment Brief", "Summary of all debit/credit actions performed by managers.", "HR", DateTime.Now.AddDays(-5), "450 KB", Roles.CEO),
-        new("Consolidated Balance Brief", "Simplified institutional balance sheet for executive review.", "FINANCIAL", DateTime.Now.AddDays(-7), "1.8 MB")
-    };
-    private List<ReportMetadata> _availableReports = new();
+    private List<OrganizationDto> _organizations = new();
+    private List<TransactionDto> _transactionData = new();
+    private List<OrganizationDto> _orgHealthData = new();
+    private List<AuditLogDto> _auditData = new();
+    private List<UserDto> _cardholderData = new();
+    private List<CompensationRegisterRow> _compensationData = new();
+    private Dictionary<Guid, string> _orgNameMap = new();
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        
-        _availableReports = _allReports
-            .Where(r => string.IsNullOrEmpty(r.Roles) || user.IsInRole(r.Roles))
+        _isAdmin = user.IsInRole(Roles.SuperAdmin) || user.IsInRole(Roles.SuperAdminApprover);
+        _isCeo = user.IsInRole(Roles.CEO);
+
+        _organizations = await OrgService.GetOrganizationsAsync();
+        _organizations = _organizations.Where(o => o.Name != "Nationlink/Infoserve Inc.").ToList();
+        _orgNameMap = _organizations.ToDictionary(o => o.Id, o => o.Name);
+
+        if (_isCeo)
+        {
+            var orgClaim = user.FindFirst("OrganizationId")?.Value;
+            if (Guid.TryParse(orgClaim, out var ceoOrgId))
+                _selectedOrgId = ceoOrgId.ToString();
+        }
+
+        SetQuickDate("7d");
+        await LoadAllReports();
+        _dataLoaded = true;
+    }
+
+    private void SetQuickDate(string range)
+    {
+        _activeDateRange = range;
+        var today = DateTime.Today;
+        switch (range)
+        {
+            case "today":
+                _startDate = today;
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            case "7d":
+                _startDate = today.AddDays(-7);
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            case "30d":
+                _startDate = today.AddDays(-30);
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            case "1y":
+                _startDate = today.AddYears(-1);
+                _endDate = today.AddDays(1).AddTicks(-1);
+                break;
+            default:
+                _startDate = null;
+                _endDate = null;
+                break;
+        }
+    }
+
+    private void UpdateDate(ChangeEventArgs e, bool isStart)
+    {
+        _activeDateRange = "custom";
+        if (DateTime.TryParse(e.Value?.ToString(), out var d))
+        {
+            if (isStart) _startDate = d;
+            else _endDate = d.AddDays(1).AddTicks(-1);
+        }
+        _ = Reload();
+    }
+
+    private async Task Reload()
+    {
+        _dataLoaded = false;
+        StateHasChanged();
+        await LoadAllReports();
+        _dataLoaded = true;
+        StateHasChanged();
+    }
+
+    private async Task LoadAllReports()
+    {
+        _reportLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var tasks = new List<Task>();
+            foreach (var type in GetAllTypes())
+                tasks.Add(LoadSingleReport(type));
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Report load failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _reportLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadSingleReport(string type)
+    {
+        switch (type)
+        {
+            case "orghealth": await LoadOrgHealth(); break;
+            case "cardholders": await LoadCardholders(); break;
+            case "audit": await LoadAuditLogs(); break;
+            case "compensation": await LoadCompensationRegister(); break;
+            default: await LoadDisbursement(); break;
+        }
+    }
+
+    private async Task LoadDisbursement()
+    {
+        var allTx = new List<TransactionDto>();
+        var orgsToQuery = GetTargetOrgs();
+
+        foreach (var org in orgsToQuery)
+        {
+            var tx = await OrgService.SearchTransactionsAsync(org.Id, _startDate, _endDate, status: null);
+            if (_isAdmin)
+                tx = tx.Where(t => t.Category is "System Adjustment" or "Org Adjustment Pending").ToList();
+            allTx.AddRange(tx);
+        }
+
+        _transactionData = allTx.OrderByDescending(t => t.Date).ToList();
+    }
+
+    private async Task LoadOrgHealth()
+    {
+        var orgs = _isAdmin ? _organizations : new List<OrganizationDto>();
+        var targetOrgs = GetTargetOrgs();
+        if (!_isAdmin && targetOrgs.Any())
+        {
+            var org = await OrgService.GetByIdAsync(targetOrgs.First().Id);
+            if (org != null) orgs.Add(org);
+        }
+        _orgHealthData = orgs.OrderBy(o => o.Name).ToList();
+    }
+
+    private async Task LoadCardholders()
+    {
+        var allUsers = new List<UserDto>();
+        var orgsToQuery = GetTargetOrgs();
+
+        foreach (var org in orgsToQuery)
+        {
+            var users = await OrgService.GetUsersAsync(org.Id);
+            allUsers.AddRange(users);
+        }
+
+        _cardholderData = allUsers.OrderBy(u => u.DisplayName).ToList();
+    }
+
+    private async Task LoadAuditLogs()
+    {
+        var query = new AuditLogQueryDto
+        {
+            FromDate = _startDate,
+            ToDate = _endDate,
+            PageSize = 200
+        };
+        var result = await OrgService.SearchAuditLogsAsync(query);
+        _auditData = result.Items.OrderByDescending(a => a.CreatedAt).ToList();
+    }
+
+    private async Task LoadCompensationRegister()
+    {
+        var orgsToQuery = GetTargetOrgs();
+        var allTx = new List<TransactionDto>();
+
+        foreach (var org in orgsToQuery)
+        {
+            var tx = await OrgService.SearchTransactionsAsync(org.Id, _startDate, _endDate);
+            allTx.AddRange(tx);
+        }
+
+        var grouped = allTx
+            .GroupBy(t => new { t.Subscriber, t.AccountNumber, OrgName = _orgNameMap.TryGetValue(t.OrganizationId ?? Guid.Empty, out var n) ? n : "N/A" })
+            .Select(g => new CompensationRegisterRow
+            {
+                Subscriber = g.Key.Subscriber,
+                AccountNumber = g.Key.AccountNumber ?? "",
+                TotalCredits = g.Where(t => t.Amount > 0).Sum(t => t.Amount),
+                TotalDebits = g.Where(t => t.Amount < 0).Sum(t => Math.Abs(t.Amount)),
+                TransactionCount = g.Count(),
+                OrganizationName = g.Key.OrgName
+            })
+            .OrderByDescending(r => r.NetAmount)
             .ToList();
+
+        _compensationData = grouped;
     }
 
-    private bool FilterFunc(ReportMetadata report)
+    private List<OrganizationDto> GetTargetOrgs()
     {
-        if (string.IsNullOrWhiteSpace(_search)) return true;
-        if (report.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)) return true;
-        if (report.Category.Contains(_search, StringComparison.OrdinalIgnoreCase)) return true;
-        return false;
+        if (Guid.TryParse(_selectedOrgId, out var orgId))
+        {
+            var org = _organizations.FirstOrDefault(o => o.Id == orgId);
+            if (org != null) return new List<OrganizationDto> { org };
+        }
+        return _organizations;
     }
 
-    private Color GetChipColor(string category) => category switch
+    private string GetDateRangeLabel()
     {
-        "FINANCIAL" => Color.Primary,
-        "INTELLIGENCE" => Color.Secondary,
-        "SYSTEM" => Color.Info,
-        _ => Color.Default
+        if (_startDate.HasValue && _endDate.HasValue)
+            return $"{_startDate:MMM dd, yyyy} — {_endDate:MMM dd, yyyy}";
+        if (_startDate.HasValue)
+            return $"From {_startDate:MMM dd, yyyy}";
+        return "All time";
+    }
+
+    private static string GetReportTitle(string type) => type switch
+    {
+        "disbursement" => "Disbursement Summary",
+        "orghealth" => "Organization Wallet Health",
+        "audit" => "Audit Intelligence Log",
+        "cardholders" => "Cardholder Registry",
+        "compensation" => "Compensation Register",
+        _ => "Report"
     };
 
-    private void Export(string format) => Snackbar.Add($"Preparing {format} export for download...", Severity.Success);
+    private List<string> GetAllTypes() => _isAdmin
+        ? new() { "disbursement", "orghealth", "audit", "cardholders" }
+        : new() { "compensation", "disbursement", "audit", "cardholders" };
+
+    private List<string> GetDisplayTypes()
+    {
+        if (_selectedReports.Contains("all"))
+            return GetAllTypes();
+        return GetAllTypes().Where(t => _selectedReports.Contains(t)).ToList();
+    }
+
+    private void ToggleReport(string type)
+    {
+        if (type == "all")
+        {
+            _selectedReports.Clear();
+            _selectedReports.Add("all");
+        }
+        else
+        {
+            _selectedReports.Remove("all");
+            if (!_selectedReports.Remove(type))
+                _selectedReports.Add(type);
+            if (_selectedReports.Count == GetAllTypes().Count)
+            {
+                _selectedReports.Clear();
+                _selectedReports.Add("all");
+            }
+        }
+    }
+
+    private bool IsSelected(string type) => type == "all"
+        ? _selectedReports.Contains("all")
+        : _selectedReports.Contains(type) || _selectedReports.Contains("all");
+
+    private string GetOrgTitle() => Guid.TryParse(_selectedOrgId, out var oid) && _orgNameMap.TryGetValue(oid, out var n) ? n : "All Organizations";
+
+    private async Task ExportExcel()
+    {
+        try
+        {
+            var filterLabel = GetDateRangeLabel();
+            foreach (var type in GetDisplayTypes())
+            {
+                byte[] bytes = type switch
+                {
+                    "orghealth" => ReportGen.GenerateOrgHealthExcel(GetReportTitle(type), _orgHealthData, filterLabel),
+                    "cardholders" => ReportGen.GenerateCardholderExcel(GetOrgTitle(), _cardholderData, filterLabel),
+                    "audit" => ReportGen.GenerateAuditExcel(GetReportTitle(type), _auditData, filterLabel),
+                    "compensation" => ReportGen.GenerateCompensationRegisterExcel(GetReportTitle(type), _compensationData, filterLabel),
+                    _ => ReportGen.GenerateExcel(GetReportTitle(type), _transactionData, filterLabel),
+                };
+                string fileName = $"FMC_{GetReportTitle(type).Replace(" ", "")}_{DateTime.Now:yyyyMMdd}.xlsx";
+                using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+                await JS.InvokeVoidAsync("fmc_downloadFile", fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", streamRef);
+            }
+            Snackbar.Add($"Reports exported as Excel.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportPdf()
+    {
+        try
+        {
+            var filterLabel = GetDateRangeLabel();
+            foreach (var type in GetDisplayTypes())
+            {
+                byte[] bytes = type switch
+                {
+                    "orghealth" => ReportGen.GenerateOrgHealthPdf(GetReportTitle(type), _orgHealthData, filterLabel),
+                    "cardholders" => ReportGen.GenerateCardholderPdf(GetOrgTitle(), _cardholderData, filterLabel),
+                    "audit" => ReportGen.GenerateAuditPdf(GetReportTitle(type), _auditData, filterLabel),
+                    "compensation" => ReportGen.GenerateCompensationRegisterPdf(GetReportTitle(type), _compensationData, filterLabel),
+                    _ => ReportGen.GeneratePdf(GetReportTitle(type), _transactionData, filterLabel),
+                };
+                string fileName = $"FMC_{GetReportTitle(type).Replace(" ", "")}_{DateTime.Now:yyyyMMdd}.pdf";
+                using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+                await JS.InvokeVoidAsync("fmc_downloadFile", fileName, "application/pdf", streamRef);
+            }
+            Snackbar.Add($"Reports exported as PDF.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string GetNetStyle(decimal amount) => $"font-weight:700; color:{(amount >= 0 ? "var(--mud-palette-success)" : "var(--mud-palette-error)")};";
+    private static string GetAmountStyle(decimal amount) => $"font-weight:700; color:{(amount >= 0 ? "var(--mud-palette-success)" : "var(--mud-palette-error)")};";
+
+    private Color GetChipColor(string action) => action switch
+    {
+        "CREDIT" or "INITIATE_CREDIT" or "WALLET_FUNDED" => Color.Success,
+        "DEBIT" or "INITIATE_DEBIT" or "WALLET_DEBITED" => Color.Error,
+        "APPROVED" or "TRANSACTION_APPROVED" => Color.Success,
+        "REJECTED" => Color.Error,
+        _ => Color.Primary
+    };
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Completed" or "Approved" or "Successful" => Color.Success,
+        "Pending" => Color.Warning,
+        "Rejected" => Color.Error,
+        _ => Color.Default
+    };
 }

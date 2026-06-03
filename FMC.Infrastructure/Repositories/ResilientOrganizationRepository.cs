@@ -76,8 +76,8 @@ public class ResilientOrganizationRepository : IOrganizationRepository
     public Task<IEnumerable<Transaction>> GetProcessedTransactionsSinceAsync(Guid organizationId, DateTime since, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.GetProcessedTransactionsSinceAsync(organizationId, since, token), ct).AsTask();
 
-    public Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default) =>
-        _pipeline.ExecuteAsync(async token => await _inner.GetOrganizationTransactionsAsync(organizationId, status, count, token), ct).AsTask();
+    public Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, DateTime? fromDate = null, DateTime? toDate = null, string? category = null, CancellationToken ct = default) =>
+        _pipeline.ExecuteAsync(async token => await _inner.GetOrganizationTransactionsAsync(organizationId, status, count, fromDate, toDate, category, token), ct).AsTask();
 
     public Task<IEnumerable<Transaction>> GetTransactionsByBatchIdAsync(Guid batchId, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.GetTransactionsByBatchIdAsync(batchId, token), ct).AsTask();

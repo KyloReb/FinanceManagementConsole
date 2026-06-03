@@ -20,20 +20,26 @@
     <DialogContent>
         <div class="fmc-details-container">
 
-            <!-- ════ Summary Header: Amount + Status ════ -->
+            <!-- ════ Summary Header: Amount + Status + Date ════ -->
             <div class="fmc-summary-header">
-                <div>
+                <div class="fmc-summary-amt">
                     <MudText Class="fmc-amount-display fmc-financial-mono"
                              Color="@(Transaction.Amount < 0 ? Color.Error : Color.Success)">
                         @Transaction.Amount.ToString("C")
-                    </MudText>
-                    <MudText Class="fmc-timestamp-label">
-                        ESTABLISHED @Transaction.Date.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
                     </MudText>
                 </div>
                 <MudChip T="string" Color="@GetStatusColor(Transaction.Status)" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 900;">
                     @Transaction.Status.ToUpper()
                 </MudChip>
+                <div class="fmc-timestamp-label fmc-summary-date">
+                    ESTABLISHED @Transaction.Date.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                </div>
+            </div>
+
+            <!-- Maker / Initiator (below established date) -->
+            <div class="fmc-maker-section">
+                <div class="fmc-detail-label">MAKER / INITIATOR</div>
+                <div class="fmc-detail-value maker">@Transaction.MakerName</div>
             </div>
 
             <MudDivider Class="my-4" />
@@ -64,15 +70,20 @@
                 <MudItem xs="12">
                     <div class="fmc-detail-label">DESCRIPTION / LABEL</div>
                     <div class="fmc-description-block">
-                        @if (!string.IsNullOrWhiteSpace(Transaction.Label))
-                        {
-                            @Transaction.Label
-                        }
-                        else
-                        {
+                        @{
                             var maskAcc = (string? acc) => string.IsNullOrEmpty(acc) ? "N/A" : (acc.Length < 10 ? acc : $"{acc[..6]}{"******"}{acc[^4..]}");
-                            var orgPart  = $"Mother Account ({_orgName} - {maskAcc(_orgAccountNumber)})";
-                            var userPart = $"Cardholder ({Transaction.Subscriber} - {maskAcc(Transaction.AccountNumber)})";
+                            var orgDisplayName = _orgName;
+                            var orgDisplayAcct = _orgAccountNumber;
+                            if (Transaction.Subscriber == _orgName)
+                            {
+                                orgDisplayName = "Nationlink/ Infoserve Inc.";
+                                orgDisplayAcct = null;
+                            }
+                            var orgAccStr = orgDisplayAcct != null ? $" - {maskAcc(orgDisplayAcct)}" : "";
+                            var userAccStr = !string.IsNullOrEmpty(Transaction.AccountNumber) && Transaction.AccountNumber != "N/A" ? $" - {maskAcc(Transaction.AccountNumber)}" : "";
+                            var destLabel = Transaction.Category == "Org Adjustment Pending" ? "Subscriber Mother Account" : "Cardholder";
+                            var orgPart  = $"Mother Account ({orgDisplayName}{orgAccStr})";
+                            var userPart = $"{destLabel} ({Transaction.Subscriber}{userAccStr})";
                             var amtStr   = $"₱{Math.Abs(Transaction.Amount):N2}";
                             if (Transaction.Amount >= 0)
                             {
@@ -84,12 +95,6 @@
                             }
                         }
                     </div>
-                </MudItem>
-
-                <!-- Maker / Initiator -->
-                <MudItem xs="12" sm="6">
-                    <div class="fmc-detail-label">MAKER / INITIATOR</div>
-                    <div class="fmc-detail-value maker">@Transaction.MakerName</div>
                 </MudItem>
 
                 <!-- Reference ID -->
@@ -138,7 +143,7 @@
                 {
                     if (isCorporateToUser)
                     {
-                        sourceName = "Corporate Treasury";
+                        sourceName = "Nationlink/ Infoserve Inc.";
                         sourceIcon = Icons.Material.Filled.AccountBalance;
                         sourceAcct = null;
                         destAcct = _orgAccountNumber;
@@ -146,14 +151,14 @@
                     else
                     {
                         sourceAcct = _orgAccountNumber;
-                        destName = "Corporate Treasury";
+                        destName = "Nationlink/ Infoserve Inc.";
                         destIcon = Icons.Material.Filled.AccountBalance;
                         destAcct = null;
                     }
                 }
                 else if (sourceName == destName)
                 {
-                    sourceName = "Corporate Treasury";
+                    sourceName = "Nationlink/ Infoserve Inc.";
                     sourceIcon = Icons.Material.Filled.AccountBalance;
                     sourceAcct = null;
                 }
@@ -170,7 +175,14 @@
                     <div class="fmc-flow-node-wrapper">
                         <div class="fmc-flow-glass-node source">
                             <div class="fmc-flow-node-ring"></div>
-                            <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                            @if (sourceName == "Nationlink/ Infoserve Inc.")
+                            {
+                                <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                            }
                         </div>
                         <div class="fmc-flow-label">
                             <span class="fmc-flow-name">@sourceName</span>
@@ -198,7 +210,14 @@
                     <div class="fmc-flow-node-wrapper">
                         <div class="fmc-flow-glass-node dest">
                             <div class="fmc-flow-node-ring"></div>
-                            <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                            @if (destName == "Nationlink/ Infoserve Inc.")
+                            {
+                                <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                            }
                         </div>
                         <div class="fmc-flow-label">
                             <span class="fmc-flow-name">@destName</span>
@@ -215,7 +234,14 @@
                     <div class="fmc-flow-node-wrapper">
                         <div class="fmc-flow-glass-node source">
                             <div class="fmc-flow-node-ring"></div>
-                            <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                            @if (sourceName == "Nationlink/ Infoserve Inc.")
+                            {
+                                <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                            }
                         </div>
                         <div class="fmc-flow-label">
                             <span class="fmc-flow-name">@sourceName</span>
@@ -238,7 +264,14 @@
                     <div class="fmc-flow-node-wrapper">
                         <div class="fmc-flow-glass-node dest">
                             <div class="fmc-flow-node-ring"></div>
-                            <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                            @if (destName == "Nationlink/ Infoserve Inc.")
+                            {
+                                <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                            }
                         </div>
                         <div class="fmc-flow-label">
                             <span class="fmc-flow-name">@destName</span>
@@ -402,21 +435,8 @@
             else
             {
                 <div class="fmc-actions-bar">
-                    <MudButton OnClick="CloseDialog" Variant="Variant.Outlined" Class="fmc-act-close">Close</MudButton>
-                    <MudButton Variant="Variant.Outlined"
-                               StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
-                               OnClick="ExportDialogToPdf"
-                               Class="fmc-act-pdf"
-                               Disabled="@_isDownloadingPdf">
-                        @if (_isDownloadingPdf)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Secondary" />
-                            <span class="ml-2">Generating...</span>
-                        }
-                        else { <span>PDF</span> }
-                    </MudButton>
-
-                    <div class="fmc-act-spacer"></div>                    @if (Transaction.Status == "Pending")
+                    <div class="fmc-act-spacer"></div>
+                    @if (Transaction.Status == "Pending")
                     {
                         @if (IsOwnTransaction)
                         {
@@ -442,6 +462,19 @@
                                        Class="fmc-act-approve">Approve</MudButton>
                         }
                     }
+                    <MudButton OnClick="CloseDialog" Variant="Variant.Outlined" Class="fmc-act-close">Close</MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               StartIcon="@(_isDownloadingPdf ? null : Icons.Material.Filled.CloudDownload)"
+                               OnClick="ExportDialogToPdf"
+                               Class="fmc-act-pdf"
+                               Disabled="@_isDownloadingPdf">
+                        @if (_isDownloadingPdf)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Secondary" />
+                            <span class="ml-2">Generating...</span>
+                        }
+                        else { <span>PDF</span> }
+                    </MudButton>
                 </div>
             }
         </div>
@@ -470,7 +503,7 @@
     private bool _showErrorOverlay;
     private string _errorMessage = "";
     private string _errorSubtext = "";
-    private string _orgName = "Corporate Liquidity";
+    private string _orgName = "Nationlink/ Infoserve Inc.";
     private string _orgAccountNumber = "";
     private string _batchSearchString = "";
     private bool _isDownloadingPdf = false;
@@ -492,7 +525,7 @@
             } catch { }
         }
 
-        if (_orgName == "Corporate Liquidity")
+        if (_orgName == "Nationlink/ Infoserve Inc.")
         {
             try {
                 var users = await AdminService.GetUsersAsync();
@@ -507,7 +540,7 @@
                     var user = users.FirstOrDefault(u => u.DisplayName == Transaction.Subscriber || u.UserName == Transaction.Subscriber);
                     if (user?.Organization != null) { _orgName = user.Organization; _orgAccountNumber = user.OrganizationAccountNumber; }
                 }
-                if (_orgName != "Corporate Liquidity" && string.IsNullOrEmpty(_orgAccountNumber))
+                if (_orgName != "Nationlink/ Infoserve Inc." && string.IsNullOrEmpty(_orgAccountNumber))
                 {
                     var orgs = await OrgService.GetOrganizationsAsync();
                     var orgMatch = orgs.FirstOrDefault(o => o.Name.Equals(_orgName, StringComparison.OrdinalIgnoreCase));

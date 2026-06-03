@@ -586,6 +586,10 @@
     private List<TransactionDto> _pendingTransactions = new();
     private List<TransactionDto> _todayTransactions = new();
     private List<AuditLogDto> _allAuditLogs = new();
+    private static readonly HashSet<string> PendingInitiationActions = new()
+    {
+        "ADJUSTMENT_REQUESTED", "DEBIT_REQUESTED", "INITIATE_CREDIT", "INITIATE_DEBIT"
+    };
     private bool _loadingData;
     private bool _auditLoading;
     private bool _isApprover;
@@ -653,6 +657,11 @@
             
             _pendingTransactions = await pendingTask;
             _todayTransactions = await todayTask;
+            
+            // Exclude cross-org adjustment requests (SuperAdmin-initiated) from Maker/Approver view
+            _pendingTransactions = _pendingTransactions
+                .Where(t => t.Category != "Org Adjustment Pending")
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -670,7 +679,8 @@
         _auditLoading = true;
         try
         {
-            _allAuditLogs = await OrgService.GetRecentAuditLogsAsync(count: 20);
+            _allAuditLogs = (await OrgService.GetRecentAuditLogsAsync(count: 20))
+                .Where(l => !PendingInitiationActions.Contains(l.Action)).ToList();
         }
         catch (Exception ex)
         {

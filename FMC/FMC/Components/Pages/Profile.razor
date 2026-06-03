@@ -283,7 +283,7 @@
                                     <div class="d-none d-sm-block">
                                         <MudTable @ref="_activityTable" Items="@_activityEntries" Filter="new Func<ActivityEntry,bool>(ActivityFilterFunc)"
                                                   Hover="true" Elevation="0" Class="fmc-activity-table" Dense="true"
-                                                  OnRowClick="@((TableRowClickEventArgs<ActivityEntry> e) => ShowActivityDetail(e.Item))">
+                                                  OnRowClick="@((TableRowClickEventArgs<ActivityEntry> e) => ShowActivityDetail(e.Item!))">
                                             <HeaderContent>
                                                 <MudTh Style="font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase;">TIMESTAMP</MudTh>
                                                 <MudTh Style="font-size:0.6rem; font-weight:900; opacity:0.5; letter-spacing:0.08em; text-transform:uppercase;">DETAIL</MudTh>

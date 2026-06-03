@@ -140,15 +140,15 @@
                 {
                     if (isCorporateToUser)
                     {
-                        sourceName = "Corporate Treasury";
+                        sourceName = "Nationlink/ Infoserve Inc.";
                         sourceIcon = Icons.Material.Filled.AccountBalance;
                         hideSourceAcct = true;
                     }
                     else
                     {
-                        destName = "Corporate Treasury";
+                        destName = "Nationlink/ Infoserve Inc.";
                         destIcon = Icons.Material.Filled.AccountBalance;
-                        _orgAccountNumber = null; // treasury has no card number, and dest-side would show it
+                        _orgAccountNumber = string.Empty; // treasury has no card number, and dest-side would show it
                     }
                 }
 
@@ -163,7 +163,14 @@
                         <div class="fmc-flow-node-wrapper">
                             <div class="fmc-flow-glass-node source">
                                 <div class="fmc-flow-node-ring"></div>
-                                <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                                @if (sourceName == "Nationlink/ Infoserve Inc.")
+                                {
+                                    <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                                }
                             </div>
                             <div class="fmc-flow-label">
                                 <span class="fmc-flow-name">@sourceName</span>
@@ -199,7 +206,14 @@
                         <div class="fmc-flow-node-wrapper">
                             <div class="fmc-flow-glass-node dest">
                                 <div class="fmc-flow-node-ring"></div>
-                                <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                                @if (destName == "Nationlink/ Infoserve Inc.")
+                                {
+                                    <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                                }
                             </div>
                             <div class="fmc-flow-label">
                                 <span class="fmc-flow-name">@destName</span>
@@ -224,7 +238,14 @@
                         <div class="fmc-flow-node-wrapper" style="width:100%;">
                             <div class="fmc-flow-glass-node source">
                                 <div class="fmc-flow-node-ring"></div>
-                                <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                                @if (sourceName == "Nationlink/ Infoserve Inc.")
+                                {
+                                    <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@sourceIcon" Class="fmc-flow-node-icon" />
+                                }
                             </div>
                             <div class="fmc-flow-label">
                                 <span class="fmc-flow-name">@sourceName</span>
@@ -251,7 +272,14 @@
                         <div class="fmc-flow-node-wrapper" style="width:100%;">
                             <div class="fmc-flow-glass-node dest">
                                 <div class="fmc-flow-node-ring"></div>
-                                <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                                @if (destName == "Nationlink/ Infoserve Inc.")
+                                {
+                                    <img src="favicon.png" class="fmc-org-logo" alt="Nationlink/ Infoserve Inc." />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@destIcon" Class="fmc-flow-node-icon" />
+                                }
                             </div>
                             <div class="fmc-flow-label">
                                 <span class="fmc-flow-name">@destName</span>
@@ -452,7 +480,7 @@
     /// </summary>
     protected override async Task OnInitializedAsync()
     {
-        _orgName = !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Corporate Liquidity";
+        _orgName = !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Nationlink/ Infoserve Inc.";
         _userAccountNumber = GetCardNumber();
         
         List<FMC.Shared.DTOs.User.UserDto>? users = null;
@@ -480,7 +508,7 @@
                 if (user != null)
                 {
                     // Hydrate org name from user identity if not yet resolved
-                    if (string.IsNullOrEmpty(_orgName) || _orgName == "Corporate Liquidity")
+                    if (string.IsNullOrEmpty(_orgName) || _orgName == "Nationlink/ Infoserve Inc.")
                         _orgName = user.Organization ?? _orgName;
                         
                     // Resolve the org's stable account number
@@ -500,7 +528,7 @@
         }
 
         // ── Fallback: resolve org by name if not found via user ──
-        if (!string.IsNullOrWhiteSpace(_orgName) && _orgName != "Corporate Liquidity" && string.IsNullOrEmpty(_orgAccountNumber))
+        if (!string.IsNullOrWhiteSpace(_orgName) && _orgName != "Nationlink/ Infoserve Inc." && string.IsNullOrEmpty(_orgAccountNumber))
         {
             try {
                 var orgs = await OrgService.GetOrganizationsAsync();
@@ -731,7 +759,7 @@
             } catch { }
         }
         
-        return !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Corporate Liquidity";
+        return !string.IsNullOrWhiteSpace(Log.Organization) ? Log.Organization : "Nationlink/ Infoserve Inc.";
     }
 
     /// <summary>

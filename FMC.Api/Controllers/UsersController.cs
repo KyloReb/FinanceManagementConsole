@@ -320,7 +320,7 @@ public class UsersController : ControllerBase
 
     [Authorize(Roles = Roles.Approver + "," + Roles.CEO + "," + Roles.SuperAdmin + "," + Roles.Maker + "," + Roles.SuperAdminApprover)]
     [HttpGet("organizations/{orgId:guid}/transactions")]
-    public async Task<ActionResult<List<TransactionDto>>> GetOrganizationTransactions(Guid orgId, [FromQuery] string? status = null, [FromQuery] int count = 50)
+    public async Task<ActionResult<List<TransactionDto>>> GetOrganizationTransactions(Guid orgId, [FromQuery] string? status = null, [FromQuery] int count = 50, [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null, [FromQuery] string? category = null)
     {
         if (!User.IsInRole(Roles.SuperAdmin) && !User.IsInRole(Roles.SuperAdminApprover))
         {
@@ -328,7 +328,7 @@ public class UsersController : ControllerBase
             if (string.IsNullOrEmpty(myOrgId) || Guid.Parse(myOrgId) != orgId) return Forbid();
         }
 
-        var transactions = await _organizationService.GetOrganizationTransactionsAsync(orgId, status, count);
+        var transactions = await _organizationService.GetOrganizationTransactionsAsync(orgId, status, count, fromDate, toDate, category);
         return Ok(transactions.ToList());
     }
 

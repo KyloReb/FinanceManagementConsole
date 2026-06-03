@@ -6,6 +6,7 @@
 @inject NavigationManager NavigationManager
 @inject OrganizationApiService OrgService
 @inject IJSRuntime JSRuntime
+@inject ThemeService ThemeService
 
 @*
     The main layout for the Finance Management Console.
@@ -35,6 +36,14 @@
         </MudHidden>
         
         <MudSpacer />
+
+        @* ── THEME TOGGLE ── *@
+        <div class="fmc-theme-toggle-wrap">
+            <MudIconButton Icon="@(ThemeService.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
+                           Color="Color.Inherit"
+                           OnClick="ToggleTheme"
+                           Class="fmc-theme-btn" />
+        </div>
 
         @* ── NOTIFICATION BELL ── *@
         <AuthorizeView Roles='@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover}")' Context="notifState">
@@ -224,7 +233,25 @@
         transition: color 0.15s;
     }
     .fmc-bell-wrap:hover .fmc-bell-icon { color: var(--mud-palette-text-primary); }
-    .fmc-notif-badge {
+
+    /* ── Theme Toggle ── */
+    .fmc-theme-toggle-wrap {
+        display: flex; align-items: center; justify-content: center;
+        margin-right: 2px;
+    }
+    .fmc-theme-btn {
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+    .fmc-theme-btn .mud-icon-root {
+        font-size: 1.25rem !important;
+        color: var(--mud-palette-text-secondary);
+        transition: color 0.15s, transform 0.3s ease;
+    }
+    .fmc-theme-btn:hover .mud-icon-root {
+        color: var(--mud-palette-text-primary);
+        transform: rotate(15deg);
+    }    .fmc-notif-badge {
         position: absolute;
         top: 4px; right: 4px;
         min-width: 16px; height: 16px;
@@ -486,12 +513,20 @@
 
     private void ToggleNotif() => _notifOpen = !_notifOpen;
     private void ToggleUserMenu() => _userMenuOpen = !_userMenuOpen;
+    private void ToggleTheme()
+    {
+        ThemeService.IsDarkMode = !ThemeService.IsDarkMode;
+        StateHasChanged();
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        ThemeService.OnChange += HandleThemeChanged;
         OrgService.OnDataChanged += HandleDataChanged;
         await LoadAlerts();
     }
+
+    private void HandleThemeChanged() => InvokeAsync(StateHasChanged);
 
     private async void HandleDataChanged()
     {
@@ -666,6 +701,7 @@
 
     public void Dispose() 
     { 
+        ThemeService.OnChange -= HandleThemeChanged;
         OrgService.OnDataChanged -= HandleDataChanged;
     }
 }

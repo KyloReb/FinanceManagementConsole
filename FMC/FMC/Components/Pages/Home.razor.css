@@ -34,6 +34,10 @@
     height: 100%; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
+.fmc-dark-mode .fmc-glass-card {
+    background-color: #121212;
+    border-color: rgba(255, 255, 255, 0.06);
+}
 .fmc-glass-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); border-color: var(--mud-palette-primary); }
 .fmc-glass-card.static { cursor: default; }
 .fmc-glass-card.static:hover { transform: none; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
@@ -70,7 +74,7 @@
 
 .fmc-dark-mode ::deep .fmc-main-surface,
 .fmc-dark-mode ::deep .fmc-audit-surface { 
-    background-color: var(--mud-palette-surface) !important;
+    background-color: #121212 !important;
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
     border-radius: 24px;
     overflow: hidden;
@@ -367,6 +371,11 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
 }
 
+.fmc-dark-mode ::deep .fmc-health-card {
+    background: #1e1e1e !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
 .fmc-health-card.clickable {
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -540,6 +549,7 @@
 }
 .fmc-wallet-skel-list { display: flex; flex-direction: column; gap: 16px; padding: 4px 0; }
 .fmc-wallet-skel-card { background: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); border-radius: 16px; padding: 20px 24px; }
+.fmc-dark-mode .fmc-wallet-skel-card { background: #1e1e1e; border-color: rgba(255, 255, 255, 0.06); }
 .fmc-wallet-skel {
     border-radius: 6px;
     background: linear-gradient(90deg, var(--mud-palette-divider) 25%, rgba(var(--mud-palette-primary-rgb), 0.06) 50%, var(--mud-palette-divider) 75%);
@@ -562,6 +572,7 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
     gap: 6px;
+    width: 100%;
 }
 .fmc-filter-toolbar::-webkit-scrollbar { display: none; }
 
@@ -583,7 +594,8 @@
     position: relative;
     overflow: hidden;
     white-space: nowrap;
-    flex-shrink: 1; /* Allow compression to stay in one row */
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .fmc-dark-mode .fmc-filter-chip {
@@ -964,7 +976,7 @@ html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
         padding: 0 6px;
         font-size: 0.48rem;
         white-space: nowrap;
-        flex-shrink: 0;
+        flex: 0 0 auto;
     }
     .fmc-filter-chip .mud-icon-root {
         font-size: 0.65rem !important;
@@ -1039,6 +1051,12 @@ html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
     .fmc-glass-card .d-flex.align-end {
         overflow: hidden;
     }
+    .fmc-equal-row {
+        flex-direction: column;
+    }
+    .fmc-pending-panel {
+        height: auto !important;
+    }
 }
 
 @media (min-width: 601px) and (max-width: 960px) {
@@ -1055,6 +1073,51 @@ html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
 }
 
 /* ── Equal-Height Columns (Oversight | Pending) ── */
+.fmc-equal-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+.fmc-equal-col {
+    flex: 1;
+    min-width: 300px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.fmc-pending-panel {
+}
+
+.fmc-pending-surface {
+    background-color: var(--mud-palette-surface);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+}
+.fmc-light-mode .fmc-pending-surface {
+    background-color: #f1f5f9 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04) !important;
+}
+.fmc-dark-mode .fmc-pending-surface {
+    background-color: #121212 !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+@media (max-width: 600px) {
+    .fmc-equal-row {
+        flex-direction: column;
+    }
+    .fmc-equal-col {
+        flex: 1 1 auto;
+        min-width: auto;
+    }
+    .fmc-pending-panel {
+    }
+}
+
 .fmc-oversight-item {
     display: flex;
     flex-direction: column;
@@ -1085,6 +1148,10 @@ html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
     border: 1px solid var(--mud-palette-divider);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+}
+.fmc-dark-mode .fmc-pending-row {
+    background: #1e1e1e;
+    border-color: rgba(255, 255, 255, 0.06);
 }
 .fmc-pending-row.fmc-pending-clickable { cursor: pointer; }
 .fmc-pending-row:hover {
@@ -1479,6 +1546,10 @@ html:not(.dark) ::deep .fmc-audit-item .fmc-row-tooltip .tooltip-footer {
     background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
     background-size: 200% 100%;
     animation: pskel-shimmer 1.5s ease-in-out infinite;
+}
+.fmc-dark-mode .fmc-pending-skel {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
 }
 @keyframes pskel-shimmer {
     0% { background-position: 200% 0; }

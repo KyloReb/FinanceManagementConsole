@@ -1483,6 +1483,8 @@
             var pendingTxs = _allTransactions.Where(t => t.Status == "Pending");
             if (_isSuperAdmin || _isSuperAdminApprover)
                 pendingTxs = pendingTxs.Where(t => t.Category == "Org Adjustment Pending");
+            else
+                pendingTxs = pendingTxs.Where(t => t.Category != "Org Adjustment Pending");
             _pendingGroups = GroupTransactions(pendingTxs.ToList());
             _approvedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Approved" || t.Status == "Successful").ToList());
             _rejectedGroups = GroupTransactions(_allTransactions.Where(t => t.Status == "Rejected").ToList());

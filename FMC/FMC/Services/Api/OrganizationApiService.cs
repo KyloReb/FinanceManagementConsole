@@ -227,6 +227,17 @@ public class OrganizationApiService
         return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>(url) ?? new();
     }
 
+    public async Task<List<FMC.Shared.DTOs.TransactionDto>> SearchTransactionsAsync(Guid orgId, DateTime? fromDate = null, DateTime? toDate = null, string? category = null, string? status = null, int count = 2000)
+    {
+        var qb = new List<string> { $"count={count}", $"_t={DateTime.UtcNow.Ticks}" };
+        if (!string.IsNullOrEmpty(status)) qb.Add($"status={Uri.EscapeDataString(status)}");
+        if (fromDate.HasValue) qb.Add($"fromDate={fromDate.Value:yyyy-MM-dd}");
+        if (toDate.HasValue) qb.Add($"toDate={toDate.Value:yyyy-MM-dd}");
+        if (!string.IsNullOrEmpty(category)) qb.Add($"category={Uri.EscapeDataString(category)}");
+        string url = $"api/users/organizations/{orgId}/transactions?{string.Join("&", qb)}";
+        return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>(url) ?? new();
+    }
+
     public async Task<List<FMC.Shared.DTOs.TransactionDto>> GetPendingTransactionsAsync(Guid orgId)
     {
         return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.TransactionDto>>($"api/users/organizations/{orgId}/pending-transactions?_t={DateTime.UtcNow.Ticks}") ?? new();

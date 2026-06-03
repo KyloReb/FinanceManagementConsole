@@ -6,16 +6,15 @@
 @using FMC.Components.Dashboard
 @using FMC.Services.Api
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.JSInterop
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
 @inject ApiFinanceService FinanceService
 @inject OrganizationApiService OrgService
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
 @inject ThemeService ThemeService
 @inject FMC.Services.Api.AuthService AuthService
+@implements IDisposable
 
 <div class="fmc-dashboard-root @(ThemeService.IsDarkMode ? "fmc-dark-mode" : "fmc-light-mode")">
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-12">
@@ -100,37 +99,60 @@
             @* ── INTELLIGENCE OVERSIGHT + PENDING (SuperAdmin / SuperAdminApprover: side-by-side) ── *@
             @if (_isSuperAdmin || _isSuperAdminApprover)
             {
-                <MudGrid Spacing="4" Class="mb-8">
-                    <MudItem xs="12" md="6" Class="fmc-oversight-item">
-                        <div class="fmc-oversight-wrapper">
-                            <ExecutiveAlertPanel Organizations="_organizations" 
-                                                 Loading="_loading" 
-                                                 OnActionCompleted="RefreshDashboard" />
+                <div class="fmc-equal-row">
+                    @if (_showOversightPanel)
+                    {
+                        <div class="fmc-equal-col">
+                            <div class="fmc-oversight-wrapper">
+                                <ExecutiveAlertPanel Organizations="_organizations" 
+                                                     Loading="_loading" 
+                                                     OnActionCompleted="RefreshDashboard"
+                                                     OnDismissed="HandleOversightDismissed" />
+                            </div>
                         </div>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudPaper Elevation="0" Class="fmc-main-surface pa-6" Style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
-                            <div class="d-flex align-center justify-space-between mb-4" style="flex-shrink: 0;">
-                                <div class="d-flex align-center">
-                                    <div class="fmc-header-icon fmc-warning-icon-bg mr-3">
-                                        <MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Warning" />
+                    }
+                    <div class="fmc-equal-col">
+                        <div class="fmc-pending-surface fmc-pending-panel" style="padding: 24px;">
+                            <div style="margin-bottom: 12px;">
+                                <div class="d-flex align-center justify-space-between">
+                                    <div class="d-flex align-center">
+                                        <div class="fmc-header-icon fmc-warning-icon-bg mr-3" style="display:flex; align-items:center; justify-content:center;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="#f57c00"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 900; font-size: 1rem; line-height: 1.5;">Pending Requests</div>
+                                            <div style="font-size: 0.75rem; color: var(--mud-palette-text-secondary); font-weight: 600;">Awaiting authorization</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <MudText Typo="Typo.subtitle1" Style="font-weight: 900;">Pending Requests</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Awaiting authorization</MudText>
+                                    <div class="d-flex align-center gap-2">
+                                        <div class="fmc-pending-count-badge">
+                                            <span class="fmc-pending-count-num">@_pendingCount</span>
+                                            <span class="fmc-pending-count-lbl">total</span>
+                                        </div>
+                                        <button title="Refresh Pending Requests"
+                                                class="@(_pendingLoading ? "fmc-spin" : "")"
+                                                style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 8px; width: 32px; height: 32px; flex-shrink: 0; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                                                @onclick="(() => _ = RefreshPendingRequests())">
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" viewBox="0 0 24 24" fill="var(--mud-palette-primary)"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                        </button>
+                                        <button title="Sort requests"
+                                                style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 8px; width: 32px; height: 32px; flex-shrink: 0; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                                                @onclick="TogglePendingSort">
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" viewBox="0 0 24 24" fill="var(--mud-palette-primary)" style="transition: transform 0.2s;">
+                                                <path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z"/>
+                                            </svg>
+                                        </button>
+                                        <a href="/pending-requests"
+                                           title="View all pending requests"
+                                           style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 8px; width: 32px; height: 32px; flex-shrink: 0; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" viewBox="0 0 24 24" fill="var(--mud-palette-primary)"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                                        </a>
                                     </div>
-                                </div>
-                                <div class="d-flex align-center gap-2">
-                                    <div class="fmc-pending-count-badge">
-                                        <span class="fmc-pending-count-num">@_pendingCount</span>
-                                        <span class="fmc-pending-count-lbl">total</span>
-                                    </div>
-                                    <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Color="Color.Primary" Size="Size.Small" Href="/pending-requests" />
                                 </div>
                             </div>
                             @if (_pendingLoading)
                             {
-                                <div class="d-flex flex-column gap-2" style="flex:1; padding:4px 0;">
+                                <div class="d-flex flex-column gap-2" style="padding:4px 0;">
                                     @for (int i = 0; i < 3; i++)
                                     {
                                         <div class="d-flex align-center gap-3 pa-3" style="border-radius:10px; background:var(--mud-palette-background-grey);">
@@ -146,94 +168,78 @@
                             }
                             else if (_pendingCount == 0)
                             {
-                                <div class="d-flex flex-column align-center justify-center pa-6 text-center" style="flex: 1; opacity: 0.5;">
-                                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Large" />
-                                    <MudText Class="mt-2" Style="font-weight: 800;">All clear — no pending requests.</MudText>
+                                <div class="d-flex flex-column align-center justify-center pa-6" style="opacity: 0.5;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 24 24" fill="var(--mud-palette-text-primary)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                    <div class="mt-2" style="font-weight: 800;">All clear — no pending requests.</div>
                                 </div>
                             }
                             else
                             {
-                                <div style="flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 6px;" class="fmc-pending-list">
-                                    @foreach (var pt in _pendingTransactions.Take(5))
-                                    {
-                                        var initials = string.IsNullOrEmpty(pt.MakerName) ? "S" : string.Concat(pt.MakerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w[0]))[..Math.Min(2, pt.MakerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length)];
-                                        var isApproving = _homeApprovingId == pt.Id;
-                                        <div class="fmc-pending-row fmc-pending-clickable" style="display: block;" @onclick="(() => OpenPendingDetail(pt))">
-                                            <div class="fmc-pending-indicator" style="top: 6px; bottom: 6px;"></div>
-                                            <div class="d-flex flex-column" style="flex: 1; min-width: 0;">
-                                                <div class="d-flex align-center justify-space-between mb-1">
-                                                    <div class="d-flex align-center gap-2" style="min-width: 0; flex: 1;">
-                                                        <div class="fmc-pending-avatar">@initials</div>
-                                                        <div style="min-width: 0;">
-                                                            <MudText Typo="Typo.body2" Style="font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;">
-                                                                @(string.IsNullOrEmpty(pt.Subscriber) ? "Organization" : pt.Subscriber)
-                                                            </MudText>
-                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 600;">by @(pt.MakerName ?? "System")</MudText>
+                                <div style="max-height: 370px; overflow-y: auto; padding-right: 4px;" class="fmc-pending-list" id="fmc-pending-list">
+                                    @foreach (var pt in _pendingTransactions)
+                                        {
+                                            var initials = string.IsNullOrEmpty(pt.MakerName) ? "S" : string.Concat(pt.MakerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w[0]))[..Math.Min(2, pt.MakerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length)];
+                                            var isApproving = _homeApprovingId == pt.Id;
+                                            <div class="fmc-pending-row fmc-pending-clickable" style="display: block; margin-bottom: 6px;" @onclick="(() => OpenPendingDetail(pt))">
+                                                <div class="fmc-pending-indicator" style="top: 6px; bottom: 6px;"></div>
+                                                <div class="d-flex flex-column" style="flex: 1; min-width: 0;">
+                                                    <div class="d-flex align-center justify-space-between mb-1">
+                                                        <div class="d-flex align-center gap-2" style="min-width: 0; flex: 1;">
+                                                            <div class="fmc-pending-avatar">@initials</div>
+                                                            <div style="min-width: 0;">
+                                                                <div style="font-weight: 900; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;">
+                                                                    @(string.IsNullOrEmpty(pt.Subscriber) ? "Organization" : pt.Subscriber)
+                                                                </div>
+                                                                <div style="font-size: 0.75rem; color: var(--mud-palette-text-secondary); font-weight: 600;">by @(pt.MakerName ?? "System")</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex flex-column align-end" style="flex-shrink: 0;">
+                                                            <div style="font-weight: 900; font-family: 'Roboto Mono', monospace; line-height: 1.3; font-size: 0.875rem; color: @(pt.Amount >= 0 ? "var(--mud-palette-success)" : "var(--mud-palette-error)");">
+                                                                @(pt.Amount >= 0 ? "+" : "")₱@(Math.Abs(pt.Amount).ToString("N2"))
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div class="d-flex flex-column align-end" style="flex-shrink: 0;">
-                                                        <MudText Typo="Typo.body2" Color="@(pt.Amount >= 0 ? Color.Success : Color.Error)" Style="font-weight: 900; font-family: 'Roboto Mono', monospace; line-height: 1.3;">
-                                                            @(pt.Amount >= 0 ? "+" : "")₱@(Math.Abs(pt.Amount).ToString("N2"))
-                                                        </MudText>
+                                                    <div class="d-flex align-center" style="gap: 8px; padding-left: 40px;">
+                                                        <span class="fmc-pending-badge">@(pt.Category == "Org Adjustment Pending" ? "ORG ADJUSTMENT" : "PENDING")</span>
+                                                        <span style="font-size: 0.75rem; color: var(--mud-palette-text-secondary); font-weight: 600;">@pt.Date.ToLocalTime().ToString("MMM dd HH:mm")</span>
+                                                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--mud-palette-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">@(pt.Label ?? "")</span>
                                                     </div>
                                                 </div>
-                                                <div class="d-flex align-center" style="gap: 8px; padding-left: 40px;">
-                                                    <span class="fmc-pending-badge">@(pt.Category == "Org Adjustment Pending" ? "ORG ADJUSTMENT" : "PENDING")</span>
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="font-weight: 600;">@pt.Date.ToLocalTime().ToString("MMM dd HH:mm")</MudText>
-                                                    <MudText Typo="Typo.caption" Style="font-weight: 700; color: var(--mud-palette-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">@(pt.Label ?? "")</MudText>
+                                                <div class="d-flex align-center" style="flex-shrink: 0; margin-left: 4px;">
+                                                    <a href="/pending-requests" onclick="event.stopPropagation();" style="display:flex; align-items:center;">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" viewBox="0 0 24 24" fill="var(--mud-palette-text-primary)" style="opacity: 0; transition: opacity 0.2s;" class="fmc-pending-arrow"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                                                    </a>
                                                 </div>
-                                            </div>
-                                            <div class="d-flex align-center" style="flex-shrink: 0; margin-left: 4px;">
                                                 @if (_isSuperAdminApprover && pt.Category == "Org Adjustment Pending")
                                                 {
-                                                    <a href="/pending-requests" onclick="event.stopPropagation();" style="display:flex; align-items:center;">
-                                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Style="opacity: 0; transition: opacity 0.2s;" Class="fmc-pending-arrow" />
-                                                    </a>
-                                                }
-                                                else
-                                                {
-                                                    <a href="/pending-requests" onclick="event.stopPropagation();" style="display:flex; align-items:center;">
-                                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Style="opacity: 0; transition: opacity 0.2s;" Class="fmc-pending-arrow" />
-                                                    </a>
+                                                    <div class="d-flex gap-2 mt-2" style="width:100%;" @onclick:stopPropagation="true">
+                                                        <button class="fmc-home-reject-btn" @onclick="(() => HandleHomeRejectAsync(pt.Id))" disabled="@(_homeApprovingId != null)">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                                            <span>Reject</span>
+                                                        </button>
+                                                        @if (isApproving)
+                                                        {
+                                                            <button class="fmc-home-approve-btn" disabled>
+                                                                <span class="fmc-spinner" style="display:inline-block; width:16px; height:16px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation: fmc-rotation 0.6s linear infinite;"></span>
+                                                                <span>Processing...</span>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="fmc-home-approve-btn" @onclick="(() => HandleHomeApproveAsync(pt.Id))" disabled="@(_homeApprovingId != null)">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                                                <span>Approve</span>
+                                                            </button>
+                                                        }
+                                                    </div>
                                                 }
                                             </div>
-                                            @if (_isSuperAdminApprover && pt.Category == "Org Adjustment Pending")
-                                            {
-                                                <div class="d-flex gap-2 mt-2" style="width:100%;" @onclick:stopPropagation="true">
-                                                    <button class="fmc-home-reject-btn" @onclick="(() => HandleHomeRejectAsync(pt.Id))" disabled="@(_homeApprovingId != null)">
-                                                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small" />
-                                                        <span>Reject</span>
-                                                    </button>
-                                                    @if (isApproving)
-                                                    {
-                                                        <button class="fmc-home-approve-btn" disabled>
-                                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Inherit" />
-                                                            <span>Processing...</span>
-                                                        </button>
-                                                    }
-                                                    else
-                                                    {
-                                                        <button class="fmc-home-approve-btn" @onclick="(() => HandleHomeApproveAsync(pt.Id))" disabled="@(_homeApprovingId != null)">
-                                                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
-                                                            <span>Approve</span>
-                                                        </button>
-                                                    }
-                                                </div>
-                                            }
-                                        </div>
-                                    }
-                                    @if (_pendingCount > 5)
-                                    {
-                                        <a href="/pending-requests" class="fmc-pending-more-btn text-decoration-none">
-                                            <MudText Typo="Typo.caption" Style="font-weight: 900; letter-spacing: 0.05em;">VIEW ALL @_pendingCount REQUESTS</MudText>
-                                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
-                                        </a>
-                                    }
-                                </div>
-                            }
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
+                                        }
+                                    </div>
+                                }
+                        </div>
+                    </div>
+                </div>
             }
             else if (context.User.IsInRole(Roles.CEO))
             {
@@ -282,7 +288,7 @@
                                                                Color="Color.Primary" 
                                                                Size="Size.Small" 
                                                                OnClick="RefreshDashboard"
-                                                               Class="@((_loading || _auditLoading) ? "fmc-spin" : "")"
+                                                               Class="@("d-flex d-sm-none " + (_loading || _auditLoading ? "fmc-spin" : ""))"
                                                                Style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 8px; width: 32px; height: 32px; flex-shrink: 0;" />
                                             </MudTooltip>
                                         }
@@ -291,6 +297,14 @@
                                     @if (_isSuperAdmin || _isSuperAdminApprover)
                                     {
                                         <div class="d-flex align-center gap-2 fmc-header-controls">
+                                            <MudTooltip Text="Refresh Data" Arrow="true" Placement="Placement.Top">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Refresh" 
+                                                               Color="Color.Primary" 
+                                                               Size="Size.Small" 
+                                                               OnClick="RefreshDashboard"
+                                                               Class="@("d-none d-sm-inline-flex " + (_loading || _auditLoading ? "fmc-spin" : ""))"
+                                                               Style="background: rgba(var(--mud-palette-primary-rgb), 0.05); border-radius: 8px; width: 32px; height: 32px; flex-shrink: 0;" />
+                                            </MudTooltip>
                                             <div class="fmc-search-pill" style="width:220px; flex-shrink:0;">
                                                 <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Small" Class="fmc-search-pill-icon" />
                                                 <input @bind-value="_walletSearchQuery" @bind-value:event="oninput" 
@@ -706,10 +720,10 @@
                                                     </MudText>
                                                 </div>
                                             </div>
-                                        </div>
-                                    }
-                                </div>
-                            </MudPaper>
+                                    </div>
+                                }
+                            </div>
+                        </MudPaper>
                         }
 
                     </div>
@@ -1023,18 +1037,23 @@
     private bool _isCeo;
     private bool _isSuperAdmin;
     private bool _isSuperAdminApprover;
+    private bool _showOversightPanel = true;
+    private string _pendingPanelMaxHeight => _isSuperAdminApprover ? "655px" : "475px";
     private string _currentUserName = "Approver";
     private List<OrganizationDto> _organizations = new();
     private List<UserDto> _users = new();
     private List<AuditLogDto> _auditLogs = new();
     private List<AuditLogDto> _allAuditLogs = new();
+    private static readonly HashSet<string> PendingInitiationActions = new()
+    {
+        "ADJUSTMENT_REQUESTED", "DEBIT_REQUESTED", "INITIATE_CREDIT", "INITIATE_DEBIT"
+    };
     private int _auditLogLimit = 10;
     private bool _auditLoading = true;
     private int _pendingCount;
     private bool _pendingLoading;
+    private bool _pendingSortAscending;
     private Guid? _homeApprovingId;
-    private Guid? _homeFeedbackId;
-    private bool _homeFeedbackApproved;
     private bool _homeShowOverlay;
     private string _homeOverlayTitle = "";
     private string _homeOverlaySubtext = "";
@@ -1073,6 +1092,43 @@
     #endregion
 
     #region ── UI Handlers ──
+    private async Task RefreshPendingRequests()
+    {
+        if (_pendingLoading || _organizations.Count == 0) return;
+        try
+        {
+            _pendingLoading = true;
+            StateHasChanged();
+            var pendingTasks = _organizations.Select(o => OrgService.GetPendingTransactionsAsync(o.Id));
+            var pendingResults = await Task.WhenAll(pendingTasks);
+            var pendingItems = pendingResults
+                .SelectMany(r => r)
+                .Where(t => t.Category == "Org Adjustment Pending")
+                .ToList();
+            _pendingTransactions = _pendingSortAscending
+                ? pendingItems.OrderBy(t => t.Date).ToList()
+                : pendingItems.OrderByDescending(t => t.Date).ToList();
+            _pendingCount = _pendingTransactions.Count;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to refresh pending requests: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _pendingLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void TogglePendingSort()
+    {
+        _pendingSortAscending = !_pendingSortAscending;
+        _pendingTransactions = _pendingSortAscending
+            ? _pendingTransactions.OrderBy(t => t.Date).ToList()
+            : _pendingTransactions.OrderByDescending(t => t.Date).ToList();
+    }
+
     private string GetSortLabel() => _walletSortOrder switch
     {
         "alpha" => "Alphabetical",
@@ -1149,6 +1205,7 @@
                         _users = (await usersTask).ToList();
                         _auditLogs = (await auditTask).ToList();
                         _allAuditLogs = (await allAuditTask).ToList();
+                        _allAuditLogs = _allAuditLogs.Where(l => !PendingInitiationActions.Contains(l.Action)).ToList();
                     }
                 }
                 else // SuperAdmin
@@ -1169,11 +1226,13 @@
                         _pendingLoading = true;
                         var pendingTasks = _organizations.Select(o => OrgService.GetPendingTransactionsAsync(o.Id));
                         var pendingResults = await Task.WhenAll(pendingTasks);
-                        _pendingTransactions = pendingResults
+                        var pendingItems = pendingResults
                             .SelectMany(r => r)
                             .Where(t => t.Category == "Org Adjustment Pending")
-                            .OrderBy(t => t.Date)
                             .ToList();
+                        _pendingTransactions = _pendingSortAscending
+                            ? pendingItems.OrderBy(t => t.Date).ToList()
+                            : pendingItems.OrderByDescending(t => t.Date).ToList();
                         _pendingCount = _pendingTransactions.Count;
                     }
                     finally
@@ -1212,13 +1271,23 @@
         {
             _loading = false;
         }
+
+        ThemeService.OnChange += HandleThemeChanged;
     }
+
+    private void HandleThemeChanged() => InvokeAsync(StateHasChanged);
 
     private async Task RefreshDashboard() 
     {
         _auditLoading = true;
         StateHasChanged();
         await OnInitializedAsync();
+    }
+
+    private async Task HandleOversightDismissed(bool dismissed)
+    {
+        _showOversightPanel = false;
+        StateHasChanged();
     }
 
     private async void OpenPendingDetail(FMC.Shared.DTOs.TransactionDto tx)
@@ -1377,6 +1446,8 @@
         StateHasChanged();
         var result = await OrgService.SearchAuditLogsAsync(_auditQuery);
         _allAuditLogs = result.Items.ToList();
+        if (!_isSuperAdmin && !_isSuperAdminApprover)
+            _allAuditLogs = _allAuditLogs.Where(l => !PendingInitiationActions.Contains(l.Action)).ToList();
         _auditLoading = false;
         StateHasChanged();
     }
@@ -1471,6 +1542,11 @@
             "APPROVAL_SUCCESS" => "Approval Success",
             _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(action.Replace("_", " ").ToLower())
         };
+    }
+
+    void IDisposable.Dispose()
+    {
+        ThemeService.OnChange -= HandleThemeChanged;
     }
     #endregion
 }

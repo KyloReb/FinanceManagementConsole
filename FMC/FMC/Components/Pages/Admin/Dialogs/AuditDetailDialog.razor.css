@@ -75,6 +75,19 @@
     font-weight: 700;
     font-size: clamp(0.65rem, 2.5vw, 0.8rem);
     color: var(--mud-palette-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.fmc-org-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: contain;
+    position: relative;
+    z-index: 1;
 }
 
 /* Masked account number shown beneath entity name */
@@ -339,6 +352,16 @@
     /* Hide directional arrow on mobile (vertical flow doesn't need it) */
     .fmc-flow-arrow {
         display: none !important;
+    }
+
+    .fmc-flow-surface-mobile .fmc-flow-name {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .fmc-org-logo {
+        width: 22px;
+        height: 22px;
     }
 
     /* Reposition particles for vertical flow on mobile */

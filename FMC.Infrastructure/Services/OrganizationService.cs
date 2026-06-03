@@ -571,7 +571,7 @@ public class OrganizationService : IOrganizationService
             Math.Abs(amount), 
             auditDetail, 
             performedBy,
-            null,
+            $"Request ID: {transaction.Id} — {(amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request")}",
             orgId?.ToString()
         );
 
@@ -724,6 +724,12 @@ public class OrganizationService : IOrganizationService
         var userAcc = mask(userAccRaw);
         var orgName = org?.Name ?? "Unknown";
         var amountStr = $"₱{Math.Abs(transaction.Amount):N2}";
+
+        if (orgName == userName)
+        {
+            orgName = "Nationlink/ Infoserve Inc.";
+            orgAcc = "N/A";
+        }
         
         var conciseNote = transaction.Amount >= 0 
             ? $"Mother Account ({orgName} - {orgAcc}) Debited by {amountStr} to Credit Cardholder ({userName} - {userAcc})"
@@ -793,14 +799,19 @@ public class OrganizationService : IOrganizationService
 
         if (!skipAuditLog)
         {
+            var rejectionOrg = transaction.OrganizationId.HasValue
+                ? await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken)
+                : null;
+            var rejectionEntityName = rejectionOrg?.Name ?? targetName;
+
             await _auditService.RecordFinancialEventAsync(
                 "REJECTED", 
                 transaction.OrganizationId ?? Guid.Empty, 
-                targetName, 
+                rejectionEntityName, 
                 Math.Abs(transaction.Amount), 
                 $"Transaction Rejected: {reason}", 
                 approverId,
-                null,
+                $"Request ID: {transaction.Id} — Rejected by Approver",
                 transaction.OrganizationId?.ToString()
             );
         }
@@ -827,6 +838,12 @@ public class OrganizationService : IOrganizationService
         }
 
         var transactions = await _repository.GetTransactionsByStatusAsync(organizationId, "Pending", cancellationToken);
+
+        // Exclude cross-org adjustment requests from non-admin views
+        if (!_currentUserService.IsSuperAdmin && !_currentUserService.IsSuperAdminApprover)
+        {
+            transactions = transactions.Where(t => t.Category != "Org Adjustment Pending");
+        }
 
         var result = new List<FMC.Shared.DTOs.TransactionDto>();
         foreach(var t in transactions)
@@ -1101,7 +1118,7 @@ public class OrganizationService : IOrganizationService
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, DateTime? fromDate = null, DateTime? toDate = null, string? category = null, CancellationToken cancellationToken = default)
     {
         // 1. Multi-Tenant Security check
         if (!_currentUserService.IsSuperAdmin && !_currentUserService.IsSuperAdminApprover && _currentUserService.OrganizationId != organizationId)
@@ -1111,7 +1128,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // 2. Redis cache check — short TTL since transactions are volatile
-        var cacheKey = $"org-txns:{organizationId}:{status ?? "all"}:{count}";
+        var cacheKey = $"org-txns:{organizationId}:{status ?? "all"}:{count}:{fromDate?.Ticks ?? 0}:{toDate?.Ticks ?? 0}:{category ?? "all"}";
         var cached = await _cacheService.GetAsync<List<FMC.Shared.DTOs.TransactionDto>>(cacheKey);
         if (cached is not null)
         {
@@ -1120,7 +1137,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // 3. Resolve from database
-        var transactions = await _repository.GetOrganizationTransactionsAsync(organizationId, status, count, cancellationToken);
+        var transactions = await _repository.GetOrganizationTransactionsAsync(organizationId, status, count, fromDate, toDate, category, cancellationToken);
 
         var result = new List<FMC.Shared.DTOs.TransactionDto>();
         foreach (var t in transactions)

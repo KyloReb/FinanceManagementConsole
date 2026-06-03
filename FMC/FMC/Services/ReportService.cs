@@ -18,6 +18,10 @@ public interface IReportService
     byte[] GenerateAuditPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.AuditLogDto> logs, string? filterApplied = null);
     byte[] GenerateCardholderExcel(string orgName, IEnumerable<FMC.Shared.DTOs.User.UserDto> cardholders, string? filterApplied = null);
     byte[] GenerateCardholderPdf(string orgName, IEnumerable<FMC.Shared.DTOs.User.UserDto> cardholders, string? filterApplied = null);
+    byte[] GenerateOrgHealthExcel(string title, IEnumerable<FMC.Shared.DTOs.Organization.OrganizationDto> orgs, string? filterApplied = null);
+    byte[] GenerateOrgHealthPdf(string title, IEnumerable<FMC.Shared.DTOs.Organization.OrganizationDto> orgs, string? filterApplied = null);
+    byte[] GenerateCompensationRegisterExcel(string title, IEnumerable<CompensationRegisterRow> rows, string? filterApplied = null);
+    byte[] GenerateCompensationRegisterPdf(string title, IEnumerable<CompensationRegisterRow> rows, string? filterApplied = null);
 }
 
 public class ReportService : IReportService
@@ -425,6 +429,202 @@ public class ReportService : IReportService
                             static IContainer C(IContainer c, string bg) => c.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
                         }
                     });
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("Page "); x.CurrentPageNumber(); x.Span(" of "); x.TotalPages();
+                });
+            });
+        }).GeneratePdf();
+    }
+
+    public byte[] GenerateOrgHealthExcel(string title, IEnumerable<FMC.Shared.DTOs.Organization.OrganizationDto> orgs, string? filterApplied = null)
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Org Health");
+
+        worksheet.Cell(1, 1).Value = "Organization";
+        worksheet.Cell(1, 2).Value = "Wallet Limit";
+        worksheet.Cell(1, 3).Value = "Balance";
+        worksheet.Cell(1, 4).Value = "Usage";
+        worksheet.Cell(1, 5).Value = "Remaining";
+        worksheet.Cell(1, 6).Value = "Usage %";
+
+        var headerRow = worksheet.Row(1);
+        headerRow.Style.Font.Bold = true;
+        headerRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
+
+        int row = 2;
+        foreach (var o in orgs)
+        {
+            var usagePct = o.WalletLimit > 0 ? (o.Usage / o.WalletLimit) * 100m : 0;
+            worksheet.Cell(row, 1).Value = o.Name;
+            worksheet.Cell(row, 2).Value = o.WalletLimit;
+            worksheet.Cell(row, 3).Value = o.TotalBalance;
+            worksheet.Cell(row, 4).Value = o.Usage;
+            worksheet.Cell(row, 5).Value = o.RemainingBalance;
+            worksheet.Cell(row, 6).Value = $"{usagePct:N1}%";
+            row++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public byte[] GenerateOrgHealthPdf(string title, IEnumerable<FMC.Shared.DTOs.Organization.OrganizationDto> orgs, string? filterApplied = null)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Helvetica"));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Text(title).FontSize(18).SemiBold().FontColor(Colors.Blue.Darken3);
+                    if (!string.IsNullOrEmpty(filterApplied))
+                        col.Item().AlignCenter().Text($"Filters: {filterApplied}").FontSize(9).FontColor(Colors.Grey.Darken2);
+                    col.Item().PaddingTop(5).BorderBottom(1.5f).BorderColor(Colors.Blue.Darken4);
+                });
+
+                page.Content().PaddingTop(10).Table(table =>
+                {
+                    table.ColumnsDefinition(c =>
+                    {
+                        c.RelativeColumn(3); c.RelativeColumn(2); c.RelativeColumn(2);
+                        c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(2);
+                    });
+
+                    table.Header(h =>
+                    {
+                        static IContainer H(IContainer c) => c.DefaultTextStyle(x => x.SemiBold().FontSize(9).FontColor(Colors.White)).Background(Colors.Blue.Darken4).PaddingVertical(6).PaddingHorizontal(4);
+                        h.Cell().Element(H).Text("Organization");
+                        h.Cell().Element(H).Text("Wallet Limit");
+                        h.Cell().Element(H).Text("Balance");
+                        h.Cell().Element(H).Text("Usage");
+                        h.Cell().Element(H).Text("Remaining");
+                        h.Cell().Element(H).Text("Usage %");
+                    });
+
+                    int idx = 0;
+                    foreach (var o in orgs)
+                    {
+                        var usagePct = o.WalletLimit > 0 ? (o.Usage / o.WalletLimit) * 100m : 0;
+                        var bg = idx % 2 == 0 ? Colors.Grey.Lighten4 : Colors.White;
+                        table.Cell().Element(c => C(c, bg)).Text(o.Name);
+                        table.Cell().Element(c => C(c, bg)).Text(o.WalletLimit.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text(o.TotalBalance.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text(o.Usage.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text(o.RemainingBalance.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text($"{usagePct:N1}%");
+                        idx++;
+                        static IContainer C(IContainer c, string bg) => c.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
+                    }
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("Page "); x.CurrentPageNumber(); x.Span(" of "); x.TotalPages();
+                });
+            });
+        }).GeneratePdf();
+    }
+
+    public byte[] GenerateCompensationRegisterExcel(string title, IEnumerable<CompensationRegisterRow> rows, string? filterApplied = null)
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Compensation Register");
+
+        worksheet.Cell(1, 1).Value = "Subscriber";
+        worksheet.Cell(1, 2).Value = "Account Number";
+        worksheet.Cell(1, 3).Value = "Total Credits";
+        worksheet.Cell(1, 4).Value = "Total Debits";
+        worksheet.Cell(1, 5).Value = "Net Amount";
+        worksheet.Cell(1, 6).Value = "TX Count";
+        worksheet.Cell(1, 7).Value = "Organization";
+
+        var headerRow = worksheet.Row(1);
+        headerRow.Style.Font.Bold = true;
+        headerRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
+
+        int row = 2;
+        foreach (var r in rows)
+        {
+            worksheet.Cell(row, 1).Value = r.Subscriber;
+            worksheet.Cell(row, 2).Value = r.AccountNumber;
+            worksheet.Cell(row, 3).Value = r.TotalCredits;
+            worksheet.Cell(row, 4).Value = r.TotalDebits;
+            worksheet.Cell(row, 5).Value = r.NetAmount;
+            worksheet.Cell(row, 6).Value = r.TransactionCount;
+            worksheet.Cell(row, 7).Value = r.OrganizationName;
+            row++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public byte[] GenerateCompensationRegisterPdf(string title, IEnumerable<CompensationRegisterRow> rows, string? filterApplied = null)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Helvetica"));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Text(title).FontSize(18).SemiBold().FontColor(Colors.Blue.Darken3);
+                    if (!string.IsNullOrEmpty(filterApplied))
+                        col.Item().AlignCenter().Text($"Filters: {filterApplied}").FontSize(9).FontColor(Colors.Grey.Darken2);
+                    col.Item().PaddingTop(5).BorderBottom(1.5f).BorderColor(Colors.Blue.Darken4);
+                });
+
+                page.Content().PaddingTop(10).Table(table =>
+                {
+                    table.ColumnsDefinition(c =>
+                    {
+                        c.RelativeColumn(3); c.RelativeColumn(2); c.RelativeColumn(2);
+                        c.RelativeColumn(2); c.RelativeColumn(2); c.RelativeColumn(1); c.RelativeColumn(2);
+                    });
+
+                    table.Header(h =>
+                    {
+                        static IContainer H(IContainer c) => c.DefaultTextStyle(x => x.SemiBold().FontSize(9).FontColor(Colors.White)).Background(Colors.Blue.Darken4).PaddingVertical(6).PaddingHorizontal(4);
+                        h.Cell().Element(H).Text("Subscriber");
+                        h.Cell().Element(H).Text("Account #");
+                        h.Cell().Element(H).Text("Credits");
+                        h.Cell().Element(H).Text("Debits");
+                        h.Cell().Element(H).Text("Net");
+                        h.Cell().Element(H).Text("TX");
+                        h.Cell().Element(H).Text("Organization");
+                    });
+
+                    int idx = 0;
+                    foreach (var r in rows)
+                    {
+                        var bg = idx % 2 == 0 ? Colors.Grey.Lighten4 : Colors.White;
+                        table.Cell().Element(c => C(c, bg)).Text(r.Subscriber);
+                        table.Cell().Element(c => C(c, bg)).Text(r.AccountNumber);
+                        table.Cell().Element(c => C(c, bg)).Text(r.TotalCredits.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text(r.TotalDebits.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text(r.NetAmount.ToString("N2"));
+                        table.Cell().Element(c => C(c, bg)).Text(r.TransactionCount.ToString());
+                        table.Cell().Element(c => C(c, bg)).Text(r.OrganizationName);
+                        idx++;
+                        static IContainer C(IContainer c, string bg) => c.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
+                    }
                 });
 
                 page.Footer().AlignCenter().Text(x =>

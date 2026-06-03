@@ -214,10 +214,13 @@ public class OrganizationRepository : IOrganizationRepository
             .ToListAsync(ct);
     }
 
-    public async Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, CancellationToken ct = default)
+    public async Task<IEnumerable<Transaction>> GetOrganizationTransactionsAsync(Guid organizationId, string? status, int count, DateTime? fromDate = null, DateTime? toDate = null, string? category = null, CancellationToken ct = default)
     {
         var query = _context.Transactions.IgnoreQueryFilters().Where(t => t.OrganizationId == organizationId);
         if (!string.IsNullOrEmpty(status)) query = query.Where(t => t.Status == status);
+        if (fromDate.HasValue) query = query.Where(t => (t.ActionDate ?? t.Date) >= fromDate.Value);
+        if (toDate.HasValue) query = query.Where(t => (t.ActionDate ?? t.Date) <= toDate.Value);
+        if (!string.IsNullOrEmpty(category)) query = query.Where(t => t.Category == category);
         
         return await query.OrderByDescending(t => t.ActionDate ?? t.Date).Take(count).ToListAsync(ct);
     }

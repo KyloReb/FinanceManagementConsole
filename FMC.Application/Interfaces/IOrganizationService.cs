@@ -106,7 +106,7 @@ public interface IOrganizationService
     /// <summary>
     /// Maker/Approver Endpoint: Retrieves a historical record of transactions for an organization.
     /// </summary>
-    Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, CancellationToken cancellationToken = default);
+    Task<IEnumerable<FMC.Shared.DTOs.TransactionDto>> GetOrganizationTransactionsAsync(Guid organizationId, string? status = null, int count = 50, DateTime? fromDate = null, DateTime? toDate = null, string? category = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Maker Endpoint: Cancels a pending transaction that was initiated by the current user.

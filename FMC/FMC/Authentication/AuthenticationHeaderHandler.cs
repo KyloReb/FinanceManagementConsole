@@ -126,6 +126,10 @@ public class AuthenticationHeaderHandler : DelegatingHandler
         {
             throw;
         }
+        catch (ObjectDisposedException)
+        {
+            throw new OperationCanceledException("Request cancelled: HTTP handler was disposed (circuit ended).");
+        }
     }
 
     private void ForwardUserAgent(HttpRequestMessage request)

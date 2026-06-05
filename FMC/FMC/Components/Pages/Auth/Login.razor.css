@@ -1,0 +1,13 @@
+.fmc-rate-limit-alert {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: #2a1f0a; border: 1px solid #b8860b; border-radius: 8px;
+    padding: 10px 12px; color: #e8d5a3;
+}
+.fmc-rate-limit-body { display: flex; flex-direction: column; gap: 2px; }
+.fmc-rate-limit-title { font-weight: 800; font-size: 0.8rem; color: #f0d060; letter-spacing: 0.02em; }
+.fmc-rate-limit-desc { font-size: 0.7rem; opacity: 0.8; }
+.fmc-login-error {
+    display: flex; align-items: center; gap: 8px;
+    background: #2a0a0f; border: 1px solid #8b2252; border-radius: 8px;
+    padding: 10px 12px; color: #e8a0b0; font-size: 0.75rem; font-weight: 600;
+}

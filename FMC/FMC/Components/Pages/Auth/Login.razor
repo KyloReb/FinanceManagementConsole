@@ -4,6 +4,7 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@using System.Net
 
 <PageTitle>Log in</PageTitle>
 
@@ -12,9 +13,22 @@
         <MudImage Src="favicon.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
 
-        @if (!string.IsNullOrEmpty(_errorMessage))
+        @if (_isRateLimited)
         {
-            <MudAlert Severity="Severity.Error" Class="w-100 mb-4" Dense="true">@_errorMessage</MudAlert>
+            <div class="fmc-rate-limit-alert w-100 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" height="18" width="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                <div class="fmc-rate-limit-body">
+                    <div class="fmc-rate-limit-title">Too many attempts</div>
+                    <div class="fmc-rate-limit-desc">Please wait before trying again.</div>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="fmc-login-error w-100 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                <span>@_errorMessage</span>
+            </div>
         }
 
         <EditForm Model="@_model" OnValidSubmit="HandleLoginAsync" Context="EditFormContext" FormName="LoginForm" class="w-100">
@@ -72,6 +86,7 @@
     
     private bool _isLoading = false;
     private string _errorMessage = "";
+    private bool _isRateLimited = false;
 
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
@@ -105,14 +120,18 @@
         if (_isLoading) return;
         _isLoading = true;
         _errorMessage = "";
+        _isRateLimited = false;
 
         try
         {
-            var result = await AuthService.Login(_model!);
+            var (result, statusCode) = await AuthService.Login(_model!);
             if (result != null)
             {
-                // Rely on SignalR state change to transition to Home/ReturnUrl instantly, preventing any SSR layout flashes
                 NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
+            }
+            else if (statusCode == HttpStatusCode.TooManyRequests)
+            {
+                _isRateLimited = true;
             }
             else
             {

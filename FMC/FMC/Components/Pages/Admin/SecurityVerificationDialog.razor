@@ -205,7 +205,7 @@
                 IsStepUp = true 
             };
 
-            var authResult = await AuthService.Login(request);
+            var (authResult, _) = await AuthService.Login(request);
             if (authResult == null)
             {
                 SecurityState.RecordFailure();

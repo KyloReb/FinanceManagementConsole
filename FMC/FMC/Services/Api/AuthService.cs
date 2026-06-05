@@ -1,4 +1,5 @@
 using Microsoft.JSInterop;
+using System.Net;
 using System.Net.Http.Json;
 using FMC.Authentication;
 using FMC.Shared.DTOs.Auth;
@@ -6,9 +7,6 @@ using Microsoft.AspNetCore.Components.Authorization;
 
 namespace FMC.Services.Api;
 
-/// <summary>
-/// Client-side service for handling authentication requests to the API.
-/// </summary>
 public class AuthService
 {
     private readonly HttpClient _httpClient;
@@ -24,21 +22,22 @@ public class AuthService
         _js = js;
     }
 
-    public async Task<AuthResponseDto?> Login(LoginRequestDto loginRequest)
+    public async Task<(AuthResponseDto? Result, HttpStatusCode StatusCode)> Login(LoginRequestDto loginRequest)
     {
         var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginRequest);
-        if (!response.IsSuccessStatusCode) return null;
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            return (null, HttpStatusCode.TooManyRequests);
+        if (!response.IsSuccessStatusCode)
+            return (null, response.StatusCode);
 
         var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
         if (result != null)
         {
-            // Securely set the HttpOnly cookie on the local domain using our secure API endpoint
             await _js.InvokeVoidAsync("secureCookieHelper.setSecureCookie", result.Token, loginRequest.RememberMe);
-
             ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
         }
 
-        return result;
+        return (result, HttpStatusCode.OK);
     }
 
     public async Task<bool> Register(RegisterRequestDto registerRequest)

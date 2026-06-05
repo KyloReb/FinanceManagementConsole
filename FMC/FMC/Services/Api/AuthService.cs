@@ -22,13 +22,16 @@ public class AuthService
         _js = js;
     }
 
-    public async Task<(AuthResponseDto? Result, HttpStatusCode StatusCode)> Login(LoginRequestDto loginRequest)
+    public async Task<(AuthResponseDto? Result, HttpStatusCode StatusCode, int RetryAfterSeconds)> Login(LoginRequestDto loginRequest)
     {
         var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginRequest);
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            return (null, HttpStatusCode.TooManyRequests);
+        {
+            var body = await response.Content.ReadFromJsonAsync<RateLimitResponse>();
+            return (null, HttpStatusCode.TooManyRequests, body?.RetryAfter ?? 60);
+        }
         if (!response.IsSuccessStatusCode)
-            return (null, response.StatusCode);
+            return (null, response.StatusCode, 0);
 
         var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
         if (result != null)
@@ -37,8 +40,10 @@ public class AuthService
             ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
         }
 
-        return (result, HttpStatusCode.OK);
+        return (result, HttpStatusCode.OK, 0);
     }
+
+    private record RateLimitResponse(string? Message, int RetryAfter);
 
     public async Task<bool> Register(RegisterRequestDto registerRequest)
     {

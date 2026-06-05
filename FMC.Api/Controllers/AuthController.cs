@@ -17,11 +17,51 @@ public class AuthController : ControllerBase
 {
     private readonly IIdentityService _identityService;
     private readonly IAuditService _auditService;
+    private readonly IAuthRateLimitService _rateLimit;
 
-    public AuthController(IIdentityService identityService, IAuditService auditService)
+    public AuthController(IIdentityService identityService, IAuditService auditService, IAuthRateLimitService rateLimit)
     {
         _identityService = identityService;
         _auditService = auditService;
+        _rateLimit = rateLimit;
+    }
+
+    [HttpPost("login")]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
+    {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var clientId = $"{request.Identifier}|{ip}";
+
+        var rateCheck = await _rateLimit.CheckAsync(clientId);
+        if (!rateCheck.IsAllowed)
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, new
+            {
+                message = rateCheck.LockoutReason ?? "Too many login attempts.",
+                retryAfter = rateCheck.RetryAfterSeconds
+            });
+        }
+
+        var userAgent = Request.Headers.UserAgent.ToString();
+        var result = await _identityService.LoginAsync(request);
+
+        if (result == null)
+        {
+            await _rateLimit.RecordAttemptAsync(clientId, false);
+            string eventType = request.IsStepUp ? "Step-Up Verification Failed" : "Login Failed";
+            await _auditService.RecordAuthEventAsync(eventType, null, ip, userAgent, $"Failed attempt for: {request.Identifier}");
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
+
+        await _rateLimit.ClearAsync(clientId);
+        string successEvent = request.IsStepUp ? "Step-Up Verification Success" : "Login Success";
+        await _auditService.RecordAuthEventAsync(successEvent, result.UserId, ip, userAgent, "Successful authentication session");
+
+        SetRefreshTokenCookie(result.RefreshToken);
+        return Ok(result);
     }
 
     /// <summary>

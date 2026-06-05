@@ -49,15 +49,16 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 2. Rate Limiting Configuration (P1 #5)
+// 2. Rate Limiting Configuration (Enterprise — Sliding Window + Progressive Backoff)
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddFixedWindowLimiter("AuthPolicy", limiterOptions =>
+    options.AddSlidingWindowLimiter("AuthPolicy", limiterOptions =>
     {
-        limiterOptions.PermitLimit = 5; // Allow max 5 login/auth attempts
-        limiterOptions.Window = TimeSpan.FromMinutes(1); // per minute
-        limiterOptions.QueueLimit = 0; // Reject immediately if exceeded
+        limiterOptions.PermitLimit = 5;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.SegmentsPerWindow = 4;
+        limiterOptions.QueueLimit = 0;
     });
 });
 builder.Services.Configure<CookiePolicyOptions>(options =>
@@ -205,6 +206,7 @@ builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
+builder.Services.AddScoped<IAuthRateLimitService, AuthRateLimitService>();
 builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();

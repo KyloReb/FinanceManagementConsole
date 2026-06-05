@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.RateLimiting;
+using static FMC.Application.Interfaces.RateLimitPolicies;
 
 namespace FMC.Api.Controllers;
 
@@ -64,38 +65,6 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Authenticates a user and returns a session-hardened JWT and refresh token.
-    /// </summary>
-    /// <param name="request">The login credentials and optional OTP.</param>
-    /// <returns>An AuthResponseDto on success; 401 Unauthorized on failure.</returns>
-    [HttpPost("login")]
-    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
-    {
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var userAgent = Request.Headers.UserAgent.ToString();
-
-        var result = await _identityService.LoginAsync(request);
-        if (result == null)
-        {
-            // Log Failed Login Attempt (Security Forensic)
-            string eventType = request.IsStepUp ? "Step-Up Verification Failed" : "Login Failed";
-            await _auditService.RecordAuthEventAsync(eventType, null, ip, userAgent, $"Failed attempt for: {request.Identifier}");
-            return Unauthorized(new { message = "Invalid email or password." });
-        }
-
-        // Record Successful Login
-        string successEvent = request.IsStepUp ? "Step-Up Verification Success" : "Login Success";
-        await _auditService.RecordAuthEventAsync(successEvent, result.UserId, ip, userAgent, "Successful authentication session");
-
-        // Set the refresh token as an HTTP-only cookie for a session-hardened flow
-        SetRefreshTokenCookie(result.RefreshToken);
-
-        return Ok(result);
-    }
-
     // Public Registration Endpoint has been removed. 
     // New users must be created by a SuperAdmin or CEO via secure administration interfaces.
 
@@ -104,12 +73,23 @@ public class AuthController : ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
     {
-        var result = await _identityService.ForgotPasswordAsync(request);
-        // We always return OK to prevent email enumeration, but with a generic message if null
-        if (result == null)
-            return Ok(new { message = "If the account exists, a password reset code has been sent." });
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var clientId = $"{request.Email}|{ip}";
 
-        return Ok(new { 
+        var rateCheck = await _rateLimit.CheckAsync(clientId, ForgotPassword);
+        if (!rateCheck.IsAllowed)
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Too many password reset requests.", retryAfter = rateCheck.RetryAfterSeconds });
+
+        var result = await _identityService.ForgotPasswordAsync(request);
+        if (result == null)
+        {
+            await _rateLimit.RecordAttemptAsync(clientId, false, ForgotPassword);
+            return Ok(new { message = "If the account exists, a password reset code has been sent." });
+        }
+
+        await _rateLimit.ClearAsync(clientId);
+        return Ok(new
+        {
             message = "A verification code has been sent to your email.",
             maskedEmail = result.MaskedEmail,
             userId = result.UserId
@@ -119,13 +99,24 @@ public class AuthController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request)
     {
-        var result = await _identityService.ResetPasswordAsync(request);
-        if (!result) return BadRequest(new { message = "Invalid code or password requirements not met." });
-
-        // Optionally record audit
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var clientId = $"{request.UserId}|{ip}";
+
+        var rateCheck = await _rateLimit.CheckAsync(clientId, ResetPassword);
+        if (!rateCheck.IsAllowed)
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Too many reset attempts.", retryAfter = rateCheck.RetryAfterSeconds });
+
+        var result = await _identityService.ResetPasswordAsync(request);
+        if (!result)
+        {
+            await _rateLimit.RecordAttemptAsync(clientId, false, ResetPassword);
+            return BadRequest(new { message = "Invalid code or password requirements not met." });
+        }
+
+        await _rateLimit.ClearAsync(clientId);
+        var auditIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        await _auditService.RecordAuthEventAsync("Password Reset", request.UserId, ip, userAgent, "Password Reset via OTP successfully completed");
+        await _auditService.RecordAuthEventAsync("Password Reset", request.UserId, auditIp, userAgent, "Password Reset via OTP successfully completed");
 
         return Ok(new { message = "Password reset successfully. You can now log in." });
     }
@@ -184,9 +175,21 @@ public class AuthController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var result = await _identityService.InitiatePasswordChangeAsync(userId, request);
-        if (!result) return BadRequest(new { message = "Invalid current password." });
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var clientId = $"{userId}|{ip}";
 
+        var rateCheck = await _rateLimit.CheckAsync(clientId, ChangePassword);
+        if (!rateCheck.IsAllowed)
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Too many password change attempts.", retryAfter = rateCheck.RetryAfterSeconds });
+
+        var result = await _identityService.InitiatePasswordChangeAsync(userId, request);
+        if (!result)
+        {
+            await _rateLimit.RecordAttemptAsync(clientId, false, ChangePassword);
+            return BadRequest(new { message = "Invalid current password." });
+        }
+
+        await _rateLimit.ClearAsync(clientId);
         return Ok(new { message = "Security code sent to your email." });
     }
 
@@ -197,12 +200,24 @@ public class AuthController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var result = await _identityService.CompletePasswordChangeAsync(userId, request);
-        if (!result) return BadRequest(new { message = "Invalid security code or password requirements not met." });
-
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var clientId = $"{userId}|{ip}";
+
+        var rateCheck = await _rateLimit.CheckAsync(clientId, ChangePassword);
+        if (!rateCheck.IsAllowed)
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Too many password change attempts.", retryAfter = rateCheck.RetryAfterSeconds });
+
+        var result = await _identityService.CompletePasswordChangeAsync(userId, request);
+        if (!result)
+        {
+            await _rateLimit.RecordAttemptAsync(clientId, false, ChangePassword);
+            return BadRequest(new { message = "Invalid security code or password requirements not met." });
+        }
+
+        await _rateLimit.ClearAsync(clientId);
+        var auditIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        await _auditService.RecordAuthEventAsync("Password Changed", userId, ip, userAgent, "Password Changed Successfully");
+        await _auditService.RecordAuthEventAsync("Password Changed", userId, auditIp, userAgent, "Password Changed Successfully");
 
         return Ok(new { message = "Password updated successfully." });
     }

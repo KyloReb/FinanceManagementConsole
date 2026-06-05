@@ -8,12 +8,18 @@ public class AuthRateLimitService : IAuthRateLimitService
     private readonly ICacheService _cache;
     private readonly ILogger<AuthRateLimitService> _logger;
 
-    private const int MaxAttempts = 5;
-    private static readonly TimeSpan WindowSize = TimeSpan.FromMinutes(1);
-    private static readonly int[] BackoffLevels = { 60, 300, 900, 1800 };
     private const int LockoutThreshold = 4;
+    private static readonly int[] BackoffLevels = { 60, 300, 900, 1800 };
 
-    private static string AttemptsKey(string id) => $"rate_limit:{id}:attempts";
+    private static readonly Dictionary<string, (int MaxAttempts, int WindowSeconds)> Policies = new()
+    {
+        [RateLimitPolicies.Login] = (5, 60),
+        [RateLimitPolicies.ForgotPassword] = (3, 300),
+        [RateLimitPolicies.ResetPassword] = (3, 300),
+        [RateLimitPolicies.ChangePassword] = (3, 300),
+    };
+
+    private static string AttemptsKey(string id, string policy) => $"rate_limit:{id}:{policy}:attempts";
     private static string StrikesKey(string id) => $"rate_limit:{id}:strikes";
     private static string LockoutKey(string id) => $"rate_limit:{id}:lockout";
 
@@ -23,7 +29,7 @@ public class AuthRateLimitService : IAuthRateLimitService
         _logger = logger;
     }
 
-    public async Task<AuthRateLimitResult> CheckAsync(string clientId)
+    public async Task<AuthRateLimitResult> CheckAsync(string clientId, string policy = "login")
     {
         var lockoutExpiry = await _cache.GetAsync<string>(LockoutKey(clientId));
         if (lockoutExpiry != null && long.TryParse(lockoutExpiry, out var lockoutTs))
@@ -34,16 +40,19 @@ public class AuthRateLimitService : IAuthRateLimitService
                 return new AuthRateLimitResult(false, remaining, "Account temporarily locked. Too many repeated violations.");
         }
 
-        var attemptsRaw = await _cache.GetAsync<string>(AttemptsKey(clientId));
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var windowStart = now - (long)WindowSize.TotalSeconds;
+        if (!Policies.TryGetValue(policy, out var config))
+            return new AuthRateLimitResult(true, 0);
 
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var windowStart = now - config.WindowSeconds;
+
+        var attemptsRaw = await _cache.GetAsync<string>(AttemptsKey(clientId, policy));
         var attempts = string.IsNullOrEmpty(attemptsRaw)
             ? new List<long>()
             : System.Text.Json.JsonSerializer.Deserialize<List<long>>(attemptsRaw)?
                 .Where(t => t >= windowStart).ToList() ?? new List<long>();
 
-        if (attempts.Count < MaxAttempts)
+        if (attempts.Count < config.MaxAttempts)
             return new AuthRateLimitResult(true, 0);
 
         var strikes = await _cache.GetAsync<int>(StrikesKey(clientId));
@@ -51,12 +60,14 @@ public class AuthRateLimitService : IAuthRateLimitService
         var cooldown = BackoffLevels[level];
         var totalStrikes = strikes + 1;
 
-        _logger.LogWarning("Rate limit exceeded for {ClientId}. Strike {Strikes}, cooldown {Cooldown}s", clientId, totalStrikes, cooldown);
+        _logger.LogWarning("Rate limit exceeded for {ClientId} on policy {Policy}. Strike {Strikes}, cooldown {Cooldown}s",
+            clientId, policy, totalStrikes, cooldown);
 
-        return new AuthRateLimitResult(false, cooldown, totalStrikes >= LockoutThreshold ? "Account locked due to repeated violations." : null);
+        return new AuthRateLimitResult(false, cooldown,
+            totalStrikes >= LockoutThreshold ? "Account locked due to repeated violations." : null);
     }
 
-    public async Task RecordAttemptAsync(string clientId, bool success)
+    public async Task RecordAttemptAsync(string clientId, bool success, string policy = "login")
     {
         if (success)
         {
@@ -64,19 +75,22 @@ public class AuthRateLimitService : IAuthRateLimitService
             return;
         }
 
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var windowStart = now - (long)WindowSize.TotalSeconds;
+        if (!Policies.TryGetValue(policy, out var config))
+            return;
 
-        var attemptsRaw = await _cache.GetAsync<string>(AttemptsKey(clientId));
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var windowStart = now - config.WindowSeconds;
+
+        var attemptsRaw = await _cache.GetAsync<string>(AttemptsKey(clientId, policy));
         var attempts = string.IsNullOrEmpty(attemptsRaw)
             ? new List<long>()
             : System.Text.Json.JsonSerializer.Deserialize<List<long>>(attemptsRaw)?
                 .Where(t => t >= windowStart).ToList() ?? new List<long>();
 
         attempts.Add(now);
-        await _cache.SetAsync(AttemptsKey(clientId), attempts, WindowSize * 2);
+        await _cache.SetAsync(AttemptsKey(clientId, policy), attempts, TimeSpan.FromSeconds(config.WindowSeconds * 2));
 
-        if (attempts.Count >= MaxAttempts)
+        if (attempts.Count >= config.MaxAttempts)
         {
             var strikes = await _cache.GetAsync<int>(StrikesKey(clientId)) + 1;
             var level = Math.Min(strikes - 1, BackoffLevels.Length - 1);
@@ -93,7 +107,8 @@ public class AuthRateLimitService : IAuthRateLimitService
 
     public async Task ClearAsync(string clientId)
     {
-        await _cache.RemoveAsync(AttemptsKey(clientId));
+        foreach (var policy in Policies.Keys)
+            await _cache.RemoveAsync(AttemptsKey(clientId, policy));
         await _cache.RemoveAsync(StrikesKey(clientId));
         await _cache.RemoveAsync(LockoutKey(clientId));
     }

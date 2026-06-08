@@ -1,6 +1,9 @@
 using FMC.Application.Interfaces;
+using FMC.Domain.Entities;
 using FMC.Shared.DTOs.Auth;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.RateLimiting;
@@ -8,9 +11,6 @@ using static FMC.Application.Interfaces.RateLimitPolicies;
 
 namespace FMC.Api.Controllers;
 
-/// <summary>
-/// Handles all authentication-related requests including login, token refresh, and logout.
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("AuthPolicy")]
@@ -19,12 +19,21 @@ public class AuthController : ControllerBase
     private readonly IIdentityService _identityService;
     private readonly IAuditService _auditService;
     private readonly IAuthRateLimitService _rateLimit;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IBackgroundJobClient _jobClient;
 
-    public AuthController(IIdentityService identityService, IAuditService auditService, IAuthRateLimitService rateLimit)
+    public AuthController(
+        IIdentityService identityService,
+        IAuditService auditService,
+        IAuthRateLimitService rateLimit,
+        UserManager<ApplicationUser> userManager,
+        IBackgroundJobClient jobClient)
     {
         _identityService = identityService;
         _auditService = auditService;
         _rateLimit = rateLimit;
+        _userManager = userManager;
+        _jobClient = jobClient;
     }
 
     [HttpPost("login")]
@@ -42,7 +51,8 @@ public class AuthController : ControllerBase
             return StatusCode(StatusCodes.Status429TooManyRequests, new
             {
                 message = rateCheck.LockoutReason ?? "Too many login attempts.",
-                retryAfter = rateCheck.RetryAfterSeconds
+                retryAfter = rateCheck.RetryAfterSeconds,
+                remainingAttempts = 0
             });
         }
 
@@ -54,7 +64,34 @@ public class AuthController : ControllerBase
             await _rateLimit.RecordAttemptAsync(clientId, false);
             string eventType = request.IsStepUp ? "Step-Up Verification Failed" : "Login Failed";
             await _auditService.RecordAuthEventAsync(eventType, null, ip, userAgent, $"Failed attempt for: {request.Identifier}");
-            return Unauthorized(new { message = "Invalid email or password." });
+
+            // ── Suspicious login detection ──
+            // Only send when all 5 attempts in the current window are exhausted
+            // (remaining == 0). This means at most 1 email per lockout window per user.
+            var remainingAfterAttempt = Math.Max(0, rateCheck.RemainingAttempts - 1);
+            if (remainingAfterAttempt == 0)
+            {
+                var user = await _userManager.FindByEmailAsync(request.Identifier)
+                           ?? await _userManager.FindByNameAsync(request.Identifier);
+                if (user?.Email != null)
+                {
+                    var totalAttempts = 5;
+                    _jobClient.Enqueue<FMC.Infrastructure.BackgroundJobs.NotificationJobService>(job =>
+                        job.SendSuspiciousLoginAlertAsync(
+                            user.Email,
+                            $"{user.FirstName} {user.LastName}".Trim(),
+                            ip,
+                            userAgent,
+                            totalAttempts,
+                            remainingAfterAttempt));
+                }
+            }
+
+            return Unauthorized(new
+            {
+                message = "Invalid email or password.",
+                remainingAttempts = remainingAfterAttempt
+            });
         }
 
         await _rateLimit.ClearAsync(clientId);
@@ -74,16 +111,16 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
     {
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-        var clientId = $"{request.Email}|{ip}";
+        var clientId = $"{request.Identifier}|{ip}";
 
-        var rateCheck = await _rateLimit.CheckAsync(clientId, ForgotPassword);
+        var rateCheck = await _rateLimit.CheckAsync(clientId, RateLimitPolicies.ForgotPassword);
         if (!rateCheck.IsAllowed)
             return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Too many password reset requests.", retryAfter = rateCheck.RetryAfterSeconds });
 
         var result = await _identityService.ForgotPasswordAsync(request);
         if (result == null)
         {
-            await _rateLimit.RecordAttemptAsync(clientId, false, ForgotPassword);
+            await _rateLimit.RecordAttemptAsync(clientId, false, RateLimitPolicies.ForgotPassword);
             return Ok(new { message = "If the account exists, a password reset code has been sent." });
         }
 
@@ -102,14 +139,14 @@ public class AuthController : ControllerBase
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
         var clientId = $"{request.UserId}|{ip}";
 
-        var rateCheck = await _rateLimit.CheckAsync(clientId, ResetPassword);
+        var rateCheck = await _rateLimit.CheckAsync(clientId, RateLimitPolicies.ResetPassword);
         if (!rateCheck.IsAllowed)
             return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Too many reset attempts.", retryAfter = rateCheck.RetryAfterSeconds });
 
         var result = await _identityService.ResetPasswordAsync(request);
         if (!result)
         {
-            await _rateLimit.RecordAttemptAsync(clientId, false, ResetPassword);
+            await _rateLimit.RecordAttemptAsync(clientId, false, RateLimitPolicies.ResetPassword);
             return BadRequest(new { message = "Invalid code or password requirements not met." });
         }
 

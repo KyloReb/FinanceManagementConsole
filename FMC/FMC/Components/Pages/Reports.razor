@@ -3,6 +3,7 @@
 @using FMC.Shared.Auth
 @using FMC.Shared.DTOs.Organization
 @using FMC.Shared.DTOs.User
+@using FMC.Shared.Utils
 @using Microsoft.JSInterop
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthProvider
@@ -166,11 +167,11 @@
                         @if (type == "orghealth")
                         {
                             <MudTable Items="@_orgHealthData" Dense="true" Hover="true" Elevation="0" Class="fmc-reports-table" RowsPerPage="10" Context="row">
-                                <HeaderContent><MudTh>ORGANIZATION</MudTh><MudTh>WALLET LIMIT</MudTh><MudTh>BALANCE</MudTh><MudTh>USAGE</MudTh><MudTh>REMAINING</MudTh><MudTh>USAGE %</MudTh></HeaderContent>
+                                <HeaderContent><MudTh>ORGANIZATION</MudTh><MudTh>WALLET BALANCE</MudTh><MudTh>AVAILABLE BALANCE</MudTh><MudTh>USAGE</MudTh><MudTh>REMAINING</MudTh><MudTh>USAGE %</MudTh></HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="ORG"><MudText Typo="Typo.body2" Style="font-weight:700;">@row.Name</MudText></MudTd>
-                                    <MudTd DataLabel="LIMIT">₱@row.WalletLimit.ToString("N2")</MudTd>
-                                    <MudTd DataLabel="BALANCE">₱@row.TotalBalance.ToString("N2")</MudTd>
+                                    <MudTd DataLabel="WALLET">₱@row.RemainingBalance.ToString("N2")</MudTd>
+                                    <MudTd DataLabel="AVAILABLE">₱@row.TotalBalance.ToString("N2")</MudTd>
                                     <MudTd DataLabel="USAGE">₱@row.Usage.ToString("N2")</MudTd>
                                     <MudTd DataLabel="REMAINING">₱@row.RemainingBalance.ToString("N2")</MudTd>
                                     <MudTd DataLabel="USAGE %"><div class="d-flex align-center gap-2"><MudProgressLinear Color="Color.Primary" Value="@(row.WalletLimit > 0 ? (double)(row.Usage / row.WalletLimit * 100) : 0)" Size="Size.Small" Class="rounded-pill" Style="flex:1;max-width:100px;" /><span>@(row.WalletLimit > 0 ? (row.Usage / row.WalletLimit * 100).ToString("N1") : "0.0")%</span></div></MudTd>
@@ -184,8 +185,8 @@
                                 <HeaderContent><MudTh>NAME</MudTh><MudTh>EMAIL</MudTh><MudTh>ACCOUNT NUMBER</MudTh><MudTh>BALANCE</MudTh><MudTh>STATUS</MudTh></HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="NAME"><MudText Typo="Typo.body2" Style="font-weight:700;">@row.DisplayName</MudText></MudTd>
-                                    <MudTd DataLabel="EMAIL">@row.Email</MudTd>
-                                    <MudTd DataLabel="ACCOUNT">@(string.IsNullOrEmpty(row.AccountNumber) ? "N/A" : row.AccountNumber)</MudTd>
+                                    <MudTd DataLabel="EMAIL">@MaskEmail(row.Email)</MudTd>
+                                    <MudTd DataLabel="ACCOUNT">@(string.IsNullOrEmpty(row.AccountNumber) ? "N/A" : FinanceUtils.MaskCard(row.AccountNumber))</MudTd>
                                     <MudTd DataLabel="BALANCE">₱@row.Balance.ToString("N2")</MudTd>
                                     <MudTd DataLabel="STATUS"><MudChip T="string" Color="@(row.IsActive ? Color.Success : Color.Default)" Size="Size.Small" Variant="Variant.Text" Style="font-weight:800;font-size:0.6rem;">@(row.IsActive ? "Active" : "Inactive")</MudChip></MudTd>
                                 </RowTemplate>
@@ -251,9 +252,9 @@
                             <div class="fmc-mobile-card @(_expandedRows.Contains(item) ? "expanded" : "")" @onclick="() => ToggleExpand(item)">
                                 <div class="fmc-card-priority">
                                     <div class="fmc-card-cell fmc-org">@item.Name</div>
-                                    <div class="fmc-card-cell fmc-num">₱@item.TotalBalance.ToString("N2")</div>
+                                    <div class="fmc-card-cell fmc-num">₱@item.RemainingBalance.ToString("N2")</div>
                                     <div class="fmc-card-cell fmc-num">@(item.WalletLimit > 0 ? (item.Usage / item.WalletLimit * 100).ToString("N1") : "0.0")%</div>
-                                    <div class="fmc-card-cell fmc-num">₱@item.WalletLimit.ToString("N2")</div>
+                                    <div class="fmc-card-cell fmc-num">₱@item.TotalBalance.ToString("N2")</div>
                                 </div>
                                 <div class="fmc-card-detail">
                                     <div class="fmc-card-detail-row"><span class="fmc-detail-label">REMAINING</span><span class="fmc-num">₱@item.RemainingBalance.ToString("N2")</span></div>
@@ -273,8 +274,8 @@
                             <div class="fmc-mobile-card @(_expandedRows.Contains(item) ? "expanded" : "")" @onclick="() => ToggleExpand(item)">
                                 <div class="fmc-card-priority">
                                     <div class="fmc-card-cell fmc-org">@item.DisplayName</div>
-                                    <div class="fmc-card-cell">@item.Email</div>
-                                    <div class="fmc-card-cell">@(string.IsNullOrEmpty(item.AccountNumber) ? "N/A" : item.AccountNumber)</div>
+                                    <div class="fmc-card-cell">@MaskEmail(item.Email)</div>
+                                    <div class="fmc-card-cell">@(string.IsNullOrEmpty(item.AccountNumber) ? "N/A" : FinanceUtils.MaskCard(item.AccountNumber))</div>
                                     <div class="fmc-card-cell fmc-card-amount">
                                         ₱@item.Balance.ToString("N2")
                                         <span class="fmc-badge fmc-badge-@(item.IsActive ? "success" : "default")">@(item.IsActive ? "Active" : "Inactive")</span>
@@ -572,7 +573,10 @@
             allUsers.AddRange(users);
         }
 
-        _cardholderData = allUsers.OrderBy(u => u.DisplayName).ToList();
+        _cardholderData = allUsers
+            .Where(u => u.Role == Roles.User)
+            .OrderBy(u => u.DisplayName)
+            .ToList();
     }
 
     private async Task LoadAuditLogs()
@@ -737,6 +741,14 @@
 
     private static string GetNetStyle(decimal amount) => $"font-weight:700; color:{(amount >= 0 ? "var(--mud-palette-success)" : "var(--mud-palette-error)")};";
     private static string GetAmountStyle(decimal amount) => $"font-weight:700; color:{(amount >= 0 ? "var(--mud-palette-success)" : "var(--mud-palette-error)")};";
+
+    private static string MaskEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return "—";
+        var at = email.IndexOf('@');
+        if (at <= 1) return email;
+        return $"{email[0]}***{email[at..]}";
+    }
 
     private Color GetChipColor(string action) => action switch
     {

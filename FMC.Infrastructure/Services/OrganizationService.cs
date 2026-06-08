@@ -8,6 +8,7 @@ using FMC.Shared.Time;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 
@@ -51,6 +52,28 @@ public class OrganizationService : IOrganizationService
         _alertService = alertService;
         _logger = logger;
         _cacheService = cacheService;
+    }
+
+    /// <summary>
+    /// Executes the provided <paramref name="action"/> inside an explicit database transaction.
+    /// Commits on success, rolls back on any exception. All nested SaveChangesAsync calls
+    /// from any service (LedgerService, AuditService, etc.) participate in this transaction
+    /// because they share the same scoped <see cref="ApplicationDbContext"/>.
+    /// </summary>
+    private async Task<T> ExecuteTransactionAsync<T>(Func<Task<T>> action, CancellationToken ct = default)
+    {
+        await using var tx = await _repository.BeginTransactionAsync(ct);
+        try
+        {
+            var result = await action();
+            await tx.CommitAsync(ct);
+            return result;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -349,134 +372,122 @@ public class OrganizationService : IOrganizationService
 
         if (createPending)
         {
-            // PENDING: Create transaction without touching the ledger
-            var pendingTx = new Transaction
+            return await ExecuteTransactionAsync(async () =>
+            {
+                var pendingTx = new Transaction
+                {
+                    Id = Guid.NewGuid(),
+                    Label = label ?? (amount >= 0 ? "Org Credit Request" : "Org Debit Request"),
+                    Amount = amount,
+                    Date = DateTime.UtcNow,
+                    Category = "Org Adjustment Pending",
+                    TenantId = tenantId,
+                    AccountId = account.Id,
+                    Status = "Pending",
+                    MakerId = performedBy,
+                    OrganizationId = organizationId
+                };
+                await _repository.AddTransactionAsync(pendingTx, cancellationToken);
+                await _repository.SaveChangesAsync(cancellationToken);
+
+                await _auditService.RecordFinancialEventAsync(
+                    amount >= 0 ? "ADJUSTMENT_REQUESTED" : "DEBIT_REQUESTED",
+                    organizationId,
+                    org.Name,
+                    Math.Abs(amount),
+                    label ?? (amount >= 0 ? "Org Credit Request" : "Org Debit Request"),
+                    performedBy,
+                    $"Request ID: {pendingTx.Id} — Awaiting SuperAdminApprover authorization",
+                    tenantId);
+
+                _logger.LogInformation(
+                    "[OrganizationService] Pending org adjustment created for {OrgName} by {User}: {Amount}",
+                    org.Name, performedBy, amount);
+
+                await ClearTransactionCacheAsync(organizationId);
+                return true;
+            }, cancellationToken);
+        }
+
+        return await ExecuteTransactionAsync(async () =>
+        {
+            var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
+            var formerMotherBalance = await _ledgerService.GetBalanceAsync(account.Id, cancellationToken);
+            var formerWallet = org.WalletLimit;
+            var formerUsage = Math.Max(0, userBalanceSum - org.UsageBaseline);
+            var formerRemaining = formerMotherBalance;
+
+            if (amount > 0)
+                await _ledgerService.CreditAsync(account.Id, amount, cancellationToken: cancellationToken);
+            else if (amount < 0)
+                await _ledgerService.DebitAsync(account.Id, Math.Abs(amount), cancellationToken: cancellationToken);
+
+            var newBalance = await _ledgerService.GetBalanceAsync(account.Id, cancellationToken);
+
+            var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
-                Label = label ?? (amount >= 0 ? "Org Credit Request" : "Org Debit Request"),
+                Label = label ?? (amount >= 0 ? "System Credit" : "System Debit"),
                 Amount = amount,
                 Date = DateTime.UtcNow,
-                Category = "Org Adjustment Pending",
+                Category = "System Adjustment",
                 TenantId = tenantId,
                 AccountId = account.Id,
-                Status = "Pending",
+                Status = "Completed",
                 MakerId = performedBy,
                 OrganizationId = organizationId
             };
-            await _repository.AddTransactionAsync(pendingTx, cancellationToken);
+            await _repository.AddTransactionAsync(transaction, cancellationToken);
             await _repository.SaveChangesAsync(cancellationToken);
 
-            // Record the pending request in the audit trail
+            if (newBalance < 0)
+            {
+                await _alertService.RaiseAlertAsync(
+                    "Negative Ledger Balance",
+                    $"Tenant '{org.Name}' is operating with negative liquidity ({newBalance:C}). Immediate settlement or suspension recommended.",
+                    AlertSeverity.Warning,
+                    organizationId.ToString(),
+                    "Organization"
+                );
+            }
+
+            await SyncWalletLimitToMotherAccountAsync(org, organizationId, cancellationToken);
+
+            var newWallet = org.WalletLimit;
+            var newUsage = formerUsage;
+            var newRemaining = newBalance;
+            var performedByUser = await _identityService.GetUserByIdAsync(performedBy);
+            var performedByEmail = performedByUser?.Email;
+            var performedByLabel = performedByEmail ?? performedByUser?.DisplayName ?? performedBy;
+            var auditDescription = label ?? (amount > 0 ? "System-wide Wallet Funding" : "System-wide Wallet Withdrawal");
+            var auditDetails = FinancialAuditFormatter.MotherAccountAdjustment(
+                formerWallet,
+                formerUsage,
+                formerRemaining,
+                formerMotherBalance,
+                amount,
+                newBalance,
+                newWallet,
+                newUsage,
+                newRemaining,
+                transaction.Id,
+                auditDescription,
+                performedByEmail,
+                org.AccountNumber);
+
             await _auditService.RecordFinancialEventAsync(
-                amount >= 0 ? "ADJUSTMENT_REQUESTED" : "DEBIT_REQUESTED",
-                organizationId,
+                amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED",
+                org.Id,
                 org.Name,
                 Math.Abs(amount),
-                label ?? (amount >= 0 ? "Org Credit Request" : "Org Debit Request"),
-                performedBy,
-                $"Request ID: {pendingTx.Id} — Awaiting SuperAdminApprover authorization",
-                tenantId);
-
-            _logger.LogInformation(
-                "[OrganizationService] Pending org adjustment created for {OrgName} by {User}: {Amount}",
-                org.Name, performedBy, amount);
+                $"{auditDescription} — Mother {formerMotherBalance:C} → {newBalance:C}, Wallet {formerWallet:C} → {newWallet:C}",
+                performedByLabel,
+                auditDetails,
+                organizationId.ToString());
 
             await ClearTransactionCacheAsync(organizationId);
             return true;
-        }
-
-        var userBalanceSum = await _repository.GetTotalUserBalanceAsync(organizationId, cancellationToken);
-        var formerMotherBalance = await _ledgerService.GetBalanceAsync(account.Id, cancellationToken);
-        var formerWallet = org.WalletLimit;
-        var formerUsage = Math.Max(0, userBalanceSum - org.UsageBaseline);
-        var formerRemaining = formerMotherBalance;
-
-        // 3. Operational Ledger Execution
-        if (amount > 0)
-        {
-            await _ledgerService.CreditAsync(account.Id, amount, cancellationToken: cancellationToken);
-        }
-        else if (amount < 0)
-        {
-            await _ledgerService.DebitAsync(account.Id, Math.Abs(amount), cancellationToken: cancellationToken);
-        }
-
-        // Fetch new balance for notification/alerts
-        var newBalance = await _ledgerService.GetBalanceAsync(account.Id, cancellationToken);
-
-        // 4. Persist Transaction History (System adjustments are auto-completed)
-        var transaction = new Transaction
-        {
-            Id = Guid.NewGuid(),
-            Label = label ?? (amount >= 0 ? "System Credit" : "System Debit"),
-            Amount = amount,
-            Date = DateTime.UtcNow,
-            Category = "System Adjustment",
-            TenantId = tenantId,
-            AccountId = account.Id,
-            Status = "Completed",
-            MakerId = performedBy,
-            OrganizationId = organizationId
-        };
-        await _repository.AddTransactionAsync(transaction, cancellationToken);
-        await _repository.SaveChangesAsync(cancellationToken);
-
-        // 5. Automated Intelligence: Raise alert for negative equity
-        if (newBalance < 0)
-        {
-            await _alertService.RaiseAlertAsync(
-                "Negative Ledger Balance", 
-                $"Tenant '{org.Name}' is operating with negative liquidity ({newBalance:C}). Immediate settlement or suspension recommended.", 
-                AlertSeverity.Warning, 
-                organizationId.ToString(), 
-                "Organization"
-            );
-        }
-
-        // 6. Align displayed wallet with mother-account ledger, then audit
-        await SyncWalletLimitToMotherAccountAsync(org, organizationId, cancellationToken);
-
-        var newWallet = org.WalletLimit;
-        var newUsage = formerUsage;
-        var newRemaining = newBalance;
-        var performedByUser = await _identityService.GetUserByIdAsync(performedBy);
-        var performedByEmail = performedByUser?.Email;
-        var performedByLabel = performedByEmail ?? performedByUser?.DisplayName ?? performedBy;
-        var auditDescription = label ?? (amount > 0 ? "System-wide Wallet Funding" : "System-wide Wallet Withdrawal");
-        var auditDetails = FinancialAuditFormatter.MotherAccountAdjustment(
-            formerWallet,
-            formerUsage,
-            formerRemaining,
-            formerMotherBalance,
-            amount,
-            newBalance,
-            newWallet,
-            newUsage,
-            newRemaining,
-            transaction.Id,
-            auditDescription,
-            performedByEmail,
-            org.AccountNumber);
-
-        await _auditService.RecordFinancialEventAsync(
-            amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED",
-            org.Id,
-            org.Name,
-            Math.Abs(amount),
-            $"{auditDescription} — Mother {formerMotherBalance:C} → {newBalance:C}, Wallet {formerWallet:C} → {newWallet:C}",
-            performedByLabel,
-            auditDetails,
-            organizationId.ToString());
-
-        var adjustmentId = Guid.NewGuid();
-        await _publisher.Publish(new WalletAdjustedEvent(adjustmentId, org.Id, amount, newBalance, label ?? "Administrative Adjustment"), cancellationToken);
-
-        _logger.LogInformation(
-            "[OrganizationService] Mother account adjusted for {OrgName} by {Amount:C}. {Details}",
-            org.Name, amount, auditDetails);
-
-        await ClearTransactionCacheAsync(organizationId);
-        return true;
+        }, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -521,72 +532,77 @@ public class OrganizationService : IOrganizationService
             orgId = userDto.OrganizationId;
         }
 
-        // 4. Identify the personal wallet account
-        var account = await _repository.GetAccountByTenantIdAsync(tenantId, cancellationToken);
-
-        if (account == null)
+        return await ExecuteTransactionAsync(async () =>
         {
-            account = new Account
+            // 4. Identify the personal wallet account
+            var account = await _repository.GetAccountByTenantIdAsync(tenantId, cancellationToken);
+
+            if (account == null)
+            {
+                account = new Account
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"{firstName} {lastName}",
+                    Balance = 0,
+                    TenantId = tenantId,
+                    OrganizationId = orgId
+                };
+                await _repository.AddAccountAsync(account, cancellationToken);
+                await _repository.SaveChangesAsync(cancellationToken);
+            }
+
+            // 5. Create PENDING Transaction (Maker Step)
+            var org = await _repository.GetByIdAsync(orgId ?? Guid.Empty, cancellationToken);
+            var orgAcc = org?.AccountNumber ?? "N/A";
+            var userAcc = cardholder?.AccountNumber ?? (await _identityService.GetUserByIdAsync(userId.ToString()))?.AccountNumber ?? "N/A";
+
+            var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
-                Name = $"{firstName} {lastName}",
-                Balance = 0,
+                Label = string.IsNullOrWhiteSpace(label) ? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request") : label,
+                Amount = amount,
+                Date = DateTime.UtcNow,
+                Category = "Subscriber Allotment",
                 TenantId = tenantId,
-                OrganizationId = orgId
+                AccountId = account.Id,
+                Status = "Pending",
+                MakerId = _currentUserService.UserId,
+                OrganizationId = orgId ?? _currentUserService.OrganizationId
             };
-            await _repository.AddAccountAsync(account, cancellationToken);
+
+            await _repository.AddTransactionAsync(transaction, cancellationToken);
+
+            // 6. Trace the forensic audit event for Initiation
+            var auditAction = amount >= 0 ? "CREDIT" : "DEBIT";
+            var auditDetail = string.IsNullOrWhiteSpace(label) ? (amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request") : label;
+
+            await _auditService.RecordFinancialEventAsync(
+                "INITIATE_" + auditAction,
+                orgId ?? Guid.Empty,
+                $"{firstName} {lastName}".Trim(),
+                Math.Abs(amount),
+                auditDetail,
+                performedBy,
+                $"Request ID: {transaction.Id} — {(amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request")}",
+                orgId?.ToString()
+            );
+
             await _repository.SaveChangesAsync(cancellationToken);
-        }
 
-        // 4. Create PENDING Transaction (Maker Step)
-        // No balance adjustment happens here!
-        var org = await _repository.GetByIdAsync(orgId ?? Guid.Empty, cancellationToken);
-        var orgAcc = org?.AccountNumber ?? "N/A";
-        var userAcc = cardholder?.AccountNumber ?? (await _identityService.GetUserByIdAsync(userId.ToString()))?.AccountNumber ?? "N/A";
+            // ── Phase 1: Workflow Notifications ──
+            if (orgId.HasValue)
+            {
+                await _publisher.Publish(new TransactionPendingEvent(transaction.Id, orgId.Value, performedBy, userId.ToString(), amount, label ?? "Standard Allotment"), cancellationToken);
+            }
 
-        var transaction = new Transaction
-        {
-            Id = Guid.NewGuid(),
-            Label = string.IsNullOrWhiteSpace(label) ? (amount >= 0 ? "Credit Allotment Request" : "Debit Adjustment Request") : label,
-            Amount = amount,
-            Date = DateTime.UtcNow,
-            Category = "Subscriber Allotment",
-            TenantId = tenantId,
-            AccountId = account.Id,
-            Status = "Pending",
-            MakerId = _currentUserService.UserId,
-            OrganizationId = orgId ?? _currentUserService.OrganizationId
-        };
-        
-        await _repository.AddTransactionAsync(transaction, cancellationToken);
+            _logger.LogInformation("[OrganizationService] Transaction PENDING for {UserId} by Maker {MakerId}. Amount: {Amount}",
+                userId, _currentUserService.UserId, amount);
 
-        // 4. Trace the forensic audit event for Initiation
-        var auditAction = amount >= 0 ? "CREDIT" : "DEBIT";
-        var auditDetail = string.IsNullOrWhiteSpace(label) ? (amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request") : label;
+            await ClearTransactionCacheAsync(orgId ?? Guid.Empty);
 
-        await _auditService.RecordFinancialEventAsync(
-            "INITIATE_" + auditAction, 
-            orgId ?? Guid.Empty, 
-            $"{firstName} {lastName}".Trim(), 
-            Math.Abs(amount), 
-            auditDetail, 
-            performedBy,
-            $"Request ID: {transaction.Id} — {(amount >= 0 ? "Pending Allotment Initiation" : "Debit Adjustment Request")}",
-            orgId?.ToString()
-        );
-
-        await _repository.SaveChangesAsync(cancellationToken);
-        
-        // ── Phase 1: Workflow Notifications (Handled by OrganizationNotificationHandler) ──
-        if (orgId.HasValue)
-        {
-            await _publisher.Publish(new TransactionPendingEvent(transaction.Id, orgId.Value, performedBy, userId.ToString(), amount, label ?? "Standard Allotment"), cancellationToken);
-        }
-        
-        _logger.LogInformation("[OrganizationService] Transaction PENDING for {UserId} by Maker {MakerId}. Amount: {Amount}", 
-            userId, _currentUserService.UserId, amount);
-
-        return true;
+            await _cacheService.RemoveAsync($"UserTransactions_{userId}");
+            return true;
+        }, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -631,141 +647,145 @@ public class OrganizationService : IOrganizationService
             throw new ApplicationException("Organizational Security: You can only approve transactions for your own organization.");
         }
 
-        // 4. Handle Org-Level Pending Adjustments (mother wallet direct credit/debit)
-        if (transaction.Category == "Org Adjustment Pending")
+        var isOrgAdjustment = await ExecuteTransactionAsync(async () =>
         {
+            if (transaction.Category == "Org Adjustment Pending")
+            {
+                if (!transaction.OrganizationId.HasValue) throw new ApplicationException("Transaction Security: Organization context is missing.");
+
+                if (transaction.Amount > 0)
+                    await _ledgerService.CreditAsync(transaction.AccountId, transaction.Amount, cancellationToken: cancellationToken);
+                else if (transaction.Amount < 0)
+                    await _ledgerService.DebitAsync(transaction.AccountId, Math.Abs(transaction.Amount), cancellationToken: cancellationToken);
+
+                transaction.Status = "Completed";
+                transaction.ApproverId = approverId;
+                transaction.ActionDate = DateTime.UtcNow;
+                transaction.Label = $"{transaction.Label} — Approved by {approverId}";
+                await _repository.SaveChangesAsync(cancellationToken);
+
+                var approvedOrg = await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken);
+                if (approvedOrg != null)
+                    await SyncWalletLimitToMotherAccountAsync(approvedOrg, transaction.OrganizationId.Value, cancellationToken);
+                await _auditService.RecordFinancialEventAsync(
+                    transaction.Amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED",
+                    transaction.OrganizationId.Value,
+                    approvedOrg?.Name ?? "Unknown",
+                    Math.Abs(transaction.Amount),
+                    $"Org adjustment approved: {transaction.Label}",
+                    approverId,
+                    null,
+                    transaction.TenantId);
+
+                _logger.LogInformation("[OrganizationService] Org adjustment {Id} APPROVED by {ApproverId}. Amount: {Amount}",
+                    transactionId, approverId, transaction.Amount);
+
+                await ClearTransactionCacheAsync(transaction.OrganizationId.Value);
+                return true;
+            }
+            return false;
+        }, cancellationToken);
+
+        if (isOrgAdjustment) return true;
+
+        return await ExecuteTransactionAsync(async () =>
+        {
+            // 5. Identify Target Account (Cardholder Account)
+            var userAccount = await _repository.GetAccountByIdAsync(transaction.AccountId);
+            if (userAccount == null) throw new ApplicationException("Target cardholder account not found.");
+
+            // 6. Identify Source Account (Organization Operations Wallet)
             if (!transaction.OrganizationId.HasValue) throw new ApplicationException("Transaction Security: Organization context is missing.");
 
-            if (transaction.Amount > 0)
-                await _ledgerService.CreditAsync(transaction.AccountId, transaction.Amount, cancellationToken: cancellationToken);
-            else if (transaction.Amount < 0)
-                await _ledgerService.DebitAsync(transaction.AccountId, Math.Abs(transaction.Amount), cancellationToken: cancellationToken);
+            var orgTenantId = transaction.OrganizationId.Value.ToString();
+            var orgAccount = await _repository.GetAccountByTenantIdAsync(orgTenantId, cancellationToken);
+            if (orgAccount == null) throw new ApplicationException("Ledger Error: Organization operations wallet not found.");
 
-            // Mark as Completed
-            transaction.Status = "Completed";
+            // 7. Execute Atomic Transfer
+            await _ledgerService.TransferAsync(orgAccount.Id, userAccount.Id, transaction.Amount, cancellationToken: cancellationToken);
+
+            // 8. Update Transaction Status
+            transaction.Status = "Approved";
             transaction.ApproverId = approverId;
             transaction.ActionDate = DateTime.UtcNow;
-            transaction.Label = $"{transaction.Label} — Approved by {approverId}";
-            await _repository.SaveChangesAsync(cancellationToken);
 
-            var approvedOrg = await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken);
-            if (approvedOrg != null)
-                await SyncWalletLimitToMotherAccountAsync(approvedOrg, transaction.OrganizationId.Value, cancellationToken);
-            await _auditService.RecordFinancialEventAsync(
-                transaction.Amount > 0 ? "WALLET_FUNDED" : "WALLET_DEBITED",
-                transaction.OrganizationId.Value,
-                approvedOrg?.Name ?? "Unknown",
-                Math.Abs(transaction.Amount),
-                $"Org adjustment approved: {transaction.Label}",
-                approverId,
-                null,
-                transaction.TenantId);
+            var org = await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken);
 
-            _logger.LogInformation("[OrganizationService] Org adjustment {Id} APPROVED by {ApproverId}. Amount: {Amount}",
-                transactionId, approverId, transaction.Amount);
-
-            await ClearTransactionCacheAsync(transaction.OrganizationId.Value);
-            return true;
-        }
-
-        // 5. Identify Target Account (Cardholder Account)
-        var userAccount = await _repository.GetAccountByIdAsync(transaction.AccountId);
-        if (userAccount == null) throw new ApplicationException("Target cardholder account not found.");
-
-        // 6. Identify Source Account (Organization Operations Wallet)
-        if (!transaction.OrganizationId.HasValue) throw new ApplicationException("Transaction Security: Organization context is missing.");
-        
-        var orgTenantId = transaction.OrganizationId.Value.ToString();
-        var orgAccount = await _repository.GetAccountByTenantIdAsync(orgTenantId, cancellationToken);
-
-        if (orgAccount == null) throw new ApplicationException("Ledger Error: Organization operations wallet not found.");
-
-        // 7. Execute Atomic Transfer
-        await _ledgerService.TransferAsync(orgAccount.Id, userAccount.Id, transaction.Amount, cancellationToken: cancellationToken);
-
-        // 6. Update Transaction Status
-        transaction.Status = "Approved";
-        transaction.ApproverId = approverId;
-        transaction.ActionDate = DateTime.UtcNow;
-
-        var org = await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken);
-        
-        // Resolve cardholder name: try Identity User first, then Cardholder by TenantId
-        var targetUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
-        string userName;
-        string? userAccRaw;
-        if (targetUser != null)
-        {
-            userName = $"{targetUser.FirstName} {targetUser.LastName}".Trim();
-            userAccRaw = targetUser.AccountNumber;
-        }
-        else if (Guid.TryParse(transaction.TenantId, out var tenantGuid))
-        {
-            var cardholder = await _repository.GetCardholderByIdAsync(tenantGuid, cancellationToken);
-            if (cardholder != null)
+            // Resolve cardholder name: try Identity User first, then Cardholder by TenantId
+            var targetUser = await _identityService.GetUserByIdAsync(transaction.TenantId);
+            string userName;
+            string? userAccRaw;
+            if (targetUser != null)
             {
-                userName = $"{cardholder.FirstName} {cardholder.LastName}".Trim();
-                userAccRaw = cardholder.AccountNumber;
+                userName = $"{targetUser.FirstName} {targetUser.LastName}".Trim();
+                userAccRaw = targetUser.AccountNumber;
+            }
+            else if (Guid.TryParse(transaction.TenantId, out var tenantGuid))
+            {
+                var cardholder = await _repository.GetCardholderByIdAsync(tenantGuid, cancellationToken);
+                if (cardholder != null)
+                {
+                    userName = $"{cardholder.FirstName} {cardholder.LastName}".Trim();
+                    userAccRaw = cardholder.AccountNumber;
+                }
+                else
+                {
+                    userName = "Unknown";
+                    userAccRaw = null;
+                }
             }
             else
             {
                 userName = "Unknown";
                 userAccRaw = null;
             }
-        }
-        else
-        {
-            userName = "Unknown";
-            userAccRaw = null;
-        }
-        
-        string mask(string? acc) => string.IsNullOrEmpty(acc) ? "N/A" : (acc.Length < 10 ? acc : $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}");
-        var orgAcc = mask(org?.AccountNumber);
-        var userAcc = mask(userAccRaw);
-        var orgName = org?.Name ?? "Unknown";
-        var amountStr = $"₱{Math.Abs(transaction.Amount):N2}";
 
-        if (orgName == userName)
-        {
-            orgName = "Nationlink/ Infoserve Inc.";
-            orgAcc = "N/A";
-        }
-        
-        var conciseNote = transaction.Amount >= 0 
-            ? $"Mother Account ({orgName} - {orgAcc}) Debited by {amountStr} to Credit Cardholder ({userName} - {userAcc})"
-            : $"Cardholder ({userName} - {userAcc}) Debited by {amountStr} to Credit Mother Account ({orgName} - {orgAcc})";
-            
-        // Append concise descriptive note to core label
-        transaction.Label = $"{transaction.Label.Split(" — ")[0]} — {conciseNote}";
-        
-        await _repository.SaveChangesAsync(cancellationToken);
+            string mask(string? acc) => string.IsNullOrEmpty(acc) ? "N/A" : (acc.Length < 10 ? acc : $"{acc.Substring(0, 6)}******{acc.Substring(acc.Length - 4)}");
+            var orgAcc = mask(org?.AccountNumber);
+            var userAcc = mask(userAccRaw);
+            var orgName = org?.Name ?? "Unknown";
+            var amountStr = $"₱{Math.Abs(transaction.Amount):N2}";
 
-        // 7. Audit Trail for Final Commitment
-        if (!skipAuditLog)
-        {
-            await _auditService.RecordFinancialEventAsync(
-                "TRANSACTION_APPROVED", 
-                transaction.OrganizationId.Value, 
-                userAccount.Name, 
-                transaction.Amount, 
-                transaction.Label, 
-                approverId, 
-                approver?.Email, 
-                transaction.OrganizationId.Value.ToString());
-        }
+            if (orgName == userName)
+            {
+                orgName = "Nationlink/ Infoserve Inc.";
+                orgAcc = "N/A";
+            }
 
-        // ── Phase 2: Workflow Completion Notifications (Handled by OrganizationNotificationHandler) ──
-        if (publishEvent && transaction.OrganizationId.HasValue)
-        {
-            await _publisher.Publish(new TransactionApprovedEvent(transaction.OrganizationId.Value, transaction.Id), cancellationToken);
-        }
+            var conciseNote = transaction.Amount >= 0
+                ? $"Mother Account ({orgName} - {orgAcc}) Debited by {amountStr} to Credit Cardholder ({userName} - {userAcc})"
+                : $"Cardholder ({userName} - {userAcc}) Debited by {amountStr} to Credit Mother Account ({orgName} - {orgAcc})";
 
-        _logger.LogInformation("[OrganizationService] Transaction {Id} APPROVED by {ApproverId}. Amount settled.", 
-            transactionId, approverId);
+            transaction.Label = $"{transaction.Label.Split(" — ")[0]} — {conciseNote}";
 
-        await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
+            await _repository.SaveChangesAsync(cancellationToken);
 
-        return true;
+            // 9. Audit Trail for Final Commitment
+            if (!skipAuditLog)
+            {
+                await _auditService.RecordFinancialEventAsync(
+                    "TRANSACTION_APPROVED",
+                    transaction.OrganizationId.Value,
+                    userAccount.Name,
+                    transaction.Amount,
+                    transaction.Label,
+                    approverId,
+                    approver?.Email,
+                    transaction.OrganizationId.Value.ToString());
+            }
+
+            // ── Phase 2: Workflow Completion Notifications ──
+            if (publishEvent && transaction.OrganizationId.HasValue)
+            {
+                await _publisher.Publish(new TransactionApprovedEvent(transaction.OrganizationId.Value, transaction.Id), cancellationToken);
+            }
+
+            _logger.LogInformation("[OrganizationService] Transaction {Id} APPROVED by {ApproverId}. Amount settled.",
+                transactionId, approverId);
+
+            await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
+            return true;
+        }, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -792,35 +812,37 @@ public class OrganizationService : IOrganizationService
             }
         }
 
-        transaction.Status = "Rejected";
-        transaction.ApproverId = approverId;
-        transaction.ActionDate = DateTime.UtcNow;
-        transaction.RejectionReason = reason;
-
-        if (!skipAuditLog)
+        return await ExecuteTransactionAsync(async () =>
         {
-            var rejectionOrg = transaction.OrganizationId.HasValue
-                ? await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken)
-                : null;
-            var rejectionEntityName = rejectionOrg?.Name ?? targetName;
+            transaction.Status = "Rejected";
+            transaction.ApproverId = approverId;
+            transaction.ActionDate = DateTime.UtcNow;
+            transaction.RejectionReason = reason;
 
-            await _auditService.RecordFinancialEventAsync(
-                "REJECTED", 
-                transaction.OrganizationId ?? Guid.Empty, 
-                rejectionEntityName, 
-                Math.Abs(transaction.Amount), 
-                $"Transaction Rejected: {reason}", 
-                approverId,
-                $"Request ID: {transaction.Id} — Rejected by Approver",
-                transaction.OrganizationId?.ToString()
-            );
-        }
+            if (!skipAuditLog)
+            {
+                var rejectionOrg = transaction.OrganizationId.HasValue
+                    ? await _repository.GetByIdAsync(transaction.OrganizationId.Value, cancellationToken)
+                    : null;
+                var rejectionEntityName = rejectionOrg?.Name ?? targetName;
 
-        await _repository.SaveChangesAsync(cancellationToken);
-        
-        await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
-        
-        return true;
+                await _auditService.RecordFinancialEventAsync(
+                    "REJECTED",
+                    transaction.OrganizationId ?? Guid.Empty,
+                    rejectionEntityName,
+                    Math.Abs(transaction.Amount),
+                    $"Transaction Rejected: {reason}",
+                    approverId,
+                    $"Request ID: {transaction.Id} — Rejected by Approver",
+                    transaction.OrganizationId?.ToString()
+                );
+            }
+
+            await _repository.SaveChangesAsync(cancellationToken);
+
+            await ClearTransactionCacheAsync(transaction.OrganizationId ?? Guid.Empty);
+            return true;
+        }, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -1005,7 +1027,7 @@ public class OrganizationService : IOrganizationService
             UpdatedAt = org.UpdatedAt,
             UserCount = userCount,
             CeoName = ceoName,
-            TotalBalance = orgBalance + userBalanceSum,
+            TotalBalance = orgBalance,
             Usage = usage,
             RemainingBalance = orgBalance,
             ChiefExecutiveId = org.ChiefExecutiveId,
@@ -1425,24 +1447,25 @@ public class OrganizationService : IOrganizationService
             await RejectTransactionAsync(tx.Id, approverId, reason, skipAuditLog: true, cancellationToken);
         }
 
-        await _auditService.RecordFinancialEventAsync(
-            "BATCH_REJECTED", 
-            orgId, 
-            $"{pendingTransactions.Count} Cardholders (Bulk)", 
-            Math.Abs(totalAmount), 
-            $"Batch Rejected: {reason}", 
-            approverId, 
-            null, 
-            orgId.ToString());
+        return await ExecuteTransactionAsync(async () =>
+        {
+            await _auditService.RecordFinancialEventAsync(
+                "BATCH_REJECTED", 
+                orgId, 
+                $"{pendingTransactions.Count} Cardholders (Bulk)", 
+                Math.Abs(totalAmount), 
+                $"Batch Rejected: {reason}", 
+                approverId, 
+                null, 
+                orgId.ToString());
 
-        await _repository.SaveChangesAsync(cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
 
-        // Notify stakeholders of the consolidated rejection
-        await _publisher.Publish(new BatchRejectedEvent(orgId, batchId, approverId, reason), cancellationToken);
+            await _publisher.Publish(new BatchRejectedEvent(orgId, batchId, approverId, reason), cancellationToken);
 
-        await ClearTransactionCacheAsync(orgId);
-
-        return true;
+            await ClearTransactionCacheAsync(orgId);
+            return true;
+        }, cancellationToken);
     }
 
     /// <inheritdoc />

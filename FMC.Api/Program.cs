@@ -30,10 +30,16 @@ System.Globalization.CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 #endregion
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<FMC.Api.Filters.IdempotencyFilter>();
+});
+builder.Services.AddScoped<FMC.Api.Filters.IdempotencyFilter>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddExceptionHandler<FMC.Api.Middleware.GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // 1. CORS Configuration (P1 #4)
 var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() 
@@ -207,6 +213,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 builder.Services.AddScoped<IAuthRateLimitService, AuthRateLimitService>();
+builder.Services.AddScoped<DatabaseInitializer>();
 builder.Services.AddScoped<ILedgerService, LedgerService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
@@ -236,89 +243,16 @@ builder.Services.AddMediatR(cfg => {
 
 var app = builder.Build();
 
-// Automatic Database Synchronization for Multi-Tenancy (TenantId) and Forensics (Device)
+// Database schema synchronization and seeding (delegated to dedicated initializer)
 using (var scope = app.Services.CreateScope())
 {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    
-    // 1. Synchronize TenantId for all core tables
-    var tables = new[] { "Accounts", "Transactions", "Budgets", "AuditLogs" };
-    foreach (var table in tables)
-    {
-        try 
-        {
-            string sql = $"IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[{table}]') AND name = N'TenantId') " +
-                         $"BEGIN ALTER TABLE [{table}] ADD [TenantId] nvarchar(max) NOT NULL DEFAULT N''; END";
-            await db.Database.ExecuteSqlRawAsync(sql);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error synchronizing TenantId for table {Table}", table);
-        }
-    }
-
-    // 2. Synchronize OrganizationId for Accounts and Transactions
-    var orgSyncTables = new[] { "Accounts", "Transactions" };
-    foreach (var table in orgSyncTables)
-    {
-        try
-        {
-            string sql = $"IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[{table}]') AND name = N'OrganizationId') " +
-                         $"BEGIN ALTER TABLE [{table}] ADD [OrganizationId] uniqueidentifier NULL; END";
-            await db.Database.ExecuteSqlRawAsync(sql);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error synchronizing OrganizationId for table {Table}", table);
-        }
-    }
-
-    // 3. Synchronize Device (Forensics) specifically for AuditLogs
-    try
-    {
-        string deviceSql = "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[AuditLogs]') AND name = N'Device') " +
-                           "BEGIN ALTER TABLE [AuditLogs] ADD [Device] nvarchar(max) NULL; END";
-        await db.Database.ExecuteSqlRawAsync(deviceSql);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error synchronizing Device column for AuditLogs");
-    }
-
-    // 3. Synchronize Organization for AspNetUsers
-    try
-    {
-        string orgSql = "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[AspNetUsers]') AND name = N'Organization') " +
-                         "BEGIN ALTER TABLE [AspNetUsers] ADD [Organization] nvarchar(max) NULL; END";
-        await db.Database.ExecuteSqlRawAsync(orgSql);
-
-        // Update existing users to Nationlink/Infoserve Inc. as requested
-        string updateSql = "UPDATE [AspNetUsers] SET [Organization] = N'Nationlink/Infoserve Inc.' WHERE [Organization] IS NULL";
-        await db.Database.ExecuteSqlRawAsync(updateSql);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error synchronizing Organization column for AspNetUsers");
-    }
-
-    // 4. Seed Essential Identity Roles and SuperAdmin CEO Account
-    try
-    {
-        await ApplicationDbSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider);
-        logger.LogInformation("Database seeding completed successfully.");
-        
-        // 5. Data Integrity: Align Legacy Cardholder Account IDs
-        // This is a critical one-time repair after the Cardholder table separation.
-        await FMC.Infrastructure.Scripts.DataRepair.AlignLegacyIds(db);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "An error occurred while seeding or repairing the database.");
-    }
+    var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
+    await initializer.InitializeAsync();
 }
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 // 3. Hide Swagger behind Development Environment Check (P2 #7)
 if (app.Environment.IsDevelopment())
 {

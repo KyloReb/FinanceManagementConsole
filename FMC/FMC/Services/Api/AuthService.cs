@@ -22,28 +22,58 @@ public class AuthService
         _js = js;
     }
 
-    public async Task<(AuthResponseDto? Result, HttpStatusCode StatusCode, int RetryAfterSeconds)> Login(LoginRequestDto loginRequest)
+    public async Task<(AuthResponseDto? Result, HttpStatusCode StatusCode, int RetryAfterSeconds, int RemainingAttempts)> Login(LoginRequestDto loginRequest)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginRequest);
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        try
         {
-            var body = await response.Content.ReadFromJsonAsync<RateLimitResponse>();
-            return (null, HttpStatusCode.TooManyRequests, body?.RetryAfter ?? 60);
-        }
-        if (!response.IsSuccessStatusCode)
-            return (null, response.StatusCode, 0);
+            var response = await _httpClient.PostAsJsonAsync("api/auth/login", loginRequest);
+            var body = await response.Content.ReadAsStringAsync();
 
-        var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
-        if (result != null)
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                var parsed = TryDeserialize<RateLimitResponse>(body);
+                return (null, HttpStatusCode.TooManyRequests, parsed?.RetryAfter ?? 60, 0);
+            }
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                var parsed = TryDeserialize<UnauthorizedResponse>(body);
+                return (null, response.StatusCode, 0, parsed?.RemainingAttempts ?? 0);
+            }
+            if (!response.IsSuccessStatusCode)
+                return (null, response.StatusCode, 0, 0);
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<AuthResponseDto>(body,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (result != null)
+            {
+                await _js.InvokeVoidAsync("secureCookieHelper.setSecureCookie", result.Token, loginRequest.RememberMe);
+                ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
+            }
+
+            return (result, HttpStatusCode.OK, 0, 0);
+        }
+        catch (Exception ex)
         {
-            await _js.InvokeVoidAsync("secureCookieHelper.setSecureCookie", result.Token, loginRequest.RememberMe);
-            ((ApiAuthenticationStateProvider)_authStateProvider).MarkUserAsAuthenticated(result.Token);
+            System.Console.WriteLine($"[AuthService.Login] Exception: {ex.Message}");
+            return (null, HttpStatusCode.ServiceUnavailable, 0, 0);
         }
-
-        return (result, HttpStatusCode.OK, 0);
     }
 
-    private record RateLimitResponse(string? Message, int RetryAfter);
+    private record RateLimitResponse(string? Message, int RetryAfter, int RemainingAttempts = 0);
+    private record UnauthorizedResponse(string? Message, int RemainingAttempts = 0);
+
+    private static T? TryDeserialize<T>(string json) where T : class
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<T>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     public async Task<bool> Register(RegisterRequestDto registerRequest)
     {

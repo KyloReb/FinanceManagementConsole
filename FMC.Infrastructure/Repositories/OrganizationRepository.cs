@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using FMC.Application.Interfaces;
 using FMC.Domain.Entities;
 using FMC.Infrastructure.Data;
@@ -275,5 +276,10 @@ public class OrganizationRepository : IOrganizationRepository
     public async Task<bool> ExistsTransactionWithIdempotencyKeyAsync(string key, CancellationToken ct = default)
     {
         return await _context.Transactions.AnyAsync(t => t.IdempotencyKey == key, ct);
+    }
+
+    public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default)
+    {
+        return await _context.Database.BeginTransactionAsync(ct);
     }
 }

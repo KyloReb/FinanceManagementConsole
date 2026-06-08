@@ -293,4 +293,61 @@ public class EmailTemplateService : IEmailTemplateService
 
         return GetContainer(content);
     }
+
+    public string GenerateSuspiciousLoginAlertEmail(string userName, string ipAddress, string userAgent, string timestamp, int failedAttempts, int remainingBeforeLockout)
+    {
+        var content = $@"
+            <h2 style=""color:#b8860b;margin-top:30px;font-size:24px;font-weight:800;letter-spacing:-0.5px;text-align:center;"">Suspicious Login Activity</h2>
+            <p style=""color:#2d3436;font-size:15px;line-height:1.6;margin-bottom:24px;text-align:center;"">
+                We detected <strong style=""color:#d63031;"">{failedAttempts} failed login attempts</strong> on your <strong>FMC</strong> account. If this wasn't you, please take immediate action.
+            </p>
+
+            <div style=""background:#fff5f5;border:1px solid #ffd5d5;border-radius:12px;padding:24px;margin-bottom:24px;"">
+                <h4 style=""margin:0 0 16px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Attempt Details</h4>
+                <table style=""width:100%;border-collapse:collapse;"">
+                    <tr style=""border-bottom: 1px solid #ffe0e0;"">
+                        <td style=""padding:10px 0;color:#636e72;font-size:13px;"">Account</td>
+                        <td style=""padding:10px 0;font-weight:700;color:#2d3436;text-align:right;"">{userName}</td>
+                    </tr>
+                    <tr style=""border-bottom: 1px solid #ffe0e0;"">
+                        <td style=""padding:10px 0;color:#636e72;font-size:13px;"">Date & Time</td>
+                        <td style=""padding:10px 0;font-weight:700;color:#2d3436;text-align:right;"">{timestamp}</td>
+                    </tr>
+                    <tr style=""border-bottom: 1px solid #ffe0e0;"">
+                        <td style=""padding:10px 0;color:#636e72;font-size:13px;"">IP Address</td>
+                        <td style=""padding:10px 0;font-weight:700;color:#2d3436;text-align:right;font-family:monospace;"">{ipAddress}</td>
+                    </tr>
+                    <tr>
+                        <td style=""padding:10px 0;color:#636e72;font-size:13px;"">Device / Browser</td>
+                        <td style=""padding:10px 0;font-weight:600;color:#2d3436;text-align:right;font-size:12px;"">{userAgent}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style=""background:#f8f9fa;border-radius:12px;padding:24px;margin-bottom:24px;"">
+                <h4 style=""margin:0 0 12px 0;color:#2d3436;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Security Status</h4>
+                <p style=""margin:0;color:#636e72;font-size:14px;line-height:1.6;"">
+                    {(remainingBeforeLockout > 0
+                        ? $"Your account will be temporarily locked after <strong>{remainingBeforeLockout}</strong> more failed attempt{(remainingBeforeLockout != 1 ? "s" : "")}."
+                        : "Your account is at risk of being temporarily locked due to repeated failed attempts.")}
+                </p>
+            </div>
+
+            <div style=""background:#f0fdf4;border:1px solid #c6f6d5;border-radius:12px;padding:24px;margin-bottom:24px;"">
+                <h4 style=""margin:0 0 12px 0;color:#22543d;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;"">Recommendations</h4>
+                <ul style=""margin:0;padding-left:20px;color:#636e72;font-size:14px;line-height:2;"">
+                    <li>Change your password immediately if you do not recognize this activity.</li>
+                    <li>Enable two-factor authentication for an additional layer of security.</li>
+                    <li>Contact your organization administrator if you suspect unauthorized access.</li>
+                </ul>
+            </div>
+
+            <div style=""margin-top:30px;padding:20px;background:#f8f9fa;border-radius:12px;text-align:center;"">
+                <p style=""margin:0;color:#636e72;font-size:14px;line-height:1.5;"">
+                    This is an automated security alert. If you were the one attempting to log in, please ignore this message.
+                </p>
+            </div>";
+
+        return GetContainer(content);
+    }
 }

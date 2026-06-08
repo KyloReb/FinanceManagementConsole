@@ -7,7 +7,7 @@ public interface IAuthRateLimitService
     Task ClearAsync(string clientId);
 }
 
-public record AuthRateLimitResult(bool IsAllowed, int RetryAfterSeconds, string? LockoutReason = null);
+public record AuthRateLimitResult(bool IsAllowed, int RetryAfterSeconds, int RemainingAttempts = 0, string? LockoutReason = null);
 
 public static class RateLimitPolicies
 {

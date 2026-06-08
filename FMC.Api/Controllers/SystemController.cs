@@ -38,7 +38,7 @@ public class SystemController : ControllerBase
     /// Retrieves a comprehensive real-time pulse of the system infrastructure.
     /// Restricted to SuperAdmins only.
     /// </summary>
-    [Authorize(Roles = Roles.SuperAdmin)]
+    [Authorize(Roles = $"{Roles.SuperAdmin},{Roles.SuperAdminApprover}")]
     [HttpGet("health-pulse")]
     public async Task<ActionResult<SystemHealthDto>> GetHealthPulse(CancellationToken cancellationToken)
     {

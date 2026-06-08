@@ -1,6 +1,7 @@
 using FMC.Application.Interfaces;
 using FMC.Domain.Entities;
 using FMC.Infrastructure.Resilience;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace FMC.Infrastructure.Repositories;
@@ -99,6 +100,9 @@ public class ResilientOrganizationRepository : IOrganizationRepository
 
     public Task<bool> ExistsTransactionWithIdempotencyKeyAsync(string key, CancellationToken ct = default) =>
         _pipeline.ExecuteAsync(async token => await _inner.ExistsTransactionWithIdempotencyKeyAsync(key, token), ct).AsTask();
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default) =>
+        _inner.BeginTransactionAsync(ct);
 
     // Passthrough methods (no DB call, state mutation only)
     public void Update(Organization organization) => _inner.Update(organization);

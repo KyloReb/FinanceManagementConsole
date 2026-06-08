@@ -507,6 +507,65 @@ public sealed class NotificationJobService
     }
 
     // ─────────────────────────────────────────────────────────
+    // Job 5: Suspicious Login Alert — notify account owner
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sends a security alert email to the account owner when multiple failed login
+    /// attempts are detected. Includes IP address, timestamp, user agent, and
+    /// security recommendations. Executed asynchronously via Hangfire to avoid
+    /// blocking the login response.
+    /// </summary>
+    /// <param name="email">The account owner's email address.</param>
+    /// <param name="userName">Display name of the account owner.</param>
+    /// <param name="ipAddress">Originating IP of the failed attempts.</param>
+    /// <param name="userAgent">Browser/device User-Agent string.</param>
+    /// <param name="failedAttempts">Number of failed attempts recorded.</param>
+    /// <param name="remainingBeforeLockout">Attempts remaining before temporary lockout.</param>
+    public async Task SendSuspiciousLoginAlertAsync(
+        string email,
+        string userName,
+        string ipAddress,
+        string userAgent,
+        int failedAttempts,
+        int remainingBeforeLockout)
+    {
+        try
+        {
+            _logger.LogWarning("[BackgroundJob] Sending suspicious login alert for {Email} from IP {Ip}", email, ipAddress);
+
+            // Dedup: only send once per hour per user (rate-limited brute force should not flood email logs)
+            var dedupKey = $"SUSPICIOUS_LOGIN:{email}:{DateTime.UtcNow:yyyyMMddHH}";
+            var dedupId = Guid.NewGuid();
+
+            if (!await ShouldSendNotificationAsync("SUSPICIOUS_LOGIN", dedupId, dedupKey))
+            {
+                _logger.LogInformation("[BackgroundJob] Suspicious login alert already sent this hour to {Email}. Skipping.", email);
+                return;
+            }
+
+            var timestamp = DateTime.UtcNow.ToString("MMM dd, yyyy h:mm:ss tt 'UTC'");
+            var body = _templateService.GenerateSuspiciousLoginAlertEmail(
+                userName, ipAddress, userAgent, timestamp, failedAttempts, remainingBeforeLockout);
+
+            await _emailService.SendEmailAsync(
+                email,
+                "FMC Security Alert: Suspicious Login Activity Detected",
+                body,
+                BuildAttachments());
+
+            await LogNotificationSentAsync("SUSPICIOUS_LOGIN", dedupId, dedupKey);
+
+            _logger.LogInformation("[BackgroundJob] Suspicious login alert sent to {Email}", email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BackgroundJob] Failed to send suspicious login alert to {Email}", email);
+            throw;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
     // Private Helpers
     // ─────────────────────────────────────────────────────────
 

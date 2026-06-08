@@ -7,11 +7,11 @@
 @inject ISnackbar Snackbar
 @using System.Net
 
-<PageTitle>Log in</PageTitle>
+<PageTitle>FMC — Sign In</PageTitle>
 
 <div class="d-flex justify-center align-center py-8" style="min-height: 100vh; background-color: var(--mud-palette-background);">
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
-        <MudImage Src="favicon.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
+        <MudImage Src="nlkLogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
 
         @if (_isRateLimited)
@@ -52,7 +52,7 @@
                 
                 @if (!_isLoading)
                 {
-                    <MudLink href="/forgot-password" Underline="Underline.None" Typo="Typo.body2">Forgot password?</MudLink>
+                    <MudLink href="/forgot-password" Underline="Underline.None" Typo="Typo.body2" Style="color:var(--mud-palette-text-secondary);font-weight:600;">Forgot password?</MudLink>
                 }
                 else
                 {
@@ -60,9 +60,9 @@
                 }
             </div>
 
-            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" 
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Dark" 
                        FullWidth="true" Size="Size.Large" Disabled="@_isLoading" 
-                       Style="border-radius: 8px; height: 50px;">
+                       Style="border-radius: 8px; height: 50px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;">
                 @if (_isLoading)
                 {
                     <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -128,7 +128,7 @@
 
         try
         {
-            var (result, statusCode, retryAfter) = await AuthService.Login(_model!);
+            var (result, statusCode, retryAfter, remainingAttempts) = await AuthService.Login(_model!);
             if (result != null)
             {
                 NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
@@ -141,7 +141,9 @@
             }
             else
             {
-                _errorMessage = "Invalid email or password.";
+                _errorMessage = remainingAttempts > 0
+                    ? $"Invalid email or password. {remainingAttempts} attempt{(remainingAttempts != 1 ? "s" : "")} remaining."
+                    : "Invalid email or password.";
             }
         }
         catch (Exception)

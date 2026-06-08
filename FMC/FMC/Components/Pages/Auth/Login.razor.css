@@ -11,3 +11,7 @@
     background: #2a0a0f; border: 1px solid #8b2252; border-radius: 8px;
     padding: 10px 12px; color: #e8a0b0; font-size: 0.75rem; font-weight: 600;
 }
+.fmc-login-attempts-remaining {
+    font-size: 0.65rem; font-weight: 600; color: var(--mud-palette-text-secondary);
+    text-align: center; margin-top: -8px; margin-bottom: 8px;
+}

@@ -85,4 +85,11 @@ public interface IOrganizationRepository
     Task<Account?> GetAccountByCardNumberAsync(string cardNumber, Guid organizationId, CancellationToken ct = default);
     Task AddAccountAsync(Account account, CancellationToken ct = default);
     Task<bool> ExistsTransactionWithIdempotencyKeyAsync(string key, CancellationToken ct = default);
+
+    // --- Transaction Support ---
+    /// <summary>
+    /// Begins an explicit database transaction. Callers must commit or rollback
+    /// the returned <see cref="IDbContextTransaction"/>.
+    /// </summary>
+    Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default);
 }

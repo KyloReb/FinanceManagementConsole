@@ -36,4 +36,10 @@ public interface IEmailTemplateService
     /// Generates the HTML body for a unified batch approval/rejection notification.
     /// </summary>
     string GenerateBatchNotificationEmail(string orgName, string batchAction, IEnumerable<FMC.Shared.DTOs.TransactionDto> transactions, bool hasAttachments);
+
+    /// <summary>
+    /// Generates the HTML body for a suspicious login attempt alert sent to the account owner.
+    /// Includes IP address, timestamp, user agent, and security recommendations.
+    /// </summary>
+    string GenerateSuspiciousLoginAlertEmail(string userName, string ipAddress, string userAgent, string timestamp, int failedAttempts, int remainingBeforeLockout);
 }

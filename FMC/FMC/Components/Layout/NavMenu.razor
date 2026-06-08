@@ -1,37 +1,31 @@
 @using FMC.Shared.Auth
 <div class="fmc-nav-container">
-    <div class="fmc-nav-scroll">
+    <div class="fmc-nav-list">
         @* ── CORE SUITE ── *@
         <div class="fmc-nav-group-label">CORE SUITE</div>
-        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Class="fmc-nav-link">Dashboard</MudNavLink>
-        <MudNavLink Href="transactions" Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="fmc-nav-link">Transactions</MudNavLink>
-        <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.CreditCard" Class="fmc-nav-link">Accounts</MudNavLink>
-        <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Insights" Class="fmc-nav-link">Reports</MudNavLink>
+        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Class="fmc-nav-link" title="Dashboard">Dashboard</MudNavLink>
+        <MudNavLink Href="transactions" Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="fmc-nav-link" title="View All Transactions">Transactions</MudNavLink>
+        <MudNavLink Href="accounts" Icon="@Icons.Material.Filled.CreditCard" Class="fmc-nav-link" title="Manage Accounts">Accounts</MudNavLink>
+        <MudNavLink Href="reports" Icon="@Icons.Material.Filled.Insights" Class="fmc-nav-link" title="Financial Reports">Reports</MudNavLink>
 
         <AuthorizeView Roles="@($"{Roles.SuperAdmin},{Roles.CEO},{Roles.Maker},{Roles.Approver},{Roles.SuperAdminApprover}")">
             <Authorized>
-                <div class="fmc-nav-group-divider"></div>
-                @* ── CRITICAL FORENSICS ── *@
-                <div class="fmc-nav-group-label">SECURITY REVIEWS</div>
-                <MudNavLink Href="admin/audit" Icon="@Icons.Material.Filled.Shield" Class="fmc-nav-link">Audit Intelligence</MudNavLink>
+                <MudNavLink Href="admin/audit" Icon="@Icons.Material.Filled.Shield" Class="fmc-nav-link" title="Audit Intelligence">Audit Intelligence</MudNavLink>
             </Authorized>
         </AuthorizeView>
 
         <AuthorizeView Roles="@($"{Roles.CEO},{Roles.Approver},{Roles.SuperAdminApprover},{Roles.Maker},{Roles.SuperAdmin}")">
             <Authorized>
-                <div class="fmc-nav-group-divider"></div>
-                <div class="fmc-nav-group-label">CORPORATE</div>
-                <MudNavLink Href="/pending-requests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PendingActions" Class="fmc-nav-link">Pending Requests</MudNavLink>
+                <MudNavLink Href="/pending-requests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PendingActions" Class="fmc-nav-link" title="Pending Requests">Pending Requests</MudNavLink>
             </Authorized>
         </AuthorizeView>
 
         <AuthorizeView Roles="@Roles.SuperAdmin">
             <Authorized>
                 <div class="fmc-nav-group-divider"></div>
-                @* ── ADMINISTRATION ── *@
-                <div class="fmc-nav-group-label">SYSTEM ADMINISTRATION</div>
+                <div class="fmc-nav-group-label">ADMINISTRATION</div>
 
-                <MudNavLink Href="admin/docs" Icon="@Icons.Material.Filled.LibraryBooks" Class="fmc-nav-link">System Artifacts</MudNavLink>
+                <MudNavLink Href="admin/docs" Icon="@Icons.Material.Filled.LibraryBooks" Class="fmc-nav-link" title="Documentation">Documentation</MudNavLink>
             </Authorized>
         </AuthorizeView>
 
@@ -42,62 +36,60 @@
     .fmc-nav-container { 
         height: 100%; display: flex; flex-direction: column; 
         background-color: var(--mud-palette-surface);
-        padding: 12px 0 0 0;
-        overflow-x: hidden;
-        overflow-y: hidden;
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+        padding: 8px 0 0 0;
+        overflow: hidden;
     }
-    
-    .fmc-nav-container::-webkit-scrollbar, .fmc-nav-scroll::-webkit-scrollbar {
-        display: none;
-    }
-    
-    .fmc-nav-scroll {
-        overflow-x: hidden;
-        overflow-y: hidden;
+
+    .fmc-nav-list {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        min-height: 100%;
+        overflow: hidden;
+        padding: 4px 0;
     }
 
     .fmc-nav-group-label { 
-        padding: 24px 24px 8px 24px; font-size: 0.62rem; font-weight: 900; 
-        color: var(--mud-palette-text-secondary); opacity: 0.6; letter-spacing: 0.15em;
+        padding: 4px 24px 2px 24px; font-size: 0.55rem; font-weight: 900; 
+        color: var(--mud-palette-text-secondary); opacity: 0.4; letter-spacing: 0.15em;
+        text-transform: uppercase;
+        flex-shrink: 0;
     }
-    
-    .fmc-nav-group-divider { margin: 12px 24px; height: 1px; background: var(--mud-palette-divider); opacity: 0.5; }
 
-    /* Premium Link Styling */
+    .fmc-nav-group-divider { margin: 2px 24px; height: 1px; background: var(--mud-palette-divider); opacity: 0.3; flex-shrink: 0; }
+
     .fmc-nav-link { 
-        margin: 4px 12px; border-radius: 12px !important; 
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        height: 48px !important; display: flex !important; align-items: center !important;
+        margin: 0 10px; border-radius: 8px !important; 
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        flex: 1 1 0 !important;
+        display: flex !important; align-items: center !important;
         color: var(--mud-palette-text-secondary) !important;
-        font-weight: 600 !important; font-size: 0.88rem !important;
+        font-weight: 600 !important; font-size: 0.78rem !important;
     }
-    
+
     .fmc-nav-link:hover { 
-        background: rgba(var(--mud-palette-primary-rgb), 0.04) !important; 
-        color: var(--mud-palette-primary) !important;
+        background: rgba(184, 134, 11, 0.08) !important;
+        color: #b8860b !important;
     }
-    
-    /* Elegant Active State */
+
     .mud-nav-link.active { 
-        background: linear-gradient(90deg, rgba(var(--mud-palette-primary-rgb), 0.08) 0%, rgba(var(--mud-palette-primary-rgb), 0) 100%) !important;
-        color: var(--mud-palette-primary) !important;
+        background: linear-gradient(90deg, rgba(184, 134, 11, 0.1) 0%, rgba(184, 134, 11, 0) 100%) !important;
+        color: #b8860b !important;
         font-weight: 800 !important;
         position: relative;
     }
-    
+
     .mud-nav-link.active::before {
-        content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px;
-        background: var(--mud-palette-primary); border-radius: 0 4px 4px 0;
-        box-shadow: 2px 0 8px rgba(var(--mud-palette-primary-rgb), 0.4);
+        content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+        background: #b8860b; border-radius: 0 3px 3px 0;
+        box-shadow: 2px 0 6px rgba(184, 134, 11, 0.4);
     }
-    
+
     .fmc-nav-link .mud-nav-link-icon-default { 
-        margin-right: 16px !important; transition: transform 0.25s;
+        margin-right: 12px !important; transition: transform 0.2s;
         color: inherit !important;
     }
-    
+
     .fmc-nav-link:hover .mud-nav-link-icon-default { transform: translateX(2px); }
 
 </style>

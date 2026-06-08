@@ -201,7 +201,7 @@
 .fmc-scroll-list::-webkit-scrollbar-thumb { background: var(--mud-palette-divider); border-radius: 3px; }
 .fmc-scroll-list::-webkit-scrollbar-thumb:hover { background: var(--mud-palette-text-secondary); }
 
-/* Enterprise Buttons - High-Fidelity Premium Overhaul */
+/* Enterprise Buttons - Premium Non-AI Palette */
 ::deep .fmc-enterprise-btn {
     border-radius: 12px !important;
     height: 42px !important;
@@ -220,54 +220,43 @@
 
 ::deep .fmc-enterprise-btn:hover {
     transform: translateY(-3px) scale(1.02);
-    filter: contrast(1.1) brightness(1.1);
+    filter: brightness(1.15);
 }
 
 ::deep .fmc-enterprise-btn:active {
     transform: translateY(-1px) scale(0.98);
 }
 
-/* Credit Button: Radiant Azure Gradient */
+/* Credit Button: Forest Green */
 ::deep .fmc-enterprise-btn.credit {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-    box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39) !important;
+    background: #2d5a27 !important;
+    box-shadow: 0 4px 14px rgba(45, 90, 39, 0.4) !important;
 }
-
 ::deep .fmc-enterprise-btn.credit:hover {
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+    box-shadow: 0 6px 20px rgba(45, 90, 39, 0.5) !important;
 }
 
-/* Debit Button: Premium Crimson Rose Gradient */
+/* Debit Button: Deep Burgundy */
 ::deep .fmc-enterprise-btn.debit {
-    background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%) !important;
-    box-shadow: 0 4px 14px 0 rgba(225, 29, 72, 0.35) !important;
+    background: #8b2252 !important;
+    box-shadow: 0 4px 14px rgba(139, 34, 82, 0.35) !important;
 }
-
 ::deep .fmc-enterprise-btn.debit:hover {
-    box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5) !important;
+    box-shadow: 0 6px 20px rgba(139, 34, 82, 0.5) !important;
 }
 
-/* Bulk Button: Institutional Emerald Teal Gradient */
+/* Bulk Button: Dark Charcoal */
 ::deep .fmc-enterprise-btn.bulk {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-    box-shadow: 0 4px 14px 0 rgba(5, 150, 105, 0.35) !important;
+    background: #3a3a3a !important;
+    box-shadow: 0 4px 14px rgba(58, 58, 58, 0.35) !important;
 }
-
 ::deep .fmc-enterprise-btn.bulk:hover {
-    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.5) !important;
+    box-shadow: 0 6px 20px rgba(58, 58, 58, 0.45) !important;
 }
 
-/* Dark Mode Adjustments */
+/* Dark Mode: no border adds, no gradient overrides — prevents width changes that cause wrapping */
 .fmc-dark-mode ::deep .fmc-enterprise-btn {
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-.fmc-dark-mode ::deep .fmc-enterprise-btn.credit {
-    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.25) !important;
-}
-
-.fmc-dark-mode ::deep .fmc-enterprise-btn.debit {
-    background: linear-gradient(135deg, #334155 0%, #0f172a 100%) !important;
+    border: none !important;
 }
 
 .fmc-panel-container {
@@ -468,9 +457,14 @@
     .fmc-glass-card .d-flex.align-end {
         overflow: hidden;
     }
-    .fmc-maker-root .d-flex.gap-3 {
-        flex-wrap: nowrap;
+    .fmc-actions-row {
+        width: 100%;
         gap: 4px;
+    }
+    .fmc-actions-row ::deep .fmc-enterprise-btn {
+        flex: 1 !important;
+        min-width: 0 !important;
+        padding: 0 6px !important;
     }
     ::deep .fmc-enterprise-btn {
         font-size: 0.55rem !important;

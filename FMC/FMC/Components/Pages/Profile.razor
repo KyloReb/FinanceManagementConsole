@@ -507,6 +507,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ThemeService.OnChange += HandleThemeChanged;
+
         try
         {
             if (string.IsNullOrEmpty(UserId))
@@ -548,6 +550,17 @@
         _activityCts = new CancellationTokenSource();
         if (_activityEntries.Count == 0)
             _ = LoadActivityDataAsync(_activityCts.Token);
+    }
+
+    private void HandleThemeChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnChange -= HandleThemeChanged;
+        _activityCts?.Cancel();
     }
 
     private string MaskEmail(string? email)
@@ -856,10 +869,4 @@
 
     #endregion
 
-    public void Dispose()
-    {
-        _activityCts?.Cancel();
-        _activityCts?.Dispose();
-        _activityCts = null;
-    }
 }

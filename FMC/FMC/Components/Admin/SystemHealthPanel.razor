@@ -47,6 +47,11 @@
             <div class="d-flex justify-space-between py-2"><div class="skeleton-box" style="height: 16px; width: 40%;"></div><div class="skeleton-box" style="height: 16px; width: 20%;"></div></div>
             <div class="d-flex justify-space-between py-2"><div class="skeleton-box" style="height: 16px; width: 40%;"></div><div class="skeleton-box" style="height: 16px; width: 20%;"></div></div>
         </div>
+        <!-- Error skeleton -->
+        <div class="error-section">
+            <div class="skeleton-box" style="height: 14px; width: 30%;"></div>
+            <div class="skeleton-box mt-3" style="height: 40px; width: 100%;"></div>
+        </div>
     }
     else
     {
@@ -105,12 +110,105 @@
                 </div>
             }
         </div>
+
+        <!-- Recent Client Errors -->
+        <div class="error-section">
+            <div class="error-section-header" @onclick="ToggleErrorSection">
+                <div class="error-section-title">
+                    <span class="error-section-icon">&#9888;</span>
+                    <span>Recent Client Errors</span>
+                    <span class="error-count-badge @(_clientErrors.Count > 0 ? "has-errors" : "")">@_clientErrors.Count</span>
+                </div>
+                <div class="error-section-toggle">
+                    <span>@(_showErrors ? "Hide" : "Show")</span>
+                    <span class="toggle-chevron @(_showErrors ? "open" : "")">&#9660;</span>
+                </div>
+            </div>
+
+            @if (_showErrors)
+            {
+                @if (_isLoadingErrors)
+                {
+                    <div class="error-loading">
+                        <div class="skeleton-box" style="height: 36px; width: 100%;"></div>
+                        <div class="skeleton-box mt-2" style="height: 36px; width: 100%;"></div>
+                    </div>
+                }
+                else if (_clientErrors.Count == 0)
+                {
+                    <div class="error-empty">
+                        <span class="error-empty-icon">&#10003;</span>
+                        <span>No client errors reported in the last monitoring window</span>
+                    </div>
+                }
+                else if (_clientErrors.Count > 0)
+                {
+                    var hourlyBins = BuildHourlyBins(_clientErrors);
+                    var maxBin = hourlyBins.Values.Count > 0 ? hourlyBins.Values.Max() : 1;
+                    <div class="error-chart">
+                        <div class="chart-label">24H ERROR FREQUENCY</div>
+                        <div class="chart-bars">
+                            @foreach (var kvp in hourlyBins.OrderBy(k => k.Key))
+                            {
+                                var pct = (kvp.Value * 100) / Math.Max(maxBin, 1);
+                                <div class="chart-bar-group">
+                                    <div class="chart-bar" style="height: @pct%"></div>
+                                    <span class="chart-bar-label">@kvp.Key.ToString("HH")</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="error-list">
+                        @foreach (var err in _clientErrors)
+                        {
+                            var isExpanded = _expandedErrorId == err.Id;
+                            <div class="error-entry @(isExpanded ? "expanded" : "")">
+                                <div class="error-entry-header" @onclick="() => ToggleErrorDetail(err.Id)">
+                                    <div class="error-entry-summary">
+                                        <span class="error-msg">@TruncateMessage(err.Details, 80)</span>
+                                        <span class="error-time">@FormatRelativeTime(err.CreatedAt)</span>
+                                    </div>
+                                    <div class="error-entry-meta">
+                                        <span class="error-component">@(err.EntityName ?? "N/A")</span>
+                                        <span class="error-expand-icon">@(isExpanded ? "&#9650;" : "&#9660;")</span>
+                                    </div>
+                                </div>
+                                @if (isExpanded)
+                                {
+                                    <div class="error-detail">
+                                        <div class="error-detail-row">
+                                            <span class="error-detail-label">User</span>
+                                            <span class="error-detail-value">@(err.PerformedBy ?? "Unknown")</span>
+                                        </div>
+                                        <div class="error-detail-row">
+                                            <span class="error-detail-label">Device</span>
+                                            <span class="error-detail-value">@(err.Device ?? "N/A")</span>
+                                        </div>
+                                        <div class="error-detail-row">
+                                            <span class="error-detail-label">Time</span>
+                                            <span class="error-detail-value">@err.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                        </div>
+                                        <div class="error-trace-box">
+                                            <pre>@err.Details</pre>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
     }
 </div>
 
 @code {
     private SystemHealthDto? _health;
     private Timer? _timer;
+    private List<AuditLogDto> _clientErrors = new();
+    private bool _isLoadingErrors;
+    private bool _showErrors = true;
+    private long? _expandedErrorId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -133,6 +231,7 @@
         try
         {
             _health = await AdminService.GetSystemHealthPulseAsync();
+            await LoadClientErrors();
             
             // Phase 1: Hybrid Notification Integration
             if (_health != null)
@@ -170,6 +269,68 @@
         {
             StateHasChanged();
         }
+    }
+
+    private async Task LoadClientErrors()
+    {
+        _isLoadingErrors = true;
+        try
+        {
+            _clientErrors = await AdminService.GetRecentClientErrorsAsync(10);
+        }
+        catch
+        {
+            // Silent fail — errors section stays empty
+        }
+        finally
+        {
+            _isLoadingErrors = false;
+        }
+    }
+
+    private void ToggleErrorSection()
+    {
+        _showErrors = !_showErrors;
+        if (!_showErrors)
+            _expandedErrorId = null;
+    }
+
+    private void ToggleErrorDetail(long id)
+    {
+        _expandedErrorId = _expandedErrorId == id ? null : id;
+    }
+
+    private static string TruncateMessage(string? message, int maxLen)
+    {
+        if (string.IsNullOrEmpty(message)) return "No details";
+        return message.Length <= maxLen ? message : message[..maxLen] + "...";
+    }
+
+    private static Dictionary<DateTime, int> BuildHourlyBins(List<AuditLogDto> errors)
+    {
+        var bins = new Dictionary<DateTime, int>();
+        var now = DateTime.UtcNow;
+        for (int i = 23; i >= 0; i--)
+        {
+            var hour = now.AddHours(-i).Date.AddHours(now.AddHours(-i).Hour);
+            bins[hour] = 0;
+        }
+        foreach (var err in errors)
+        {
+            var hourKey = err.CreatedAt.ToUniversalTime().Date.AddHours(err.CreatedAt.ToUniversalTime().Hour);
+            if (bins.ContainsKey(hourKey))
+                bins[hourKey]++;
+        }
+        return bins;
+    }
+
+    private static string FormatRelativeTime(DateTime dt)
+    {
+        var span = DateTime.UtcNow - dt.ToUniversalTime();
+        if (span.TotalMinutes < 1) return "just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+        return $"{(int)span.TotalDays}d ago";
     }
 
     private string FormatUptime(TimeSpan? uptime)

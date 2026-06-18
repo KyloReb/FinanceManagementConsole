@@ -224,6 +224,10 @@ public class AuditService : IAuditService
         {
             query = query.Where(a => a.Amount != null || a.TenantId == "FINANCIAL");
         }
+        else if (category == "error")
+        {
+            query = query.Where(a => a.Action == "CLIENT_CRASH");
+        }
 
         var logs = await query.Take(count).ToListAsync();
         var orgs = await _context.Organizations.IgnoreQueryFilters().ToListAsync();
@@ -285,7 +289,9 @@ public class AuditService : IAuditService
         if (queryDto.Category == "financial")
             dbQuery = dbQuery.Where(a => a.Amount != null || a.TenantId == "FINANCIAL");
         else if (queryDto.Category == "auth")
-            dbQuery = dbQuery.Where(a => a.Amount == null && a.TenantId != "FINANCIAL");
+            dbQuery = dbQuery.Where(a => a.Amount == null && a.TenantId != "FINANCIAL" && a.Action != "CLIENT_CRASH");
+        else if (queryDto.Category == "error")
+            dbQuery = dbQuery.Where(a => a.Action == "CLIENT_CRASH");
 
         if (!string.IsNullOrEmpty(queryDto.Action))
             dbQuery = dbQuery.Where(a => a.Action.Contains(queryDto.Action));

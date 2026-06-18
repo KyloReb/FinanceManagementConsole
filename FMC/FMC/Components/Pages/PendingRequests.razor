@@ -121,53 +121,38 @@
     {
         if (_loading)
         {
-            <div class="pa-6 w-100">
+            <div class="pa-4 w-100" style="max-width:100%;overflow:hidden;">
                 <!-- Skeleton Toolbar -->
-                <div class="d-flex align-center justify-space-between mb-6 px-2">
-                    <MudSkeleton Width="200px" Height="28px" Animation="Animation.Pulse" />
-                    <div class="d-flex gap-3">
-                        <MudSkeleton Width="280px" Height="40px" Animation="Animation.Pulse" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 12px;" />
+                <div class="d-flex align-center justify-space-between mb-4 px-2">
+                    <MudSkeleton Width="140px" Height="22px" Animation="Animation.Pulse" />
+                    <div class="d-flex gap-2">
+                        <MudSkeleton Width="120px" Height="36px" Animation="Animation.Pulse" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 8px;" />
                     </div>
                 </div>
                 
-                <!-- Skeleton Table Header -->
-                <div class="d-flex mb-2 px-6 pb-4" style="border-bottom: 2px solid var(--mud-palette-divider);">
-                    <MudSkeleton Width="12%" Height="18px" Class="mr-4" />
-                    <MudSkeleton Width="35%" Height="18px" Class="mr-4" />
-                    <MudSkeleton Width="15%" Height="18px" Class="mr-4" />
-                    <MudSkeleton Width="15%" Height="18px" Class="mr-4" />
-                    <MudSkeleton Width="23%" Height="18px" />
-                </div>
-                
-                <!-- Skeleton Rows -->
-                @for (int i = 0; i < 6; i++)
-                {
-                    <div class="d-flex align-center px-6 py-4" style="border-bottom: 1px solid rgba(var(--mud-palette-divider-rgb), 0.3);">
-                        <div class="mr-4" style="width: 12%;">
-                            <MudSkeleton Width="60%" Height="20px" Class="mb-1" />
-                            <MudSkeleton Width="80%" Height="14px" />
-                        </div>
-                        <div class="mr-4" style="width: 35%;">
-                            <MudSkeleton Width="50%" Height="20px" Class="mb-1" />
-                            <MudSkeleton Width="30%" Height="14px" />
-                        </div>
-                        <div class="mr-4" style="width: 15%;">
-                            <div class="d-flex align-center">
-                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="24px" Height="24px" Class="mr-2" />
-                                <MudSkeleton Width="60%" Height="18px" />
+                <!-- Skeleton Cards (match mobile tx-card format) -->
+                <div class="fmc-skel-card-list">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <div class="fmc-skel-mobile-card">
+                            <div class="d-flex justify-space-between align-start mb-2">
+                                <div style="flex:1; min-width:0; margin-right:12px;">
+                                    <MudSkeleton Width="55%" Height="18px" Class="mb-2" />
+                                    <MudSkeleton Width="35%" Height="13px" />
+                                </div>
+                                <MudSkeleton Width="70px" Height="20px" Style="flex-shrink:0;" />
                             </div>
-                        </div>
-                        <div class="mr-4" style="width: 15%;">
-                            <MudSkeleton Width="70%" Height="24px" />
-                        </div>
-                        <div style="width: 23%;">
+                            <div class="d-flex align-center gap-2 mb-3">
+                                <MudSkeleton Width="60px" Height="16px" Style="border-radius:4px;" />
+                                <MudSkeleton Width="50px" Height="14px" />
+                            </div>
                             <div class="d-flex gap-2">
-                                <MudSkeleton Width="100px" Height="32px" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 8px;" />
-                                <MudSkeleton Width="100px" Height="32px" SkeletonType="SkeletonType.Rectangle" Style="border-radius: 8px;" />
+                                <MudSkeleton Width="48%" Height="34px" SkeletonType="SkeletonType.Rectangle" Style="border-radius:10px;" />
+                                <MudSkeleton Width="48%" Height="34px" SkeletonType="SkeletonType.Rectangle" Style="border-radius:10px;" />
                             </div>
                         </div>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         }
         else if (!groups.Any())
@@ -498,7 +483,7 @@
                 {
                     @foreach (var group in displayedGroups)
                     {
-                        <div class="fmc-mobile-tx-card">
+                        <div class="fmc-mobile-tx-card" @onclick="@(async () => { if(!group.BatchId.HasValue) await OpenDetailAsync(group.Transactions.First()); })" style="cursor:pointer;">
                             <div class="fmc-mobile-tx-top">
                                 <div class="fmc-mobile-tx-info">
                                     <span class="fmc-mobile-tx-entity">@(group.Transactions.FirstOrDefault()?.Subscriber ?? group.Label)</span>
@@ -985,6 +970,34 @@
         transition: all 0.2s ease;
     }
     .fmc-mobile-tx-card:active { transform: scale(0.99); }
+
+    /* ── Skeleton loading cards for pending requests ── */
+    .fmc-skel-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 0 4px;
+    }
+    .fmc-skel-mobile-card {
+        background: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 14px;
+        padding: 14px;
+    }
+    .fmc-skel-mobile-card .mud-skeleton {
+        background: linear-gradient(90deg, var(--mud-palette-divider) 25%, rgba(0,0,0,0.04) 50%, var(--mud-palette-divider) 75%);
+        background-size: 500px 100%;
+        animation: fmc-shimmer-pending 1.6s ease-in-out infinite;
+        border-radius: 4px;
+    }
+    .fmc-dark-mode .fmc-skel-mobile-card .mud-skeleton {
+        background: linear-gradient(90deg, var(--mud-palette-divider) 25%, rgba(255,255,255,0.04) 50%, var(--mud-palette-divider) 75%);
+        background-size: 500px 100%;
+    }
+    @@keyframes fmc-shimmer-pending {
+        0% { background-position: -500px 0; }
+        100% { background-position: 500px 0; }
+    }
     .fmc-mobile-tx-top {
         display: flex;
         align-items: flex-start;

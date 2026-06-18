@@ -8,6 +8,13 @@
         @ChildContent
     </ChildContent>
     <ErrorContent Context="exception">
+        @{
+            if (!_errorReported)
+            {
+                _errorReported = true;
+                _ = ReportError(exception);
+            }
+        }
         <div class="fmc-error-boundary-panel">
             <div class="error-container">
                 <MudIcon Icon="@Icons.Material.Filled.RunningWithErrors" Size="Size.Large" Color="Color.Error" />
@@ -44,28 +51,32 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     private ErrorBoundary? _errorBoundary;
     private bool _showTrace;
+    private bool _errorReported;
 
     protected override async Task OnParametersSetAsync()
     {
-        // When parameters change (like navigation), try to reset the error boundary
+        _errorReported = false;
         _errorBoundary?.Recover();
     }
 
     private void Recover()
     {
         _showTrace = false;
+        _errorReported = false;
         _errorBoundary?.Recover();
     }
 
-    internal async Task ReportError(Exception ex, string? componentName = null)
+    private async Task ReportError(Exception ex)
     {
-        // This is called by the ErrorBoundary internally if we use a custom one, 
-        // but here we are using the standard one's ErrorContent.
-        // Blazor doesn't give us an easy "OnError" hook in the standard component,
-        // so we'll use the OnParametersSet trick or just report it when ErrorContent renders.
-        
-        await AdminService.ReportClientErrorAsync(ex.Message, ex.StackTrace ?? "No stack trace available", componentName);
-        Snackbar.Add("Diagnostic report transmitted to SuperAdmin.", Severity.Info);
+        try
+        {
+            await AdminService.ReportClientErrorAsync(ex.Message, ex.StackTrace ?? "No stack trace available");
+            Snackbar.Add("Diagnostic report transmitted to SuperAdmin.", Severity.Info);
+        }
+        catch
+        {
+            // Silent fail for error reporting to avoid infinite loops
+        }
     }
 }
 

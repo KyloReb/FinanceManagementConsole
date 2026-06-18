@@ -117,7 +117,12 @@
         @foreach (var type in GetDisplayTypes())
         {
             <div class="fmc-report-panel">
-            @* ── KPI row (outside surface, above the table) ── *@
+            <div class="fmc-surface-header fmc-mobile-header">
+                <MudText Typo="Typo.h6" Style="font-weight: 800;">@GetReportTitle(type)</MudText>
+                <MudSpacer />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetDateRangeLabel()</MudText>
+            </div>
+            @* ── KPI row ── *@
             @if (type == "disbursement")
             {
                 <div class="fmc-kpi-row">
@@ -157,7 +162,7 @@
             }
 
             <div class="fmc-reports-surface">
-                <div class="fmc-surface-header">
+                <div class="fmc-surface-header fmc-desktop-header">
                     <MudText Typo="Typo.h6" Style="font-weight: 800;">@GetReportTitle(type)</MudText>
                     <MudSpacer />
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetDateRangeLabel()</MudText>

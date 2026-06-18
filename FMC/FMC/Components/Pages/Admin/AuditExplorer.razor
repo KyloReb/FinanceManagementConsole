@@ -226,6 +226,7 @@
                         <button class="fmc-date-btn @(_query.Category == null ? "active" : "")" @onclick='() => SetCategory(null)'>ALL CAT</button>
                         <button class="fmc-date-btn @(_query.Category == "financial" ? "active" : "")" @onclick='() => SetCategory("financial")'>FINANCIAL</button>
                         <button class="fmc-date-btn @(_query.Category == "auth" ? "active" : "")" @onclick='() => SetCategory("auth")'>SECURITY</button>
+                        <button class="fmc-date-btn @(_query.Category == "error" ? "active" : "")" @onclick='() => SetCategory("error")'>ERRORS</button>
                     </div>
                     <div class="fmc-date-group mr-3">
                         <button class="fmc-date-btn @(_activeDateRange == "all" ? "active" : "")" @onclick='() => SetQuickDate("all")'>ALL</button>
@@ -667,7 +668,8 @@
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private int _financialCount => _searchResult.Items.Count(i => i.Action == "CREDIT" || i.Action == "DEBIT");
-    private int _authCount => _searchResult.Items.Count(i => i.Action != "CREDIT" && i.Action != "DEBIT");
+    private int _authCount => _searchResult.Items.Count(i => i.Action != "CREDIT" && i.Action != "DEBIT" && i.Action != "CLIENT_CRASH");
+    private int _errorCount => _searchResult.Items.Count(i => i.Action == "CLIENT_CRASH");
 
     protected override async Task OnInitializedAsync()
     {
@@ -858,6 +860,7 @@
             "WALLET_ADJUSTED" => "Wallet Adjusted",
             "EXHAUSTION_WARNING" => "Exhaustion Warning",
             "APPROVAL_SUCCESS" => "Approval Success",
+            "CLIENT_CRASH" => "Client Error Crash",
             _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(action.Replace("_", " ").ToLower())
         };
     }

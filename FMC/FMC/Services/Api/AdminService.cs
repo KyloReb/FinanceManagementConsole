@@ -79,6 +79,27 @@ public class AdminService
         }
     }
 
+    public async Task<List<FMC.Shared.DTOs.Admin.AuditLogDto>> GetRecentClientErrorsAsync(int count = 10)
+    {
+        try
+        {
+            var query = new FMC.Shared.DTOs.Admin.AuditLogQueryDto
+            {
+                Action = "CLIENT_CRASH",
+                PageSize = count,
+                Page = 1
+            };
+            var response = await _httpClient.PostAsJsonAsync("api/audit/search", query);
+            if (!response.IsSuccessStatusCode) return new();
+            var result = await response.Content.ReadFromJsonAsync<FMC.Shared.DTOs.Admin.AuditLogSearchResultDto>();
+            return result?.Items ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
     public async Task ReportClientErrorAsync(string message, string stackTrace, string? component = null)
     {
         try

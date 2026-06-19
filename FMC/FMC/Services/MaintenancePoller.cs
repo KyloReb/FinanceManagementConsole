@@ -18,7 +18,7 @@ public class MaintenancePoller : IDisposable
     public void Start()
     {
         _ = PollAsync();
-        _timer = new Timer(async _ => await PollAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        _timer = new Timer(async _ => await PollAsync(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 
     private async Task PollAsync()
@@ -27,7 +27,7 @@ public class MaintenancePoller : IDisposable
         {
             using var scope = _scopeFactory.CreateScope();
             var baseUrl = _configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
-            using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(5) };
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(10) };
 
             var response = await client.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
             if (!response.IsSuccessStatusCode) return;

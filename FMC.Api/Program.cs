@@ -251,6 +251,41 @@ using (var scope = app.Services.CreateScope())
     await initializer.InitializeAsync();
 }
 
+// Maintenance state recovery — restore from audit log after restart
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var cache = scope.ServiceProvider.GetRequiredService<ICacheService>();
+        var audit = scope.ServiceProvider.GetRequiredService<IAuditService>();
+        var isActive = await cache.GetAsync<bool>("maintenance:mode");
+        if (!isActive)
+        {
+            var logs = await audit.GetRecentLogsAsync(20);
+            var maintEvents = logs.Where(l => l.Action?.StartsWith("MAINTENANCE_", StringComparison.OrdinalIgnoreCase) == true)
+                                  .OrderByDescending(l => l.CreatedAt).ToList();
+            var lastEnabled = maintEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_ENABLED");
+            var lastDisabled = maintEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_DISABLED");
+            if (lastEnabled != null && (lastDisabled == null || lastEnabled.CreatedAt > lastDisabled.CreatedAt))
+            {
+                var details = lastEnabled.Details ?? "Maintenance auto-recovered from audit log.";
+                var userName = lastEnabled.PerformedBy ?? "System (Recovery)";
+                await cache.SetAsync("maintenance:mode", true, null);
+                await cache.SetAsync("maintenance:message", details, null);
+                await cache.SetAsync("maintenance:activated_by", userName, null);
+                await cache.SetAsync("maintenance:activated_at", lastEnabled.CreatedAt.ToString("O"), null);
+                await cache.SetAsync("maintenance:blocked_count", 0L, null);
+                await cache.SetAsync("maintenance:mode_type", "full", null);
+                Console.WriteLine($"[STARTUP] Maintenance state RECOVERED from audit log. Enabled at: {lastEnabled.CreatedAt:O}");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[STARTUP] Maintenance recovery skipped: {ex.Message}");
+    }
+}
+
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 

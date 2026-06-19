@@ -279,7 +279,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(FMC.Client._Imports).Assembly);
 
-// Start background maintenance state polling (syncs with Redis every 30s)
+// Start background maintenance state polling (syncs with API every 5s)
 app.Services.GetRequiredService<MaintenancePoller>().Start();
 
 #endregion

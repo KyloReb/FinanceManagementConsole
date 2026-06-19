@@ -5,7 +5,6 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
-@inject FMC.Services.Api.AdminService AdminService
 @inject FMC.Services.ThemeService ThemeService
 @using FMC.Shared.DTOs.Admin
 @using System.Net
@@ -37,7 +36,7 @@
             </div>
         </div>
     }
-    else
+    else if (_initialized)
     {
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
         <MudImage Src="nlkLogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
@@ -112,6 +111,8 @@
 </div>
 
 @code {
+    private bool _initialized;
+
     [SupplyParameterFromForm]
     private LoginRequestDto? _model { get; set; }
     
@@ -127,10 +128,33 @@
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+    [Inject] private HttpClient HttpClient { get; set; } = default!;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _model ??= new();
+
+        // Check maintenance state immediately on page load — no login form if maintenance is active
+        try
+        {
+            var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content.ReadAsStringAsync();
+                var status = System.Text.Json.JsonSerializer.Deserialize<MaintenanceStatusDto>(json,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (status is { IsActive: true })
+                {
+                    _maintenanceMsg = status.Message ?? "System is undergoing scheduled maintenance.";
+                    _showMaintenance = true;
+                    StateHasChanged();
+                    return;
+                }
+            }
+        }
+        catch { }
+
+        _initialized = true;
     }
 
     private void TogglePasswordVisibility()
@@ -163,19 +187,7 @@
             var (result, statusCode, retryAfter, remainingAttempts) = await AuthService.Login(_model!);
             if (result != null)
             {
-                // Check if maintenance is active — if so, show maintenance page
-                try
-                {
-                    var maintenanceStatus = await AdminService.GetMaintenanceStatusAsync();
-                    if (maintenanceStatus is { IsActive: true })
-                    {
-                        _maintenanceMsg = maintenanceStatus.Message ?? "System is undergoing scheduled maintenance.";
-                        _showMaintenance = true;
-                        _isLoading = false;
-                        return;
-                    }
-                }
-                catch { }
+                // Maintenance check already done on page load — middleware handles block
                 NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
             }
             else if (statusCode == HttpStatusCode.TooManyRequests)

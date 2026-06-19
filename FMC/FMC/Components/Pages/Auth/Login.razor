@@ -18,7 +18,7 @@
         <div class="sc-maintenance-root @(ThemeService.IsDarkMode ? "dark" : "light")">
             <div class="sc-maintenance-card">
                 <div class="sc-maintenance-logo-wrap">
-                    <MudImage Src="nlkLogo.png" Height="32" ObjectFit="ObjectFit.Contain" />
+                    <img src="nlkLogo.png" alt="NLK Logo" style="height:32px; object-fit:contain;" />
                 </div>
                 <div class="sc-maintenance-icon">&#9881;</div>
                 <h1 class="sc-maintenance-title">Under Maintenance</h1>
@@ -36,7 +36,7 @@
             </div>
         </div>
     }
-    else if (_initialized)
+    else
     {
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
         <MudImage Src="nlkLogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
@@ -111,8 +111,6 @@
 </div>
 
 @code {
-    private bool _initialized;
-
     [SupplyParameterFromForm]
     private LoginRequestDto? _model { get; set; }
     
@@ -130,31 +128,9 @@
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
     [Inject] private HttpClient HttpClient { get; set; } = default!;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         _model ??= new();
-
-        // Check maintenance state immediately on page load — no login form if maintenance is active
-        try
-        {
-            var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
-            if (resp.IsSuccessStatusCode)
-            {
-                var json = await resp.Content.ReadAsStringAsync();
-                var status = System.Text.Json.JsonSerializer.Deserialize<MaintenanceStatusDto>(json,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (status is { IsActive: true })
-                {
-                    _maintenanceMsg = status.Message ?? "System is undergoing scheduled maintenance.";
-                    _showMaintenance = true;
-                    StateHasChanged();
-                    return;
-                }
-            }
-        }
-        catch { }
-
-        _initialized = true;
     }
 
     private void TogglePasswordVisibility()
@@ -187,7 +163,25 @@
             var (result, statusCode, retryAfter, remainingAttempts) = await AuthService.Login(_model!);
             if (result != null)
             {
-                // Maintenance check already done on page load — middleware handles block
+                // Check if maintenance is active — if so, show maintenance page
+                try
+                {
+                    var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var json = await resp.Content.ReadAsStringAsync();
+                        var status = System.Text.Json.JsonSerializer.Deserialize<MaintenanceStatusDto>(json,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (status is { IsActive: true })
+                        {
+                            _maintenanceMsg = status.Message ?? "System is undergoing scheduled maintenance.";
+                            _showMaintenance = true;
+                            _isLoading = false;
+                            return;
+                        }
+                    }
+                }
+                catch { }
                 NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
             }
             else if (statusCode == HttpStatusCode.TooManyRequests)

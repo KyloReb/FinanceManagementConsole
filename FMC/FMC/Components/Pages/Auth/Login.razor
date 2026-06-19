@@ -5,11 +5,40 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject FMC.Services.Api.AdminService AdminService
+@inject FMC.Services.ThemeService ThemeService
+@using FMC.Shared.DTOs.Admin
 @using System.Net
 
 <PageTitle>FMC — Sign In</PageTitle>
 
 <div class="d-flex justify-center align-center py-8" style="min-height: 100vh; background-color: var(--mud-palette-background);">
+
+    @if (_showMaintenance)
+    {
+        <div class="sc-maintenance-root @(ThemeService.IsDarkMode ? "dark" : "light")">
+            <div class="sc-maintenance-card">
+                <div class="sc-maintenance-logo-wrap">
+                    <MudImage Src="nlkLogo.png" Height="32" ObjectFit="ObjectFit.Contain" />
+                </div>
+                <div class="sc-maintenance-icon">&#9881;</div>
+                <h1 class="sc-maintenance-title">Under Maintenance</h1>
+                <p class="sc-maintenance-desc">@_maintenanceMsg</p>
+                <p class="sc-maintenance-accent">&#9679; We&rsquo;ll be back shortly</p>
+                <div class="sc-maintenance-contact">
+                    &#128231; For questions or inquiries, please contact<br/>
+                    <a href="mailto:nl.admin@nationlink.ph">nl.admin@nationlink.ph</a>
+                </div>
+                <div class="sc-maintenance-footer">
+                    <span class="sc-pulse-dot-sm"></span>
+                    FMC &middot; @DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                </div>
+                <button class="sc-maintenance-logout-btn" @onclick="Logout">Sign Out</button>
+            </div>
+        </div>
+    }
+    else
+    {
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
         <MudImage Src="nlkLogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
@@ -79,6 +108,7 @@
             </div>
         </EditForm>
     </MudCard>
+    }
 </div>
 
 @code {
@@ -92,6 +122,8 @@
     private int _rateLimitRemaining => Math.Max(0, (int)(_rateLimitExpiresAt - DateTime.UtcNow).TotalSeconds);
     private Timer? _countdownTimer;
 
+    private bool _showMaintenance;
+    private string _maintenanceMsg = "";
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
@@ -131,6 +163,15 @@
             var (result, statusCode, retryAfter, remainingAttempts) = await AuthService.Login(_model!);
             if (result != null)
             {
+                // Check if maintenance is active — if so, show maintenance page
+                var maintenanceStatus = await AdminService.GetMaintenanceStatusAsync();
+                if (maintenanceStatus is { IsActive: true })
+                {
+                    _maintenanceMsg = maintenanceStatus.Message ?? "System is undergoing scheduled maintenance.";
+                    _showMaintenance = true;
+                    _isLoading = false;
+                    return;
+                }
                 NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
             }
             else if (statusCode == HttpStatusCode.TooManyRequests)
@@ -168,6 +209,12 @@
             }
             await InvokeAsync(StateHasChanged);
         }, null, 0, 1000);
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.Logout("current");
+        NavigationManager.NavigateTo("/login", forceLoad: true);
     }
 
     public void Dispose()

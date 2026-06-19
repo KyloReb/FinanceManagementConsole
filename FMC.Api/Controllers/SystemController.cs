@@ -79,53 +79,34 @@ public class SystemController : ControllerBase
     [HttpGet("maintenance")]
     public async Task<ActionResult<MaintenanceStatusDto>> GetMaintenanceStatus()
     {
-        var isActive = await _cacheService.GetAsync<bool>("maintenance:mode");
-        var message = await _cacheService.GetAsync<string>("maintenance:message");
-        var activatedBy = await _cacheService.GetAsync<string>("maintenance:activated_by");
-        var activatedAtStr = await _cacheService.GetAsync<string>("maintenance:activated_at");
-        var blockedCount = await _cacheService.GetAsync<long>("maintenance:blocked_count");
-        var scheduledAtStr = await _cacheService.GetAsync<string>("maintenance:scheduled_at");
-        var scheduledMsg = await _cacheService.GetAsync<string>("maintenance:scheduled_message");
-        var modeType = await _cacheService.GetAsync<string>("maintenance:mode_type");
-        var graceMinutes = await _cacheService.GetAsync<int>("maintenance:grace_minutes");
+        // Read maintenance state directly from audit log (single source of truth — survives restarts)
+        var logs = await _auditService.GetRecentLogsAsync(50);
+        var maintEvents = logs.Where(l => l.Action?.StartsWith("MAINTENANCE_", StringComparison.OrdinalIgnoreCase) == true)
+                              .OrderByDescending(l => l.CreatedAt).ToList();
+        var lastEnabled = maintEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_ENABLED");
+        var lastDisabled = maintEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_DISABLED");
+        var isActive = lastEnabled != null && (lastDisabled == null || lastEnabled.CreatedAt > lastDisabled.CreatedAt);
 
-        // Auto-recover from audit log if Redis state was lost (e.g. server restart)
-        if (!isActive && string.IsNullOrEmpty(message))
+        // Restore cache for middleware that uses it
+        if (isActive)
         {
-            var lastLogs = await _auditService.GetRecentLogsAsync(20);
-            var maintenanceEvents = lastLogs.Where(l => l.Action?.StartsWith("MAINTENANCE_", StringComparison.OrdinalIgnoreCase) == true)
-                                            .OrderByDescending(l => l.CreatedAt).ToList();
-            var lastEnabled = maintenanceEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_ENABLED");
-            var lastDisabled = maintenanceEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_DISABLED");
-            if (lastEnabled != null && (lastDisabled == null || lastEnabled.CreatedAt > lastDisabled.CreatedAt))
-            {
-                _logger.LogWarning("Maintenance auto-recovered from audit log: unmatched MAINTENANCE_ENABLED at {Time}", lastEnabled.CreatedAt);
-                isActive = true;
-                var details = lastEnabled.Details ?? "Maintenance auto-recovered from audit log.";
-                var userName = lastEnabled.PerformedBy ?? "System (Recovery)";
-                message = details;
-                activatedAtStr = lastEnabled.CreatedAt.ToString("O");
-                activatedBy = userName;
-                await _cacheService.SetAsync("maintenance:mode", true, null);
-                await _cacheService.SetAsync("maintenance:message", details, null);
-                await _cacheService.SetAsync("maintenance:activated_by", userName, null);
-                await _cacheService.SetAsync("maintenance:activated_at", activatedAtStr, null);
-                await _cacheService.SetAsync("maintenance:blocked_count", 0L, null);
-                await _cacheService.SetAsync("maintenance:mode_type", "full", null);
-            }
+            var userName = lastEnabled!.PerformedBy ?? "System";
+            var details = lastEnabled.Details ?? "Maintenance is active.";
+            await _cacheService.SetAsync("maintenance:mode", true, null);
+            await _cacheService.SetAsync("maintenance:message", details, null);
+            await _cacheService.SetAsync("maintenance:activated_by", userName, null);
+            await _cacheService.SetAsync("maintenance:activated_at", lastEnabled.CreatedAt.ToString("O"), null);
+            await _cacheService.SetAsync("maintenance:mode_type", "full", null);
         }
 
         return Ok(new MaintenanceStatusDto
         {
             IsActive = isActive,
-            Message = message,
-            ActivatedBy = activatedBy,
-            ActivatedAt = !string.IsNullOrEmpty(activatedAtStr) ? DateTime.Parse(activatedAtStr, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
-            BlockedCount = blockedCount,
-            ScheduledAt = !string.IsNullOrEmpty(scheduledAtStr) ? DateTime.Parse(scheduledAtStr, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
-            ScheduledMessage = scheduledMsg,
-            ModeType = modeType ?? "full",
-            GraceMinutes = graceMinutes
+            Message = lastEnabled?.Details ?? (isActive ? "Maintenance is active." : null),
+            ActivatedBy = lastEnabled?.PerformedBy,
+            ActivatedAt = lastEnabled?.CreatedAt,
+            BlockedCount = 0,
+            ModeType = "full",
         });
     }
 

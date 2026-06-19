@@ -15,20 +15,7 @@
             <Found Context="routeData">
                 <AuthorizeView>
                     <Authorized>
-                        @{
-                            var isMaintenanceActive = FMC.Services.MaintenanceState.IsActive;
-                            var isSuperAdmin = context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin);
-                        }
-                        @if (isMaintenanceActive && !isSuperAdmin && !routeData.PageType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Any())
-                        {
-                            <LayoutView Layout="typeof(Layout.BlankLayout)">
-                                <RedirectToLogin />
-                            </LayoutView>
-                        }
-                        else
-                        {
-                            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-                        }
+                        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
                     </Authorized>
                     <NotAuthorized>
                         @if (routeData.PageType.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Any())

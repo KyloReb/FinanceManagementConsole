@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.Extensions.Caching.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,7 +91,7 @@ builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<GlobalAlertService>();
 builder.Services.AddScoped<SecurityStateService>();
 builder.Services.AddScoped<FMC.Application.Interfaces.ICurrentUserService, BlazorCurrentUserService>();
-builder.Services.AddSingleton<MaintenancePoller>();
+
 #endregion
 
 var app = builder.Build();
@@ -190,10 +191,9 @@ app.Use(async (context, next) =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Maintenance Mode Middleware — blocks non-admin requests when maintenance is active
+// Maintenance Mode Middleware — reads state directly from API (no desync)
 app.Use(async (context, next) =>
 {
-    // Always allow login, forgot-password, static assets, and Blazor frameworks through
     var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
     if (path.StartsWith("/login") || path.StartsWith("/forgot-password") || path.StartsWith("/verify-email") ||
         path.StartsWith("/not-found") || path.StartsWith("/_framework") || path.StartsWith("/_content") ||
@@ -206,45 +206,45 @@ app.Use(async (context, next) =>
         return;
     }
 
-    if (!FMC.Services.MaintenanceState.IsActive)
+    // Check maintenance state via a lightweight in-memory cache (10s TTL)
+    var cache = context.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+    var cached = cache.Get("maint_active") as bool?;
+    var cachedMsg = cache.Get("maint_msg") as string;
+    if (cached == null)
     {
-        // Check grace period (maintenance scheduled but not yet active)
-        if (FMC.Services.MaintenanceState.ScheduledAt.HasValue && FMC.Services.MaintenanceState.GraceMinutes > 0)
+        try
         {
-            var graceStart = FMC.Services.MaintenanceState.ScheduledAt.Value.AddMinutes(-FMC.Services.MaintenanceState.GraceMinutes);
-            var now = DateTime.UtcNow;
-            if (now >= graceStart && now < FMC.Services.MaintenanceState.ScheduledAt.Value && !context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin))
+            var config = context.RequestServices.GetRequiredService<IConfiguration>();
+            var baseUrl = config["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(3) };
+            var resp = await client.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+            if (resp.IsSuccessStatusCode)
             {
-                var remaining = (FMC.Services.MaintenanceState.ScheduledAt.Value - now).TotalSeconds;
-                var msg = FMC.Services.MaintenanceState.Message;
-                context.Response.StatusCode = 200;
-                context.Response.ContentType = "text/html; charset=utf-8";
-                await context.Response.WriteAsync(MaintenancePage.GraceHtml((int)remaining, msg));
-                return;
+                var json = await resp.Content.ReadAsStringAsync();
+                var dto = System.Text.Json.JsonSerializer.Deserialize<FMC.Shared.DTOs.Admin.MaintenanceStatusDto>(json,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (dto != null)
+                {
+                    cached = dto.IsActive;
+                    cachedMsg = dto.Message ?? "";
+                    cache.Set("maint_active", cached, TimeSpan.FromSeconds(10));
+                    cache.Set("maint_msg", cachedMsg, TimeSpan.FromSeconds(10));
+                }
             }
         }
+        catch { }
+    }
+
+    if (cached != true)
+    {
         await next();
         return;
     }
     if (!context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin))
     {
-        var msg = FMC.Services.MaintenanceState.Message;
-        var modeType = FMC.Services.MaintenanceState.ModeType;
-
-        // Read-only mode: allow GET, block POST/PUT/DELETE
-        if (modeType == "readonly")
-        {
-            var method = context.Request.Method.ToUpperInvariant();
-            if (method == "GET" || method == "HEAD" || method == "OPTIONS")
-            {
-                await next();
-                return;
-            }
-        }
-
         context.Response.StatusCode = 503;
         context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync(MaintenancePage.FullLockHtml(msg));
+        await context.Response.WriteAsync(MaintenancePage.FullLockHtml(cachedMsg ?? ""));
         return;
     }
     await next();
@@ -278,9 +278,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(FMC.Client._Imports).Assembly);
-
-// Start background maintenance state polling (syncs with API every 5s)
-app.Services.GetRequiredService<MaintenancePoller>().Start();
 
 #endregion
 

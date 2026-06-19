@@ -702,7 +702,6 @@
             _status = await AdminService.GetMaintenanceStatusAsync();
             if (_status != null)
             {
-                MaintenanceState.Sync(_status.IsActive, _status.Message, _status.ModeType ?? "full", _status.GraceMinutes, _status.ScheduledAt, _status.ScheduledMessage);
                 _editMessage = _status.Message ?? "";
                 _editModeType = _status.ModeType ?? "full";
                 _scheduleMsg = _status.ScheduledMessage ?? "";

@@ -164,14 +164,24 @@
             if (result != null)
             {
                 // Check if maintenance is active — if so, show maintenance page
-                var maintenanceStatus = await AdminService.GetMaintenanceStatusAsync();
-                if (maintenanceStatus is { IsActive: true })
+                try
                 {
-                    _maintenanceMsg = maintenanceStatus.Message ?? "System is undergoing scheduled maintenance.";
-                    _showMaintenance = true;
-                    _isLoading = false;
-                    return;
+                    var maintenanceStatus = await AdminService.GetMaintenanceStatusAsync();
+                    Console.WriteLine($"[MAINT-LOGIN] After login: status=null?{maintenanceStatus is null} IsActive={maintenanceStatus?.IsActive} Message={maintenanceStatus?.Message}");
+                    if (maintenanceStatus is { IsActive: true })
+                    {
+                        Console.WriteLine($"[MAINT-LOGIN] Maintenance is ACTIVE — showing maintenance page");
+                        _maintenanceMsg = maintenanceStatus.Message ?? "System is undergoing scheduled maintenance.";
+                        _showMaintenance = true;
+                        _isLoading = false;
+                        return;
+                    }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MAINT-LOGIN] Exception checking maintenance: {ex.Message}");
+                }
+                Console.WriteLine($"[MAINT-LOGIN] Maintenance not active — navigating to dashboard");
                 NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true);
             }
             else if (statusCode == HttpStatusCode.TooManyRequests)

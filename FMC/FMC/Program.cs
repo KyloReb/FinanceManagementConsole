@@ -198,7 +198,7 @@ app.Use(async (context, next) =>
     if (path.StartsWith("/login") || path.StartsWith("/forgot-password") || path.StartsWith("/verify-email") ||
         path.StartsWith("/not-found") || path.StartsWith("/_framework") || path.StartsWith("/_content") ||
         path.StartsWith("/_blazor") || path.StartsWith("/css/") || path.StartsWith("/js/") ||
-        path.StartsWith("/lib/") || path == "/" || path.EndsWith(".png") || path.EndsWith(".ico") ||
+        path.StartsWith("/lib/") || path.EndsWith(".png") || path.EndsWith(".ico") ||
         path.EndsWith(".svg") || path.EndsWith(".css") || path.EndsWith(".js"))
     {
         await next();

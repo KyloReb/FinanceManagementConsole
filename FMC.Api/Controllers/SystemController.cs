@@ -89,6 +89,8 @@ public class SystemController : ControllerBase
         var modeType = await _cacheService.GetAsync<string>("maintenance:mode_type");
         var graceMinutes = await _cacheService.GetAsync<int>("maintenance:grace_minutes");
 
+        Console.WriteLine($"[MAINT-API] GET /maintenance: isActive={isActive} modeType={modeType} message={message} scheduledAt={scheduledAtStr} blockedCount={blockedCount}");
+
         return Ok(new MaintenanceStatusDto
         {
             IsActive = isActive,

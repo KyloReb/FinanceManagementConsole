@@ -281,6 +281,8 @@ app.Use(async (context, next) =>
 {
     var cache = context.RequestServices.GetRequiredService<ICacheService>();
     var isActive = await cache.GetAsync<bool>("maintenance:mode");
+    var userRoles = string.Join(",", context.User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value));
+    Console.WriteLine($"[MAINT-API-MW] path={context.Request.Path} isActive={isActive} user={context.User.Identity?.Name ?? "anon"} roles={userRoles} isSuperAdmin={context.User.IsInRole(Roles.SuperAdmin)}");
     if (isActive && !context.User.IsInRole(Roles.SuperAdmin) && !context.Request.Path.StartsWithSegments("/health") && !context.Request.Path.StartsWithSegments("/api/system/maintenance"))
     {
         context.Response.StatusCode = 503;

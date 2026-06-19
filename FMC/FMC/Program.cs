@@ -205,6 +205,8 @@ app.Use(async (context, next) =>
         return;
     }
 
+    Console.WriteLine($"[MAINT-MW] path={path} MaintenanceState.IsActive={FMC.Services.MaintenanceState.IsActive} User={context.User.Identity?.Name ?? "anon"} Roles={string.Join(",", context.User.Claims.Where(c=>c.Type==System.Security.Claims.ClaimTypes.Role).Select(c=>c.Value))}");
+
     if (!FMC.Services.MaintenanceState.IsActive)
     {
         // Check grace period (maintenance scheduled but not yet active)

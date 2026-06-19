@@ -275,6 +275,21 @@ app.UseCookiePolicy();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Maintenance Mode Middleware — blocks non-admin API requests when active
+app.Use(async (context, next) =>
+{
+    var cache = context.RequestServices.GetRequiredService<ICacheService>();
+    var isActive = await cache.GetAsync<bool>("maintenance:mode");
+    if (isActive && !context.User.IsInRole(Roles.SuperAdmin) && !context.Request.Path.StartsWithSegments("/health"))
+    {
+        context.Response.StatusCode = 503;
+        context.Response.Headers["Retry-After"] = "30";
+        await context.Response.WriteAsJsonAsync(new { error = "Service Unavailable", message = "System is undergoing maintenance.", retryAfter = 30 });
+        return;
+    }
+    await next();
+});
+
 // Hangfire Dashboard — accessible at /hangfire
 // Provides real-time visibility into all background jobs: queued, processing, succeeded, failed.
 // IMPORTANT: In production, secure this endpoint with IP filtering or an admin role policy.

@@ -1,0 +1,598 @@
+@page "/admin/system"
+@using FMC.Shared.Auth
+@using FMC.Shared.DTOs.Admin
+@using FMC.Services.Api
+@using FMC.Services
+@attribute [Authorize(Roles = Roles.SuperAdmin)]
+@inject AdminService AdminService
+@inject ISnackbar Snackbar
+@inject FMC.Services.ThemeService ThemeService
+@implements IDisposable
+
+<PageTitle>System Controls | FMC</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="@GetContainerClass()">
+    <div class="sc-premium-header mb-10">
+        <div class="d-flex align-center flex-grow-1">
+            <div class="sc-accent-line"></div>
+            <div class="ml-5">
+                <MudText Typo="Typo.h3" Class="sc-hero-title">System Controls</MudText>
+                <MudText Typo="Typo.subtitle1" Class="sc-hero-subtitle">Infrastructure management &amp; governance toggles</MudText>
+            </div>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="sc-metric-hud">
+            @for (int i = 0; i < 4; i++)
+            {
+                <div class="sc-metric-card">
+                    <div class="sc-skeleton" style="height:12px;width:40%;"></div>
+                    <div class="sc-skeleton mt-4" style="height:32px;width:50%;"></div>
+                    <div class="sc-skeleton mt-2" style="height:10px;width:30%;"></div>
+                </div>
+            }
+        </div>
+        <div class="sc-card mt-8">
+            <div class="sc-skeleton" style="height:20px;width:50%;"></div>
+            <div class="sc-skeleton mt-6" style="height:48px;width:100%;"></div>
+            <div class="sc-skeleton mt-4" style="height:80px;width:100%;"></div>
+        </div>
+    }
+    else if (_status == null)
+    {
+        <div class="sc-empty">
+            <div class="sc-empty-icon">&#9888;</div>
+            <h3>Unable to load system controls</h3>
+            <p>The diagnostic service did not respond. Check that the API is running.</p>
+            <button class="sc-btn sc-btn-primary mt-6" @onclick="LoadStatus">Retry</button>
+        </div>
+    }
+    else
+    {
+        <div class="sc-metric-hud">
+            <div class="sc-metric-card @(_status.IsActive ? "card-warning" : "card-ok")">
+                <div class="sc-metric-icon @(_status.IsActive ? "warning" : "success")">
+                    @if (_status.IsActive)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.ReportProblem" Size="Size.Small" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                    }
+                </div>
+                <div class="sc-metric-data">
+                    <MudText Typo="Typo.h4">@(_status.IsActive ? "ACTIVE" : "OFF")</MudText>
+                    <MudText Typo="Typo.caption">MAINTENANCE STATUS</MudText>
+                </div>
+            </div>
+            <div class="sc-metric-card">
+                <div class="sc-metric-icon info">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                </div>
+                <div class="sc-metric-data">
+                    <MudText Typo="Typo.h4" Style="font-size:1rem;">@(_status.ActivatedBy ?? "N/A")</MudText>
+                    <MudText Typo="Typo.caption">LAST TOGGLED BY</MudText>
+                </div>
+            </div>
+            <div class="sc-metric-card">
+                <div class="sc-metric-icon muted">
+                    <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Small" />
+                </div>
+                <div class="sc-metric-data">
+                    <MudText Typo="Typo.h4">@_status.BlockedCount</MudText>
+                    <MudText Typo="Typo.caption">BLOCKED REQUESTS</MudText>
+                </div>
+            </div>
+            <div class="sc-metric-card">
+                <div class="sc-metric-icon muted">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                </div>
+                <div class="sc-metric-data">
+                    <MudText Typo="Typo.h4" Style="font-size:1rem;">@FormatTimestamp(_status.ActivatedAt)</MudText>
+                    <MudText Typo="Typo.caption">@(_status.IsActive ? "ACTIVATED" : "LAST EVENT")</MudText>
+                </div>
+            </div>
+        </div>
+
+        <div class="sc-card mt-8">
+            <div class="sc-card-header">
+                <div class="sc-card-header-left">
+                    <span class="sc-card-icon">&#9881;</span>
+                    <span class="sc-card-title">Maintenance Mode</span>
+                </div>
+                <div class="sc-status-pill @(_status.IsActive ? "active" : "inactive")">
+                    <span class="sc-pill-dot"></span>
+                    @(_status.IsActive ? "ACTIVE" : "OFF")
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-toggle-row">
+                    <div class="sc-toggle-info">
+                        <span class="sc-toggle-label">Enable Maintenance Mode</span>
+                        <span class="sc-toggle-desc">When active, all non-admin users are shown a maintenance page and cannot access the system.</span>
+                    </div>
+                    <div class="sc-toggle-control">
+                        <label class="sc-switch">
+                            <input type="checkbox" checked="@_status.IsActive" @onchange="OnToggleChanged" disabled="@_toggling" />
+                            <span class="sc-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                @if (_status.IsActive || _pendingToggle)
+                {
+                    <div class="sc-message-area">
+                        <label class="sc-message-label">Custom notice shown to users</label>
+                        <div class="sc-message-input-wrap">
+                            <textarea class="sc-message-input"
+                                      placeholder="e.g. System is undergoing scheduled maintenance. We'll be back shortly."
+                                      @bind="_editMessage"
+                                      disabled="@_toggling"
+                                      rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="sc-action-row">
+                        <button class="sc-btn @(_status.IsActive ? "sc-btn-danger" : "sc-btn-primary")"
+                                @onclick="ConfirmToggle"
+                                disabled="@_toggling">
+                            @if (_toggling)
+                            {
+                                <span class="sc-spinner"></span>
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <span>@(_status.IsActive ? "Deactivate Maintenance" : "Activate Maintenance")</span>
+                            }
+                        </button>
+                    </div>
+                }
+
+                @if (_toggling)
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-4" Dense="true" Variant="Variant.Text">
+                        <MudText Typo="Typo.body2" Style="font-weight:700;">
+                            @(_status.IsActive ? "Deactivating maintenance mode..." : "Activating maintenance mode...")
+                        </MudText>
+                    </MudAlert>
+                }
+            </div>
+        </div>
+
+        @if (!_status.IsActive || _status.ScheduledAt.HasValue)
+        {
+            <div class="sc-card mt-6">
+                <div class="sc-card-header">
+                    <div class="sc-card-header-left">
+                        <span class="sc-card-icon">&#9200;</span>
+                        <span class="sc-card-title">Schedule Maintenance</span>
+                    </div>
+                    @if (_status.ScheduledAt.HasValue)
+                    {
+                        <div class="sc-schedule-pill">
+                            <span class="sc-pill-dot"></span>
+                            @FormatTimestamp(_status.ScheduledAt)
+                        </div>
+                    }
+                </div>
+                <div class="sc-card-body">
+                    <div class="sc-toggle-desc mb-6">
+                        Set a future date and time for maintenance to activate automatically. All non-admin users will be blocked once the time is reached.
+                    </div>
+                    <div class="sc-schedule-row">
+                        <div class="sc-schedule-field">
+                            <label class="sc-message-label">Date</label>
+                            <input type="date" class="sc-schedule-input" value="@_scheduleDate" @onchange="OnDateChanged" disabled="@_toggling" />
+                        </div>
+                        <div class="sc-schedule-field">
+                            <label class="sc-message-label">Time (UTC)</label>
+                            <input type="time" class="sc-schedule-input" value="@_scheduleTime" @onchange="OnTimeChanged" disabled="@_toggling" />
+                        </div>
+                    </div>
+                    <div class="sc-message-area">
+                        <label class="sc-message-label">Notification message</label>
+                        <div class="sc-message-input-wrap">
+                            <textarea class="sc-message-input"
+                                      placeholder="e.g. Scheduled maintenance on Dec 25 at 02:00 UTC. The system will be unavailable for approximately 2 hours."
+                                      @bind="_scheduleMsg"
+                                      disabled="@_toggling"
+                                      rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="sc-action-row">
+                        @if (_status.ScheduledAt.HasValue)
+                        {
+                            <button class="sc-btn sc-btn-danger" @onclick="ClearSchedule" disabled="@_toggling" Style="margin-right:8px;">
+                                Clear Schedule
+                            </button>
+                        }
+                        <button class="sc-btn sc-btn-primary" @onclick="ScheduleMaintenance" disabled="@_toggling || string.IsNullOrWhiteSpace(_scheduleDate) || string.IsNullOrWhiteSpace(_scheduleTime)">
+                            @if (_toggling)
+                            {
+                                <span class="sc-spinner"></span>
+                            }
+                            <span>@(_status.ScheduledAt.HasValue ? "Reschedule" : "Schedule Maintenance")</span>
+                        </button>
+                    </div>
+                    @if (_scheduleError != null)
+                    {
+                        <div class="sc-schedule-error mt-4">@_scheduleError</div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="sc-card mt-6">
+            <div class="sc-card-header">
+                <div class="sc-card-header-left">
+                    <span class="sc-card-icon">&#9776;</span>
+                    <span class="sc-card-title">About This Control</span>
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <ul class="sc-info-list">
+                    <li><strong>Middleware check:</strong> Every non-admin request is intercepted before reaching the application. Static assets (images, CSS) still load.</li>
+                    <li><strong>No auto-logout:</strong> Active sessions remain valid. Users see the maintenance page on their next navigation or page refresh.</li>
+                    <li><strong>Auto-recovery:</strong> The maintenance page refreshes every 30 seconds. When you deactivate, users regain access without re-logging in.</li>
+                    <li><strong>Scheduled maintenance:</strong> Set a date/time in the future and the system auto-activates when the time is reached. The audit log records when it was scheduled and when it activated.</li>
+                    <li><strong>Blocked requests</strong> are counted in the metric card above. This helps gauge how many users were affected.</li>
+                </ul>
+            </div>
+        </div>
+    }
+</MudContainer>
+
+<style>
+    /* ── Premium Header ── */
+    .sc-premium-header { display: flex; align-items: center; }
+    .sc-accent-line { width: 4px; height: 48px; border-radius: 4px; background: linear-gradient(180deg, #b8860b, #d4a017); flex-shrink: 0; }
+    .sc-hero-title { font-weight: 950; letter-spacing: -0.03em; color: var(--mud-palette-text-primary); }
+    .sc-hero-subtitle { color: var(--mud-palette-text-secondary); font-weight: 600; margin-top: 2px; }
+    @@media (max-width:600px) { .sc-hero-title { font-size:1.5rem; } .sc-accent-line { height:36px; } }
+
+    /* ── Metric HUD ── */
+    .sc-metric-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+    @@media (max-width:900px) { .sc-metric-hud { grid-template-columns:repeat(2,1fr); } }
+    @@media (max-width:500px) { .sc-metric-hud { grid-template-columns:1fr; } }
+    .sc-root { --sc-border:rgba(255,255,255,0.06); --sc-bg-tint:rgba(255,255,255,0.05); --sc-shadow:rgba(0,0,0,0.08); }
+    .sc-root.light-theme { --sc-border:rgba(0,0,0,0.08); --sc-bg-tint:rgba(0,0,0,0.03); --sc-shadow:rgba(0,0,0,0.04); }
+    .sc-metric-card {
+        background:var(--mud-palette-surface); border:1px solid var(--sc-border);
+        border-radius:20px; padding:20px 24px; transition:all 0.3s ease;
+    }
+    .sc-metric-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px var(--sc-shadow); }
+    .sc-metric-card.card-ok { border-left:3px solid #2d5a27; }
+    .sc-metric-card.card-warning { border-left:3px solid #b8860b; }
+    .sc-metric-icon {
+        width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+        margin-bottom:12px;
+    }
+    .sc-metric-icon.success { background:rgba(45,90,39,0.12); color:#5a9a4a; }
+    .sc-metric-icon.warning { background:rgba(184,134,11,0.12); color:#b8860b; }
+    .sc-metric-icon.info { background:rgba(100,120,200,0.12); color:#8890c0; }
+    .sc-metric-icon.muted { background:var(--sc-bg-tint); color:var(--mud-palette-text-disabled); }
+    .sc-metric-data { display:flex; flex-direction:column; gap:2px; }
+    .sc-metric-data h4 { font-weight:900; color:var(--mud-palette-text-primary); margin:0; font-size:1.5rem; }
+    .sc-metric-data caption, .sc-metric-data .mud-typography-caption {
+        font-size:0.6rem; font-weight:900; letter-spacing:0.1em; color:var(--mud-palette-text-secondary); text-transform:uppercase; opacity:0.5;
+    }
+
+    /* ── Card Shell ── */
+    .sc-card {
+        background:var(--mud-palette-surface); border:1px solid var(--sc-border);
+        border-radius:24px; overflow:hidden; transition:all 0.3s ease;
+    }
+    .sc-card-header {
+        display:flex; align-items:center; justify-content:space-between;
+        padding:20px 28px; border-bottom:1px solid var(--sc-border);
+    }
+    .sc-card-header-left { display:flex; align-items:center; gap:12px; }
+    .sc-card-icon { font-size:16px; opacity:0.5; }
+    .sc-card-title { font-size:16px; font-weight:900; letter-spacing:-0.01em; color:var(--mud-palette-text-primary); }
+    .sc-card-body { padding:24px 28px; }
+
+    /* ── Status Pill ── */
+    .sc-status-pill {
+        display:flex; align-items:center; gap:6px;
+        font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:0.08em;
+        padding:5px 14px; border-radius:30px;
+    }
+    .sc-status-pill.active { background:rgba(184,134,11,0.12); color:#b8860b; }
+    .sc-status-pill.inactive { background:rgba(45,90,39,0.10); color:#5a9a4a; }
+    .sc-pill-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+    .sc-status-pill.active .sc-pill-dot { background:#b8860b; animation:sc-pulse 2s infinite; }
+    .sc-status-pill.inactive .sc-pill-dot { background:#5a9a4a; }
+    @@keyframes sc-pulse { 0%,100% { opacity:0.3; } 50% { opacity:1; } }
+
+    /* ── Toggle Row ── */
+    .sc-toggle-row { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; }
+    @@media (max-width:500px) { .sc-toggle-row { flex-direction:column; gap:16px; } }
+    .sc-toggle-info { flex:1; }
+    .sc-toggle-label { font-size:15px; font-weight:800; color:var(--mud-palette-text-primary); display:block; margin-bottom:4px; }
+    .sc-toggle-desc { font-size:13px; line-height:1.5; color:var(--mud-palette-text-secondary); opacity:0.7; display:block; }
+    .sc-toggle-control { padding-top:2px; flex-shrink:0; }
+
+    /* ── Pure CSS Toggle Switch ── */
+    .sc-switch { position:relative; display:inline-block; width:48px; height:26px; cursor:pointer; }
+    .sc-switch input { opacity:0; width:0; height:0; }
+    .sc-slider {
+        position:absolute; inset:0; background:rgba(255,255,255,0.08); border-radius:26px;
+        transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .sc-slider::before {
+        content:""; position:absolute; left:3px; bottom:3px; width:20px; height:20px;
+        background:white; border-radius:50%; transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+        box-shadow:0 2px 4px rgba(0,0,0,0.2);
+    }
+    .sc-switch input:checked + .sc-slider { background:#b8860b; }
+    .sc-switch input:checked + .sc-slider::before { transform:translateX(22px); }
+    .sc-switch input:disabled + .sc-slider { opacity:0.4; cursor:not-allowed; }
+
+    /* ── Message Textarea ── */
+    .sc-message-area { margin-top:20px; }
+    .sc-message-label { font-size:11px; font-weight:800; color:var(--mud-palette-text-secondary); display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.6; }
+    .sc-message-input-wrap { position:relative; }
+    .sc-message-input {
+        width:100%; min-height:80px; padding:14px 16px;
+        background:var(--sc-bg-tint); border:1px solid var(--sc-border);
+        border-radius:14px; color:var(--mud-palette-text-primary); font-size:14px;
+        font-family:inherit; line-height:1.5; resize:vertical; outline:none;
+        transition:border-color 0.2s;
+    }
+    .sc-message-input:focus { border-color:#b8860b; }
+    .sc-message-input:disabled { opacity:0.4; cursor:not-allowed; }
+
+    /* ── Schedule Row ── */
+    .sc-schedule-row { display:flex; gap:16px; }
+    @@media (max-width:500px) { .sc-schedule-row { flex-direction:column; gap:12px; } }
+    .sc-schedule-field { flex:1; }
+    .sc-schedule-input {
+        width:100%; padding:12px 14px;
+        background:var(--sc-bg-tint); border:1px solid var(--sc-border);
+        border-radius:12px; color:var(--mud-palette-text-primary); font-size:14px;
+        font-family:inherit; outline:none; transition:border-color 0.2s;
+    }
+    .sc-schedule-input:focus { border-color:#b8860b; }
+    .sc-schedule-input:disabled { opacity:0.4; cursor:not-allowed; }
+    .sc-schedule-pill {
+        display:flex; align-items:center; gap:6px;
+        font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:0.05em;
+        padding:5px 14px; border-radius:30px;
+        background:rgba(184,134,11,0.12); color:#b8860b;
+    }
+    .sc-schedule-pill .sc-pill-dot { background:#b8860b; }
+    .sc-schedule-error {
+        padding:12px 16px; border-radius:12px;
+        background:rgba(139,34,82,0.1); color:#c06080;
+        font-size:13px; font-weight:700;
+    }
+
+    /* ── Buttons ── */
+    .sc-action-row { margin-top:24px; }
+    .sc-btn {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:12px 28px; border-radius:14px; border:none; font-size:14px;
+        font-weight:800; letter-spacing:0.01em; cursor:pointer;
+        transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    .sc-btn:disabled { opacity:0.4; cursor:not-allowed; }
+    .sc-btn-primary { background:#2d5a27; color:white; }
+    .sc-btn-primary:hover:not(:disabled) { background:#3d7040; transform:translateY(-1px); box-shadow:0 6px 20px rgba(45,90,39,0.25); }
+    .sc-btn-danger { background:#8b2252; color:white; }
+    .sc-btn-danger:hover:not(:disabled) { background:#a03068; transform:translateY(-1px); box-shadow:0 6px 20px rgba(139,34,82,0.25); }
+    @@media (max-width:500px) { .sc-btn { width:100%; justify-content:center; } }
+
+    .sc-spinner {
+        width:16px; height:16px; border:2px solid rgba(255,255,255,0.2);
+        border-top-color:white; border-radius:50%; animation:sc-rotate 0.6s linear infinite; display:inline-block;
+    }
+    @@keyframes sc-rotate { to { transform:rotate(360deg); } }
+
+    /* ── Info List ── */
+    .sc-info-list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; }
+    .sc-info-list li {
+        font-size:13px; line-height:1.6; color:var(--mud-palette-text-secondary);
+        padding-left:20px; position:relative;
+    }
+    .sc-info-list li::before { content:"-"; position:absolute; left:0; opacity:0.4; }
+    .sc-info-list strong { color:var(--mud-palette-text-primary); }
+
+    /* ── Skeleton ── */
+    .sc-skeleton {
+        background:linear-gradient(90deg, var(--sc-bg-tint), rgba(255,255,255,0.08), var(--sc-bg-tint));
+        background-size:200% 100%; animation:sc-shimmer 1.5s infinite; border-radius:8px;
+    }
+    .sc-root.light-theme .sc-skeleton { background:linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0.08), rgba(0,0,0,0.03)); background-size:200% 100%; }
+    @@keyframes sc-shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
+
+    /* ── Empty State ── */
+    .sc-empty { text-align:center; padding:80px 24px; }
+    .sc-empty-icon { font-size:48px; opacity:0.3; margin-bottom:16px; }
+    .sc-empty h3 { font-size:20px; font-weight:900; color:var(--mud-palette-text-primary); margin-bottom:8px; }
+    .sc-empty p { font-size:14px; color:var(--mud-palette-text-secondary); opacity:0.6; }
+</style>
+
+@code {
+    private MaintenanceStatusDto? _status;
+    private bool _loading = true;
+    private bool _toggling;
+    private bool _pendingToggle;
+    private string _editMessage = "";
+    private string _scheduleDate = "";
+    private string _scheduleTime = "";
+    private string _scheduleMsg = "";
+    private string? _scheduleError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatus();
+    }
+
+    private async Task LoadStatus()
+    {
+        _loading = true;
+        try
+        {
+            _status = await AdminService.GetMaintenanceStatusAsync();
+            if (_status != null)
+            {
+                MaintenanceState.Sync(_status.IsActive, _status.Message, _status.ScheduledAt, _status.ScheduledMessage);
+                _editMessage = _status.Message ?? "";
+                _scheduleMsg = _status.ScheduledMessage ?? "";
+                if (_status.ScheduledAt.HasValue)
+                {
+                    var local = _status.ScheduledAt.Value.ToLocalTime();
+                    _scheduleDate = local.ToString("yyyy-MM-dd");
+                    _scheduleTime = local.ToString("HH:mm");
+                }
+            }
+        }
+        catch
+        {
+            _status = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnToggleChanged(ChangeEventArgs e)
+    {
+        _pendingToggle = (bool)(e.Value ?? false);
+        if (!_status!.IsActive)
+        {
+            _editMessage = _status?.Message ?? "";
+        }
+    }
+
+    private async Task ConfirmToggle()
+    {
+        var isActive = _pendingToggle;
+        _toggling = true;
+        try
+        {
+            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(isActive, _editMessage);
+            if (succeeded)
+            {
+                MaintenanceState.Sync(isActive, _editMessage);
+                var action = isActive ? "activated" : "deactivated";
+                Snackbar.Add($"Maintenance mode {action}.", Severity.Success);
+                await LoadStatus();
+                _pendingToggle = false;
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to update maintenance mode.", Severity.Error);
+                _pendingToggle = !isActive;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _toggling = false;
+        }
+    }
+
+    private async Task ScheduleMaintenance()
+    {
+        _scheduleError = null;
+        if (string.IsNullOrWhiteSpace(_scheduleDate) || string.IsNullOrWhiteSpace(_scheduleTime))
+        {
+            _scheduleError = "Please select both a date and time.";
+            return;
+        }
+        if (!DateTime.TryParse($"{_scheduleDate} {_scheduleTime}", out var localTime))
+        {
+            _scheduleError = "Invalid date or time format.";
+            return;
+        }
+        var utcTime = localTime.Kind == DateTimeKind.Utc ? localTime : localTime.ToUniversalTime();
+        if (utcTime <= DateTime.UtcNow)
+        {
+            _scheduleError = "Scheduled time must be in the future.";
+            return;
+        }
+
+        _toggling = true;
+        try
+        {
+            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(false, null, utcTime, _scheduleMsg);
+            if (succeeded)
+            {
+                Snackbar.Add($"Maintenance scheduled for {localTime:MMM dd, yyyy HH:mm}.", Severity.Success);
+                await LoadStatus();
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to schedule maintenance.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _toggling = false;
+        }
+    }
+
+    private async Task ClearSchedule()
+    {
+        _toggling = true;
+        try
+        {
+            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(false, null, null, null);
+            if (succeeded)
+            {
+                MaintenanceState.ClearSchedule();
+                Snackbar.Add("Scheduled maintenance cleared.", Severity.Success);
+                await LoadStatus();
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to clear schedule.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _toggling = false;
+        }
+    }
+
+    private static string FormatTimestamp(DateTime? dt)
+    {
+        if (dt == null) return "--";
+        var local = dt.Value.ToLocalTime();
+        return local.ToString("MMM dd, HH:mm");
+    }
+
+    public void Dispose() { }
+
+    private void OnDateChanged(ChangeEventArgs e)
+    {
+        _scheduleDate = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnTimeChanged(ChangeEventArgs e)
+    {
+        _scheduleTime = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private string GetContainerClass()
+    {
+        return $"mt-4 mt-md-8 mb-12 sc-root {(ThemeService.IsDarkMode ? "dark-theme" : "light-theme")}";
+    }
+}

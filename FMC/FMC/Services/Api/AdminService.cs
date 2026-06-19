@@ -100,6 +100,39 @@ public class AdminService
         }
     }
 
+    public async Task<FMC.Shared.DTOs.Admin.MaintenanceStatusDto?> GetMaintenanceStatusAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<FMC.Shared.DTOs.Admin.MaintenanceStatusDto>($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<(bool Succeeded, string? Error)> ToggleMaintenanceModeAsync(bool isActive, string? message, DateTime? scheduledAt = null, string? scheduledMessage = null)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/system/maintenance", new FMC.Shared.DTOs.Admin.MaintenanceToggleRequest
+            {
+                IsActive = isActive,
+                Message = message,
+                ScheduledAt = scheduledAt,
+                ScheduledMessage = scheduledMessage
+            });
+            if (response.IsSuccessStatusCode) return (true, null);
+            var error = await response.Content.ReadAsStringAsync();
+            return (false, string.IsNullOrWhiteSpace(error) ? "Failed to update maintenance mode." : error);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
     public async Task ReportClientErrorAsync(string message, string stackTrace, string? component = null)
     {
         try

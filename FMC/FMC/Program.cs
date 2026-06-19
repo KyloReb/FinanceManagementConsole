@@ -188,6 +188,55 @@ app.Use(async (context, next) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Maintenance Mode Middleware — blocks non-admin requests when maintenance is active
+app.Use(async (context, next) =>
+{
+    // Auto-activate if scheduled time has passed
+    FMC.Services.MaintenanceState.CheckAutoActivate();
+
+    if (!FMC.Services.MaintenanceState.IsActive)
+    {
+        await next();
+        return;
+    }
+    if (!context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin))
+    {
+        var msg = FMC.Services.MaintenanceState.Message;
+
+        var (bg, fg, accent) = context.Request.IsHttps
+            ? ("#0a0a0f", "#e0e0e0", "#b8860b")
+            : ("#0a0a0f", "#e0e0e0", "#b8860b");
+        context.Response.StatusCode = 503;
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.WriteAsync($@"<!DOCTYPE html>
+<html lang=""en"">
+<head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<meta http-equiv=""refresh"" content=""30""><title>Under Maintenance | FMC</title>
+<style>
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+body {{ font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:{bg}; color:{fg}; display:flex; align-items:center; justify-content:center; min-height:100vh; }}
+.container {{ text-align:center; max-width:480px; padding:40px 24px; }}
+.shield {{ font-size:48px; margin-bottom:24px; opacity:0.6; }}
+h1 {{ font-size:28px; font-weight:900; letter-spacing:-0.03em; margin-bottom:12px; }}
+p {{ font-size:15px; line-height:1.6; opacity:0.6; margin-bottom:8px; }}
+.accent {{ color:{accent}; font-weight:700; }}
+.footer {{ margin-top:32px; font-size:11px; opacity:0.3; }}
+.pulse {{ width:6px; height:6px; background:{accent}; border-radius:50%; display:inline-block; margin-right:6px; animation:pulse 2s infinite; }}
+@keyframes pulse {{ 0%,100% {{ opacity:0.3; }} 50% {{ opacity:1; }} }}
+</style></head>
+<body><div class=""container"">
+<div class=""shield"">&#9881;</div>
+<h1>Under Maintenance</h1>
+<p>{System.Net.WebUtility.HtmlEncode(msg)}</p>
+<p class=""accent"">&#9679; We&rsquo;ll be back shortly</p>
+<div class=""footer""><span class=""pulse""></span>FMC &middot; {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
+</div></body></html>", System.Text.Encoding.UTF8);
+        return;
+    }
+    await next();
+});
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();

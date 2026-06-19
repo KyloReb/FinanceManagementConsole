@@ -281,7 +281,7 @@ app.Use(async (context, next) =>
 {
     var cache = context.RequestServices.GetRequiredService<ICacheService>();
     var isActive = await cache.GetAsync<bool>("maintenance:mode");
-    if (isActive && !context.User.IsInRole(Roles.SuperAdmin) && !context.Request.Path.StartsWithSegments("/health") && !context.Request.Path.StartsWithSegments("/api/system/maintenance"))
+    if (isActive && !context.User.IsInRole(Roles.SuperAdmin) && !context.Request.Path.StartsWithSegments("/health") && !context.Request.Path.StartsWithSegments("/api/system/maintenance") && !context.Request.Path.StartsWithSegments("/api/auth/login") && !context.Request.Path.StartsWithSegments("/api/auth/forgot-password") && !context.Request.Path.StartsWithSegments("/api/auth/reset-password"))
     {
         context.Response.StatusCode = 503;
         context.Response.Headers["Retry-After"] = "30";

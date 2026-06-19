@@ -89,6 +89,9 @@ public class SystemController : ControllerBase
         var modeType = await _cacheService.GetAsync<string>("maintenance:mode_type");
         var graceMinutes = await _cacheService.GetAsync<int>("maintenance:grace_minutes");
 
+        Console.WriteLine($"[MAINT-TRACE] GetMaintenanceStatus: isActive={isActive} message={message} mode={modeType} grace={graceMinutes} blocked={blockedCount}");
+        Console.WriteLine($"[MAINT-TRACE] Redis keys - mode={await _cacheService.GetAsync<string>("maintenance:mode")} msg={await _cacheService.GetAsync<string>("maintenance:message")}");
+
         return Ok(new MaintenanceStatusDto
         {
             IsActive = isActive,

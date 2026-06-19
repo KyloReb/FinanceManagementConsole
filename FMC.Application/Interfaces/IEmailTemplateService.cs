@@ -42,4 +42,6 @@ public interface IEmailTemplateService
     /// Includes IP address, timestamp, user agent, and security recommendations.
     /// </summary>
     string GenerateSuspiciousLoginAlertEmail(string userName, string ipAddress, string userAgent, string timestamp, int failedAttempts, int remainingBeforeLockout);
+
+    string GenerateMaintenanceNotificationEmail(string action, DateTime? scheduledAt, string? message, string? activatedBy);
 }

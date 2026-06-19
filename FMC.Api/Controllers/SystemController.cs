@@ -1,6 +1,8 @@
 using FMC.Application.Interfaces;
+using FMC.Infrastructure.BackgroundJobs;
 using FMC.Shared.Auth;
 using FMC.Shared.DTOs.Admin;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
@@ -131,6 +133,7 @@ public class SystemController : ControllerBase
             );
 
             _logger.LogWarning("Maintenance SCHEDULED at {Time} by {User}", request.ScheduledAt, userName);
+            BackgroundJob.Enqueue<NotificationJobService>(job => job.SendMaintenanceNotificationAsync("MAINTENANCE_SCHEDULED", request.ScheduledAt, request.ScheduledMessage, userName));
         }
         else if (request.IsActive)
         {
@@ -149,6 +152,7 @@ public class SystemController : ControllerBase
             );
 
             _logger.LogWarning("Maintenance mode ENABLED by {User}", userName);
+            BackgroundJob.Enqueue<NotificationJobService>(job => job.SendMaintenanceNotificationAsync("MAINTENANCE_ENABLED", null, request.Message, userName));
         }
         else
         {
@@ -166,6 +170,11 @@ public class SystemController : ControllerBase
             );
 
             _logger.LogWarning("Maintenance mode DISABLED by {User}", userName);
+
+            // Auto-rollback monitoring: check health in 5 min, re-enable if unhealthy
+            await _cacheService.SetAsync("maintenance:rollback_expires_at", DateTime.UtcNow.AddMinutes(5).ToString("O"), TimeSpan.FromHours(1));
+            await _cacheService.SetAsync("maintenance:rollback_failures", 0, TimeSpan.FromHours(1));
+            BackgroundJob.Schedule<MaintenanceJobService>(job => job.CheckRollbackAsync(), TimeSpan.FromMinutes(2));
         }
 
         return await GetMaintenanceStatus();

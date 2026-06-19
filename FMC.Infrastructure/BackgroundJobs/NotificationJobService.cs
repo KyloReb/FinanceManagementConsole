@@ -2,6 +2,7 @@ using FMC.Application.Interfaces;
 using FMC.Domain.Entities;
 using FMC.Infrastructure.Authentication;
 using FMC.Infrastructure.Data;
+using FMC.Shared.Auth;
 using FMC.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -660,6 +661,62 @@ public sealed class NotificationJobService
         using var stream = new System.IO.MemoryStream();
         workbook.SaveAs(stream);
         return stream.ToArray();
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Maintenance Notifications
+    // ─────────────────────────────────────────────────────────
+
+    public async Task SendMaintenanceNotificationAsync(string action, DateTime? scheduledAt, string? message, string? activatedBy)
+    {
+        var adminRoles = new[] { Roles.CEO, Roles.Maker, Roles.Approver, Roles.SuperAdmin, Roles.SuperAdminApprover };
+        var adminUsers = await _context.Users.IgnoreQueryFilters()
+            .Where(u => u.Email != null && u.IsActive)
+            .Join(_context.UserRoles.IgnoreQueryFilters(),
+                u => u.Id,
+                ur => ur.UserId,
+                (u, ur) => new { u.Id, u.Email, u.UserName, u.FirstName, u.LastName, ur.RoleId })
+            .Join(_context.Roles.IgnoreQueryFilters(),
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => new { ur.Id, ur.Email, ur.UserName, ur.FirstName, ur.LastName, RoleName = r.Name })
+            .Where(x => adminRoles.Contains(x.RoleName))
+            .Distinct()
+            .ToListAsync();
+
+        var body = _templateService.GenerateMaintenanceNotificationEmail(action, scheduledAt, message, activatedBy);
+
+        foreach (var user in adminUsers)
+        {
+            if (string.IsNullOrEmpty(user.Email)) continue;
+
+            var entityId = Guid.NewGuid();
+            if (!await ShouldSendNotificationAsync($"MAINTENANCE_{action}", entityId, user.Email))
+                continue;
+
+            try
+            {
+                await _emailService.SendEmailAsync(
+                    user.Email,
+                    $"FMC Notification: {action.Replace("_", " ")}",
+                    body,
+                    BuildAttachments());
+
+                await LogNotificationSentAsync($"MAINTENANCE_{action}", entityId, user.Email);
+                _logger.LogInformation("[Maintenance] Notification sent to {Email}", user.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Maintenance] Failed to send notification to {Email}", user.Email);
+            }
+        }
+
+        // Create SystemAlert for bell panel
+        var alertTitle = action.Contains("ENABLED") ? "Maintenance Active" :
+                         action.Contains("SCHEDULED") ? "Maintenance Scheduled" :
+                         "Maintenance Notice";
+        var severity = action.Contains("ENABLED") ? FMC.Domain.Entities.AlertSeverity.Critical : FMC.Domain.Entities.AlertSeverity.Information;
+        await _alertService.RaiseAlertAsync(alertTitle, message ?? action, severity, "SYSTEM", "System");
     }
 
     // ─────────────────────────────────────────────────────────

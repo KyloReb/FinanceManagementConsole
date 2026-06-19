@@ -231,6 +231,7 @@ builder.Services.AddHealthChecks()
 // NotificationJobService is the typed job class that Hangfire instantiates in its own DI scope.
 // IBackgroundJobService is the clean abstraction used by the notification handler.
 builder.Services.AddScoped<NotificationJobService>();
+builder.Services.AddScoped<MaintenanceJobService>();
 builder.Services.AddScoped<IBackgroundJobService, HangfireBackgroundJobService>();
 builder.Services.AddHostedService<FMC.Infrastructure.BackgroundServices.HealthMonitorService>();
 

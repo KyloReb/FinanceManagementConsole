@@ -350,4 +350,30 @@ public class EmailTemplateService : IEmailTemplateService
 
         return GetContainer(content);
     }
+
+    public string GenerateMaintenanceNotificationEmail(string action, DateTime? scheduledAt, string? message, string? activatedBy)
+    {
+        var isActive = action.Contains("ENABLED", StringComparison.OrdinalIgnoreCase) || action.Contains("ACTIVE");
+        var isScheduled = action.Contains("SCHEDULED", StringComparison.OrdinalIgnoreCase);
+        var badgeColor = isActive ? "#ff3d00" : isScheduled ? "#b8860b" : "#2d5a27";
+        var badgeText = isActive ? "ACTIVE" : isScheduled ? "SCHEDULED" : "RESOLVED";
+        var headline = isActive ? "Maintenance Mode is Active" : isScheduled ? "Maintenance Has Been Scheduled" : "Maintenance Completed";
+        var timeText = scheduledAt.HasValue ? scheduledAt.Value.ToString("MMM dd, yyyy HH:mm 'UTC'") : "Immediately";
+
+        var content = $@"
+            <div style=""text-align:center;margin-bottom:30px;"">
+                <div style=""display:inline-block;padding:6px 18px;background:{badgeColor}15;color:{badgeColor};border-radius:20px;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;"">{badgeText}</div>
+            </div>
+            <h2 style=""color:#2d3436;font-size:22px;font-weight:900;margin:0 0 12px;"">{headline}</h2>
+            <p style=""color:#636e72;font-size:15px;line-height:1.6;margin:0 0 20px;"">{(string.IsNullOrEmpty(message) ? "System maintenance activity has been recorded." : message)}</p>
+            <table style=""width:100%;border-collapse:collapse;margin:20px 0;"">
+                <tr><td style=""padding:10px 0;border-bottom:1px solid #eee;font-size:13px;color:#636e72;"">Initiated by</td><td style=""padding:10px 0;border-bottom:1px solid #eee;font-size:13px;font-weight:700;color:#2d3436;text-align:right;"">{(activatedBy ?? "System")}</td></tr>
+                <tr><td style=""padding:10px 0;border-bottom:1px solid #eee;font-size:13px;color:#636e72;"">Time</td><td style=""padding:10px 0;border-bottom:1px solid #eee;font-size:13px;font-weight:700;color:#2d3436;text-align:right;"">{timeText}</td></tr>
+                <tr><td style=""padding:10px 0;font-size:13px;color:#636e72;"">Action</td><td style=""padding:10px 0;font-size:13px;font-weight:700;color:#2d3436;text-align:right;"">{action}</td></tr>
+            </table>
+            <div style=""margin-top:20px;padding:20px;background:#f8f9fa;border-radius:12px;text-align:center;"">
+                <p style=""margin:0;color:#636e72;font-size:13px;"">The Finance Management Console requires no action from you at this time.</p>
+            </div>";
+        return GetContainer(content);
+    }
 }

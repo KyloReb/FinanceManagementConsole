@@ -107,8 +107,8 @@
             <div class="sc-card-body">
                 <div class="sc-toggle-row">
                     <div class="sc-toggle-info">
-                        <span class="sc-toggle-label">Enable Maintenance Mode</span>
-                        <span class="sc-toggle-desc">When active, all non-admin users are shown a maintenance page and cannot access the system.</span>
+                        <span class="sc-toggle-label">@(_status.IsActive ? "Maintenance Mode is Active" : "Enable Maintenance Mode")</span>
+                        <span class="sc-toggle-desc">@(_status.IsActive ? "The system is currently restricting access. Modify settings below or deactivate." : "When active, all non-admin users are shown a maintenance page.")</span>
                     </div>
                     <div class="sc-toggle-control">
                         <label class="sc-switch">
@@ -117,6 +117,14 @@
                         </label>
                     </div>
                 </div>
+
+                @if (_status.IsActive)
+                {
+                    <div class="sc-active-banner">
+                        <span class="sc-active-banner-icon">&#9888;</span>
+                        <span class="sc-active-banner-text">Maintenance is currently <strong>ACTIVE</strong>. All non-admin users are being blocked.</span>
+                    </div>
+                }
 
                 @if (_status.IsActive || _pendingToggle)
                 {
@@ -548,6 +556,17 @@
     .sc-history-action { font-size:13px; font-weight:700; color:var(--mud-palette-text-primary); }
     .sc-history-meta { font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6; }
     .sc-history-detail { font-size:12px; opacity:0.3; cursor:help; flex-shrink:0; }
+
+    /* ── Active Banner ── */
+    .sc-active-banner {
+        display:flex; align-items:center; gap:10px;
+        padding:12px 16px; border-radius:14px; margin-top:16px;
+        background:rgba(184,134,11,0.1); border:1px solid rgba(184,134,11,0.2);
+        color:#b8860b;
+    }
+    .sc-active-banner-icon { font-size:18px; flex-shrink:0; }
+    .sc-active-banner-text { font-size:13px; font-weight:700; line-height:1.4; }
+    .sc-active-banner-text strong { font-weight:900; text-transform:uppercase; }
 
     /* ── Timeline ── */
     .sc-timeline { margin-bottom:16px; padding:12px; border-radius:12px; background:var(--sc-bg-tint); border:1px solid var(--sc-border); }

@@ -193,6 +193,18 @@ app.UseAuthorization();
 // Maintenance Mode Middleware — blocks non-admin requests when maintenance is active
 app.Use(async (context, next) =>
 {
+    // Always allow login, forgot-password, static assets, and Blazor frameworks through
+    var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+    if (path.StartsWith("/login") || path.StartsWith("/forgot-password") || path.StartsWith("/verify-email") ||
+        path.StartsWith("/not-found") || path.StartsWith("/_framework") || path.StartsWith("/_content") ||
+        path.StartsWith("/_blazor") || path.StartsWith("/css/") || path.StartsWith("/js/") ||
+        path.StartsWith("/lib/") || path == "/" || path.EndsWith(".png") || path.EndsWith(".ico") ||
+        path.EndsWith(".svg") || path.EndsWith(".css") || path.EndsWith(".js"))
+    {
+        await next();
+        return;
+    }
+
     if (!FMC.Services.MaintenanceState.IsActive)
     {
         // Check grace period (maintenance scheduled but not yet active)
@@ -206,34 +218,7 @@ app.Use(async (context, next) =>
                 var msg = FMC.Services.MaintenanceState.Message;
                 context.Response.StatusCode = 200;
                 context.Response.ContentType = "text/html; charset=utf-8";
-                await context.Response.WriteAsync($@"<!DOCTYPE html>
-<html lang=""en"">
-<head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-<meta http-equiv=""refresh"" content=""10""><title>Maintenance Notice | FMC</title>
-<style>
-* {{ margin:0; padding:0; box-sizing:border-box; }}
-body {{ font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:#0f0f13; color:#e0e0e0; display:flex; align-items:center; justify-content:center; min-height:100vh; }}
-.container {{ text-align:center; max-width:520px; padding:40px 24px; }}
-.icon {{ font-size:48px; margin-bottom:20px; }}
-h1 {{ font-size:24px; font-weight:900; letter-spacing:-0.02em; margin-bottom:8px; }}
-p {{ font-size:14px; line-height:1.6; opacity:0.6; margin-bottom:16px; }}
-.countdown {{ font-size:48px; font-weight:900; color:#b8860b; font-family:'JetBrains Mono','Roboto Mono',monospace; margin:20px 0; letter-spacing:0.05em; }}
-.label {{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; opacity:0.3; }}
-.footer {{ margin-top:32px; font-size:11px; opacity:0.25; }}
-</style></head>
-<body><div class=""container"">
-<div class=""icon"">&#9200;</div>
-<h1>Scheduled Maintenance</h1>
-<p>{System.Net.WebUtility.HtmlEncode(msg)}</p>
-<div class=""label"">Time remaining</div>
-<div class=""countdown"" id=""cd"">{TimeSpan.FromSeconds((int)remaining):hh\:mm\:ss}</div>
-<p>Please save your work. The system will be unavailable during this time.</p>
-<div class=""footer"">FMC &middot; Auto-refreshes every 10 seconds</div>
-<script>
-(function(){{ var s={(int)remaining};setInterval(function(){{s--;var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;document.getElementById('cd').textContent=
-(h+'').padStart(2,'0')+':'+(m+'').padStart(2,'0')+':'+(sec+'').padStart(2,'0');if(s<=0)location.reload();}},1000);}})();
-</script>
-</div></body></html>", System.Text.Encoding.UTF8);
+                await context.Response.WriteAsync(MaintenancePage.GraceHtml((int)remaining, msg));
                 return;
             }
         }
@@ -258,29 +243,7 @@ p {{ font-size:14px; line-height:1.6; opacity:0.6; margin-bottom:16px; }}
 
         context.Response.StatusCode = 503;
         context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync($@"<!DOCTYPE html>
-<html lang=""en"">
-<head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-<meta http-equiv=""refresh"" content=""30""><title>Under Maintenance | FMC</title>
-<style>
-* {{ margin:0; padding:0; box-sizing:border-box; }}
-body {{ font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:#0a0a0f; color:#e0e0e0; display:flex; align-items:center; justify-content:center; min-height:100vh; }}
-.container {{ text-align:center; max-width:480px; padding:40px 24px; }}
-.shield {{ font-size:48px; margin-bottom:24px; opacity:0.6; }}
-h1 {{ font-size:28px; font-weight:900; letter-spacing:-0.03em; margin-bottom:12px; }}
-p {{ font-size:15px; line-height:1.6; opacity:0.6; margin-bottom:8px; }}
-.accent {{ color:#b8860b; font-weight:700; }}
-.footer {{ margin-top:32px; font-size:11px; opacity:0.3; }}
-.pulse {{ width:6px; height:6px; background:#b8860b; border-radius:50%; display:inline-block; margin-right:6px; animation:pulse 2s infinite; }}
-@@keyframes pulse {{ 0%,100% {{ opacity:0.3; }} 50% {{ opacity:1; }} }}
-</style></head>
-<body><div class=""container"">
-<div class=""shield"">&#9881;</div>
-<h1>Under Maintenance</h1>
-<p>{System.Net.WebUtility.HtmlEncode(msg)}</p>
-<p class=""accent"">&#9679; We&rsquo;ll be back shortly</p>
-<div class=""footer""><span class=""pulse""></span>FMC &middot; {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
-</div></body></html>", System.Text.Encoding.UTF8);
+        await context.Response.WriteAsync(MaintenancePage.FullLockHtml(msg));
         return;
     }
     await next();

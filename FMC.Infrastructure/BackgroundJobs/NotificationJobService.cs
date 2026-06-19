@@ -696,11 +696,18 @@ public sealed class NotificationJobService
 
             try
             {
-                await _emailService.SendEmailAsync(
-                    user.Email,
-                    $"FMC Notification: {action.Replace("_", " ")}",
-                    body,
-                    BuildAttachments());
+                    var subject = action switch
+                    {
+                        "MAINTENANCE_ENABLED" => $"FMC Maintenance Active — {DateTime.UtcNow:MMddyyyy}",
+                        "MAINTENANCE_DISABLED" => $"FMC Maintenance Resolved — {DateTime.UtcNow:MMddyyyy}",
+                        "MAINTENANCE_SCHEDULED" when scheduledAt.HasValue => $"FMC Maintenance Scheduled — {scheduledAt.Value:MMddyyyy}",
+                        _ => $"FMC Maintenance — {DateTime.UtcNow:MMddyyyy}"
+                    };
+                    await _emailService.SendEmailAsync(
+                        user.Email,
+                        subject,
+                        body,
+                        BuildAttachments());
 
                 await LogNotificationSentAsync($"MAINTENANCE_{action}", entityId, user.Email);
                 _logger.LogInformation("[Maintenance] Notification sent to {Email}", user.Email);

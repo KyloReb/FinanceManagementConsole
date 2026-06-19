@@ -75,7 +75,7 @@ public class SystemController : ControllerBase
         }
     }
 
-    [Authorize(Roles = Roles.SuperAdmin)]
+    [AllowAnonymous]
     [HttpGet("maintenance")]
     public async Task<ActionResult<MaintenanceStatusDto>> GetMaintenanceStatus()
     {

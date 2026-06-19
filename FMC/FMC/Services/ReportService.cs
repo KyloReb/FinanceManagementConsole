@@ -22,6 +22,8 @@ public interface IReportService
     byte[] GenerateOrgHealthPdf(string title, IEnumerable<FMC.Shared.DTOs.Organization.OrganizationDto> orgs, string? filterApplied = null);
     byte[] GenerateCompensationRegisterExcel(string title, IEnumerable<CompensationRegisterRow> rows, string? filterApplied = null);
     byte[] GenerateCompensationRegisterPdf(string title, IEnumerable<CompensationRegisterRow> rows, string? filterApplied = null);
+    byte[] GenerateMaintenanceHistoryExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.MaintenanceHistoryItem> history, string? filterApplied = null);
+    byte[] GenerateMaintenanceHistoryPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.MaintenanceHistoryItem> history, string? filterApplied = null);
 }
 
 public class ReportService : IReportService
@@ -622,6 +624,91 @@ public class ReportService : IReportService
                         table.Cell().Element(c => C(c, bg)).Text(r.NetAmount.ToString("N2"));
                         table.Cell().Element(c => C(c, bg)).Text(r.TransactionCount.ToString());
                         table.Cell().Element(c => C(c, bg)).Text(r.OrganizationName);
+                        idx++;
+                        static IContainer C(IContainer c, string bg) => c.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
+                    }
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.Span("Page "); x.CurrentPageNumber(); x.Span(" of "); x.TotalPages();
+                });
+            });
+        }).GeneratePdf();
+    }
+
+    public byte[] GenerateMaintenanceHistoryExcel(string title, IEnumerable<FMC.Shared.DTOs.Admin.MaintenanceHistoryItem> history, string? filterApplied = null)
+    {
+        using var workbook = new XLWorkbook();
+        var ws = workbook.Worksheets.Add("Maintenance History");
+
+        ws.Cell(1, 1).Value = "Date (UTC)";
+        ws.Cell(1, 2).Value = "Action";
+        ws.Cell(1, 3).Value = "Performed By";
+        ws.Cell(1, 4).Value = "Details";
+
+        var hRow = ws.Row(1);
+        hRow.Style.Font.Bold = true;
+        hRow.Style.Fill.BackgroundColor = XLColor.FromHtml("#f8f9fa");
+
+        int row = 2;
+        foreach (var h in history)
+        {
+            ws.Cell(row, 1).Value = h.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss");
+            ws.Cell(row, 2).Value = h.Action;
+            ws.Cell(row, 3).Value = h.PerformedBy ?? "System";
+            ws.Cell(row, 4).Value = h.Details;
+            row++;
+        }
+        ws.Columns().AdjustToContents();
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public byte[] GenerateMaintenanceHistoryPdf(string title, IEnumerable<FMC.Shared.DTOs.Admin.MaintenanceHistoryItem> history, string? filterApplied = null)
+    {
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(1, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Helvetica"));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().AlignCenter().Text(title).FontSize(18).SemiBold().FontColor(Colors.Blue.Darken3);
+                    if (!string.IsNullOrEmpty(filterApplied))
+                        col.Item().AlignCenter().Text($"Filters: {filterApplied}").FontSize(9).FontColor(Colors.Grey.Darken2);
+                    col.Item().PaddingTop(5).BorderBottom(1.5f).BorderColor(Colors.Blue.Darken4);
+                });
+
+                page.Content().PaddingTop(10).Table(table =>
+                {
+                    table.ColumnsDefinition(c =>
+                    {
+                        c.RelativeColumn(3); c.RelativeColumn(3); c.RelativeColumn(2); c.RelativeColumn(6);
+                    });
+
+                    table.Header(h =>
+                    {
+                        static IContainer H(IContainer c) => c.DefaultTextStyle(x => x.SemiBold().FontSize(9).FontColor(Colors.White)).Background(Colors.Blue.Darken4).PaddingVertical(6).PaddingHorizontal(4);
+                        h.Cell().Element(H).Text("Date (UTC)");
+                        h.Cell().Element(H).Text("Action");
+                        h.Cell().Element(H).Text("By");
+                        h.Cell().Element(H).Text("Details");
+                    });
+
+                    int idx = 0;
+                    foreach (var h in history)
+                    {
+                        var bg = idx % 2 == 0 ? Colors.Grey.Lighten4 : Colors.White;
+                        table.Cell().Element(c => C(c, bg)).Text(h.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+                        table.Cell().Element(c => C(c, bg)).Text(h.Action);
+                        table.Cell().Element(c => C(c, bg)).Text(h.PerformedBy ?? "System");
+                        table.Cell().Element(c => C(c, bg)).Text(h.Details ?? "-");
                         idx++;
                         static IContainer C(IContainer c, string bg) => c.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).Background(bg).PaddingVertical(5).PaddingHorizontal(4);
                     }

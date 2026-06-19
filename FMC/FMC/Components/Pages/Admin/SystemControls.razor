@@ -3,10 +3,13 @@
 @using FMC.Shared.DTOs.Admin
 @using FMC.Services.Api
 @using FMC.Services
+@using Microsoft.JSInterop
 @attribute [Authorize(Roles = Roles.SuperAdmin)]
 @inject AdminService AdminService
 @inject ISnackbar Snackbar
 @inject FMC.Services.ThemeService ThemeService
+@inject IReportService ReportGen
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>System Controls | FMC</PageTitle>
@@ -263,6 +266,16 @@
                     <span class="sc-card-title">Maintenance History</span>
                     <span class="sc-schedule-pill" Style="font-size:9px;padding:3px 10px;">@_history.Count events</span>
                 </div>
+                <div class="sc-header-actions">
+                    <button class="sc-icon-btn" title="Export as Excel" @onclick="ExportHistoryExcel" disabled="@(_history.Count == 0)">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="14" width="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 18H9v-2h4v2zm6-9h-5V4.5L19 11z"/></svg>
+                        Excel
+                    </button>
+                    <button class="sc-icon-btn" title="Export as PDF" @onclick="ExportHistoryPdf" disabled="@(_history.Count == 0)">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="14" width="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>
+                        PDF
+                    </button>
+                </div>
             </div>
             <div class="sc-card-body">
                 @if (_historyLoading)
@@ -278,6 +291,24 @@
                 }
                 else
                 {
+                    var timelineWindows = BuildTimelineWindows(_history);
+                    if (timelineWindows.Count > 0)
+                    {
+                        var maxDuration = timelineWindows.Max(w => (w.End - w.Start).TotalMinutes);
+                        <div class="sc-timeline">
+                            <div class="sc-timeline-axis">
+                                @foreach (var win in timelineWindows.OrderBy(w => w.Start))
+                                {
+                                    var duration = (win.End - win.Start).TotalMinutes;
+                                    var widthPct = maxDuration > 0 ? (duration / maxDuration) * 100 : 100;
+                                    <div class="sc-timeline-bar @(win.IsActive ? "active" : "")" style="width:@(widthPct)%" title="@win.Label: @FormatTimelineSpan(win.Start) to @FormatTimelineSpan(win.End)">
+                                        <span class="sc-timeline-label">@win.Label</span>
+                                        <span class="sc-timeline-time">@FormatDuration(duration)</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                     <div class="sc-history-list">
                         @foreach (var evt in _history)
                         {
@@ -515,6 +546,31 @@
     .sc-history-meta { font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6; }
     .sc-history-detail { font-size:12px; opacity:0.3; cursor:help; flex-shrink:0; }
 
+    /* ── Timeline ── */
+    .sc-timeline { margin-bottom:16px; padding:12px; border-radius:12px; background:var(--sc-bg-tint); border:1px solid var(--sc-border); }
+    .sc-timeline-axis { display:flex; flex-direction:column; gap:6px; }
+    .sc-timeline-bar {
+        display:flex; align-items:center; justify-content:space-between;
+        padding:8px 14px; border-radius:8px; min-height:36px;
+        background:linear-gradient(90deg, rgba(184,134,11,0.15), rgba(184,134,11,0.05));
+        border-left:3px solid #b8860b; transition:opacity 0.2s;
+    }
+    .sc-timeline-bar.active { background:linear-gradient(90deg, rgba(255,61,0,0.15), rgba(255,61,0,0.05)); border-left-color:#ff3d00; }
+    .sc-timeline-label { font-size:12px; font-weight:800; color:var(--mud-palette-text-primary); }
+    .sc-timeline-time { font-size:10px; font-weight:700; color:var(--mud-palette-text-secondary); opacity:0.6; font-family:'JetBrains Mono',monospace; }
+
+    /* ── Header Actions ── */
+    .sc-header-actions { display:flex; gap:6px; align-items:center; }
+    .sc-icon-btn {
+        display:inline-flex; align-items:center; gap:4px;
+        padding:5px 10px; border-radius:8px; border:1px solid var(--sc-border);
+        background:transparent; color:var(--mud-palette-text-secondary);
+        font-size:10px; font-weight:700; cursor:pointer;
+        transition:all 0.2s; white-space:nowrap;
+    }
+    .sc-icon-btn:hover:not(:disabled) { border-color:#b8860b; color:#b8860b; }
+    .sc-icon-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
     /* ── Buttons ── */
     .sc-action-row { margin-top:24px; }
     .sc-btn {
@@ -750,6 +806,75 @@
         if (dt == null) return "--";
         var local = dt.Value.ToLocalTime();
         return local.ToString("MMM dd, HH:mm");
+    }
+
+    private class TimelineWindow
+    {
+        public DateTime Start { get; set; }
+        public DateTime End { get; set; }
+        public string Label { get; set; } = "";
+        public bool IsActive { get; set; }
+    }
+
+    private static List<TimelineWindow> BuildTimelineWindows(List<MaintenanceHistoryItem> history)
+    {
+        var windows = new List<TimelineWindow>();
+        DateTime? activeStart = null;
+
+        foreach (var evt in history.OrderBy(h => h.CreatedAt))
+        {
+            if (evt.Action == "MAINTENANCE_ENABLED")
+            {
+                activeStart = evt.CreatedAt;
+            }
+            else if (evt.Action == "MAINTENANCE_DISABLED" && activeStart.HasValue)
+            {
+                windows.Add(new TimelineWindow { Start = activeStart.Value, End = evt.CreatedAt, Label = "Maintenance" });
+                activeStart = null;
+            }
+        }
+
+        // Currently active window
+        if (activeStart.HasValue)
+        {
+            windows.Add(new TimelineWindow { Start = activeStart.Value, End = DateTime.UtcNow, Label = "Active", IsActive = true });
+        }
+
+        return windows;
+    }
+
+    private static string FormatDuration(double totalMinutes)
+    {
+        if (totalMinutes < 1) return "<1m";
+        if (totalMinutes < 60) return $"{(int)totalMinutes}m";
+        var hours = (int)(totalMinutes / 60);
+        var mins = (int)(totalMinutes % 60);
+        return $"{hours}h {mins}m";
+    }
+
+    private static string FormatTimelineSpan(DateTime dt)
+    {
+        return dt.ToLocalTime().ToString("MMM dd HH:mm");
+    }
+
+    private async Task ExportHistoryExcel()
+    {
+        var data = await AdminService.GetMaintenanceHistoryAsync();
+        if (data.Count == 0) return;
+        var bytes = ReportGen.GenerateMaintenanceHistoryExcel("Maintenance History", data);
+        var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+        await JS.InvokeVoidAsync("fmc_downloadFile", "maintenance-history.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", streamRef);
+        Snackbar.Add("Maintenance history exported as Excel.", Severity.Success);
+    }
+
+    private async Task ExportHistoryPdf()
+    {
+        var data = await AdminService.GetMaintenanceHistoryAsync();
+        if (data.Count == 0) return;
+        var bytes = ReportGen.GenerateMaintenanceHistoryPdf("Maintenance History", data);
+        var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+        await JS.InvokeVoidAsync("fmc_downloadFile", "maintenance-history.pdf", "application/pdf", streamRef);
+        Snackbar.Add("Maintenance history exported as PDF.", Severity.Success);
     }
 
     public void Dispose() { }

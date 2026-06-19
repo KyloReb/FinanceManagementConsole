@@ -69,15 +69,6 @@
                 </div>
             </div>
             <div class="sc-metric-card">
-                <div class="sc-metric-icon info">
-                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                </div>
-                <div class="sc-metric-data">
-                    <MudText Typo="Typo.h4" Style="font-size:1rem;">@(_status.ActivatedBy ?? "N/A")</MudText>
-                    <MudText Typo="Typo.caption">LAST TOGGLED BY</MudText>
-                </div>
-            </div>
-            <div class="sc-metric-card">
                 <div class="sc-metric-icon muted">
                     <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Small" />
                 </div>
@@ -255,9 +246,9 @@
     @@media (max-width:600px) { .sc-hero-title { font-size:1.5rem; } .sc-accent-line { height:36px; } }
 
     /* ── Metric HUD ── */
-    .sc-metric-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
-    @@media (max-width:900px) { .sc-metric-hud { grid-template-columns:repeat(4,1fr); gap:12px; } }
-    @@media (max-width:600px) { .sc-metric-hud { grid-template-columns:repeat(4,1fr); gap:8px; } }
+    .sc-metric-hud { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+    @@media (max-width:900px) { .sc-metric-hud { grid-template-columns:repeat(3,1fr); gap:12px; } }
+    @@media (max-width:600px) { .sc-metric-hud { grid-template-columns:repeat(3,1fr); gap:8px; } }
     .sc-root { --sc-border:rgba(255,255,255,0.08); --sc-bg-tint:rgba(255,255,255,0.03); --sc-shadow:rgba(0,0,0,0.08); }
     .sc-root.light-theme { --sc-border:rgba(0,0,0,0.15); --sc-bg-tint:rgba(0,0,0,0.04); --sc-shadow:rgba(0,0,0,0.04); }
     .sc-metric-card {
@@ -369,7 +360,14 @@
         background:var(--sc-bg-tint); border:1px solid var(--sc-border);
         border-radius:12px; color:var(--mud-palette-text-primary); font-size:14px;
         font-family:inherit; outline:none; transition:border-color 0.2s;
+        color-scheme:light dark;
     }
+    .sc-schedule-input::-webkit-calendar-picker-indicator {
+        filter:invert(0.6); cursor:pointer; padding:4px; border-radius:4px;
+        transition:filter 0.2s;
+    }
+    .sc-schedule-input::-webkit-calendar-picker-indicator:hover { filter:invert(0.8); }
+    .sc-root.dark-theme .sc-schedule-input::-webkit-calendar-picker-indicator { filter:invert(1); }
     .sc-schedule-input:focus { border-color:#b8860b; }
     .sc-schedule-input:disabled { opacity:0.4; cursor:not-allowed; }
     .sc-schedule-pill {

@@ -727,10 +727,12 @@
             var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(isActive, _editMessage, null, null, _editModeType);
             if (succeeded)
             {
-                var action = isActive ? "activated" : "deactivated";
-                Snackbar.Add($"Maintenance mode {action}.", Severity.Success);
                 await LoadStatus();
                 _pendingToggle = false;
+
+                var title = isActive ? "Maintenance Activated" : "Maintenance Deactivated";
+                var options = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+                await DialogService.ShowAsync<MaintenanceSuccessDialog>(title, new DialogParameters { ["Title"] = title, ["Status"] = _status ?? new() }, options);
             }
             else
             {
@@ -777,8 +779,9 @@
             var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(false, null, utcTime, _scheduleMsg, _editModeType);
             if (succeeded)
             {
-                Snackbar.Add($"Maintenance scheduled for {localTime:MMM dd, yyyy HH:mm}.", Severity.Success);
                 await LoadStatus();
+                var options = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+                await DialogService.ShowAsync<MaintenanceSuccessDialog>("Maintenance Scheduled", new DialogParameters { ["Title"] = "Maintenance Scheduled", ["Status"] = _status ?? new() }, options);
             }
             else
             {

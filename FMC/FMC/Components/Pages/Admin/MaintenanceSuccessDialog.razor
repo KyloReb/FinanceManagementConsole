@@ -1,0 +1,85 @@
+@using MudBlazor
+@using FMC.Shared.DTOs.Admin
+
+<MudDialog Class="sc-success-dialog">
+    <DialogContent>
+        <div class="sc-success-root @(ThemeService.IsDarkMode ? "dark" : "light")">
+            <div class="sc-success-glow"></div>
+            <div class="sc-success-icon-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            </div>
+            <MudText Typo="Typo.h5" Class="sc-success-title">@Title</MudText>
+            <MudText Typo="Typo.body2" Class="sc-success-desc">@(_status.IsActive ? "The system is now restricting access according to the selected mode." : "The schedule has been recorded and will activate automatically.")</MudText>
+            <div class="sc-success-details">
+                <div class="sc-success-row">
+                    <span class="sc-success-label">Mode</span>
+                    <span class="sc-success-value sc-badge @(_status.ModeType == "readonly" ? "readonly" : "full")">@(_status.ModeType == "readonly" ? "Read Only" : "Full Lock")</span>
+                </div>
+                @if (!string.IsNullOrEmpty(_status.ActivatedBy))
+                {
+                    <div class="sc-success-row">
+                        <span class="sc-success-label">By</span>
+                        <span class="sc-success-value">@_status.ActivatedBy</span>
+                    </div>
+                }
+                <div class="sc-success-row">
+                    <span class="sc-success-label">Time</span>
+                    <span class="sc-success-value">@DateTime.UtcNow.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
+                </div>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <div class="d-flex justify-center w-100 pb-6 px-6">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close" Style="text-transform:none;font-weight:800;border-radius:12px;height:44px;min-width:160px;background:#2d5a27;">
+                Done
+            </MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .sc-success-dialog .mud-dialog { border-radius:24px !important; max-width:400px !important; }
+    .sc-success-root { text-align:center; padding:24px 8px 8px; position:relative; overflow:hidden; }
+    .sc-success-glow {
+        position:absolute; top:-80px; left:50%; transform:translateX(-50%);
+        width:200px; height:200px; border-radius:50%;
+        background:radial-gradient(circle, rgba(45,90,39,0.15) 0%, transparent 70%);
+        pointer-events:none;
+    }
+    .sc-success-icon-wrap {
+        width:72px; height:72px; border-radius:20px;
+        background:rgba(45,90,39,0.12); color:#5a9a4a;
+        display:flex; align-items:center; justify-content:center;
+        margin:0 auto 16px; position:relative;
+        animation:sc-success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @@keyframes sc-success-pop { from { transform:scale(0) rotate(-20deg); } to { transform:scale(1) rotate(0); } }
+    .sc-success-title { font-weight:900 !important; letter-spacing:-0.02em; margin-bottom:8px; }
+    .sc-success-desc { color:var(--mud-palette-text-secondary); max-width:300px; margin:0 auto; opacity:0.7; }
+    .sc-success-details { margin-top:20px; display:flex; flex-direction:column; gap:8px; }
+    .sc-success-row { display:flex; justify-content:space-between; align-items:center; padding:8px 16px; background:rgba(0,0,0,0.02); border-radius:10px; }
+    .sc-root.light .sc-success-row { background:rgba(0,0,0,0.02); }
+    .sc-success-label { font-size:11px; font-weight:700; color:var(--mud-palette-text-secondary); text-transform:uppercase; letter-spacing:0.05em; opacity:0.5; }
+    .sc-success-value { font-size:14px; font-weight:800; color:var(--mud-palette-text-primary); }
+    .sc-badge { padding:2px 10px; border-radius:20px; font-size:11px; }
+    .sc-badge.full { background:rgba(184,134,11,0.12); color:#b8860b; }
+    .sc-badge.readonly { background:rgba(100,120,200,0.12); color:#8890c0; }
+</style>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private FMC.Services.ThemeService ThemeService { get; set; } = default!;
+
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public MaintenanceStatusDto Status { get; set; } = new();
+
+    private MaintenanceStatusDto _status = new();
+
+    protected override void OnInitialized()
+    {
+        _status = Status;
+    }
+
+    private void Close() => MudDialog.Close();
+}

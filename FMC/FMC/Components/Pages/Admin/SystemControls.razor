@@ -4,12 +4,14 @@
 @using FMC.Services.Api
 @using FMC.Services
 @using Microsoft.JSInterop
+@using MudBlazor
 @attribute [Authorize(Roles = Roles.SuperAdmin)]
 @inject AdminService AdminService
 @inject ISnackbar Snackbar
 @inject FMC.Services.ThemeService ThemeService
 @inject IReportService ReportGen
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 @implements IDisposable
 
 <PageTitle>System Controls | FMC</PageTitle>
@@ -473,7 +475,7 @@
 
     /* ── Schedule Row ── */
     .sc-schedule-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-    @@media (max-width:500px) { .sc-schedule-row { grid-template-columns:1fr; gap:12px; } }
+    @@media (max-width:400px) { .sc-schedule-row { grid-template-columns:1fr 1fr; gap:8px; } }
     .sc-schedule-field { display:flex; flex-direction:column; gap:6px; }
     .sc-schedule-input {
         width:100%; padding:12px 14px;
@@ -507,6 +509,7 @@
     .sc-mode-selector { }
     .sc-mode-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     @@media (max-width:500px) { .sc-mode-options { grid-template-columns:1fr; } }
+    .sc-mode-options, .sc-mode-btn { text-align:left; justify-items:start; }
     .sc-mode-btn {
         display:flex; align-items:flex-start; gap:12px; width:100%;
         padding:14px 16px; border-radius:14px;
@@ -701,8 +704,22 @@
         }
     }
 
+    private async Task<bool> RequireSecurityVerificationAsync(string action)
+    {
+        var options = new DialogOptions { CloseButton = false, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<SecurityVerificationDialog>(action, options);
+        var result = await dialog.Result;
+        return result is { Data: true };
+    }
+
     private async Task ConfirmToggle()
     {
+        if (!await RequireSecurityVerificationAsync("Maintenance Toggle"))
+        {
+            _pendingToggle = !_pendingToggle;
+            return;
+        }
+
         var isActive = _pendingToggle;
         _toggling = true;
         try
@@ -733,6 +750,9 @@
 
     private async Task ScheduleMaintenance()
     {
+        if (!await RequireSecurityVerificationAsync("Schedule Maintenance"))
+            return;
+
         _scheduleError = null;
         if (string.IsNullOrWhiteSpace(_scheduleDate) || string.IsNullOrWhiteSpace(_scheduleTime))
         {

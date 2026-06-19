@@ -91,12 +91,6 @@ builder.Services.AddScoped<GlobalAlertService>();
 builder.Services.AddScoped<SecurityStateService>();
 builder.Services.AddScoped<FMC.Application.Interfaces.ICurrentUserService, BlazorCurrentUserService>();
 builder.Services.AddSingleton<MaintenancePoller>();
-builder.Services.AddHttpClient<MaintenancePoller>(client =>
-{
-    var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
-    client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(5);
-});
 #endregion
 
 var app = builder.Build();

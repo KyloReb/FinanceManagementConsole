@@ -115,6 +115,26 @@
 
                 @if (_status.IsActive || _pendingToggle)
                 {
+                    <div class="sc-mode-selector mt-4">
+                        <label class="sc-message-label">Maintenance type</label>
+                        <div class="sc-mode-options">
+                            <button type="button" class="sc-mode-btn @(_editModeType == "full" ? "selected" : "")" @onclick="@(() => SetModeType("full"))">
+                                <span class="sc-mode-radio @(_editModeType == "full" ? "selected" : "")"></span>
+                                <span class="sc-mode-text">
+                                    <span class="sc-mode-label">Full Lock</span>
+                                    <span class="sc-mode-desc">Blocks all access for non-admin users</span>
+                                </span>
+                            </button>
+                            <button type="button" class="sc-mode-btn @(_editModeType == "readonly" ? "selected" : "")" @onclick="@(() => SetModeType("readonly"))">
+                                <span class="sc-mode-radio @(_editModeType == "readonly" ? "selected" : "")"></span>
+                                <span class="sc-mode-text">
+                                    <span class="sc-mode-label">Read Only</span>
+                                    <span class="sc-mode-desc">Users can view data but cannot submit transactions</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="sc-message-area">
                         <label class="sc-message-label">Custom notice shown to users</label>
                         <div class="sc-message-input-wrap">
@@ -182,6 +202,25 @@
                         <div class="sc-schedule-field">
                             <label class="sc-message-label">Time (UTC)</label>
                             <input type="time" class="sc-schedule-input" value="@_scheduleTime" @onchange="OnTimeChanged" disabled="@_toggling" />
+                        </div>
+                    </div>
+                    <div class="sc-mode-selector mt-2 mb-4">
+                        <label class="sc-message-label">Planned maintenance type</label>
+                        <div class="sc-mode-options">
+                            <button type="button" class="sc-mode-btn @(_editModeType == "full" ? "selected" : "")" @onclick="@(() => SetModeType("full"))">
+                                <span class="sc-mode-radio @(_editModeType == "full" ? "selected" : "")"></span>
+                                <span class="sc-mode-text">
+                                    <span class="sc-mode-label">Full Lock</span>
+                                    <span class="sc-mode-desc">Blocks all access</span>
+                                </span>
+                            </button>
+                            <button type="button" class="sc-mode-btn @(_editModeType == "readonly" ? "selected" : "")" @onclick="@(() => SetModeType("readonly"))">
+                                <span class="sc-mode-radio @(_editModeType == "readonly" ? "selected" : "")"></span>
+                                <span class="sc-mode-text">
+                                    <span class="sc-mode-label">Read Only</span>
+                                    <span class="sc-mode-desc">View only, no transactions</span>
+                                </span>
+                            </button>
                         </div>
                     </div>
                     <div class="sc-message-area">
@@ -433,6 +472,31 @@
         font-size:13px; font-weight:700;
     }
 
+    /* ── Mode Selector ── */
+    .sc-mode-selector { }
+    .sc-mode-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @@media (max-width:500px) { .sc-mode-options { grid-template-columns:1fr; } }
+    .sc-mode-btn {
+        display:flex; align-items:flex-start; gap:12px; width:100%;
+        padding:14px 16px; border-radius:14px;
+        border:1.5px solid var(--sc-border);
+        cursor:pointer; transition:all 0.2s; user-select:none;
+        background:transparent; text-align:left; font-family:inherit;
+        color:inherit;
+    }
+    .sc-mode-btn:hover { border-color:#b8860b; }
+    .sc-mode-btn.selected { border-color:#b8860b; background:rgba(184,134,11,0.06); }
+    .sc-mode-radio {
+        width:18px; height:18px; border-radius:50%; border:2px solid var(--sc-border);
+        flex-shrink:0; margin-top:1px; transition:all 0.2s;
+        display:flex; align-items:center; justify-content:center;
+    }
+    .sc-mode-radio.selected { border-color:#b8860b; }
+    .sc-mode-radio.selected::after { content:""; width:10px; height:10px; border-radius:50%; background:#b8860b; }
+    .sc-mode-text { display:flex; flex-direction:column; gap:2px; }
+    .sc-mode-label { font-size:14px; font-weight:800; color:var(--mud-palette-text-primary); }
+    .sc-mode-desc { font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6; line-height:1.4; }
+
     /* ── History List ── */
     .sc-history-list { display:grid; grid-template-columns:1fr; gap:6px; }
     .sc-history-item {
@@ -504,6 +568,7 @@
     private bool _toggling;
     private bool _pendingToggle;
     private string _editMessage = "";
+    private string _editModeType = "full";
     private string _scheduleDate = "";
     private string _scheduleTime = "";
     private string _scheduleMsg = "";
@@ -526,6 +591,7 @@
             {
                 MaintenanceState.Sync(_status.IsActive, _status.Message, _status.ModeType ?? "full", _status.GraceMinutes, _status.ScheduledAt, _status.ScheduledMessage);
                 _editMessage = _status.Message ?? "";
+                _editModeType = _status.ModeType ?? "full";
                 _scheduleMsg = _status.ScheduledMessage ?? "";
                 if (_status.ScheduledAt.HasValue)
                 {
@@ -563,6 +629,13 @@
         }
     }
 
+    private string GetModeClass(string mode) => _editModeType == mode ? "selected" : "";
+
+    private void SetModeType(string mode)
+    {
+        _editModeType = mode;
+    }
+
     private void OnToggleChanged(ChangeEventArgs e)
     {
         _pendingToggle = (bool)(e.Value ?? false);
@@ -578,7 +651,7 @@
         _toggling = true;
         try
         {
-            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(isActive, _editMessage);
+            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(isActive, _editMessage, null, null, _editModeType);
             if (succeeded)
             {
                 var action = isActive ? "activated" : "deactivated";
@@ -625,7 +698,7 @@
         _toggling = true;
         try
         {
-            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(false, null, utcTime, _scheduleMsg);
+            var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(false, null, utcTime, _scheduleMsg, _editModeType);
             if (succeeded)
             {
                 Snackbar.Add($"Maintenance scheduled for {localTime:MMM dd, yyyy HH:mm}.", Severity.Success);

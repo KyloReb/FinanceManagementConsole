@@ -5,17 +5,18 @@ namespace FMC.Services;
 
 public class MaintenancePoller : IDisposable
 {
-    private readonly HttpClient _httpClient;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _configuration;
     private Timer? _timer;
 
-    public MaintenancePoller(HttpClient httpClient)
+    public MaintenancePoller(IServiceScopeFactory scopeFactory, IConfiguration configuration)
     {
-        _httpClient = httpClient;
+        _scopeFactory = scopeFactory;
+        _configuration = configuration;
     }
 
     public void Start()
     {
-        // Poll immediately, then every 30 seconds
         _ = PollAsync();
         _timer = new Timer(async _ => await PollAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
@@ -24,7 +25,11 @@ public class MaintenancePoller : IDisposable
     {
         try
         {
-            var response = await _httpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+            using var scope = _scopeFactory.CreateScope();
+            var baseUrl = _configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
+            using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(5) };
+
+            var response = await client.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
             if (!response.IsSuccessStatusCode) return;
             var json = await response.Content.ReadAsStringAsync();
             var status = JsonSerializer.Deserialize<MaintenanceStatusDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

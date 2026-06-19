@@ -124,7 +124,7 @@ public class AdminService
         }
     }
 
-    public async Task<(bool Succeeded, string? Error)> ToggleMaintenanceModeAsync(bool isActive, string? message, DateTime? scheduledAt = null, string? scheduledMessage = null)
+    public async Task<(bool Succeeded, string? Error)> ToggleMaintenanceModeAsync(bool isActive, string? message, DateTime? scheduledAt = null, string? scheduledMessage = null, string? modeType = null, int graceMinutes = 0)
     {
         try
         {
@@ -133,7 +133,9 @@ public class AdminService
                 IsActive = isActive,
                 Message = message,
                 ScheduledAt = scheduledAt,
-                ScheduledMessage = scheduledMessage
+                ScheduledMessage = scheduledMessage,
+                ModeType = modeType,
+                GraceMinutes = graceMinutes
             });
             if (response.IsSuccessStatusCode) return (true, null);
             var error = await response.Content.ReadAsStringAsync();

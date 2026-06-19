@@ -30,19 +30,54 @@
     @if (_loading)
     {
         <div class="sc-metric-hud">
-            @for (int i = 0; i < 4; i++)
+            @for (int i = 0; i < 3; i++)
             {
                 <div class="sc-metric-card">
-                    <div class="sc-skeleton" style="height:12px;width:40%;"></div>
-                    <div class="sc-skeleton mt-4" style="height:32px;width:50%;"></div>
-                    <div class="sc-skeleton mt-2" style="height:10px;width:30%;"></div>
+                    <div class="sc-skeleton" style="height:10px;width:35%;"></div>
+                    <div class="sc-skeleton mt-4" style="height:28px;width:45%;"></div>
+                    <div class="sc-skeleton mt-2" style="height:8px;width:25%;"></div>
                 </div>
             }
         </div>
         <div class="sc-card mt-8">
-            <div class="sc-skeleton" style="height:20px;width:50%;"></div>
-            <div class="sc-skeleton mt-6" style="height:48px;width:100%;"></div>
-            <div class="sc-skeleton mt-4" style="height:80px;width:100%;"></div>
+            <div class="sc-card-header">
+                <div class="sc-card-header-left">
+                    <div class="sc-skeleton" style="height:16px;width:180px;"></div>
+                </div>
+                <div class="sc-skeleton" style="height:20px;width:60px;border-radius:30px;"></div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-skeleton" style="height:14px;width:60%;"></div>
+                <div class="sc-skeleton mt-4" style="height:36px;width:100%;"></div>
+                <div class="sc-skeleton mt-6" style="height:80px;width:100%;"></div>
+                <div class="sc-skeleton mt-4" style="height:44px;width:160px;"></div>
+            </div>
+        </div>
+        <div class="sc-card mt-6">
+            <div class="sc-card-header">
+                <div class="sc-card-header-left">
+                    <div class="sc-skeleton" style="height:14px;width:140px;"></div>
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-skeleton" style="height:14px;width:80%;"></div>
+                <div class="sc-skeleton mt-4" style="height:36px;width:100%;"></div>
+                <div class="sc-skeleton mt-4" style="height:60px;width:100%;"></div>
+                <div class="sc-skeleton mt-4" style="height:44px;width:180px;"></div>
+            </div>
+        </div>
+        <div class="sc-card mt-6">
+            <div class="sc-card-header">
+                <div class="sc-card-header-left">
+                    <div class="sc-skeleton" style="height:14px;width:160px;"></div>
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-skeleton" style="height:14px;width:90%;"></div>
+                <div class="sc-skeleton mt-3" style="height:14px;width:70%;"></div>
+                <div class="sc-skeleton mt-3" style="height:14px;width:85%;"></div>
+                <div class="sc-skeleton mt-3" style="height:14px;width:60%;"></div>
+            </div>
         </div>
     }
     else if (_status == null)

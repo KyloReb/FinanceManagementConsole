@@ -256,15 +256,28 @@
 
     /* ── Metric HUD ── */
     .sc-metric-hud { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
-    @@media (max-width:900px) { .sc-metric-hud { grid-template-columns:repeat(2,1fr); } }
-    @@media (max-width:500px) { .sc-metric-hud { grid-template-columns:1fr; } }
-    .sc-root { --sc-border:rgba(255,255,255,0.06); --sc-bg-tint:rgba(255,255,255,0.05); --sc-shadow:rgba(0,0,0,0.08); }
-    .sc-root.light-theme { --sc-border:rgba(0,0,0,0.08); --sc-bg-tint:rgba(0,0,0,0.03); --sc-shadow:rgba(0,0,0,0.04); }
+    @@media (max-width:900px) { .sc-metric-hud { grid-template-columns:repeat(4,1fr); gap:12px; } }
+    @@media (max-width:600px) { .sc-metric-hud { grid-template-columns:repeat(4,1fr); gap:8px; } }
+    .sc-root { --sc-border:rgba(255,255,255,0.08); --sc-bg-tint:rgba(255,255,255,0.03); --sc-shadow:rgba(0,0,0,0.08); }
+    .sc-root.light-theme { --sc-border:rgba(0,0,0,0.12); --sc-bg-tint:rgba(0,0,0,0.02); --sc-shadow:rgba(0,0,0,0.04); }
     .sc-metric-card {
         background:var(--mud-palette-surface); border:1px solid var(--sc-border);
         border-radius:20px; padding:20px 24px; transition:all 0.3s ease;
+        box-shadow:0 1px 4px var(--sc-shadow);
     }
     .sc-metric-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px var(--sc-shadow); }
+    @@media (max-width:900px) {
+        .sc-metric-card { padding:14px 16px; border-radius:14px; }
+        .sc-metric-icon { width:28px; height:28px; margin-bottom:8px; }
+        .sc-metric-data h4 { font-size:1rem; }
+        .sc-metric-data caption, .sc-metric-data .mud-typography-caption { font-size:0.5rem; }
+    }
+    @@media (max-width:600px) {
+        .sc-metric-card { padding:10px 8px; border-radius:10px; }
+        .sc-metric-icon { width:24px; height:24px; margin-bottom:6px; }
+        .sc-metric-data h4 { font-size:0.85rem; }
+        .sc-metric-data caption, .sc-metric-data .mud-typography-caption { font-size:0.45rem; letter-spacing:0.06em; }
+    }
     .sc-metric-card.card-ok { border-left:3px solid #2d5a27; }
     .sc-metric-card.card-warning { border-left:3px solid #b8860b; }
     .sc-metric-icon {
@@ -285,6 +298,7 @@
     .sc-card {
         background:var(--mud-palette-surface); border:1px solid var(--sc-border);
         border-radius:24px; overflow:hidden; transition:all 0.3s ease;
+        box-shadow:0 1px 4px var(--sc-shadow);
     }
     .sc-card-header {
         display:flex; align-items:center; justify-content:space-between;

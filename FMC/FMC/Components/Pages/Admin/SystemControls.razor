@@ -259,7 +259,7 @@
     @@media (max-width:900px) { .sc-metric-hud { grid-template-columns:repeat(4,1fr); gap:12px; } }
     @@media (max-width:600px) { .sc-metric-hud { grid-template-columns:repeat(4,1fr); gap:8px; } }
     .sc-root { --sc-border:rgba(255,255,255,0.08); --sc-bg-tint:rgba(255,255,255,0.03); --sc-shadow:rgba(0,0,0,0.08); }
-    .sc-root.light-theme { --sc-border:rgba(0,0,0,0.12); --sc-bg-tint:rgba(0,0,0,0.02); --sc-shadow:rgba(0,0,0,0.04); }
+    .sc-root.light-theme { --sc-border:rgba(0,0,0,0.15); --sc-bg-tint:rgba(0,0,0,0.04); --sc-shadow:rgba(0,0,0,0.04); }
     .sc-metric-card {
         background:var(--mud-palette-surface); border:1px solid var(--sc-border);
         border-radius:20px; padding:20px 24px; transition:all 0.3s ease;
@@ -336,7 +336,7 @@
         position:absolute; inset:0; background:rgba(0,0,0,0.12); border-radius:26px;
         transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
     }
-    .sc-root.light-theme .sc-slider { background:rgba(0,0,0,0.12); }
+    .sc-root.light-theme .sc-slider { background:rgba(0,0,0,0.15); }
     .sc-slider::before {
         content:""; position:absolute; left:3px; bottom:3px; width:20px; height:20px;
         background:white; border-radius:50%; transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
@@ -348,7 +348,7 @@
 
     /* ── Message Textarea ── */
     .sc-message-area { margin-top:20px; }
-    .sc-message-label { font-size:11px; font-weight:800; color:var(--mud-palette-text-secondary); display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.08em; opacity:0.6; }
+    .sc-message-label { font-size:11px; font-weight:800; color:var(--mud-palette-text-secondary); display:block; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.08em; }
     .sc-message-input-wrap { position:relative; }
     .sc-message-input {
         width:100%; min-height:80px; padding:14px 16px;

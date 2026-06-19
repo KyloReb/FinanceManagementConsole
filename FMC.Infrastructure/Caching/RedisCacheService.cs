@@ -27,10 +27,9 @@ public class RedisCacheService : ICacheService
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
     {
-        var options = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = expiration ?? TimeSpan.FromHours(1)
-        };
+        var options = new DistributedCacheEntryOptions();
+        if (expiration.HasValue)
+            options.AbsoluteExpirationRelativeToNow = expiration;
 
         var serializedValue = JsonSerializer.Serialize(value);
         await _cache.SetStringAsync(key, serializedValue, options);

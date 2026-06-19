@@ -700,10 +700,8 @@
         try
         {
             _status = await AdminService.GetMaintenanceStatusAsync();
-            Console.WriteLine($"[MAINT-UI] LoadStatus: status=null?{_status is null} isActive={_status?.IsActive} modeType={_status?.ModeType}");
             if (_status != null)
             {
-                Console.WriteLine($"[MAINT-UI] Syncing MaintenanceState: IsActive={_status.IsActive}");
                 MaintenanceState.Sync(_status.IsActive, _status.Message, _status.ModeType ?? "full", _status.GraceMinutes, _status.ScheduledAt, _status.ScheduledMessage);
                 _editMessage = _status.Message ?? "";
                 _editModeType = _status.ModeType ?? "full";
@@ -778,11 +776,9 @@
 
         var isActive = _pendingToggle;
         _toggling = true;
-        Console.WriteLine($"[MAINT-UI] ConfirmToggle: isActive={isActive} message={_editMessage} modeType={_editModeType}");
         try
         {
             var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(isActive, _editMessage, null, null, _editModeType);
-            Console.WriteLine($"[MAINT-UI] ConfirmToggle response: succeeded={succeeded} error={error}");
             if (succeeded)
             {
                 await LoadStatus();

@@ -100,6 +100,18 @@ public class AdminService
         }
     }
 
+    public async Task<List<FMC.Shared.DTOs.Admin.MaintenanceHistoryItem>> GetMaintenanceHistoryAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<FMC.Shared.DTOs.Admin.MaintenanceHistoryItem>>($"api/system/maintenance/history?_t={DateTime.UtcNow.Ticks}") ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
     public async Task<FMC.Shared.DTOs.Admin.MaintenanceStatusDto?> GetMaintenanceStatusAsync()
     {
         try

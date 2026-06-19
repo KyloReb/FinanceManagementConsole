@@ -38,6 +38,42 @@ public class SystemController : ControllerBase
     }
 
     [Authorize(Roles = Roles.SuperAdmin)]
+    [HttpGet("maintenance/history")]
+    public async Task<ActionResult<List<MaintenanceHistoryItem>>> GetMaintenanceHistory()
+    {
+        try
+        {
+            var cacheKey = "maintenance:history";
+            var cached = await _cacheService.GetAsync<List<MaintenanceHistoryItem>>(cacheKey);
+            if (cached != null) return Ok(cached);
+
+            // Query in memory since AuditService doesn't expose a raw query
+            var logs = await _auditService.GetRecentLogsAsync(200);
+            var items = logs
+                .Where(l => l.Action.StartsWith("MAINTENANCE_", StringComparison.OrdinalIgnoreCase)
+                         || l.Action.StartsWith("MAINTENANCE", StringComparison.OrdinalIgnoreCase))
+                .Select(l => new MaintenanceHistoryItem
+                {
+                    Id = l.Id,
+                    Action = l.Action,
+                    PerformedBy = l.PerformedBy ?? l.UserName,
+                    Details = l.Details,
+                    CreatedAt = l.CreatedAt
+                })
+                .OrderByDescending(i => i.CreatedAt)
+                .ToList();
+
+            await _cacheService.SetAsync(cacheKey, items, TimeSpan.FromMinutes(1));
+            return Ok(items);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve maintenance history.");
+            return Ok(new List<MaintenanceHistoryItem>());
+        }
+    }
+
+    [Authorize(Roles = Roles.SuperAdmin)]
     [HttpGet("maintenance")]
     public async Task<ActionResult<MaintenanceStatusDto>> GetMaintenanceStatus()
     {

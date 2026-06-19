@@ -50,3 +50,8 @@ query_db.ps1
 # ===========================
 AI_MAP.md
 _CONTEXT.md
+
+# ===========================
+# Knowledge Graph (local/cache only)
+# ===========================
+graphify-out/

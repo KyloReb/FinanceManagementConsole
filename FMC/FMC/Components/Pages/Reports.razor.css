@@ -181,10 +181,12 @@
     .fmc-desktop-header { display: none !important; }
 
     /* ── Unified bordered panel for mobile header + KPI + cards ── */
-    .fmc-report-panel { border: 1px solid var(--mud-palette-divider); border-radius: 12px; overflow: hidden; background: none; }
+    .fmc-report-panel { border: 1px solid rgba(0,0,0,0.10); border-radius: 12px; overflow: hidden; background: none; }
+    .fmc-dark-mode .fmc-report-panel { border-color: rgba(255,255,255,0.08); }
     .fmc-report-panel > .fmc-kpi-row { margin: 12px; }
     .fmc-reports-surface { border: none !important; border-radius: 0; background: none; }
-    .fmc-surface-header { border: 1px solid var(--mud-palette-divider); border-radius: 8px; margin: 8px; }
+    .fmc-surface-header { border: 1px solid rgba(0,0,0,0.10); border-radius: 8px; margin: 8px; }
+    .fmc-dark-mode .fmc-surface-header { border-color: rgba(255,255,255,0.08); }
     .fmc-desktop-table { display: none !important; }
 
     .fmc-mobile-cards { display: flex; flex-direction: column; gap: 0; padding: 0; margin-top: 0; }
@@ -193,14 +195,14 @@
 
     .fmc-mobile-card {
         cursor: pointer; background: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider); border-radius: 10px;
+        border: 1px solid rgba(0,0,0,0.10); border-radius: 10px;
         margin-bottom: 6px;
         transition: border-color 0.15s;
     }
+    .fmc-dark-mode .fmc-mobile-card { border-color: rgba(255,255,255,0.08); background: #1e1e1e; }
     .fmc-mobile-card:last-child { margin-bottom: 0; }
     .fmc-mobile-card:hover { border-color: #b8860b; }
     .fmc-mobile-card.expanded { border-color: #b8860b; }
-    .fmc-dark-mode .fmc-mobile-card { background: #1e1e1e; }
 
     .fmc-mobile-pager {
         display: flex; align-items: center; justify-content: space-between;

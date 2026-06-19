@@ -30,15 +30,9 @@ public class MaintenancePoller : IDisposable
             using var client = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(5) };
 
             var response = await client.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
-            Console.WriteLine($"[MAINT-POLLER] GET {baseUrl}api/system/maintenance -> {response.StatusCode}");
-            if (!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"[MAINT-POLLER] Non-success response, body: {await response.Content.ReadAsStringAsync()}");
-                return;
-            }
+            if (!response.IsSuccessStatusCode) return;
             var json = await response.Content.ReadAsStringAsync();
             var status = JsonSerializer.Deserialize<MaintenanceStatusDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            Console.WriteLine($"[MAINT-POLLER] Deserialized: IsActive={status?.IsActive} ModeType={status?.ModeType} ScheduledAt={status?.ScheduledAt}");
             if (status != null)
             {
                 MaintenanceState.Sync(
@@ -49,13 +43,9 @@ public class MaintenancePoller : IDisposable
                     status.ScheduledAt,
                     status.ScheduledMessage
                 );
-                Console.WriteLine($"[MAINT-POLLER] MaintenanceState synced: IsActive={FMC.Services.MaintenanceState.IsActive}");
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[MAINT-POLLER] Exception: {ex.GetType().Name}: {ex.Message}");
-        }
+        catch { }
     }
 
     public void Dispose() => _timer?.Dispose();

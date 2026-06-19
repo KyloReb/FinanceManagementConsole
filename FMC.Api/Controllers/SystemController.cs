@@ -89,7 +89,31 @@ public class SystemController : ControllerBase
         var modeType = await _cacheService.GetAsync<string>("maintenance:mode_type");
         var graceMinutes = await _cacheService.GetAsync<int>("maintenance:grace_minutes");
 
-        Console.WriteLine($"[MAINT-API] GET /maintenance: isActive={isActive} modeType={modeType} message={message} scheduledAt={scheduledAtStr} blockedCount={blockedCount}");
+        // Auto-recover from audit log if Redis state was lost (e.g. server restart)
+        if (!isActive && string.IsNullOrEmpty(message))
+        {
+            var lastLogs = await _auditService.GetRecentLogsAsync(20);
+            var maintenanceEvents = lastLogs.Where(l => l.Action?.StartsWith("MAINTENANCE_", StringComparison.OrdinalIgnoreCase) == true)
+                                            .OrderByDescending(l => l.CreatedAt).ToList();
+            var lastEnabled = maintenanceEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_ENABLED");
+            var lastDisabled = maintenanceEvents.FirstOrDefault(e => e.Action == "MAINTENANCE_DISABLED");
+            if (lastEnabled != null && (lastDisabled == null || lastEnabled.CreatedAt > lastDisabled.CreatedAt))
+            {
+                _logger.LogWarning("Maintenance auto-recovered from audit log: unmatched MAINTENANCE_ENABLED at {Time}", lastEnabled.CreatedAt);
+                isActive = true;
+                var details = lastEnabled.Details ?? "Maintenance auto-recovered from audit log.";
+                var userName = lastEnabled.PerformedBy ?? "System (Recovery)";
+                message = details;
+                activatedAtStr = lastEnabled.CreatedAt.ToString("O");
+                activatedBy = userName;
+                await _cacheService.SetAsync("maintenance:mode", true, null);
+                await _cacheService.SetAsync("maintenance:message", details, null);
+                await _cacheService.SetAsync("maintenance:activated_by", userName, null);
+                await _cacheService.SetAsync("maintenance:activated_at", activatedAtStr, null);
+                await _cacheService.SetAsync("maintenance:blocked_count", 0L, null);
+                await _cacheService.SetAsync("maintenance:mode_type", "full", null);
+            }
+        }
 
         return Ok(new MaintenanceStatusDto
         {

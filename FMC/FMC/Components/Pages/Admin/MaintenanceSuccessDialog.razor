@@ -1,70 +1,277 @@
 @using MudBlazor
 @using FMC.Shared.DTOs.Admin
 
-<MudDialog Class="sc-success-dialog">
+<MudDialog Class="sc-glass-dialog">
     <DialogContent>
-        <div class="sc-success-root @(ThemeService.IsDarkMode ? "dark" : "light")">
-            <div class="sc-success-glow"></div>
-            <div class="sc-success-icon-wrap">
-                <svg xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            </div>
-            <MudText Typo="Typo.h5" Class="sc-success-title">@Title</MudText>
-            <MudText Typo="Typo.body2" Class="sc-success-desc">@(_status.IsActive ? "The system is now restricting access according to the selected mode." : "The schedule has been recorded and will activate automatically.")</MudText>
-            <div class="sc-success-details">
-                <div class="sc-success-row">
-                    <span class="sc-success-label">Mode</span>
-                    <span class="sc-success-value sc-badge @(_status.ModeType == "readonly" ? "readonly" : "full")">@(_status.ModeType == "readonly" ? "Read Only" : "Full Lock")</span>
+        <div class="sc-glass-root @(ThemeService.IsDarkMode ? "dark" : "light")">
+            <div class="sc-glass-bg"></div>
+            <div class="sc-glass-border"></div>
+
+            <div class="sc-glass-content">
+                <div class="sc-glass-icon-wrap">
+                    <div class="sc-glass-icon-ring"></div>
+                    <svg class="sc-glass-icon-svg" xmlns="http://www.w3.org/2000/svg" height="36" width="36" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                 </div>
-                @if (!string.IsNullOrEmpty(_status.ActivatedBy))
-                {
-                    <div class="sc-success-row">
-                        <span class="sc-success-label">By</span>
-                        <span class="sc-success-value">@_status.ActivatedBy</span>
+
+                <MudText Typo="Typo.h5" Class="sc-glass-title">@Title</MudText>
+                <MudText Typo="Typo.body2" Class="sc-glass-desc">@(_status.IsActive ? "The system is now restricting access according to the selected mode." : "The schedule has been recorded and will activate automatically.")</MudText>
+
+                <div class="sc-glass-details">
+                    <div class="sc-glass-row">
+                        <span class="sc-glass-row-label">Mode</span>
+                        <span class="sc-glass-badge @(_status.ModeType == "readonly" ? "badge-readonly" : "badge-full")">@(_status.ModeType == "readonly" ? "Read Only" : "Full Lock")</span>
                     </div>
-                }
-                <div class="sc-success-row">
-                    <span class="sc-success-label">Time</span>
-                    <span class="sc-success-value">@DateTime.UtcNow.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</span>
+                    @if (!string.IsNullOrEmpty(_status.ActivatedBy))
+                    {
+                        <div class="sc-glass-row">
+                            <span class="sc-glass-row-label">Initiated by</span>
+                            <span class="sc-glass-row-value">@_status.ActivatedBy</span>
+                        </div>
+                    }
+                    <div class="sc-glass-row">
+                        <span class="sc-glass-row-label">Timestamp</span>
+                        <span class="sc-glass-row-value">@DateTime.UtcNow.ToLocalTime().ToString("MMM dd, yyyy  ·  HH:mm")</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_editMsg))
+                    {
+                        <div class="sc-glass-row-note">
+                            <span class="sc-glass-row-label">Note</span>
+                            <span class="sc-glass-row-value">@_editMsg</span>
+                        </div>
+                    }
                 </div>
+
+                <button class="sc-glass-btn" @onclick="Close">
+                    <span class="sc-glass-btn-text">Got it</span>
+                    <span class="sc-glass-btn-shimmer"></span>
+                </button>
             </div>
         </div>
     </DialogContent>
-    <DialogActions>
-        <div class="d-flex justify-center w-100 pb-6 px-6">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close" Style="text-transform:none;font-weight:800;border-radius:12px;height:44px;min-width:160px;background:#2d5a27;">
-                Done
-            </MudButton>
-        </div>
-    </DialogActions>
 </MudDialog>
 
 <style>
-    .sc-success-dialog .mud-dialog { border-radius:24px !important; max-width:400px !important; }
-    .sc-success-root { text-align:center; padding:24px 8px 8px; position:relative; overflow:hidden; }
-    .sc-success-glow {
-        position:absolute; top:-80px; left:50%; transform:translateX(-50%);
-        width:200px; height:200px; border-radius:50%;
-        background:radial-gradient(circle, rgba(45,90,39,0.15) 0%, transparent 70%);
-        pointer-events:none;
+    .sc-glass-dialog .mud-dialog {
+        border-radius: 28px !important;
+        max-width: 400px !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
     }
-    .sc-success-icon-wrap {
-        width:72px; height:72px; border-radius:20px;
-        background:rgba(45,90,39,0.12); color:#5a9a4a;
-        display:flex; align-items:center; justify-content:center;
-        margin:0 auto 16px; position:relative;
-        animation:sc-success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    .sc-glass-dialog .mud-dialog-content { padding: 0 !important; }
+    .sc-glass-dialog .mud-dialog-actions { display: none !important; }
+
+    .sc-glass-root {
+        position: relative;
+        padding: 0;
+        border-radius: 28px;
+        overflow: hidden;
     }
-    @@keyframes sc-success-pop { from { transform:scale(0) rotate(-20deg); } to { transform:scale(1) rotate(0); } }
-    .sc-success-title { font-weight:900 !important; letter-spacing:-0.02em; margin-bottom:8px; }
-    .sc-success-desc { color:var(--mud-palette-text-secondary); max-width:300px; margin:0 auto; opacity:0.7; }
-    .sc-success-details { margin-top:20px; display:flex; flex-direction:column; gap:8px; }
-    .sc-success-row { display:flex; justify-content:space-between; align-items:center; padding:8px 16px; background:rgba(0,0,0,0.02); border-radius:10px; }
-    .sc-root.light .sc-success-row { background:rgba(0,0,0,0.02); }
-    .sc-success-label { font-size:11px; font-weight:700; color:var(--mud-palette-text-secondary); text-transform:uppercase; letter-spacing:0.05em; opacity:0.5; }
-    .sc-success-value { font-size:14px; font-weight:800; color:var(--mud-palette-text-primary); }
-    .sc-badge { padding:2px 10px; border-radius:20px; font-size:11px; }
-    .sc-badge.full { background:rgba(184,134,11,0.12); color:#b8860b; }
-    .sc-badge.readonly { background:rgba(100,120,200,0.12); color:#8890c0; }
+
+    /* ── Glass background layers ── */
+    .sc-glass-bg {
+        position: absolute; inset: 0;
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(32px) saturate(180%);
+        -webkit-backdrop-filter: blur(32px) saturate(180%);
+        border-radius: 28px;
+        z-index: 0;
+    }
+    .sc-glass-root.dark .sc-glass-bg {
+        background: rgba(15,15,19,0.75);
+        backdrop-filter: blur(32px) saturate(180%);
+    }
+    .sc-glass-root.light .sc-glass-bg {
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(32px) saturate(150%);
+    }
+
+    .sc-glass-border {
+        position: absolute; inset: 0;
+        border-radius: 28px;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.15) 100%);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        z-index: 1;
+        pointer-events: none;
+    }
+    .sc-glass-root.dark .sc-glass-border {
+        background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.03) 40%, rgba(255,255,255,0.08) 100%);
+    }
+    .sc-glass-root.light .sc-glass-border {
+        background: linear-gradient(135deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.02) 40%, rgba(0,0,0,0.05) 100%);
+    }
+
+    .sc-glass-content {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        padding: 40px 32px 32px;
+    }
+
+    /* ── Animated icon ── */
+    .sc-glass-icon-wrap {
+        width: 80px; height: 80px;
+        margin: 0 auto 20px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sc-glass-icon-ring {
+        position: absolute; inset: 0;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, #5a9a4a, #2d5a27, #5a9a4a, #2d5a27, #5a9a4a);
+        animation: sc-ring-rotate 4s linear infinite;
+        padding: 3px;
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 3px));
+        mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 3px));
+    }
+    @@keyframes sc-ring-rotate { to { transform: rotate(360deg); } }
+    .sc-glass-icon-svg {
+        width: 36px; height: 36px;
+        color: #5a9a4a;
+        animation: sc-icon-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        filter: drop-shadow(0 0 12px rgba(45,90,39,0.3));
+    }
+    @@keyframes sc-icon-pop {
+        0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+        100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    /* ── Typography ── */
+    .sc-glass-title {
+        font-weight: 900 !important;
+        letter-spacing: -0.03em !important;
+        color: var(--mud-palette-text-primary);
+        margin-bottom: 8px !important;
+    }
+    .sc-glass-desc {
+        color: var(--mud-palette-text-secondary);
+        opacity: 0.65;
+        max-width: 280px;
+        margin: 0 auto 24px !important;
+        line-height: 1.5 !important;
+    }
+
+    /* ── Detail rows ── */
+    .sc-glass-details {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 28px;
+    }
+    .sc-glass-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 16px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.04);
+    }
+    .sc-glass-root.light .sc-glass-row {
+        background: rgba(0,0,0,0.03);
+        border-color: rgba(0,0,0,0.04);
+    }
+    .sc-glass-row-note {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 16px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.03);
+    }
+    .sc-glass-root.light .sc-glass-row-note {
+        background: rgba(0,0,0,0.02);
+        border-color: rgba(0,0,0,0.03);
+    }
+    .sc-glass-row-note .sc-glass-row-value {
+        font-size: 12px !important;
+        opacity: 0.6;
+        text-align: left;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+    .sc-glass-row-label {
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--mud-palette-text-secondary);
+        opacity: 0.4;
+    }
+    .sc-glass-row-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--mud-palette-text-primary);
+    }
+
+    /* ── Badge ── */
+    .sc-glass-badge {
+        padding: 3px 12px;
+        border-radius: 30px;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+    .sc-glass-badge.badge-full {
+        background: rgba(184,134,11,0.12);
+        color: #b8860b;
+        border: 1px solid rgba(184,134,11,0.15);
+    }
+    .sc-glass-badge.badge-readonly {
+        background: rgba(100,120,200,0.12);
+        color: #8890c0;
+        border: 1px solid rgba(100,120,200,0.15);
+    }
+
+    /* ── Premium Button ── */
+    .sc-glass-btn {
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        padding: 14px 24px;
+        border: none;
+        border-radius: 16px;
+        font-size: 15px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: linear-gradient(135deg, #2d5a27, #3d7040);
+        color: white;
+        letter-spacing: 0.02em;
+    }
+    .sc-glass-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(45,90,39,0.3);
+    }
+    .sc-glass-btn:active { transform: translateY(0); }
+    .sc-glass-btn-shimmer {
+        position: absolute;
+        top: 0; left: -100%;
+        width: 60%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        animation: sc-shimmer-slide 3s ease-in-out infinite;
+    }
+    @@keyframes sc-shimmer-slide {
+        0% { left: -60%; }
+        100% { left: 160%; }
+    }
+    .sc-glass-btn-text { position: relative; z-index: 1; }
+
+    /* ── Entrance animation ── */
+    .sc-glass-content {
+        animation: sc-glass-enter 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    @@keyframes sc-glass-enter {
+        from { opacity: 0; transform: translateY(12px) scale(0.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
 </style>
 
 @code {
@@ -75,10 +282,14 @@
     [Parameter] public MaintenanceStatusDto Status { get; set; } = new();
 
     private MaintenanceStatusDto _status = new();
+    private string _editMsg = "";
 
     protected override void OnInitialized()
     {
         _status = Status;
+        // Extract message from audit details or fallback
+        if (!string.IsNullOrEmpty(_status.Message))
+            _editMsg = _status.Message;
     }
 
     private void Close() => MudDialog.Close();

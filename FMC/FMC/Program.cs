@@ -90,6 +90,13 @@ builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<GlobalAlertService>();
 builder.Services.AddScoped<SecurityStateService>();
 builder.Services.AddScoped<FMC.Application.Interfaces.ICurrentUserService, BlazorCurrentUserService>();
+builder.Services.AddSingleton<MaintenancePoller>();
+builder.Services.AddHttpClient<MaintenancePoller>(client =>
+{
+    var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 #endregion
 
 var app = builder.Build();
@@ -192,9 +199,6 @@ app.UseAuthorization();
 // Maintenance Mode Middleware — blocks non-admin requests when maintenance is active
 app.Use(async (context, next) =>
 {
-    // Auto-activate if scheduled time has passed
-    FMC.Services.MaintenanceState.CheckAutoActivate();
-
     if (!FMC.Services.MaintenanceState.IsActive)
     {
         await next();
@@ -203,6 +207,18 @@ app.Use(async (context, next) =>
     if (!context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin))
     {
         var msg = FMC.Services.MaintenanceState.Message;
+        var modeType = FMC.Services.MaintenanceState.ModeType;
+
+        // Read-only mode: allow GET, block POST/PUT/DELETE
+        if (modeType == "readonly")
+        {
+            var method = context.Request.Method.ToUpperInvariant();
+            if (method == "GET" || method == "HEAD" || method == "OPTIONS")
+            {
+                await next();
+                return;
+            }
+        }
 
         var (bg, fg, accent) = context.Request.IsHttps
             ? ("#0a0a0f", "#e0e0e0", "#b8860b")
@@ -265,6 +281,9 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(FMC.Client._Imports).Assembly);
+
+// Start background maintenance state polling (syncs with Redis every 30s)
+app.Services.GetRequiredService<MaintenancePoller>().Start();
 
 #endregion
 

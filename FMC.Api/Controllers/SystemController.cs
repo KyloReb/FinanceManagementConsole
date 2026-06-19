@@ -48,6 +48,8 @@ public class SystemController : ControllerBase
         var blockedCount = await _cacheService.GetAsync<long>("maintenance:blocked_count");
         var scheduledAtStr = await _cacheService.GetAsync<string>("maintenance:scheduled_at");
         var scheduledMsg = await _cacheService.GetAsync<string>("maintenance:scheduled_message");
+        var modeType = await _cacheService.GetAsync<string>("maintenance:mode_type");
+        var graceMinutes = await _cacheService.GetAsync<int>("maintenance:grace_minutes");
 
         return Ok(new MaintenanceStatusDto
         {
@@ -57,7 +59,9 @@ public class SystemController : ControllerBase
             ActivatedAt = !string.IsNullOrEmpty(activatedAtStr) ? DateTime.Parse(activatedAtStr, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
             BlockedCount = blockedCount,
             ScheduledAt = !string.IsNullOrEmpty(scheduledAtStr) ? DateTime.Parse(scheduledAtStr, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
-            ScheduledMessage = scheduledMsg
+            ScheduledMessage = scheduledMsg,
+            ModeType = modeType ?? "full",
+            GraceMinutes = graceMinutes
         });
     }
 
@@ -71,6 +75,11 @@ public class SystemController : ControllerBase
         // Clear any pending schedule
         await _cacheService.RemoveAsync("maintenance:scheduled_at");
         await _cacheService.RemoveAsync("maintenance:scheduled_message");
+
+        // Store mode type and grace period regardless of action
+        var modeType = !string.IsNullOrEmpty(request.ModeType) ? request.ModeType : "full";
+        await _cacheService.SetAsync("maintenance:mode_type", modeType, null);
+        await _cacheService.SetAsync("maintenance:grace_minutes", request.GraceMinutes > 0 ? request.GraceMinutes : 0, null);
 
         if (request.ScheduledAt.HasValue && request.ScheduledAt > DateTime.UtcNow && !request.IsActive)
         {

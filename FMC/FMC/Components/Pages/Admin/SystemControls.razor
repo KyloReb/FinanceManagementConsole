@@ -454,7 +454,7 @@
             _status = await AdminService.GetMaintenanceStatusAsync();
             if (_status != null)
             {
-                MaintenanceState.Sync(_status.IsActive, _status.Message, _status.ScheduledAt, _status.ScheduledMessage);
+                MaintenanceState.Sync(_status.IsActive, _status.Message, _status.ModeType ?? "full", _status.GraceMinutes, _status.ScheduledAt, _status.ScheduledMessage);
                 _editMessage = _status.Message ?? "";
                 _scheduleMsg = _status.ScheduledMessage ?? "";
                 if (_status.ScheduledAt.HasValue)
@@ -493,7 +493,6 @@
             var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(isActive, _editMessage);
             if (succeeded)
             {
-                MaintenanceState.Sync(isActive, _editMessage);
                 var action = isActive ? "activated" : "deactivated";
                 Snackbar.Add($"Maintenance mode {action}.", Severity.Success);
                 await LoadStatus();
@@ -567,7 +566,6 @@
             var (succeeded, error) = await AdminService.ToggleMaintenanceModeAsync(false, null, null, null);
             if (succeeded)
             {
-                MaintenanceState.ClearSchedule();
                 Snackbar.Add("Scheduled maintenance cleared.", Severity.Success);
                 await LoadStatus();
             }

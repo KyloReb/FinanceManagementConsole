@@ -9,6 +9,8 @@ public class MaintenanceStatusDto
     public long BlockedCount { get; set; }
     public DateTime? ScheduledAt { get; set; }
     public string? ScheduledMessage { get; set; }
+    public string? ModeType { get; set; }
+    public int GraceMinutes { get; set; }
 }
 
 public class MaintenanceToggleRequest
@@ -17,4 +19,6 @@ public class MaintenanceToggleRequest
     public string? Message { get; set; }
     public DateTime? ScheduledAt { get; set; }
     public string? ScheduledMessage { get; set; }
+    public string? ModeType { get; set; }
+    public int GraceMinutes { get; set; }
 }

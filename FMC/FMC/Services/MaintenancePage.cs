@@ -27,9 +27,6 @@ p {{ font-size:14px; line-height:1.6; opacity:0.55; margin-bottom:6px; }}
 .pulse {{ width:6px; height:6px; background:#b8860b; border-radius:50%; display:inline-block; margin-right:6px; animation:pulse 2s infinite; }}
 @@keyframes pulse {{ 0%,100% {{ opacity:0.3; }} 50% {{ opacity:1; }} }}
 .footer {{ margin-top:24px; font-size:11px; }}
-.logout {{ margin-top:28px; display:inline-block; padding:10px 28px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); font-size:13px; font-weight:700; text-decoration:none; color:inherit; cursor:pointer; transition:all 0.2s; }}
-.logout:hover {{ border-color:#b8860b; color:#b8860b; }}
-@media (prefers-color-scheme: light) {{ .logout {{ border-color:rgba(0,0,0,0.1); }} .logout:hover {{ border-color:#b8860b; }} }}
 </style></head>
 <body><div class=""container"">
 <img src=""{LogoBase64}"" alt=""NLK Logo"" class=""logo"" />
@@ -41,7 +38,6 @@ p {{ font-size:14px; line-height:1.6; opacity:0.55; margin-bottom:6px; }}
     <a href=""mailto:nl.admin@nationlink.ph"">nl.admin@nationlink.ph</a>
 </div>
 <div class=""footer""><span class=""pulse""></span>FMC &middot; {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC</div>
-<a class=""logout"" href=""/login"">Already signed in? <strong>Sign Out</strong></a>
 </div></body></html>";
     }
 
@@ -65,9 +61,6 @@ p {{ font-size:14px; line-height:1.6; opacity:0.55; margin-bottom:12px; }}
 .contact {{ margin-top:24px; padding:14px 18px; border-radius:14px; border:1px solid; font-size:12px; line-height:1.5; opacity:0.65; }}
 .contact a {{ color:inherit; }}
 .footer {{ margin-top:24px; font-size:11px; opacity:0.25; }}
-.logout {{ margin-top:28px; display:inline-block; padding:10px 28px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); font-size:13px; font-weight:700; text-decoration:none; color:inherit; cursor:pointer; transition:all 0.2s; }}
-.logout:hover {{ border-color:#b8860b; color:#b8860b; }}
-@media (prefers-color-scheme: light) {{ .logout {{ border-color:rgba(0,0,0,0.1); }} .logout:hover {{ border-color:#b8860b; }} }}
 </style></head>
 <body><div class=""container"">
 <img src=""{LogoBase64}"" alt=""NLK Logo"" class=""logo"" />
@@ -80,7 +73,6 @@ p {{ font-size:14px; line-height:1.6; opacity:0.55; margin-bottom:12px; }}
     &#128231; Questions? <a href=""mailto:nl.admin@nationlink.ph"">nl.admin@nationlink.ph</a>
 </div>
 <div class=""footer"">FMC &middot; Auto-refreshes every 10 seconds</div>
-<a class=""logout"" href=""/login"">Already signed in? <strong>Sign Out</strong></a>
 <script>
 (function(){{ var s={remainingSeconds};setInterval(function(){{s--;var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;document.getElementById('cd').textContent=
 (h+'').padStart(2,'0')+':'+(m+'').padStart(2,'0')+':'+(sec+'').padStart(2,'0');if(s<=0)location.reload();}},1000);}})();

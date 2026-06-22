@@ -241,6 +241,12 @@ app.Use(async (context, next) =>
         await next();
         return;
     }
+    if (context.User.Identity?.IsAuthenticated != true)
+    {
+        // Anonymous users should always reach /login — the login page handles post-auth maintenance display
+        context.Response.Redirect("/login");
+        return;
+    }
     if (!context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin))
     {
         context.Response.StatusCode = 503;

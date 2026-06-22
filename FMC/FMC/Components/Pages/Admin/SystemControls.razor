@@ -336,13 +336,17 @@
                 }
                 else
                 {
-                    var _windows = BuildTimelineWindows(_history).OrderByDescending(w => w.Start).ToList();
-                    if (_windows.Count > 0)
+                    var allWindows = BuildTimelineWindows(_history).OrderByDescending(w => w.Start).ToList();
+                    var totalWindows = allWindows.Count;
+                    var totalPages = Math.Max(1, (int)Math.Ceiling((double)totalWindows / _pageSize));
+                    if (_currentPage > totalPages) _currentPage = totalPages;
+                    var pagedWindows = allWindows.Skip((_currentPage - 1) * _pageSize).Take(_pageSize).ToList();
+                    if (totalWindows > 0)
                     {
-                        var maxDuration = _windows.Max(w => (w.End - w.Start).TotalMinutes);
+                        var maxDuration = allWindows.Max(w => (w.End - w.Start).TotalMinutes);
                         <div class="sc-timeline">
                             <div class="sc-timeline-axis">
-                                @foreach (var win in _windows.OrderBy(w => w.Start))
+                                @foreach (var win in allWindows.OrderBy(w => w.Start))
                                 {
                                     var duration = (win.End - win.Start).TotalMinutes;
                                     var widthPct = maxDuration > 0 ? (duration / maxDuration) * 100 : 100;
@@ -355,7 +359,7 @@
                         </div>
                     }
                     <div class="sc-window-list">
-                        @foreach (var win in _windows)
+                        @foreach (var win in pagedWindows)
                         {
                             var duration = (win.End - win.Start).TotalMinutes;
                             <button class="sc-window-card @(win.IsActive ? "active" : "")" @onclick="() => ShowWindowDetail(win)">
@@ -385,6 +389,28 @@
                             </button>
                         }
                     </div>
+                    @if (totalPages > 1)
+                    {
+                        <div class="sc-pagination">
+                            <div class="sc-pagination-info">
+                                @((_currentPage - 1) * _pageSize + 1)&ndash;@(Math.Min(_currentPage * _pageSize, totalWindows)) of @totalWindows
+                            </div>
+                            <div class="sc-pagination-controls">
+                                <button class="sc-page-btn" disabled="@(_currentPage <= 1)" @onclick="() => { _currentPage--; }">&#9664;</button>
+                                @for (int p = 1; p <= totalPages; p++)
+                                {
+                                    <button class="sc-page-btn @(p == _currentPage ? "active" : "")" @onclick="() => { _currentPage = p; }">@p</button>
+                                }
+                                <button class="sc-page-btn" disabled="@(_currentPage >= totalPages)" @onclick="() => { _currentPage++; }">&#9654;</button>
+                            </div>
+                            <select class="sc-page-size" @bind="_pageSize">
+                                <option value="5">5 / page</option>
+                                <option value="10">10 / page</option>
+                                <option value="20">20 / page</option>
+                                <option value="50">50 / page</option>
+                            </select>
+                        </div>
+                    }
                 }
             </div>
         </div>
@@ -634,6 +660,38 @@
     }
     .sc-window-card:hover .sc-window-card-arrow { opacity:0.6; }
 
+    /* ── Pagination ── */
+    .sc-pagination {
+        display:flex; align-items:center; justify-content:space-between; gap:12px;
+        margin-top:16px; padding:8px 4px; flex-wrap:wrap;
+    }
+    .sc-pagination-info {
+        font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6;
+        white-space:nowrap;
+    }
+    .sc-pagination-controls {
+        display:flex; align-items:center; gap:4px;
+    }
+    .sc-page-btn {
+        display:inline-flex; align-items:center; justify-content:center;
+        width:32px; height:32px; border-radius:8px;
+        border:1px solid var(--sc-border); background:transparent;
+        color:var(--mud-palette-text-primary); font-size:12px; font-weight:700;
+        cursor:pointer; transition:all 0.15s;
+    }
+    .sc-page-btn:hover:not(:disabled) { border-color:#b8860b; color:#b8860b; }
+    .sc-page-btn.active { background:#b8860b; color:white; border-color:#b8860b; }
+    .sc-page-btn:disabled { opacity:0.3; cursor:not-allowed; }
+    .sc-page-size {
+        padding:4px 8px; border-radius:8px; border:1px solid var(--sc-border);
+        background:transparent; color:var(--mud-palette-text-primary);
+        font-size:11px; font-weight:700; cursor:pointer;
+    }
+    @@media (max-width:500px) {
+        .sc-pagination { flex-direction:column; gap:8px; align-items:center; }
+        .sc-pagination-info { order:3; }
+    }
+
     /* ── Active Banner ── */
     .sc-active-banner {
         display:flex; align-items:center; gap:10px;
@@ -738,6 +796,8 @@
     private string? _scheduleError;
     private List<MaintenanceHistoryItem> _history = new();
     private bool _historyLoading;
+    private int _pageSize = 10;
+    private int _currentPage = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -777,6 +837,7 @@
     private async Task LoadHistory()
     {
         _historyLoading = true;
+        _currentPage = 1;
         try
         {
             _history = await AdminService.GetMaintenanceHistoryAsync();

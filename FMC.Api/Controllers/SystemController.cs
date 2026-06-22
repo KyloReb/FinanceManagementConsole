@@ -155,7 +155,7 @@ public class SystemController : ControllerBase
                 userId: userId,
                 ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString() ?? "N/A",
                 device: Request.Headers["User-Agent"].ToString(),
-                details: $"Maintenance mode activated by {userName}. Message: {request.Message ?? "None"}"
+                details: string.IsNullOrEmpty(request.Message) ? "Maintenance mode activated by admin." : $"Maintenance mode activated by admin. {request.Message}"
             );
 
             _logger.LogWarning("Maintenance mode ENABLED by {User}", userName);

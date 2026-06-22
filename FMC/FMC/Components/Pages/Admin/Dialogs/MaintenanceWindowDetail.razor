@@ -1,0 +1,172 @@
+@using MudBlazor
+@using FMC.Components.Pages.Admin
+
+<MudDialog Class="sc-window-dialog">
+    <DialogContent>
+        <div class="sc-window-root @(ThemeService.IsDarkMode ? "dark" : "light")">
+            <div class="sc-window-header">
+                <div class="sc-window-status @(_window.IsActive ? "active" : "resolved")">
+                    <span class="sc-window-dot"></span>
+                    @(_window.IsActive ? "Active" : "Resolved")
+                </div>
+                <span class="sc-window-duration">@FormatDuration((_window.End - _window.Start).TotalMinutes)</span>
+            </div>
+
+            <div class="sc-window-section">
+                <div class="sc-window-sub">Activated</div>
+                <div class="sc-window-value">@FormatTimestamp(_window.Start)</div>
+                <div class="sc-window-meta">by @(_window.ActivatedBy ?? "System")</div>
+            </div>
+
+            @if (!_window.IsActive)
+            {
+                <div class="sc-window-section">
+                    <div class="sc-window-sub">Deactivated</div>
+                    <div class="sc-window-value">@FormatTimestamp(_window.End)</div>
+                    <div class="sc-window-meta">by @(_window.DeactivatedBy ?? "System")</div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_window.Details))
+            {
+                <div class="sc-window-section">
+                    <div class="sc-window-sub">Details</div>
+                    <div class="sc-window-detail">@_window.Details</div>
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="Close" Class="sc-window-close-btn">Got it</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .sc-window-dialog .mud-dialog {
+        border-radius: 24px !important;
+        max-width: 380px !important;
+        background: var(--mud-palette-surface) !important;
+        box-shadow: 0 12px 48px rgba(0,0,0,0.15) !important;
+        overflow: hidden !important;
+    }
+    .sc-window-dialog .mud-dialog-content { padding: 0 !important; }
+    .sc-window-root {
+        padding: 28px 24px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    .sc-window-root.light { color: #1e1e1e; }
+    .sc-window-root.dark { color: #e0e0e0; }
+
+    .sc-window-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .sc-window-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 4px 12px 4px 8px;
+        border-radius: 20px;
+    }
+    .sc-window-status.active { background: rgba(255,61,0,0.1); color: #ff3d00; }
+    .sc-window-status.resolved { background: rgba(90,154,74,0.1); color: #5a9a4a; }
+    .sc-window-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        display: inline-block;
+    }
+    .sc-window-status.active .sc-window-dot { background: #ff3d00; }
+    .sc-window-status.resolved .sc-window-dot { background: #5a9a4a; }
+    .sc-window-duration {
+        font-size: 20px;
+        font-weight: 900;
+        font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+        color: var(--mud-palette-text-primary);
+        letter-spacing: -0.02em;
+    }
+
+    .sc-window-section {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .sc-window-sub {
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        opacity: 0.4;
+        color: var(--mud-palette-text-secondary);
+    }
+    .sc-window-value {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--mud-palette-text-primary);
+    }
+    .sc-window-meta {
+        font-size: 12px;
+        opacity: 0.5;
+        color: var(--mud-palette-text-secondary);
+    }
+    .sc-window-detail {
+        font-size: 13px;
+        line-height: 1.5;
+        opacity: 0.7;
+        color: var(--mud-palette-text-primary);
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.04);
+    }
+    .sc-window-root.light .sc-window-detail {
+        background: rgba(0,0,0,0.03);
+        border-color: rgba(0,0,0,0.04);
+    }
+
+    .sc-window-close-btn {
+        width: 100% !important;
+        border-radius: 14px !important;
+        height: 44px !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+    }
+    .sc-window-dialog .mud-dialog-actions {
+        padding: 8px 24px 24px !important;
+    }
+</style>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private FMC.Services.ThemeService ThemeService { get; set; } = default!;
+
+    [Parameter] public TimelineWindow Window { get; set; } = new();
+
+    private TimelineWindow _window = new();
+
+    protected override void OnInitialized()
+    {
+        _window = Window;
+    }
+
+    private void Close() => MudDialog.Close();
+
+    private static string FormatDuration(double totalMinutes)
+    {
+        if (totalMinutes < 1) return "<1m";
+        if (totalMinutes < 60) return $"{(int)totalMinutes}m";
+        var hours = (int)(totalMinutes / 60);
+        var mins = (int)(totalMinutes % 60);
+        return $"{hours}h {mins}m";
+    }
+
+    private static string FormatTimestamp(DateTime dt)
+    {
+        return dt.ToLocalTime().ToString("MMM dd, yyyy · HH:mm");
+    }
+}

@@ -309,7 +309,7 @@
                 <div class="sc-card-header-left">
                     <span class="sc-card-icon">&#128196;</span>
                     <span class="sc-card-title">Maintenance History</span>
-                    <span class="sc-schedule-pill" Style="font-size:9px;padding:3px 10px;">@_history.Count events</span>
+                    <span class="sc-schedule-pill" Style="font-size:9px;padding:3px 10px;">@(BuildTimelineWindows(_history).Count) windows</span>
                 </div>
                 <div class="sc-header-actions">
                     <button class="sc-icon-btn" title="Export as Excel" @onclick="ExportHistoryExcel" disabled="@(_history.Count == 0)">
@@ -336,13 +336,13 @@
                 }
                 else
                 {
-                    var timelineWindows = BuildTimelineWindows(_history);
-                    if (timelineWindows.Count > 0)
+                    var _windows = BuildTimelineWindows(_history).OrderByDescending(w => w.Start).ToList();
+                    if (_windows.Count > 0)
                     {
-                        var maxDuration = timelineWindows.Max(w => (w.End - w.Start).TotalMinutes);
+                        var maxDuration = _windows.Max(w => (w.End - w.Start).TotalMinutes);
                         <div class="sc-timeline">
                             <div class="sc-timeline-axis">
-                                @foreach (var win in timelineWindows.OrderBy(w => w.Start))
+                                @foreach (var win in _windows.OrderBy(w => w.Start))
                                 {
                                     var duration = (win.End - win.Start).TotalMinutes;
                                     var widthPct = maxDuration > 0 ? (duration / maxDuration) * 100 : 100;
@@ -354,27 +354,35 @@
                             </div>
                         </div>
                     }
-                    <div class="sc-history-list">
-                        @foreach (var evt in _history)
+                    <div class="sc-window-list">
+                        @foreach (var win in _windows)
                         {
-                            var (cls, icon) = evt.Action switch
-                            {
-                                "MAINTENANCE_ENABLED" => ("enabled", "&#9679;"),
-                                "MAINTENANCE_DISABLED" => ("disabled", "&#9675;"),
-                                "MAINTENANCE_SCHEDULED" => ("scheduled", "&#9200;"),
-                                _ => ("default", "&#9679;")
-                            };
-                            <div class="sc-history-item @cls">
-                                <span class="sc-history-icon">@((MarkupString)icon)</span>
-                                <div class="sc-history-body">
-                                    <span class="sc-history-action">@FormatAction(evt.Action)</span>
-                                    <span class="sc-history-meta">@(evt.PerformedBy ?? "System") · @FormatTimestamp(evt.CreatedAt)</span>
+                            var duration = (win.End - win.Start).TotalMinutes;
+                            <button class="sc-window-card @(win.IsActive ? "active" : "")" @onclick="() => ShowWindowDetail(win)">
+                                <div class="sc-window-card-left">
+                                    <span class="sc-window-card-dot @(win.IsActive ? "active" : "resolved")"></span>
                                 </div>
-                                @if (!string.IsNullOrEmpty(evt.Details))
-                                {
-                                    <span class="sc-history-detail" title="@evt.Details">&#9432;</span>
-                                }
-                            </div>
+                                <div class="sc-window-card-body">
+                                    <div class="sc-window-card-top">
+                                        <span class="sc-window-card-status">@(win.IsActive ? "Active" : "Resolved")</span>
+                                        <span class="sc-window-card-dur">@FormatDuration(duration)</span>
+                                    </div>
+                                    <div class="sc-window-card-row">
+                                        <span class="sc-window-card-label">Activated</span>
+                                        <span class="sc-window-card-time">@FormatTimestamp(win.Start)</span>
+                                        <span class="sc-window-card-by">@(win.ActivatedBy ?? "System")</span>
+                                    </div>
+                                    @if (!win.IsActive)
+                                    {
+                                        <div class="sc-window-card-row">
+                                            <span class="sc-window-card-label">Deactivated</span>
+                                            <span class="sc-window-card-time">@FormatTimestamp(win.End)</span>
+                                            <span class="sc-window-card-by">@(win.DeactivatedBy ?? "System")</span>
+                                        </div>
+                                    }
+                                </div>
+                                <span class="sc-window-card-arrow">&#8250;</span>
+                            </button>
                         }
                     </div>
                 }
@@ -574,23 +582,57 @@
     .sc-mode-label { font-size:14px; font-weight:800; color:var(--mud-palette-text-primary); }
     .sc-mode-desc { font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6; line-height:1.4; }
 
-    /* ── History List ── */
-    .sc-history-list { display:grid; grid-template-columns:1fr; gap:6px; }
-    .sc-history-item {
-        display:flex; align-items:center; gap:12px;
-        padding:10px 14px; border-radius:12px;
+    /* ── Window Cards ── */
+    .sc-window-list { display:grid; grid-template-columns:1fr; gap:8px; }
+    .sc-window-card {
+        display:flex; align-items:center; gap:14px;
+        padding:14px 16px; border-radius:14px;
         border:1px solid var(--sc-border);
-        transition:background 0.2s;
+        background:var(--mud-palette-surface);
+        cursor:pointer; transition:all 0.2s; width:100%; text-align:left;
+        font-family:inherit; font-size:inherit; color:inherit;
     }
-    .sc-history-item:hover { background:var(--sc-bg-tint); }
-    .sc-history-icon { font-size:14px; flex-shrink:0; width:20px; text-align:center; }
-    .sc-history-item.enabled .sc-history-icon { color:#ff3d00; }
-    .sc-history-item.disabled .sc-history-icon { color:#5a9a4a; }
-    .sc-history-item.scheduled .sc-history-icon { color:#b8860b; }
-    .sc-history-body { flex:1; display:flex; flex-direction:column; gap:2px; min-width:0; }
-    .sc-history-action { font-size:13px; font-weight:700; color:var(--mud-palette-text-primary); }
-    .sc-history-meta { font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6; }
-    .sc-history-detail { font-size:12px; opacity:0.3; cursor:help; flex-shrink:0; }
+    .sc-window-card:hover { border-color:#b8860b; background:var(--sc-bg-tint); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+    .sc-window-card:active { transform:translateY(0); }
+    .sc-window-card.active { border-left:3px solid #ff3d00; }
+    .sc-window-card:not(.active) { border-left:3px solid #5a9a4a; }
+    .sc-window-card-left { flex-shrink:0; }
+    .sc-window-card-dot {
+        width:10px; height:10px; border-radius:50%; display:block;
+    }
+    .sc-window-card-dot.active { background:#ff3d00; box-shadow:0 0 8px rgba(255,61,0,0.3); }
+    .sc-window-card-dot.resolved { background:#5a9a4a; }
+    .sc-window-card-body { flex:1; display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .sc-window-card-top {
+        display:flex; align-items:center; justify-content:space-between;
+    }
+    .sc-window-card-status {
+        font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.06em;
+    }
+    .sc-window-card.active .sc-window-card-status { color:#ff3d00; }
+    .sc-window-card:not(.active) .sc-window-card-status { color:#5a9a4a; }
+    .sc-window-card-dur {
+        font-size:13px; font-weight:800; font-family:'JetBrains Mono','Roboto Mono',monospace;
+        color:var(--mud-palette-text-primary); letter-spacing:-0.02em;
+    }
+    .sc-window-card-row {
+        display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    }
+    .sc-window-card-label {
+        font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;
+        opacity:0.35; color:var(--mud-palette-text-secondary); min-width:60px;
+    }
+    .sc-window-card-time {
+        font-size:13px; font-weight:700; color:var(--mud-palette-text-primary);
+    }
+    .sc-window-card-by {
+        font-size:11px; opacity:0.5; color:var(--mud-palette-text-secondary);
+    }
+    .sc-window-card-arrow {
+        font-size:18px; opacity:0.25; flex-shrink:0;
+        transition:opacity 0.2s; color:var(--mud-palette-text-primary);
+    }
+    .sc-window-card:hover .sc-window-card-arrow { opacity:0.6; }
 
     /* ── Active Banner ── */
     .sc-active-banner {
@@ -642,6 +684,14 @@
     .sc-btn-danger { background:#8b2252; color:white; }
     .sc-btn-danger:hover:not(:disabled) { background:#a03068; transform:translateY(-1px); box-shadow:0 6px 20px rgba(139,34,82,0.25); }
     @@media (max-width:500px) { .sc-btn { width:100%; justify-content:center; } }
+    @@media (max-width:600px) {
+        .sc-window-card { padding:12px 14px; gap:10px; }
+        .sc-window-card-row { flex-wrap:wrap; }
+        .sc-window-card-label { min-width:auto; width:100%; margin-bottom:-2px; }
+        .sc-window-card-time { font-size:12px; }
+        .sc-window-card-dur { font-size:12px; }
+        .sc-header-actions .sc-icon-btn span { display:none; }
+    }
 
     .sc-spinner {
         width:16px; height:16px; border:2px solid rgba(255,255,255,0.2);
@@ -884,36 +934,43 @@
         return local.ToString("MMM dd, HH:mm");
     }
 
-    private class TimelineWindow
-    {
-        public DateTime Start { get; set; }
-        public DateTime End { get; set; }
-        public string Label { get; set; } = "";
-        public bool IsActive { get; set; }
-    }
-
     private static List<TimelineWindow> BuildTimelineWindows(List<MaintenanceHistoryItem> history)
     {
         var windows = new List<TimelineWindow>();
-        DateTime? activeStart = null;
+        MaintenanceHistoryItem? activeEvent = null;
 
         foreach (var evt in history.OrderBy(h => h.CreatedAt))
         {
             if (evt.Action == "MAINTENANCE_ENABLED")
             {
-                activeStart = evt.CreatedAt;
+                activeEvent = evt;
             }
-            else if (evt.Action == "MAINTENANCE_DISABLED" && activeStart.HasValue)
+            else if (evt.Action == "MAINTENANCE_DISABLED" && activeEvent != null)
             {
-                windows.Add(new TimelineWindow { Start = activeStart.Value, End = evt.CreatedAt, Label = "Maintenance" });
-                activeStart = null;
+                windows.Add(new TimelineWindow
+                {
+                    Start = activeEvent.CreatedAt,
+                    End = evt.CreatedAt,
+                    Label = "Maintenance",
+                    ActivatedBy = activeEvent.PerformedBy,
+                    DeactivatedBy = evt.PerformedBy,
+                    Details = activeEvent.Details
+                });
+                activeEvent = null;
             }
         }
 
-        // Currently active window
-        if (activeStart.HasValue)
+        if (activeEvent != null)
         {
-            windows.Add(new TimelineWindow { Start = activeStart.Value, End = DateTime.UtcNow, Label = "Active", IsActive = true });
+            windows.Add(new TimelineWindow
+            {
+                Start = activeEvent.CreatedAt,
+                End = DateTime.UtcNow,
+                Label = "Active",
+                IsActive = true,
+                ActivatedBy = activeEvent.PerformedBy,
+                Details = activeEvent.Details
+            });
         }
 
         return windows;
@@ -954,6 +1011,12 @@
     }
 
     public void Dispose() { }
+
+    private async Task ShowWindowDetail(TimelineWindow win)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        await DialogService.ShowAsync<FMC.Components.Pages.Admin.Dialogs.MaintenanceWindowDetail>("", new DialogParameters { ["Window"] = win }, options);
+    }
 
     private static string FormatAction(string? action)
     {

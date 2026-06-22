@@ -6,6 +6,7 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject FMC.Services.ThemeService ThemeService
+@inject AuthenticationStateProvider AuthStateProvider
 @using FMC.Shared.DTOs.Admin
 @using System.Net
 
@@ -39,8 +40,15 @@
     else
     {
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
-        <MudImage Src="nlkLogo.png" Height="36" ObjectFit="ObjectFit.Contain" Class="mb-4" />
+        <img src="nlkLogo.png" alt="NLK Logo" style="height:36px; object-fit:contain; margin-bottom:24px;" />
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
+        @if (_isAuthenticated && !string.IsNullOrEmpty(_authenticatedUserName))
+        {
+            <div class="fmc-logged-in-banner w-100 mb-4">
+                <span>Signed in as <strong>@_authenticatedUserName</strong></span>
+                <button class="fmc-signout-btn" @onclick="Logout">Sign Out</button>
+            </div>
+        }
 
         @if (_isRateLimited)
         {
@@ -126,11 +134,20 @@
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+    private bool _isAuthenticated;
+    private string _authenticatedUserName = "";
     [Inject] private HttpClient HttpClient { get; set; } = default!;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _model ??= new();
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+            _authenticatedUserName = _isAuthenticated ? authState.User.Identity?.Name ?? "" : "";
+        }
+        catch { }
     }
 
     private void TogglePasswordVisibility()

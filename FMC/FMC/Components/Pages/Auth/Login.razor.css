@@ -46,8 +46,23 @@
     50% { opacity: 1; }
 }
 
+.fmc-logged-in-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(184,134,11,0.08); border: 1px solid #b8860b; border-radius: 8px;
+    padding: 10px 14px; font-size: 0.8rem; gap: 10px;
+}
+.fmc-signout-btn {
+    padding: 5px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
+    background: transparent; color: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer;
+    white-space: nowrap; transition: all 0.2s;
+}
+.fmc-signout-btn:hover { border-color: #b8860b; color: #b8860b; }
+
 @media (prefers-color-scheme: light) {
     .sc-maintenance-contact { border-color: rgba(0,0,0,0.08); }
     .sc-maintenance-logout-btn { border-color: rgba(0,0,0,0.1); }
     .sc-maintenance-logout-btn:hover { border-color: #b8860b; }
+    .fmc-logged-in-banner { background: rgba(184,134,11,0.06); border-color: #b8860b; }
+    .fmc-signout-btn { border-color: rgba(0,0,0,0.12); }
+    .fmc-signout-btn:hover { border-color: #b8860b; color: #b8860b; }
 }

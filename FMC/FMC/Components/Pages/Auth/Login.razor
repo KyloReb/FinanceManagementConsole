@@ -151,6 +151,11 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
             _authenticatedUserName = _isAuthenticated ? authState.User.Identity?.Name ?? "" : "";
+            if (_isAuthenticated && authState.User.IsInRole("SuperAdmin"))
+            {
+                NavigationManager.NavigateTo("/", forceLoad: true);
+                return;
+            }
         }
         catch { }
         try

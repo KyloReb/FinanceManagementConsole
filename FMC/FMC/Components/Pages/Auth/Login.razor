@@ -229,7 +229,9 @@
             var (result, statusCode, retryAfter, remainingAttempts) = await AuthService.Login(_model!);
             if (result != null)
             {
-                // Check if maintenance is active — if so, reload /login to show maintenance page
+                // Check if user is SuperAdmin — bypass maintenance check
+                try { var s = await AuthStateProvider.GetAuthenticationStateAsync(); if (s.User.IsInRole("SuperAdmin")) { NavigationManager.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : ReturnUrl, forceLoad: true); return; } } catch { }
+                // Non-admin: check maintenance — if active, show maintenance page
                 try
                 {
                     var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");

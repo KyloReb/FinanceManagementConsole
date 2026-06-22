@@ -42,6 +42,10 @@
     <MudCard Elevation="4" Class="pa-8 d-flex flex-column align-center mx-4" Style="width: 100%; max-width: 450px; border-radius: 12px;">
         <img src="nlkLogo.png" alt="NLK Logo" style="height:36px; object-fit:contain; margin-bottom:24px;" />
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
+        @if (_showMaintenanceWarning)
+        {
+            <div class="fmc-maint-warning w-100 mb-4">&#9888; <strong>Maintenance in progress.</strong> Even if you log in, you will not be able to access the dashboard until maintenance is resolved.</div>
+        }
         @if (_isAuthenticated && !string.IsNullOrEmpty(_authenticatedUserName))
         {
             <div class="fmc-logged-in-banner w-100 mb-4">
@@ -136,6 +140,7 @@
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
     private bool _isAuthenticated;
     private string _authenticatedUserName = "";
+    private bool _showMaintenanceWarning;
     [Inject] private HttpClient HttpClient { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -146,6 +151,18 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
             _authenticatedUserName = _isAuthenticated ? authState.User.Identity?.Name ?? "" : "";
+        }
+        catch { }
+        try
+        {
+            var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content.ReadAsStringAsync();
+                var status = System.Text.Json.JsonSerializer.Deserialize<MaintenanceStatusDto>(json,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                _showMaintenanceWarning = status is { IsActive: true };
+            }
         }
         catch { }
     }

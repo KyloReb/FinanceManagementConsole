@@ -170,26 +170,28 @@
             }
             catch { }
 
-            if (maint == "1" || maintMsg != null)
+            if (maint == "1")
             {
                 _maintenanceMsg = maintMsg ?? "System is undergoing scheduled maintenance.";
                 _showMaintenance = true;
                 return;
             }
 
-            // Already authenticated non-admin with active maintenance → show maintenance page
-            if (_isAuthenticated && maintMsg != null)
+            if (_isAuthenticated)
             {
-                _maintenanceMsg = maintMsg;
-                _showMaintenance = true;
-                return;
-            }
-
-            // Already authenticated SuperAdmin → redirect to dashboard
-            if (_isAuthenticated && authState.User.IsInRole("SuperAdmin"))
-            {
-                NavigationManager.NavigateTo("/", forceLoad: true);
-                return;
+                if (maintMsg != null && !authState.User.IsInRole("SuperAdmin"))
+                {
+                    // Authenticated non-admin with active maintenance → show maintenance page
+                    _maintenanceMsg = maintMsg;
+                    _showMaintenance = true;
+                    return;
+                }
+                if (authState.User.IsInRole("SuperAdmin"))
+                {
+                    // Authenticated SuperAdmin → redirect to dashboard
+                    NavigationManager.NavigateTo("/", forceLoad: true);
+                    return;
+                }
             }
 
             _showMaintenanceWarning = maintMsg != null;

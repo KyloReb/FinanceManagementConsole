@@ -43,13 +43,9 @@
         <MudText Typo="Typo.h5" Class="mb-5 fw-bold">Sign In</MudText>
         @if (_showMaintenanceWarning)
         {
-            <div class="fmc-maint-warning w-100 mb-4">&#9888; <strong>Maintenance in progress.</strong> Even if you log in, you will not be able to access the dashboard until maintenance is resolved.</div>
-        }
-        @if (_isAuthenticated && !string.IsNullOrEmpty(_authenticatedUserName))
-        {
-            <div class="fmc-logged-in-banner w-100 mb-4">
-                <span>Signed in as <strong>@_authenticatedUserName</strong></span>
-                <button class="fmc-signout-btn" @onclick="Logout">Sign Out</button>
+            <div class="fmc-maint-warning w-100 mb-4">
+                <div class="fmc-maint-title">&#9888; Maintenance in progress</div>
+                <div class="fmc-maint-desc">Even if you log in, you will not be able to access the dashboard until maintenance is resolved.</div>
             </div>
         }
 
@@ -137,8 +133,6 @@
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
-    private bool _isAuthenticated;
-    private string _authenticatedUserName = "";
     private bool _showMaintenanceWarning;
     [Inject] private HttpClient HttpClient { get; set; } = default!;
 
@@ -151,10 +145,7 @@
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
-            _authenticatedUserName = _isAuthenticated ? authState.User.Identity?.Name ?? "" : "";
 
-            // Check maintenance state
             string? maintMsg = null;
             try
             {
@@ -176,18 +167,16 @@
                 return;
             }
 
-            if (_isAuthenticated)
+            if (authState.User.Identity?.IsAuthenticated == true)
             {
                 if (maintMsg != null && !authState.User.IsInRole("SuperAdmin"))
                 {
-                    // Authenticated non-admin with active maintenance → show maintenance page
                     _maintenanceMsg = maintMsg;
                     _showMaintenance = true;
                     return;
                 }
                 if (authState.User.IsInRole("SuperAdmin"))
                 {
-                    // Authenticated SuperAdmin → redirect to dashboard
                     NavigationManager.NavigateTo("/", forceLoad: true);
                     return;
                 }

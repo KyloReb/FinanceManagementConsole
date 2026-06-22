@@ -24,7 +24,7 @@
     text-align: center; max-width: 440px; padding: 48px 32px;
 }
 .sc-maintenance-logo-wrap { margin-bottom: 28px; opacity: 0.9; }
-.sc-maintenance-icon { font-size: 48px; margin-bottom: 20px; opacity: 0.6; }
+.sc-maintenance-icon { font-size: 26px; margin-right: 10px; opacity: 0.6; vertical-align: middle; }
 .sc-maintenance-title { font-size: 26px; font-weight: 900; margin: 0 0 10px; letter-spacing: -0.03em; }
 .sc-maintenance-desc { font-size: 14px; line-height: 1.6; opacity: 0.55; margin-bottom: 6px; }
 .sc-maintenance-accent { color: #b8860b; font-weight: 700; margin-bottom: 20px; }

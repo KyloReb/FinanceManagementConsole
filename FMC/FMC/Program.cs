@@ -281,6 +281,14 @@ app.MapPost("/api/local-auth/clear-token", (HttpContext httpContext) =>
     return Results.Ok();
 });
 
+// GET endpoint: clears auth cookie and redirects to /login (works even with HttpOnly cookies)
+app.MapGet("/api/local-auth/logout", (HttpContext httpContext) =>
+{
+    httpContext.Response.Cookies.Delete("authToken");
+    httpContext.Response.Redirect("/login");
+    return Task.CompletedTask;
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()

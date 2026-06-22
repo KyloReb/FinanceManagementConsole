@@ -285,8 +285,8 @@
 
     private async Task Logout()
     {
-        await AuthService.Logout("current");
-        NavigationManager.NavigateTo("/login", forceLoad: true);
+        try { await AuthService.Logout("current"); } catch { }
+        NavigationManager.NavigateTo("/api/local-auth/logout", forceLoad: true);
     }
 
     public void Dispose()

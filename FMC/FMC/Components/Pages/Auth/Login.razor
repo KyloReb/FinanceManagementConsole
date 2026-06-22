@@ -143,6 +143,9 @@
     private bool _showMaintenanceWarning;
     [Inject] private HttpClient HttpClient { get; set; } = default!;
 
+    [SupplyParameterFromQuery]
+    public string? maint { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         _model ??= new();
@@ -151,23 +154,45 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
             _authenticatedUserName = _isAuthenticated ? authState.User.Identity?.Name ?? "" : "";
+
+            // Check maintenance state
+            string? maintMsg = null;
+            try
+            {
+                var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
+                if (resp.IsSuccessStatusCode)
+                {
+                    var json = await resp.Content.ReadAsStringAsync();
+                    var status = System.Text.Json.JsonSerializer.Deserialize<MaintenanceStatusDto>(json,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    if (status is { IsActive: true }) maintMsg = status.Message;
+                }
+            }
+            catch { }
+
+            if (maint == "1" || maintMsg != null)
+            {
+                _maintenanceMsg = maintMsg ?? "System is undergoing scheduled maintenance.";
+                _showMaintenance = true;
+                return;
+            }
+
+            // Already authenticated non-admin with active maintenance → show maintenance page
+            if (_isAuthenticated && maintMsg != null)
+            {
+                _maintenanceMsg = maintMsg;
+                _showMaintenance = true;
+                return;
+            }
+
+            // Already authenticated SuperAdmin → redirect to dashboard
             if (_isAuthenticated && authState.User.IsInRole("SuperAdmin"))
             {
                 NavigationManager.NavigateTo("/", forceLoad: true);
                 return;
             }
-        }
-        catch { }
-        try
-        {
-            var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
-            if (resp.IsSuccessStatusCode)
-            {
-                var json = await resp.Content.ReadAsStringAsync();
-                var status = System.Text.Json.JsonSerializer.Deserialize<MaintenanceStatusDto>(json,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                _showMaintenanceWarning = status is { IsActive: true };
-            }
+
+            _showMaintenanceWarning = maintMsg != null;
         }
         catch { }
     }
@@ -202,7 +227,7 @@
             var (result, statusCode, retryAfter, remainingAttempts) = await AuthService.Login(_model!);
             if (result != null)
             {
-                // Check if maintenance is active — if so, show maintenance page
+                // Check if maintenance is active — if so, reload /login to show maintenance page
                 try
                 {
                     var resp = await HttpClient.GetAsync($"api/system/maintenance?_t={DateTime.UtcNow.Ticks}");
@@ -213,9 +238,7 @@
                             new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                         if (status is { IsActive: true })
                         {
-                            _maintenanceMsg = status.Message ?? "System is undergoing scheduled maintenance.";
-                            _showMaintenance = true;
-                            _isLoading = false;
+                            NavigationManager.NavigateTo("/login?maint=1", forceLoad: true);
                             return;
                         }
                     }

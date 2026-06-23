@@ -105,9 +105,18 @@ public class SystemController : ControllerBase
             Message = lastEnabled?.Details ?? (isActive ? "Maintenance is active." : null),
             ActivatedBy = lastEnabled?.PerformedBy,
             ActivatedAt = lastEnabled?.CreatedAt,
-            BlockedCount = 0,
+            BlockedCount = await _cacheService.GetAsync<long>("maintenance:blocked_count"),
             ModeType = "full",
         });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("maintenance/block")]
+    public async Task<IActionResult> IncrementBlocked()
+    {
+        var count = await _cacheService.GetAsync<long>("maintenance:blocked_count");
+        await _cacheService.SetAsync("maintenance:blocked_count", count + 1, null);
+        return Ok(new { blocked = count + 1 });
     }
 
     [Authorize(Roles = Roles.SuperAdmin)]

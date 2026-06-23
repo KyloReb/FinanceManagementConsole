@@ -249,6 +249,14 @@ app.Use(async (context, next) =>
     }
     if (!context.User.IsInRole(FMC.Shared.Auth.Roles.SuperAdmin))
     {
+        // Increment blocked counter in background
+        try
+        {
+            var config = context.RequestServices.GetRequiredService<IConfiguration>();
+            var baseUrl = config["ApiSettings:BaseUrl"] ?? "https://localhost:7026/";
+            _ = Task.Run(async () => { try { using var c = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(2) }; await c.PostAsync("api/system/maintenance/block", null); } catch { } });
+        }
+        catch { }
         context.Response.StatusCode = 503;
         context.Response.ContentType = "text/html; charset=utf-8";
         await context.Response.WriteAsync(MaintenancePage.FullLockHtml(cachedMsg ?? ""));

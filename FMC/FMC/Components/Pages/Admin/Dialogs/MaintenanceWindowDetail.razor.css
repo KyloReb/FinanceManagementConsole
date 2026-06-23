@@ -1,0 +1,160 @@
+/* ── Dialog shell ── */
+.sc-window-dialog .mud-dialog {
+    border-radius: 28px !important;
+    max-width: 380px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+.sc-window-dialog .mud-dialog-content { padding: 0 !important; }
+.sc-window-dialog .mud-dialog-actions {
+    padding: 8px 24px 24px !important;
+    background: transparent !important;
+}
+
+/* ── Glass surface ── */
+.sc-window-root {
+    position: relative;
+    padding: 32px 28px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    border-radius: 28px;
+    overflow: hidden;
+}
+
+.sc-window-root::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    z-index: 0;
+}
+.sc-window-root.dark::before {
+    background: rgba(12,12,16,0.78);
+}
+.sc-window-root.light::before {
+    background: rgba(255,255,255,0.65);
+}
+
+.sc-window-root::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.1) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: 1;
+    pointer-events: none;
+}
+.sc-window-root.light::after {
+    background: linear-gradient(135deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.02) 40%, rgba(0,0,0,0.04) 100%);
+}
+
+.sc-window-root > * { position: relative; z-index: 2; }
+
+/* ── Header row ── */
+.sc-window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Status badge ── */
+.sc-window-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 5px 14px 5px 10px;
+    border-radius: 20px;
+}
+.sc-window-status.active { background: rgba(255,61,0,0.08); color: #ff3d00; }
+.sc-window-status.resolved { background: rgba(90,154,74,0.08); color: #5a9a4a; }
+.sc-window-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+    animation: sc-pulse-window 2s infinite;
+}
+.sc-window-status.active .sc-window-dot { background: #ff3d00; box-shadow: 0 0 8px rgba(255,61,0,0.4); }
+.sc-window-status.resolved .sc-window-dot { background: #5a9a4a; animation: none; }
+@keyframes sc-pulse-window {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ── Duration ── */
+.sc-window-duration {
+    font-size: 22px;
+    font-weight: 900;
+    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--mud-palette-text-primary), rgba(128,128,128,0.6));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ── Section rows ── */
+.sc-window-section {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.sc-window-sub {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    opacity: 0.35;
+}
+.sc-window-value {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+.sc-window-meta {
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+/* ── Details card ── */
+.sc-window-detail {
+    font-size: 13px;
+    line-height: 1.6;
+    opacity: 0.75;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.sc-window-root.light .sc-window-detail {
+    background: rgba(0,0,0,0.03);
+    border-color: rgba(0,0,0,0.04);
+}
+
+/* ── Button ── */
+.sc-window-close-btn {
+    width: 100% !important;
+    border-radius: 16px !important;
+    height: 48px !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.02em !important;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
+    background: linear-gradient(135deg, #2d5a27, #3d7040) !important;
+    color: white !important;
+}
+.sc-window-close-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 8px 24px rgba(45,90,39,0.3) !important;
+}

@@ -721,11 +721,13 @@
     @@media (max-width:700px) {
         .sc-card-header { flex-direction:column; align-items:stretch; gap:8px; }
         .sc-card-header-left { width:100%; }
-        .sc-header-actions { width:100%; justify-content:flex-start; flex-wrap:nowrap; gap:4px; overflow-x:auto; }
-        .sc-date-btn { font-size:7px; padding:2px 5px; }
-        .sc-maint-date-input { width:52px; font-size:7px; padding:2px 4px; }
-        .sc-maint-date-sep { font-size:8px; }
-        .sc-icon-btn { font-size:7px; padding:3px 5px; gap:2px; }
+        .sc-header-actions { width:100%; justify-content:space-between; flex-wrap:nowrap; gap:4px; }
+        .sc-maint-date-group { flex:1; }
+        .sc-date-btn { font-size:8px; padding:3px 6px; flex:1; text-align:center; }
+        .sc-maint-date-inputs { flex:1.5; }
+        .sc-maint-date-input { width:auto; flex:1; min-width:0; font-size:9px; padding:3px 6px; }
+        .sc-maint-date-sep { font-size:9px; }
+        .sc-icon-btn { font-size:8px; padding:3px 6px; gap:2px; flex-shrink:0; }
         .sc-icon-btn svg { width:10px; height:10px; }
     }
     .sc-icon-btn {

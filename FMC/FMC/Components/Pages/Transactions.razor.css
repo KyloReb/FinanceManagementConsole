@@ -19,15 +19,15 @@
    The frosted-glass surface that wraps the table and filters. */
 .fmc-main-surface { border-radius: 20px; border: 1px solid var(--mud-palette-divider); overflow: hidden; transition: all 0.3s ease; }
 
-.fmc-light-mode .fmc-main-surface { 
-    background: rgba(241, 245, 249, 0.6) !important; /* Semi-transparent frosted slate */
+.fmc-light-mode ::deep .fmc-main-surface { 
+    background: rgba(241, 245, 249, 0.6) !important;
     backdrop-filter: blur(20px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
     border: 1px solid rgba(0, 0, 0, 0.1) !important;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06) !important;
 }
 
-.fmc-dark-mode .fmc-main-surface { 
+.fmc-dark-mode ::deep .fmc-main-surface { 
     background: rgba(18, 18, 22, 0.75) !important;
     backdrop-filter: blur(25px) saturate(200%) !important;
     -webkit-backdrop-filter: blur(25px) saturate(200%) !important;
@@ -45,11 +45,11 @@
     gap: 12px;
 }
 
-.fmc-light-mode .fmc-header-area {
+.fmc-light-mode ::deep .fmc-header-area {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.8) 100%) !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
-.fmc-dark-mode .fmc-header-area {
+.fmc-dark-mode ::deep .fmc-header-area {
     background: linear-gradient(135deg, rgba(var(--mud-palette-primary-rgb), 0.1) 0%, rgba(0, 0, 0, 0.2) 100%) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -141,17 +141,17 @@
     width: fit-content; /* Keeps the filter compact on desktop */
 }
 
-.fmc-light-mode .fmc-temporal-filter {
+.fmc-light-mode ::deep .fmc-temporal-filter {
     border: 1px solid rgba(0, 0, 0, 0.12) !important;
     background: rgba(0, 0, 0, 0.03) !important;
 }
 
-.fmc-dark-mode .fmc-temporal-filter {
+.fmc-dark-mode ::deep .fmc-temporal-filter {
     border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.15) !important;
 }
 
 .fmc-date-group { display: flex; gap: 2px; background: rgba(0,0,0,0.06); padding: 2px; border-radius: 7px; }
-.fmc-dark-mode .fmc-date-group { background: rgba(255,255,255,0.06); }
+.fmc-dark-mode ::deep .fmc-date-group { background: rgba(255,255,255,0.06); }
 
 .fmc-date-btn {
     padding: 4px 12px; border-radius: 5px; font-size: 0.6rem; font-weight: 950;
@@ -208,7 +208,7 @@
     border-color: rgba(var(--mud-palette-error-rgb), 0.2) !important;
 }
 
-.fmc-dark-mode .fmc-premium-action {
+.fmc-dark-mode ::deep .fmc-premium-action {
     background: rgba(255, 255, 255, 0.03) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }

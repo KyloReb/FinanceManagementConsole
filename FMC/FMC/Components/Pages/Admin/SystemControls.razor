@@ -719,7 +719,9 @@
     }
     .sc-maint-date-sep { font-size:10px; opacity:0.4; }
     @@media (max-width:700px) {
-        .sc-header-actions { justify-content:flex-start; }
+        .sc-card-header { flex-direction:column; align-items:stretch; gap:8px; }
+        .sc-card-header-left { width:100%; }
+        .sc-header-actions { width:100%; justify-content:flex-start; flex-wrap:wrap; }
         .sc-maint-date-input { width:70px; font-size:8px; }
     }
     .sc-icon-btn {

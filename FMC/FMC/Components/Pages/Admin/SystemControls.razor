@@ -642,17 +642,17 @@
 
     /* ── Pagination ── */
     .sc-pagination {
-        display:flex; align-items:center; justify-content:space-between; gap:12px;
-        margin-top:16px; padding:8px 4px; flex-wrap:wrap;
+        display:flex; align-items:center; gap:8px;
+        margin-top:16px; padding:8px 0;
     }
     .sc-pagination-info {
         font-size:11px; color:var(--mud-palette-text-secondary); opacity:0.6;
-        white-space:nowrap; order:1;
+        white-space:nowrap; flex-shrink:0;
     }
     .sc-pagination-controls {
-        display:flex; align-items:center; gap:4px; order:2;
+        display:flex; align-items:center; gap:3px;
+        flex:1; justify-content:center;
     }
-    .sc-page-size { order:3; }
     .sc-page-btn {
         display:inline-flex; align-items:center; justify-content:center;
         width:32px; height:32px; border-radius:8px;
@@ -664,13 +664,15 @@
     .sc-page-btn.active { background:#b8860b; color:white; border-color:#b8860b; }
     .sc-page-btn:disabled { opacity:0.3; cursor:not-allowed; }
     .sc-page-size {
-        padding:4px 8px; border-radius:8px; border:1px solid var(--sc-border);
+        padding:4px 6px; border-radius:8px; border:1px solid var(--sc-border);
         background:transparent; color:var(--mud-palette-text-primary);
-        font-size:11px; font-weight:700; cursor:pointer;
+        font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0;
     }
     @@media (max-width:500px) {
-        .sc-pagination { justify-content:center; gap:8px; }
-        .sc-pagination-info { width:100%; text-align:center; white-space:normal; }
+        .sc-pagination { gap:4px; }
+        .sc-pagination-info { font-size:9px; }
+        .sc-page-btn { width:28px; height:28px; font-size:10px; }
+        .sc-page-size { font-size:10px; padding:3px 5px; }
     }
 
     /* ── Active Banner ── */

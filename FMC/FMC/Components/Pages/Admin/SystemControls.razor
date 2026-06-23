@@ -309,9 +309,20 @@
                 <div class="sc-card-header-left">
                     <span class="sc-card-icon">&#128196;</span>
                     <span class="sc-card-title">Maintenance History</span>
-                    <span class="sc-schedule-pill" Style="font-size:9px;padding:3px 10px;">@(BuildTimelineWindows(_history).Count) windows</span>
+                    <span class="sc-schedule-pill" Style="font-size:9px;padding:3px 10px;">@(BuildTimelineWindows(_filteredHistory).Count) windows</span>
                 </div>
                 <div class="sc-header-actions">
+                    <div class="sc-maint-date-group">
+                        <button class="sc-date-btn @(_activeDateRange == "all" ? "active" : "")" @onclick='() => SetQuickDate("all")'>ALL</button>
+                        <button class="sc-date-btn @(_activeDateRange == "7d" ? "active" : "")" @onclick='() => SetQuickDate("7d")'>7D</button>
+                        <button class="sc-date-btn @(_activeDateRange == "30d" ? "active" : "")" @onclick='() => SetQuickDate("30d")'>30D</button>
+                        <button class="sc-date-btn @(_activeDateRange == "1y" ? "active" : "")" @onclick='() => SetQuickDate("1y")'>1Y</button>
+                    </div>
+                    <div class="sc-maint-date-inputs">
+                        <input type="date" class="sc-maint-date-input" value="@(_historyStart?.ToString("yyyy-MM-dd"))" @onchange='(e) => UpdateHistoryDate(e, true)' title="Starting period" />
+                        <span class="sc-maint-date-sep">–</span>
+                        <input type="date" class="sc-maint-date-input" value="@(_historyEnd?.ToString("yyyy-MM-dd"))" @onchange='(e) => UpdateHistoryDate(e, false)' title="Ending period" />
+                    </div>
                     <button class="sc-icon-btn" title="Export as Excel" @onclick="ExportHistoryExcel" disabled="@(_history.Count == 0)">
                         <svg xmlns="http://www.w3.org/2000/svg" height="14" width="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 18H9v-2h4v2zm6-9h-5V4.5L19 11z"/></svg>
                         Excel
@@ -327,7 +338,7 @@
                 {
                     <div class="sc-skeleton" style="height:60px;width:100%;"></div>
                 }
-                else if (_history.Count == 0)
+                else if (_filteredHistory.Count == 0)
                 {
                     <div class="sc-empty" Style="padding:20px 0;">
                         <span style="opacity:0.3;font-size:24px;">&#128203;</span>
@@ -336,7 +347,7 @@
                 }
                 else
                 {
-                    var allWindows = BuildTimelineWindows(_history).OrderByDescending(w => w.Start).ToList();
+                    var allWindows = BuildTimelineWindows(_filteredHistory).OrderByDescending(w => w.Start).ToList();
                     var totalWindows = allWindows.Count;
                     var totalPages = Math.Max(1, (int)Math.Ceiling((double)totalWindows / _pageSize));
                     if (_currentPage > totalPages) _currentPage = totalPages;
@@ -689,7 +700,28 @@
 
 
     /* ── Header Actions ── */
-    .sc-header-actions { display:flex; gap:6px; align-items:center; }
+    .sc-header-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .sc-maint-date-group { display:flex; gap:2px; }
+    .sc-date-btn {
+        padding:3px 8px; border-radius:6px; border:1px solid var(--sc-border);
+        background:transparent; color:var(--mud-palette-text-secondary);
+        font-size:9px; font-weight:800; cursor:pointer; transition:all 0.15s;
+        letter-spacing:0.04em;
+    }
+    .sc-date-btn:hover { border-color:#b8860b; color:#b8860b; }
+    .sc-date-btn.active { background:#b8860b; color:white; border-color:#b8860b; }
+    .sc-maint-date-inputs { display:flex; align-items:center; gap:4px; }
+    .sc-maint-date-input {
+        padding:3px 6px; border-radius:6px; border:1px solid var(--sc-border);
+        background:transparent; color:var(--mud-palette-text-primary);
+        font-size:9px; font-weight:700; width:90px; font-family:inherit;
+        color-scheme:light dark;
+    }
+    .sc-maint-date-sep { font-size:10px; opacity:0.4; }
+    @@media (max-width:700px) {
+        .sc-header-actions { justify-content:flex-start; }
+        .sc-maint-date-input { width:70px; font-size:8px; }
+    }
     .sc-icon-btn {
         display:inline-flex; align-items:center; gap:4px;
         padding:5px 10px; border-radius:8px; border:1px solid var(--sc-border);
@@ -767,9 +799,13 @@
     private string _scheduleMsg = "";
     private string? _scheduleError;
     private List<MaintenanceHistoryItem> _history = new();
+    private List<MaintenanceHistoryItem> _filteredHistory => ApplyDateFilter(_history);
     private bool _historyLoading;
     private int _pageSize = 10;
     private int _currentPage = 1;
+    private string _activeDateRange = "all";
+    private DateTime? _historyStart;
+    private DateTime? _historyEnd;
 
     protected override async Task OnInitializedAsync()
     {
@@ -1049,6 +1085,37 @@
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
         await DialogService.ShowAsync<FMC.Components.Pages.Admin.Dialogs.MaintenanceWindowDetail>("", new DialogParameters { ["Window"] = win }, options);
+    }
+
+    private void SetQuickDate(string range)
+    {
+        _activeDateRange = range;
+        _currentPage = 1;
+        var today = DateTime.Today;
+        switch (range)
+        {
+            case "7d": _historyStart = today.AddDays(-7); _historyEnd = today.AddDays(1).AddTicks(-1); break;
+            case "30d": _historyStart = today.AddDays(-30); _historyEnd = today.AddDays(1).AddTicks(-1); break;
+            case "1y": _historyStart = today.AddYears(-1); _historyEnd = today.AddDays(1).AddTicks(-1); break;
+            default: _historyStart = null; _historyEnd = null; break;
+        }
+    }
+
+    private void UpdateHistoryDate(ChangeEventArgs e, bool isStart)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            if (isStart) _historyStart = dt;
+            else _historyEnd = dt.AddDays(1).AddTicks(-1);
+            _activeDateRange = "custom";
+            _currentPage = 1;
+        }
+    }
+
+    private List<MaintenanceHistoryItem> ApplyDateFilter(List<MaintenanceHistoryItem> items)
+    {
+        if (_historyStart == null && _historyEnd == null) return items;
+        return items.Where(e => e.CreatedAt >= (_historyStart ?? DateTime.MinValue) && e.CreatedAt <= (_historyEnd ?? DateTime.MaxValue)).ToList();
     }
 
     private static string FormatAction(string? action)

@@ -1,16 +1,27 @@
-/* ── Dialog shell — single glass surface ── */
+/* ── Outer dialog — invisible shell ── */
 .sc-window-dialog .mud-dialog {
     border-radius: 28px !important;
     max-width: 380px !important;
     background: transparent !important;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.15) !important;
-    overflow: hidden !important;
+    box-shadow: none !important;
+    overflow: visible !important;
     position: relative;
 }
 .sc-window-dialog .mud-dialog-content { padding: 0 !important; }
 
-/* ── Glass backdrop ── */
-.sc-window-dialog .mud-dialog::before {
+/* ── Glass surface ── */
+.sc-window-root {
+    position: relative;
+    padding: 32px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+}
+
+.sc-window-root::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -19,17 +30,15 @@
     backdrop-filter: blur(32px) saturate(180%);
     -webkit-backdrop-filter: blur(32px) saturate(180%);
     z-index: 0;
-    pointer-events: none;
 }
-body[class*="dark"] .sc-window-dialog .mud-dialog::before {
+.sc-window-root.dark::before {
     background: rgba(12,12,16,0.78);
 }
-body:not([class*="dark"]) .sc-window-dialog .mud-dialog::before {
+.sc-window-root.light::before {
     background: rgba(255,255,255,0.65);
 }
 
-/* ── Subtle border ── */
-.sc-window-dialog .mud-dialog::after {
+.sc-window-root::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -42,23 +51,11 @@ body:not([class*="dark"]) .sc-window-dialog .mud-dialog::before {
     z-index: 1;
     pointer-events: none;
 }
-body:not([class*="dark"]) .sc-window-dialog .mud-dialog::after {
+.sc-window-root.light::after {
     background: linear-gradient(135deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.02) 40%, rgba(0,0,0,0.04) 100%);
 }
 
-/* ── Content above glass ── */
-.sc-window-dialog .mud-dialog > .mud-dialog-content {
-    position: relative;
-    z-index: 2;
-}
-
-/* ── Inner layout ── */
-.sc-window-root {
-    padding: 32px 28px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-}
+.sc-window-root > * { position: relative; z-index: 2; }
 
 /* ── Header row ── */
 .sc-window-header {
@@ -138,7 +135,7 @@ body:not([class*="dark"]) .sc-window-dialog .mud-dialog::after {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.04);
 }
-body:not([class*="dark"]) .sc-window-detail {
+.sc-window-root.light .sc-window-detail {
     background: rgba(0,0,0,0.03);
     border-color: rgba(0,0,0,0.04);
 }

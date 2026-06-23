@@ -1,25 +1,16 @@
-/* ── Dialog shell ── */
+/* ── Dialog shell — single glass surface ── */
 .sc-window-dialog .mud-dialog {
     border-radius: 28px !important;
     max-width: 380px !important;
     background: transparent !important;
     box-shadow: 0 12px 48px rgba(0,0,0,0.15) !important;
     overflow: hidden !important;
+    position: relative;
 }
 .sc-window-dialog .mud-dialog-content { padding: 0 !important; }
 
-/* ── Glass surface ── */
-.sc-window-root {
-    position: relative;
-    padding: 32px 28px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-    border-radius: 28px;
-    overflow: hidden;
-}
-
-.sc-window-root::before {
+/* ── Glass backdrop ── */
+.sc-window-dialog .mud-dialog::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -28,15 +19,17 @@
     backdrop-filter: blur(32px) saturate(180%);
     -webkit-backdrop-filter: blur(32px) saturate(180%);
     z-index: 0;
+    pointer-events: none;
 }
-.sc-window-root.dark::before {
+body[class*="dark"] .sc-window-dialog .mud-dialog::before {
     background: rgba(12,12,16,0.78);
 }
-.sc-window-root.light::before {
+body:not([class*="dark"]) .sc-window-dialog .mud-dialog::before {
     background: rgba(255,255,255,0.65);
 }
 
-.sc-window-root::after {
+/* ── Subtle border ── */
+.sc-window-dialog .mud-dialog::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -49,11 +42,23 @@
     z-index: 1;
     pointer-events: none;
 }
-.sc-window-root.light::after {
+body:not([class*="dark"]) .sc-window-dialog .mud-dialog::after {
     background: linear-gradient(135deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.02) 40%, rgba(0,0,0,0.04) 100%);
 }
 
-.sc-window-root > * { position: relative; z-index: 2; }
+/* ── Content above glass ── */
+.sc-window-dialog .mud-dialog > .mud-dialog-content {
+    position: relative;
+    z-index: 2;
+}
+
+/* ── Inner layout ── */
+.sc-window-root {
+    padding: 32px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
 
 /* ── Header row ── */
 .sc-window-header {
@@ -133,7 +138,7 @@
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.04);
 }
-.sc-window-root.light .sc-window-detail {
+body:not([class*="dark"]) .sc-window-detail {
     background: rgba(0,0,0,0.03);
     border-color: rgba(0,0,0,0.04);
 }

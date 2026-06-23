@@ -3,7 +3,7 @@
 
 <MudDialog Class="sc-window-dialog">
     <DialogContent>
-        <div class="sc-window-root @(ThemeService.IsDarkMode ? "dark" : "light")">
+        <div class="sc-window-root">
             <div class="sc-window-header">
                 <div class="sc-window-status @(_window.IsActive ? "active" : "resolved")">
                     <span class="sc-window-dot"></span>
@@ -42,7 +42,6 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Inject] private FMC.Services.ThemeService ThemeService { get; set; } = default!;
 
     [Parameter] public TimelineWindow Window { get; set; } = new();
 

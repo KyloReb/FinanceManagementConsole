@@ -505,10 +505,10 @@
     color: #1e293b !important;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08), 0 0 25px rgba(var(--mud-palette-primary-rgb), 0.05) !important;
 }
-.fmc-light-mode ::deep .tooltip-val {
+.fmc-light-mode ::deep .fmc-row-tooltip .tooltip-val {
     color: #0f172a !important;
 }
-.fmc-light-mode ::deep .tooltip-lbl {
+.fmc-light-mode ::deep .fmc-row-tooltip .tooltip-lbl {
     color: #64748b !important;
 }
 
@@ -603,6 +603,10 @@
 .fmc-light-mode ::deep .fmc-row-tooltip .tooltip-footer {
     border-top-color: rgba(0, 0, 0, 0.06) !important;
     color: rgba(0, 0, 0, 0.4) !important;
+}
+.fmc-dark-mode ::deep .fmc-row-tooltip .tooltip-footer {
+    border-top-color: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.35) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════

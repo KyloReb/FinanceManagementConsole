@@ -3,8 +3,8 @@
     border-radius: 28px !important;
     max-width: 380px !important;
     background: transparent !important;
-    box-shadow: none !important;
-    overflow: visible !important;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.15) !important;
+    overflow: hidden !important;
 }
 .sc-window-dialog .mud-dialog-content { padding: 0 !important; }
 .sc-window-dialog .mud-dialog-actions {

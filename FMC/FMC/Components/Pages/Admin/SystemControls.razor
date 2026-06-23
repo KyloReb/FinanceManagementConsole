@@ -426,6 +426,11 @@
     }
 </MudContainer>
 
+@if (_selectedWindow != null)
+{
+    <FMC.Components.Pages.Admin.Dialogs.MaintenanceWindowDetail Window="@_selectedWindow" OnClose="() => _selectedWindow = null" />
+}
+
 <style>
     /* ── Premium Header ── */
     .sc-premium-header { display: flex; align-items: center; }
@@ -813,6 +818,7 @@
     private string _activeDateRange = "all";
     private DateTime? _historyStart;
     private DateTime? _historyEnd;
+    private TimelineWindow? _selectedWindow;
 
     protected override async Task OnInitializedAsync()
     {
@@ -1088,10 +1094,9 @@
 
     public void Dispose() { }
 
-    private async Task ShowWindowDetail(TimelineWindow win)
+    private void ShowWindowDetail(TimelineWindow win)
     {
-        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
-        await DialogService.ShowAsync<FMC.Components.Pages.Admin.Dialogs.MaintenanceWindowDetail>("", new DialogParameters { ["Window"] = win }, options);
+        _selectedWindow = win;
     }
 
     private void SetQuickDate(string range)

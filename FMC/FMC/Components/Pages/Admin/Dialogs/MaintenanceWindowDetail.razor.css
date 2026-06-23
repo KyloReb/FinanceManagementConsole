@@ -1,17 +1,20 @@
-/* ── Outer dialog — invisible shell ── */
-.sc-window-dialog .mud-dialog {
-    border-radius: 28px !important;
-    max-width: 380px !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    position: relative;
+/* ── Overlay ── */
+.sc-window-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.3);
 }
-.sc-window-dialog .mud-dialog-content { padding: 0 !important; }
 
-/* ── Glass surface ── */
+/* ── Glass card ── */
 .sc-window-root {
     position: relative;
+    width: 100%;
+    max-width: 380px;
     padding: 32px 28px 28px;
     display: flex;
     flex-direction: column;
@@ -31,12 +34,8 @@
     -webkit-backdrop-filter: blur(32px) saturate(180%);
     z-index: 0;
 }
-.sc-window-root.dark::before {
-    background: rgba(12,12,16,0.78);
-}
-.sc-window-root.light::before {
-    background: rgba(255,255,255,0.65);
-}
+.sc-window-root.dark::before { background: rgba(12,12,16,0.78); }
+.sc-window-root.light::before { background: rgba(255,255,255,0.65); }
 
 .sc-window-root::after {
     content: '';
@@ -57,7 +56,7 @@
 
 .sc-window-root > * { position: relative; z-index: 2; }
 
-/* ── Header row ── */
+/* ── Header ── */
 .sc-window-header {
     display: flex;
     align-items: center;
@@ -81,14 +80,10 @@
 .sc-window-dot {
     width: 8px; height: 8px; border-radius: 50%;
     display: inline-block;
-    animation: sc-pulse-window 2s infinite;
 }
-.sc-window-status.active .sc-window-dot { background: #ff3d00; box-shadow: 0 0 8px rgba(255,61,0,0.4); }
-.sc-window-status.resolved .sc-window-dot { background: #5a9a4a; animation: none; }
-@keyframes sc-pulse-window {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-}
+.sc-window-status.active .sc-window-dot { background: #ff3d00; box-shadow: 0 0 8px rgba(255,61,0,0.4); animation: sc-pulse-window 2s infinite; }
+.sc-window-status.resolved .sc-window-dot { background: #5a9a4a; }
+@keyframes sc-pulse-window { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 
 /* ── Duration ── */
 .sc-window-duration {
@@ -102,36 +97,16 @@
     background-clip: text;
 }
 
-/* ── Section rows ── */
-.sc-window-section {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-.sc-window-sub {
-    font-size: 9px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    opacity: 0.35;
-}
-.sc-window-value {
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-.sc-window-meta {
-    font-size: 12px;
-    opacity: 0.5;
-}
+/* ── Sections ── */
+.sc-window-section { display:flex; flex-direction:column; gap:3px; }
+.sc-window-sub { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.12em; opacity:0.35; }
+.sc-window-value { font-size:17px; font-weight:700; letter-spacing:-0.01em; }
+.sc-window-meta { font-size:12px; opacity:0.5; }
 
-/* ── Details card ── */
+/* ── Details ── */
 .sc-window-detail {
-    font-size: 13px;
-    line-height: 1.6;
-    opacity: 0.75;
-    padding: 12px 14px;
-    border-radius: 12px;
+    font-size: 13px; line-height: 1.6; opacity: 0.75;
+    padding: 12px 14px; border-radius: 12px;
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.04);
 }
@@ -142,10 +117,20 @@
 
 /* ── Button ── */
 .sc-window-close-btn {
-    width: 100% !important;
-    border-radius: 16px !important;
-    height: 48px !important;
-    font-weight: 800 !important;
-    font-size: 14px !important;
-    letter-spacing: 0.02em !important;
+    width: 100%;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    background: linear-gradient(135deg, #2d5a27, #3d7040);
+    color: white;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.sc-window-close-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(45,90,39,0.3);
 }

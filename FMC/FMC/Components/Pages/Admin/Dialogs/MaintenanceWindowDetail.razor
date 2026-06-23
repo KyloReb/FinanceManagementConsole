@@ -1,50 +1,48 @@
-@using MudBlazor
 @using FMC.Components.Pages.Admin
+@inject IJSRuntime JS
 
-<MudDialog Class="sc-window-dialog">
-    <DialogContent>
-        <div class="sc-window-root @(ThemeService.IsDarkMode ? "dark" : "light")">
-            <div class="sc-window-header">
-                <div class="sc-window-status @(_window.IsActive ? "active" : "resolved")">
-                    <span class="sc-window-dot"></span>
-                    @(_window.IsActive ? "Active" : "Resolved")
-                </div>
-                <span class="sc-window-duration">@FormatDuration((_window.End - _window.Start).TotalMinutes)</span>
+<div class="sc-window-overlay" @onclick="Close">
+    <div class="sc-window-root @(ThemeService.IsDarkMode ? "dark" : "light")" @onclick:stopPropagation>
+        <div class="sc-window-header">
+            <div class="sc-window-status @(_window.IsActive ? "active" : "resolved")">
+                <span class="sc-window-dot"></span>
+                @(_window.IsActive ? "Active" : "Resolved")
             </div>
-
-            <div class="sc-window-section">
-                <div class="sc-window-sub">Activated</div>
-                <div class="sc-window-value">@FormatTimestamp(_window.Start)</div>
-                <div class="sc-window-meta">by @(_window.ActivatedBy ?? "System")</div>
-            </div>
-
-            @if (!_window.IsActive)
-            {
-                <div class="sc-window-section">
-                    <div class="sc-window-sub">Deactivated</div>
-                    <div class="sc-window-value">@FormatTimestamp(_window.End)</div>
-                    <div class="sc-window-meta">by @(_window.DeactivatedBy ?? "System")</div>
-                </div>
-            }
-
-            @if (!string.IsNullOrEmpty(_window.Details))
-            {
-                <div class="sc-window-section">
-                    <div class="sc-window-sub">Details</div>
-                    <div class="sc-window-detail">@_window.Details</div>
-                </div>
-            }
-
-            <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="Close" Class="sc-window-close-btn">Got it</MudButton>
+            <span class="sc-window-duration">@FormatDuration((_window.End - _window.Start).TotalMinutes)</span>
         </div>
-    </DialogContent>
-</MudDialog>
+
+        <div class="sc-window-section">
+            <div class="sc-window-sub">Activated</div>
+            <div class="sc-window-value">@FormatTimestamp(_window.Start)</div>
+            <div class="sc-window-meta">by @(_window.ActivatedBy ?? "System")</div>
+        </div>
+
+        @if (!_window.IsActive)
+        {
+            <div class="sc-window-section">
+                <div class="sc-window-sub">Deactivated</div>
+                <div class="sc-window-value">@FormatTimestamp(_window.End)</div>
+                <div class="sc-window-meta">by @(_window.DeactivatedBy ?? "System")</div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(_window.Details))
+        {
+            <div class="sc-window-section">
+                <div class="sc-window-sub">Details</div>
+                <div class="sc-window-detail">@_window.Details</div>
+            </div>
+        }
+
+        <button class="sc-window-close-btn" @onclick="Close">Got it</button>
+    </div>
+</div>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Inject] private FMC.Services.ThemeService ThemeService { get; set; } = default!;
 
     [Parameter] public TimelineWindow Window { get; set; } = new();
+    [Parameter] public EventCallback OnClose { get; set; }
 
     private TimelineWindow _window = new();
 
@@ -53,7 +51,10 @@
         _window = Window;
     }
 
-    private void Close() => MudDialog.Close();
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
 
     private static string FormatDuration(double totalMinutes)
     {

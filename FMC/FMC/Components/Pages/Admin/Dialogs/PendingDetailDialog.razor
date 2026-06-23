@@ -8,6 +8,7 @@
 @inject AdminService AdminService
 @inject IJSRuntime JS
 @inject FMC.Services.IReportService ReportService
+@inject FMC.Services.ThemeService ThemeService
 
 <MudDialog>
     <TitleContent>
@@ -18,7 +19,8 @@
     </TitleContent>
 
     <DialogContent>
-        <div class="fmc-details-container">
+        <div class="fmc-dialog-content-root @(ThemeService.IsDarkMode ? "fmc-dark" : "fmc-light")">
+            <div class="fmc-details-container">
 
             <!-- ════ Summary Header: Amount + Status + Date ════ -->
             <div class="fmc-summary-header">
@@ -415,6 +417,7 @@
                 <div class="fmc-success-subtext">@_errorSubtext</div>
             </div>
         }
+        </div>
     </DialogContent>
 
     <!-- ════ Dialog Actions ════ -->

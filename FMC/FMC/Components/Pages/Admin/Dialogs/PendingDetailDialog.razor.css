@@ -5,9 +5,17 @@
            success/error overlays, and mobile-first responsive layout.
    =========================================================================== */
 
+/* ── Theme-aware dialog surface ── */
+::deep .mud-dialog {
+    background: var(--mud-palette-surface) !important;
+}
+.fmc-dialog-content-root {
+    background: var(--mud-palette-surface);
+    border-radius: inherit;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    1. DIALOG CONTAINER & UTILITY CLASSES
-   ──────────────────────────────────────────────────────────────────────────── */
 
 /* Outer surface for the detail content area */
 .fmc-details-container {

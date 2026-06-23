@@ -7,15 +7,11 @@
     overflow: hidden !important;
 }
 .sc-window-dialog .mud-dialog-content { padding: 0 !important; }
-.sc-window-dialog .mud-dialog-actions {
-    padding: 8px 24px 24px !important;
-    background: transparent !important;
-}
 
 /* ── Glass surface ── */
 .sc-window-root {
     position: relative;
-    padding: 32px 28px 12px;
+    padding: 32px 28px 28px;
     display: flex;
     flex-direction: column;
     gap: 22px;
@@ -150,11 +146,4 @@
     font-weight: 800 !important;
     font-size: 14px !important;
     letter-spacing: 0.02em !important;
-    transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
-    background: linear-gradient(135deg, #2d5a27, #3d7040) !important;
-    color: white !important;
-}
-.sc-window-close-btn:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 8px 24px rgba(45,90,39,0.3) !important;
 }

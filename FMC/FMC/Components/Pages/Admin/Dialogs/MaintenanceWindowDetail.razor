@@ -34,11 +34,10 @@
                     <div class="sc-window-detail">@_window.Details</div>
                 </div>
             }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="Close" Class="sc-window-close-btn">Got it</MudButton>
         </div>
     </DialogContent>
-    <DialogActions>
-        <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="Close" Class="sc-window-close-btn">Got it</MudButton>
-    </DialogActions>
 </MudDialog>
 
 @code {

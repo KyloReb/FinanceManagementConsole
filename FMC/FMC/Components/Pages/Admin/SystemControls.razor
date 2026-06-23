@@ -485,9 +485,9 @@
         padding:20px 28px; border-bottom:1px solid var(--sc-border);
         gap:12px; flex-wrap:wrap;
     }
-    .sc-card-header-left { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-    .sc-card-icon { font-size:16px; opacity:0.5; }
-    .sc-card-title { font-size:16px; font-weight:900; letter-spacing:-0.01em; color:var(--mud-palette-text-primary); }
+    .sc-card-header-left { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+    .sc-card-title { font-size:16px; font-weight:900; letter-spacing:-0.01em; color:var(--mud-palette-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sc-card-icon, .sc-schedule-pill, .sc-status-pill { flex-shrink:0; }
     .sc-card-body { padding:24px 28px; }
 
     /* ── Status Pill ── */
